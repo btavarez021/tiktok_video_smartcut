@@ -1,0 +1,48 @@
+first_clip:
+  file: img_3753.mov
+  text: "Your world can break in seconds\u2014could you start over?"
+  duration: 6.74
+  start_time: 0.0
+  text_color: white
+  scale: 1.0
+  voice: alloy
+middle_clips:
+- file: img_3780.mov
+  text: "Tonight, one decision could change your life forever\u2014are you ready?"
+  duration: 5.0
+  start_time: 0.0
+  text_color: white
+  scale: 1.0
+  voice: alloy
+- file: img_3782.mov
+  text: "Every shadow tonight hides a secret you won\u2019t see coming."
+  duration: 6.0
+  start_time: 0.0
+  text_color: white
+  scale: 1.0
+  voice: alloy
+last_clip:
+  file: img_3785.mov
+  text: Will you seize today's magic or let it fade away?
+  duration: 5.0
+  start_time: 0.0
+  text_color: yellow
+  scale: 1.0
+  voice: alloy
+music:
+  style: luxury modern hotel aesthetic
+  bpm: 70
+  mood: calm, elegant, sunset rooftop energy
+  volume: 0.25
+render:
+  fg_scale_default: 0.9
+  tts_voice: verse
+  tts_enabled: true
+cta:
+  enabled: true
+  text: Book now!
+  text_color: white
+  duration: 3.0
+  scale: 1.0
+  position: bottom
+  voiceover: true

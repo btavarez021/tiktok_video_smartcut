@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TikTok Creator Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <!-- Global loader overlay -->
+  <div id="global-loader" class="global-loader hidden">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Working…</div>
+  </div>
+
+  <div class="app-shell">
+    <!-- LEFT: main workflow -->
+    <main class="main-panel">
+      <header class="app-header">
+        <div>
+          <h1>TikTok Creator Assistant</h1>
+          <p class="subtitle">
+            Step-by-step workflow for hotel / travel TikToks. Analyze → Script → Settings → Timings → Export.
+          </p>
+        </div>
+        <div class="badge">BETA</div>
+      </header>
+
+      <!-- Stepper bar -->
+      <section class="stepper">
+        <div class="step active">
+          <span class="step-number">1</span>
+          <span class="step-label">Analyze Videos</span>
+        </div>
+        <div class="step">
+          <span class="step-number">2</span>
+          <span class="step-label">Generate YAML</span>
+        </div>
+        <div class="step">
+          <span class="step-number">3</span>
+          <span class="step-label">Caption & Settings</span>
+        </div>
+        <div class="step">
+          <span class="step-number">4</span>
+          <span class="step-label">Timings</span>
+        </div>
+        <div class="step">
+          <span class="step-number">5</span>
+          <span class="step-label">Export</span>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <!-- LEFT COLUMN: steps -->
+        <div class="steps-column">
+
+          <!-- STEP 1: Analyze -->
+          <section class="card">
+            <div class="card-header">
+              <h2>Step 1 · Analyze Your Clips</h2>
+              <p>Scan videos in <code>tik_tok_downloads/</code> and let the LLM describe each scene.</p>
+            </div>
+            <div class="card-body">
+              <button id="btn-analyze" class="btn primary">
+                <span class="btn-label">Analyze Videos</span>
+                <span class="spinner" id="spinner-analyze"></span>
+              </button>
+              <p id="status-analyze" class="status-text"></p>
+              <!-- Scrollable analysis box -->
+              <div id="analysis-list" class="analysis-box"></div>
+            </div>
+          </section>
+
+          <!-- STEP 2: YAML & Caption style -->
+          <section class="card">
+            <div class="card-header">
+              <h2>Step 2 · YAML Config & Caption Style</h2>
+              <p>Generate your <code>config.yml</code> and choose caption style.</p>
+            </div>
+            <div class="card-body">
+              <div class="button-row">
+                <button id="btn-generate-yaml" class="btn secondary">
+                  <span class="btn-label">Generate YAML (LLM)</span>
+                  <span class="spinner" id="spinner-yaml"></span>
+                </button>
+                <button id="btn-refresh-config" class="btn ghost">
+                  Refresh from config.yml
+                </button>
+              </div>
+
+              <p id="status-yaml" class="status-text"></p>
+
+              <div class="caption-style-group">
+                <span class="label">Caption style (overlay):</span>
+                <div class="button-row">
+                  <button class="btn chip" data-style="punchy">Punchy</button>
+                  <button class="btn chip" data-style="cinematic">Cinematic</button>
+                  <button class="btn chip" data-style="descriptive">Descriptive</button>
+                </div>
+                <p class="hint">
+                  These map to your <code>/overlay</code> logic and will rewrite captions in <code>config.yml</code>.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- STEP 3: Settings (TTS, CTA, Foreground scale) -->
+          <section class="card">
+            <div class="card-header">
+              <h2>Step 3 · Voiceover, CTA & Layout</h2>
+              <p>Control narration, call-to-action clip, and foreground framing.</p>
+            </div>
+            <div class="card-body settings-grid">
+              <!-- TTS block -->
+              <div class="settings-block">
+                <h3>Voiceover (TTS)</h3>
+                <label class="toggle">
+                  <input type="checkbox" id="tts-enabled" />
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">Enable AI narration</span>
+                </label>
+                <label class="field">
+                  <span>Voice</span>
+                  <select id="tts-voice">
+                    <option value="alloy">Alloy</option>
+                    <option value="verse">Verse</option>
+                    <option value="coral">Coral</option>
+                    <option value="sage">Sage</option>
+                    <option value="amber">Amber</option>
+                    <option value="onyx">Onyx</option>
+                  </select>
+                </label>
+                <button id="btn-apply-tts" class="btn small primary">
+                  <span class="btn-label">Apply TTS</span>
+                  <span class="spinner" id="spinner-tts"></span>
+                </button>
+                <p id="status-tts" class="status-text"></p>
+              </div>
+
+              <!-- CTA block -->
+              <div class="settings-block">
+                <h3>CTA Clip</h3>
+                <label class="toggle">
+                  <input type="checkbox" id="cta-enabled" />
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">Add CTA at end</span>
+                </label>
+                <label class="field">
+                  <span>CTA Text</span>
+                  <textarea id="cta-text" rows="2"
+                    placeholder="Book now and save 10% with the link in bio..."></textarea>
+                </label>
+                <label class="field inline">
+                  <span>Voiceover for CTA</span>
+                  <input type="checkbox" id="cta-voiceover" />
+                </label>
+                <button id="btn-apply-cta" class="btn small primary">
+                  <span class="btn-label">Apply CTA</span>
+                  <span class="spinner" id="spinner-cta"></span>
+                </button>
+                <p id="status-cta" class="status-text"></p>
+              </div>
+
+              <!-- Foreground scale block -->
+              <div class="settings-block full-width">
+                <h3>Foreground & Blur Border</h3>
+                <label class="field">
+                  <span>Foreground scale (fg_scale_default)</span>
+                  <input type="range" id="fg-scale" min="0.7" max="1.2" step="0.01" value="1.0" />
+                  <div class="range-labels">
+                    <span>More blur / inset</span>
+                    <span id="fg-scale-value">1.00</span>
+                    <span>Less blur / zoomed in</span>
+                  </div>
+                </label>
+                <button id="btn-apply-fgscale" class="btn small secondary">
+                  <span class="btn-label">Update Layout</span>
+                  <span class="spinner" id="spinner-fgscale"></span>
+                </button>
+                <p id="status-fgscale" class="status-text"></p>
+                <p class="hint">
+                  This maps to <code>render.fg_scale_default</code> in your config.
+                  Lower = more background blur, higher = more foreground.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- STEP 4: Timings -->
+          <section class="card">
+            <div class="card-header">
+              <h2>Step 4 · Timings</h2>
+              <p>Standard FIX-C or smart pacing to balance clips.</p>
+            </div>
+            <div class="card-body">
+              <div class="button-row spaced">
+                <button id="btn-timings-fixc" class="btn secondary">
+                  <span class="btn-label">Standard FIX-C</span>
+                  <span class="spinner" id="spinner-timings-fixc"></span>
+                </button>
+                <button id="btn-timings-smart" class="btn secondary">
+                  <span class="btn-label">Smart pacing</span>
+                  <span class="spinner" id="spinner-timings-smart"></span>
+                </button>
+              </div>
+              <p class="hint">
+                <strong>Standard FIX-C:</strong> uses exact durations you set.<br />
+                <strong>Smart pacing:</strong> lets the LLM rebalance lengths to keep
+                hooks tight, middle clips flowing, and endings punchy.
+              </p>
+              <p id="status-timings" class="status-text"></p>
+            </div>
+          </section>
+
+          <!-- STEP 5: Export -->
+          <section class="card">
+            <div class="card-header">
+              <h2>Step 5 · Export</h2>
+              <p>Render your final TikTok with voiceover, music, CTA, and all settings.</p>
+            </div>
+            <div class="card-body">
+              <button id="btn-export" class="btn primary">
+                <span class="btn-label">Export Final Video</span>
+                <span class="spinner" id="spinner-export"></span>
+              </button>
+              <p id="status-export" class="status-text"></p>
+            </div>
+          </section>
+        </div>
+
+        <!-- RIGHT COLUMN: YAML + Chat -->
+        <div class="side-column">
+          <!-- YAML preview -->
+          <section class="card yaml-card">
+            <div class="card-header compact">
+              <h2>Live config.yml Preview</h2>
+              <p>Updates after Analyze / YAML / Settings / Timings.</p>
+            </div>
+            <div class="card-body">
+              <pre id="yaml-preview" class="code-block">Loading config.yml…</pre>
+            </div>
+          </section>
+
+          <!-- Chat panel -->
+          <section class="card chat-card">
+            <div class="card-header compact">
+              <h2>LLM Creative Assistant</h2>
+              <p>Ask for hooks, captions, storylines or ideas.</p>
+            </div>
+            <div class="card-body chat-body">
+              <div id="chat-messages" class="chat-messages">
+                <div class="chat-message assistant">
+                  <div class="bubble">
+                    Hey! I can help you craft hooks, captions, CTAs, and storylines
+                    for your current video set. Ask me anything.
+                  </div>
+                </div>
+              </div>
+              <form id="chat-form" class="chat-input-row">
+                <input
+                  type="text"
+                  id="chat-input"
+                  placeholder="Ask for 3 hooks, a storyline, or caption ideas…"
+                  autocomplete="off"
+                />
+                <button type="submit" class="btn small primary" id="chat-send-btn">
+                  <span class="btn-label">Send</span>
+                  <span class="spinner" id="spinner-chat"></span>
+                </button>
+              </form>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
