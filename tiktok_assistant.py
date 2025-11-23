@@ -18,14 +18,14 @@ TEXT_MODEL = "gpt-4.1-mini"  # adjust if you want
 # -------------------------------------------------
 # S3 CONFIG
 # -------------------------------------------------
-S3_BUCKET = os.environ.get("S3_BUCKET")
-if not S3_BUCKET:
-    raise RuntimeError("S3_BUCKET environment variable is required")
+S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
+if not S3_BUCKET_NAME:
+    raise RuntimeError("S3_BUCKET_NAME environment variable is required")
 
 S3_REGION = os.environ.get("S3_REGION", "us-east-1")
 
 # Public URL base for exported videos
-S3_PUBLIC_BASE = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com"
+S3_PUBLIC_BASE = f"https://{S3_BUCKET_NAME}.s3.{S3_REGION}.amazonaws.com"
 
 # Prefix for raw uploads (matches app.py)
 RAW_PREFIX = "raw_uploads"
@@ -48,7 +48,7 @@ def list_videos_from_s3() -> List[str]:
     Return list of .mp4/.mov/.avi keys under raw_uploads/.
     """
     prefix = f"{RAW_PREFIX}/"
-    resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix=prefix)
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
     files: List[str] = []
 
     for obj in resp.get("Contents", []):
@@ -66,7 +66,7 @@ def download_s3_video(key: str) -> Optional[str]:
     ext = os.path.splitext(key)[1] or ".mp4"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
     try:
-        s3.download_fileobj(S3_BUCKET, key, tmp)
+        s3.download_fileobj(S3_BUCKET_NAME, key, tmp)
         tmp.close()
         return tmp.name
     except Exception as e:

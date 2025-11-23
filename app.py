@@ -7,7 +7,7 @@ import tempfile
 
 from tiktok_assistant import (
     s3,
-    S3_BUCKET,
+    S3_BUCKET_NAME,
     S3_PUBLIC_BASE,
     list_videos_from_s3,
     download_s3_video,
@@ -76,7 +76,7 @@ def upload_route():
 
     filename = file.filename
     key = f"{RAW_PREFIX}/{filename}"
-    s3.upload_fileobj(file, S3_BUCKET, key)
+    s3.upload_fileobj(file, S3_BUCKET_NAME, key)
 
     return jsonify({"success": True, "file": filename})
 
@@ -159,7 +159,7 @@ def export_route():
 
     # 5. Upload final to S3
     final_key = f"exports/final_{int(time.time())}.mp4"
-    s3.upload_file(output_path, S3_BUCKET, final_key)
+    s3.upload_file(output_path, S3_BUCKET_NAME, final_key)
 
     url = f"{S3_PUBLIC_BASE}/{final_key}"
 
