@@ -1,65 +1,52 @@
-# tiktok_assistant.py  — Assistant-only (FIX-C everywhere)
-
+# tiktok_assistant.py
 import os
 import re
 import json
 import yaml
 import base64
 import random
-# from dotenv import load_dotenv
-from openai import OpenAI
-from moviepy.editor import VideoFileClip  # only for durations + frame grabs
-from tiktok_template import normalize_video_ffmpeg
 import logging
-from cache_store import load_cache, save_cache
-import boto3
 import tempfile
+import subprocess
+
+import boto3
+from openai import OpenAI
+from moviepy.editor import VideoFileClip
+
+from cache_store import load_cache, save_cache
 
 # =============================================================
-# Configure Logging
+# Logging
 # =============================================================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
-log_dir = os.path.join(BASE_DIR, "logs/assistant") # Define the directory path
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+log_dir = os.path.join(BASE_DIR, "logs", "assistant")
+os.makedirs(log_dir, exist_ok=True)
 log_file_path = os.path.join(log_dir, "tiktok_assistant.log")
 
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir, exist_ok=True)
-
 logging.basicConfig(
-    level=logging.INFO, # Set to logging.DEBUG for more verbose output
+    level=logging.INFO,
     filename=log_file_path,
-    filemode='a', 
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    filemode="a",
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
-
-# ==============================
-# CONFIG
-# ==============================
+# =============================================================
+# OpenAI / Models
+# =============================================================
 MOCK_MODE = False
-INSTANT_APPLY = True  # toggle with: /instant on | /instant off
-VISION_MODEL = "gpt-4o"     # for scene description from frames
-TEXT_MODEL   = "gpt-4.1"    # for captions/hashtags/hooks etc.
+VISION_MODEL = "gpt-4o"
+TEXT_MODEL = "gpt-4.1"
 
-output_yaml  = "config.yml"
-BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
+api_key = os.getenv("open_ai_api_key")
+client = OpenAI(api_key=api_key) if not MOCK_MODE else None
 
-# DOWNLOADS_FOLDER_NAME = "tik_tok_downloads"
-
-# video_folder = os.path.join(BASE_DIR, DOWNLOADS_FOLDER_NAME)
-
-# if not os.path.exists(video_folder):
-#     os.makedirs(video_folder)
-#     print(f"Created directory: {video_folder}")
-
-# logger.info(f"Resolved video folder: {video_folder}")
-
-
+# =============================================================
+# S3 CONFIG
+# =============================================================
 S3_BUCKET = os.getenv("S3_BUCKET_NAME")
-S3_PUBLIC_BASE = os.getenv("")
-PROCESSED_PREFIX = os.getenv("S3_PROCESSED_PREFIX")
+S3_PREFIX_RAW = "raw_uploads/"
 
 s3 = boto3.client(
     "s3",
@@ -67,28 +54,72 @@ s3 = boto3.client(
     aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
 )
 
+def list_videos_from_s3(prefix: str = S3_PREFIX_RAW):
+    """
+    Return list of S3 keys under prefix that look like video files.
+    """
+    if not S3_BUCKET:
+        logging.error("S3_BUCKET_NAME env var is not set.")
+        return []
 
-NORMALIZED_CACHE_FILE = "normalized_cache.json"
-ANALYSIS_CACHE_FILE = "analysis_cache.json"
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix=prefix)
+    files = []
+    for obj in resp.get("Contents", []):
+        key = obj["Key"]
+        if key.lower().endswith((".mp4", ".mov", ".avi")):
+            files.append(key)
+    return files
 
-normalized_cache = load_cache(NORMALIZED_CACHE_FILE)
-analysis_cache = load_cache(ANALYSIS_CACHE_FILE)
-# ==============================
-# SETUP
-# ==============================
-# load_dotenv()
-api_key = os.getenv("open_ai_api_key")
-client = OpenAI(api_key=api_key) if not MOCK_MODE else None
+def download_s3_video(key: str) -> str | None:
+    """
+    Download an S3 object to a temporary local file and return its path.
+    """
+    ext = os.path.splitext(key)[1]
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    try:
+        s3.download_fileobj(S3_BUCKET, key, tmp)
+        tmp.close()
+        return tmp.name
+    except Exception as e:
+        logging.error(f"Failed to download {key} from S3: {e}")
+        return None
 
-# Load config (create minimal if missing)
+# =============================================================
+# Config / YAML helpers
+# =============================================================
+output_yaml = "config.yml"
+
 if not os.path.exists(output_yaml):
     with open(output_yaml, "w") as _f:
-        yaml.safe_dump({
-            "first_clip":   {"file": "", "text": "", "duration": 5, "start_time": 0, "text_color": "white", "scale": 1.0},
-            "middle_clips": [],
-            "last_clip":    {"file": "", "text": "", "duration": 5, "start_time": 0, "text_color": "yellow", "scale": 1.0},
-            "music":        {"style": "luxury modern hotel aesthetic", "bpm": 70, "mood": "calm, elegant, sunset rooftop energy", "volume": 0.25}
-        }, _f, sort_keys=False)
+        yaml.safe_dump(
+            {
+                "first_clip": {
+                    "file": "",
+                    "text": "",
+                    "duration": 5,
+                    "start_time": 0,
+                    "text_color": "white",
+                    "scale": 1.0,
+                },
+                "middle_clips": [],
+                "last_clip": {
+                    "file": "",
+                    "text": "",
+                    "duration": 5,
+                    "start_time": 0,
+                    "text_color": "yellow",
+                    "scale": 1.0,
+                },
+                "music": {
+                    "style": "luxury modern hotel aesthetic",
+                    "bpm": 70,
+                    "mood": "calm, elegant, sunset rooftop energy",
+                    "volume": 0.25,
+                },
+            },
+            _f,
+            sort_keys=False,
+        )
 
 with open(output_yaml, "r") as f:
     config = yaml.safe_load(f) or {}
@@ -113,99 +144,76 @@ def lowercase_filenames(cfg: dict):
     return cfg
 
 config = lowercase_filenames(config)
-_save_yaml()
+_ = _save_yaml()
 
-# Discover videos in folder (just names)
-# video_files = sorted([
-#     f for f in os.listdir(video_folder)
-#     if f.lower().endswith((".mp4", ".mov", ".avi"))
-# ])
+def save_from_raw_yaml(text: str):
+    global config
+    config = yaml.safe_load(text) or {}
+    _save_yaml()
 
-S3_PREFIX = "raw_uploads/"
+# =============================================================
+# Analysis cache & files
+# =============================================================
+NORMALIZED_CACHE_FILE = "normalized_cache.json"
+ANALYSIS_CACHE_FILE = "analysis_cache.json"
 
-def list_videos_from_s3():
-    """Return list of .mp4/.mov/.avi keys in S3 prefix."""
-    resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix=S3_PREFIX)
-    files = []
-    for obj in resp.get("Contents", []):
-        key = obj["Key"]
-        if key.lower().endswith((".mp4", ".mov", ".avi")):
-            files.append(key)
-    return files
+normalized_cache = set(load_cache(NORMALIZED_CACHE_FILE) or [])
+analysis_cache = set(load_cache(ANALYSIS_CACHE_FILE) or [])
 
-def download_s3_video(key):
-    """Download S3 video to a temporary file and return its path."""
-    ext = os.path.splitext(key)[1]
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
-    try:
-        s3.download_fileobj(S3_BUCKET, key, tmp)
-        return tmp.name
-    except Exception as e:
-        logging.error(f"Failed to download {key}: {e}")
-        return None
+ANALYSIS_DIR = "analysis"
+os.makedirs(ANALYSIS_DIR, exist_ok=True)
 
-def list_processed_s3_videos():
-    """Return list of processed video outputs in S3."""
-    resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix=PROCESSED_PREFIX)
-    files = []
-    for obj in resp.get("Contents", []):
-        key = obj["Key"]
-        if key.lower().endswith((".mp4", ".mov")):
-            files.append(key)
-    return files
+video_analyses_cache: dict[str, str] = {}
 
+def save_analysis_result(key: str, result: str):
+    """
+    Save per-clip analysis to disk and in-memory cache.
+    """
+    path = os.path.join(ANALYSIS_DIR, f"{key.replace('/', '_')}.txt")
+    with open(path, "w") as f:
+        f.write(result)
+    video_analyses_cache[key] = result
+    analysis_cache.add(key)
+    save_cache(ANALYSIS_CACHE_FILE, list(analysis_cache))
 
-video_files = list_videos_from_s3()
-
-
-if len(video_files) < 2:
-    logging.error("⚠️ Need at least 2 videos in tik_tok_downloads/")
-# Cache for quick AI descriptions
-video_analyses_cache = {}
-
-# ==============================
-# UTILITIES
-# ==============================
-# def resolve_path(filename: str | None):
-#     if not filename:
-#         return None
-#     full = os.path.join(video_folder, filename)
-#     return full if os.path.exists(full) else None
-
-def resolve_path(filename):
-    if not filename:
-        return None
-
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=filename)
-    s3.download_fileobj(S3_BUCKET, filename, tmp)
-    tmp.close()
-    return tmp.name
-
-
-def extract_frames(video_path):
-    """Grab 3 frames (5%, 50%, 90%) for VLM analysis."""
+# =============================================================
+# Utilities
+# =============================================================
+def extract_frames(video_path: str):
     with VideoFileClip(video_path) as clip:
         duration = clip.duration
-        timestamps = [max(0.0, duration * 0.05), duration * 0.50, max(0.0, duration * 0.90 - 0.01)]
+        timestamps = [
+            max(0.0, duration * 0.05),
+            duration * 0.50,
+            max(0.0, duration * 0.90 - 0.01),
+        ]
         frames = [clip.get_frame(t) for t in timestamps]
     return frames
 
 def encode_frame(frame):
     from PIL import Image
     from io import BytesIO
+
     img = Image.fromarray(frame)
     buf = BytesIO()
     img.save(buf, format="JPEG", quality=85)
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-def analyze_video(video_path):
-    """Return 1 aesthetic, persuasive sentence describing scene."""
+def analyze_video(video_path: str) -> str:
+    """
+    Return one short, aesthetic, persuasive sentence describing the video.
+    """
     try:
         frames = extract_frames(video_path)
-        images_payload = [{
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{encode_frame(f)}"}
-        } for f in frames]
+        images_payload = [
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{encode_frame(f)}"
+                },
+            }
+            for f in frames
+        ]
 
         prompt = [
             {
@@ -214,41 +222,49 @@ def analyze_video(video_path):
                     "You create viral hotel TikTok content. Describe this scene in ONE short, "
                     "emotionally compelling sentence that makes someone want to book now. "
                     "Aesthetic, vivid, persuasive. No hashtags or emojis."
-                )
+                ),
             }
         ] + images_payload
 
         if MOCK_MODE:
             return "Golden-hour rooftop with chic cocktails and skyline calm."
+
         resp = client.chat.completions.create(
             model=VISION_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.6
+            temperature=0.6,
         )
         return (resp.choices[0].message.content or "").strip()
     except Exception as e:
+        logging.error(f"analyze_video error: {e}")
         return f"Beautiful hotel moment; book your stay. ({e.__class__.__name__})"
 
 def yaml_safe(s: str) -> str:
     return json.dumps(str(s), ensure_ascii=False)
 
-# ==============================
-# FIX-C HELPERS (durations-only engine)
-# ==============================
-def _real_len(fname: str) -> float:
-    p = resolve_path(fname)
-    if not p:
+# Stub for old CLI debug — safe no-op in cloud
+def debug_video_dimensions(folder: str):
+    logging.debug("debug_video_dimensions called (no-op in cloud mode).")
+
+# =============================================================
+# Timing helpers (FIX-C style)
+# =============================================================
+def _real_len_s3_key(key: str) -> float:
+    """
+    Helper: compute real duration of S3 video key.
+    Used only for duration clamping.
+    """
+    tmp = download_s3_video(key)
+    if not tmp:
         return 0.0
-    with VideoFileClip(p) as c:
+    with VideoFileClip(tmp) as c:
         return float(c.duration or 0.0)
 
-def _clamp_duration(fname: str, desired: float, min_seconds: float = 2.0) -> float:
-    """Never exceed real clip length; never drop below min_seconds."""
-    real = _real_len(fname)
+def _clamp_duration(key: str, desired: float, min_seconds: float = 2.0) -> float:
+    real = _real_len_s3_key(key)
     return round(max(min_seconds, min(desired, real)), 2)
 
 def _even_spread(durations: list[float], target_total: float | None):
-    """Rescale a set of durations to meet target_total (if provided)."""
     if not target_total:
         return durations
     s = sum(durations)
@@ -258,42 +274,49 @@ def _even_spread(durations: list[float], target_total: float | None):
     return [round(max(1.0, d * scale), 2) for d in durations]
 
 def _debug_print_timeline(cfg: dict):
-    logging.debug("\n🧭 FIX-C plan (all local trims, start_time=0):")
-    logging.debug(f"FIRST   {cfg['first_clip'].get('file','?')}  dur={cfg['first_clip'].get('duration',0)}s")
+    logging.debug("FIX-C durations:")
+    logging.debug(f"FIRST  {cfg.get('first_clip',{}).get('file','?')} "
+                  f"dur={cfg.get('first_clip',{}).get('duration',0)}s")
     for i, c in enumerate(cfg.get("middle_clips", []), 1):
-        logging.debug(f"MIDDLE{i} {c.get('file','?')}  dur={c.get('duration',0)}s")
-    logging.debug(f"LAST    {cfg['last_clip'].get('file','?')}  dur={cfg['last_clip'].get('duration',0)}s\n")
+        logging.debug(f"MID{i} {c.get('file','?')} dur={c.get('duration',0)}s")
+    logging.debug(f"LAST   {cfg.get('last_clip',{}).get('file','?')} "
+                  f"dur={cfg.get('last_clip',{}).get('duration',0)}s")
 
-# ==============================
-# FIX-C: generate/apply timings
-# ==============================
 def generate_smart_timings(target_total: int | None = None, pacing: str = "default"):
-    """
-    Returns durations only. All start_time stay 0 (local trims).
-    """
-    # pacing windows
     if pacing == "punchy":
-        first_len = (3, 5); mid_len = (2, 4); last_len = (3, 5)
+        first_len = (3, 5)
+        mid_len = (2, 4)
+        last_len = (3, 5)
     elif pacing == "cinematic":
-        first_len = (6, 8); mid_len = (5, 8); last_len = (5, 7)
+        first_len = (6, 8)
+        mid_len = (5, 8)
+        last_len = (5, 7)
     else:
-        first_len = (5, 7); mid_len = (4, 6); last_len = (4, 6)
+        first_len = (5, 7)
+        mid_len = (4, 6)
+        last_len = (4, 6)
 
     mids = config.get("middle_clips", [])
     n_mids = len(mids)
 
     first_guess = random.randint(*first_len)
     mid_guesses = [random.randint(*mid_len) for _ in range(n_mids)]
-    last_guess  = random.randint(*last_len)
+    last_guess = random.randint(*last_len)
 
     guesses = [first_guess, *mid_guesses, last_guess]
     guesses = _even_spread(guesses, target_total)
     first_guess, *mid_guesses, last_guess = guesses
 
-    # clamp to real lengths and safeguard minimums
-    first_dur = _clamp_duration(config["first_clip"]["file"], first_guess)
-    mid_durs  = [_clamp_duration(mids[i]["file"], mid_guesses[i]) for i in range(n_mids)]
-    last_dur  = _clamp_duration(config["last_clip"]["file"], last_guess)
+    first_key = config.get("first_clip", {}).get("file", "")
+    last_key = config.get("last_clip", {}).get("file", "")
+
+    first_dur = _clamp_duration(first_key, first_guess) if first_key else float(first_guess)
+    mid_durs = []
+    for i, c in enumerate(mids):
+        k = c.get("file", "")
+        g = mid_guesses[i]
+        mid_durs.append(_clamp_duration(k, g) if k else float(g))
+    last_dur = _clamp_duration(last_key, last_guess) if last_key else float(last_guess)
 
     return {
         "first_duration": first_dur,
@@ -304,34 +327,31 @@ def generate_smart_timings(target_total: int | None = None, pacing: str = "defau
 def apply_smart_timings(target_total: int | None = None, pacing: str = "default"):
     data = generate_smart_timings(target_total, pacing)
 
-    # first
-    config["first_clip"]["duration"]   = float(data["first_duration"])
-    config["first_clip"]["start_time"] = 0.0
+    if "first_clip" in config:
+        config["first_clip"]["duration"] = float(data["first_duration"])
+        config["first_clip"]["start_time"] = 0.0
 
-    # middle
     for clip, dur in zip(config.get("middle_clips", []), data["middle_durations"]):
-        clip["duration"]   = float(dur)
+        clip["duration"] = float(dur)
         clip["start_time"] = 0.0
 
-    # last
-    config["last_clip"]["duration"]   = float(data["last_duration"])
-    config["last_clip"]["start_time"] = 0.0
+    if "last_clip" in config:
+        config["last_clip"]["duration"] = float(data["last_duration"])
+        config["last_clip"]["start_time"] = 0.0
 
-    if INSTANT_APPLY:
-        _save_yaml()
+    _save_yaml()
     _debug_print_timeline(config)
-    print("✅ FIX-C timings applied (durations only; all start_time=0).")
-    logging.info("✅ FIX-C timings applied (durations only; all start_time=0).")
+    logging.info("✅ FIX-C timings applied (durations only; start_time=0).")
 
-# ==============================
-# Overlay / Text rewriting
-# ==============================
+# =============================================================
+# Overlay / captions
+# =============================================================
 STYLE_ALIASES = {
-    "punchy":       ["punchy", "hook", "short", "tiktok"],
-    "descriptive":  ["descriptive", "detailed", "rich"],
-    "cinematic":    ["cinematic", "emotional", "poetic"],
-    "influencer":   ["influencer", "social", "personal", "authentic"],
-    "travel_blog":  ["travel_blog", "travel", "review", "informative"],
+    "punchy": ["punchy", "hook", "short", "tiktok"],
+    "descriptive": ["descriptive", "detailed", "rich"],
+    "cinematic": ["cinematic", "emotional", "poetic"],
+    "influencer": ["influencer", "social", "personal", "authentic"],
+    "travel_blog": ["travel_blog", "travel", "review", "informative"],
 }
 
 def _style_key(s: str) -> str:
@@ -344,22 +364,17 @@ def _style_key(s: str) -> str:
 def _style_prompt(key: str) -> str:
     if key == "punchy":
         return "Rewrite as a short, high-retention TikTok hook (8–12 words). No hashtags or emojis."
-
     if key == "descriptive":
         return "Rewrite as vivid, descriptive copy (12–18 words). No hashtags or emojis."
-
     if key == "cinematic":
         return "Rewrite as cinematic, emotional copy (15–22 words). No hashtags or emojis."
-
-    # ✅ NEW STYLES
     if key == "influencer":
-        return "Rewrite in a friendly influencer tone, speaking directly to the viewer, as if sharing a personal recommendation (12–18 words). No hashtags or emojis."
-
+        return ("Rewrite in a friendly influencer tone, speaking directly to the viewer, "
+                "as if sharing a personal recommendation (12–18 words). No hashtags or emojis.")
     if key == "travel_blog":
-        return "Rewrite as an informative hotel-review style caption (14-20 words). Friendly, helpful, observational. No hashtags or emojis."
-
+        return ("Rewrite as an informative hotel-review style caption (14–20 words). "
+                "Friendly, helpful, observational. No hashtags or emojis.")
     return "Rewrite succinctly for TikTok viewers. No hashtags or emojis."
-    
 
 def _rewrite_caption(seed: str, hint: str, style_key: str) -> str:
     try:
@@ -374,26 +389,26 @@ def _rewrite_caption(seed: str, hint: str, style_key: str) -> str:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.8
+            temperature=0.8,
         )
         out = (resp.choices[0].message.content or "").strip()
         return out or (seed or "")
-    except Exception:
+    except Exception as e:
+        logging.error(f"_rewrite_caption error: {e}")
         return seed or ""
 
-def save_from_raw_yaml(text: str):
-    global config
-    config = yaml.safe_load(text) or {}
-    _save_yaml()
-
 def apply_overlay(style: str, target: str = "all", filename: str | None = None):
+    """
+    Rewrite overlay text in config.yml based on style.
+    """
     style_key = _style_key(style)
 
     # ensure we have hints
     if not video_analyses_cache:
-        for v in video_files:
-            p = resolve_path(v)
-            video_analyses_cache[v] = analyze_video(p) if p else ""
+        keys = list_videos_from_s3()
+        for k in keys:
+            tmp = download_s3_video(k)
+            video_analyses_cache[k] = analyze_video(tmp) if tmp else ""
 
     def rewrite_entry(entry_file: str, entry_dict: dict):
         seed = entry_dict.get("text", "") or ""
@@ -402,139 +417,56 @@ def apply_overlay(style: str, target: str = "all", filename: str | None = None):
 
     # first
     if "first_clip" in config:
-        if target == "all" or (target == "single" and (config["first_clip"].get("file","").lower() == (filename or "").lower())):
+        if target == "all" or (
+            target == "single"
+            and (config["first_clip"].get("file", "").lower() == (filename or "").lower())
+        ):
             rewrite_entry(config["first_clip"]["file"], config["first_clip"])
 
     # middle
     for c in config.get("middle_clips", []):
-        if target == "all" or (target == "single" and (c.get("file","").lower() == (filename or "").lower())):
+        if target == "all" or (
+            target == "single"
+            and (c.get("file", "").lower() == (filename or "").lower())
+        ):
             rewrite_entry(c["file"], c)
 
     # last
     if "last_clip" in config:
-        if target == "all" or (target == "single" and (config["last_clip"].get("file","").lower() == (filename or "").lower())):
+        if target == "all" or (
+            target == "single"
+            and (config["last_clip"].get("file", "").lower() == (filename or "").lower())
+        ):
             rewrite_entry(config["last_clip"]["file"], config["last_clip"])
 
-    if INSTANT_APPLY:
-        _save_yaml()
+    _save_yaml()
+    logging.info(f"Overlay captions updated for target={target}, style={style}")
 
-# ==============================
-# Smart zoom helper (advice → scale)
-# ==============================
-def smart_zoom_value(video_path: str):
-    with VideoFileClip(video_path) as clip:
-        w, h = clip.w, clip.h
-    ratio = w / h
-    if ratio < 0.7:            # portrait already ideal
-        return 1.0
-    if 0.7 <= ratio <= 1.1:    # square slight push
-        return 1.1
-    return 1.25                # landscape needs more zoom
+# =============================================================
+# YAML prompt builder
+# =============================================================
+def build_yaml_prompt(video_files: list[str], analyses: list[str]) -> str:
+    cfg_first = config.get("first_clip", {}) or {}
+    cfg_middle = config.get("middle_clips", []) or []
+    cfg_last = config.get("last_clip", {}) or {}
+    cfg_music = config.get("music", {}) or {}
+    cfg_render = config.get("render", {}) or {}
+    cfg_cta = config.get("cta", {}) or {}
 
-# ==============================
-# Fuzzy scale interpreter
-# ==============================
-SCALE_KEYWORDS = {
-    "slightly zoom out": 0.95,
-    "zoom out slightly": 0.95,
-    "zoom out a little": 0.95,
-    "zoom out a bit": 0.9,
-    "zoom out": 0.9,
-    "zoom out a lot": 0.8,
-    "zoom way out": 0.75,
+    d_first = cfg_first.get("duration", 6.0)
+    d_last = cfg_last.get("duration", 5.0)
+    mids = video_files[1:-1]
 
-    "slightly zoom in": 1.05,
-    "zoom in slightly": 1.05,
-    "zoom in a little": 1.05,
-    "zoom in a bit": 1.1,
-    "zoom in": 1.1,
-    "zoom in a lot": 1.25,
-    "zoom way in": 1.3,
-}
-SIZE_PHRASES = {
-    "too big": 0.9,
-    "too close": 0.9,
-    "feels too close": 0.9,
-    "needs breathing room": 0.9,
-
-    "too small": 1.1,
-    "needs to fill the frame": 1.1,
-    "make it bigger": 1.1,
-    "dramatic": 1.05,
-}
-def fuzzy_scale_interpret(user_text: str):
-    text = user_text.strip()
-    lower = text.lower()
-
-    m = re.search(r"(img_\d+\.(?:mov|mp4|avi))", lower, flags=re.IGNORECASE)
-    filename = m.group(1).lower() if m else None
-    if not filename:
-        return None
-
-    n = re.search(r"\b(\d\.\d+|\d+)\b", lower)
-    if n:
-        try:
-            return filename, float(n.group(1))
-        except Exception:
-            pass
-
-    if " zoom in" in lower or lower.endswith(" in"):
-        return filename, 1.1
-    if " zoom out" in lower or lower.endswith(" out"):
-        return filename, 0.9
-
-    for phrase, value in SCALE_KEYWORDS.items():
-        if phrase in lower:
-            return filename, value
-    for phrase, value in SIZE_PHRASES.items():
-        if phrase in lower:
-            return filename, value
-    return None
-
-def update_scale_in_config(filename: str, scale_value: float) -> bool:
-    updated = False
-    fn = (filename or "").lower()
-
-    if config.get("first_clip", {}).get("file", "").lower() == fn:
-        config["first_clip"]["scale"] = float(scale_value)
-        updated = True
-
-    for c in config.get("middle_clips", []):
-        if (c.get("file","").lower() == fn):
-            c["scale"] = float(scale_value)
-            updated = True
-
-    if config.get("last_clip", {}).get("file", "").lower() == fn:
-        config["last_clip"]["scale"] = float(scale_value)
-        updated = True
-
-    if updated and INSTANT_APPLY:
-        _save_yaml()
-    return updated
-
-# ==============================
-# /yaml builder (correct CTA + TTS)
-# ==============================
-def build_yaml_prompt(video_files, analyses):
-    cfg_first   = config.get("first_clip", {}) or {}
-    cfg_middle  = config.get("middle_clips", []) or []
-    cfg_last    = config.get("last_clip", {}) or {}
-    cfg_music   = config.get("music", {}) or {}
-    cfg_render  = config.get("render", {}) or {}
-    cfg_cta     = config.get("cta", {}) or {}
-
-    # ----- DURATIONS -----
-    d_first  = cfg_first.get("duration", 6.0)
-    d_last   = cfg_last.get("duration", 5.0)
-    mids     = video_files[1:-1]
-
-    # ----- MIDDLE CLIPS -----
     middle_yaml = ""
     for idx, v in enumerate(mids):
-        prev = next((c for c in cfg_middle if c.get("file","").lower()==v.lower()), {})
-        mid_txt   = prev.get("text", analyses[idx+1] if idx+1 < len(analyses) else "")
-        mid_dur   = prev.get("duration", 5.0)
-        mid_col   = prev.get("text_color", "white")
+        prev = next(
+            (c for c in cfg_middle if c.get("file", "").lower() == v.lower()), {}
+        )
+        mid_txt = prev.get(
+            "text", analyses[idx + 1] if idx + 1 < len(analyses) else ""
+        )
+        mid_dur = prev.get("duration", 5.0)
+        mid_col = prev.get("text_color", "white")
         mid_scale = prev.get("scale", 1.0)
         mid_voice = prev.get("voice", "alloy")
 
@@ -548,7 +480,6 @@ def build_yaml_prompt(video_files, analyses):
     voice: "{mid_voice}"
 """
 
-    # ----- FINAL YAML -----
     return f"""
 Generate ONLY raw YAML.
 
@@ -568,9 +499,9 @@ last_clip:
   text: {yaml_safe(cfg_last.get("text", analyses[-1] if analyses else ""))}
   duration: {d_last}
   start_time: 0
-  text_color: "{cfg_last.get("text_color","yellow")}"
-  scale: {cfg_last.get("scale",1.0)}
-  voice: "{cfg_last.get("voice","alloy")}"
+  text_color: "{cfg_last.get("text_color", "yellow")}"
+  scale: {cfg_last.get("scale", 1.0)}
+  voice: "{cfg_last.get("voice", "alloy")}"
 
 music:
   style: "{cfg_music.get("style","luxury modern hotel aesthetic")}"
@@ -608,861 +539,34 @@ def validate_yaml(yaml_text: str) -> bool:
             and "last_clip" in data
             and "music" in data
             and "render" in data
-
         )
     except Exception:
         return False
 
-# ==============================
-# MUSIC (text suggestions only)
-# ==============================
-def run_music_command():
-    if not video_analyses_cache:
-        logging.warning("\n⚠️ Run /analyze first.\n")
-        return
-    analyses_text = "\n".join(f"{v}: {d}" for v, d in video_analyses_cache.items())
-    prompt = f"""
-Here are the hotel scenes:
-
-{analyses_text}
-
-Recommend PERFECT TikTok background music to maximize bookings.
-Include:
-- genre
-- vibe/mood
-- BPM
-- energy level
-- why it converts for hotel travel
-- 3 alt genres
-- volume suggestion
-- fade in/out suggestion
-"""
-    if MOCK_MODE:
-        logging.info("\nAssistant:\nLofi house, 110 BPM, warm/night…\n")
-        return
-    response = client.chat.completions.create(
-        model=TEXT_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.9
-    )
-    logging.info("\nAssistant:\n", response.choices[0].message.content, "\n")
-
-def debug_video_dimensions(video_folder):
-    """Print dimensions, aspect ratio, and orientation for each clip."""
-    logging.debug("\n🎥 Debug: Video Dimensions Overview\n" + "-" * 50)
-    for f in sorted(os.listdir(video_folder)):
-        if f.lower().endswith((".mp4", ".mov", ".avi")):
-            path = os.path.join(video_folder, f)
-            try:
-                clip = VideoFileClip(path)
-                rotation = getattr(clip, "rotation", 0)
-                w, h = clip.size
-                ratio = round(w / h, 3)
-                orientation = "Portrait" if h > w else "Landscape"
-                if 0.8 <= ratio <= 1.2:
-                    orientation = "Square"
-
-                logging.debug(f"{f:25} | {w}x{h} | ratio={ratio} | rot={rotation}° | {orientation}")
-
-                clip.close()
-            except Exception as e:
-                logging.debug(f"⚠️ Error reading {f}: {e}")
-    logging.debug("-" * 50)
-    
-
-def is_already_normalized(path: str) -> bool:
-    """
-    Basic check — determine if a video is already normalized.
-    You may replace this with metadata probing later.
-    """
-    try:
-        # Example rule: if resolution < 1080, normalize
-        return False  # force normalization for safety
-    except Exception:
-        return False
-
-import subprocess
-
+# =============================================================
+# Normalization helper (used by assistant_api)
+# =============================================================
 def normalize_video(input_path: str, output_path: str):
     """
-    Normalize video with FFmpeg — ensures H.264, AAC, TikTok-safe settings.
+    Simple FFmpeg-based normalization wrapper.
     """
     cmd = [
         "ffmpeg",
         "-y",
-        "-i", input_path,
-        "-vf", "scale=1080:-2",
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-crf", "23",
-        "-c:a", "aac",
-        "-b:a", "128k",
-        output_path
+        "-i",
+        input_path,
+        "-vf",
+        "scale=1080:-2",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "23",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        output_path,
     ]
-
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-import json
-
-ANALYSIS_DIR = "analysis"
-os.makedirs("analysis", exist_ok=True)
-
-def save_analysis_result(key, result):
-    with open(f"analysis/{key}.txt", "w") as f:
-        f.write(result)
-
-
-# ==============================
-# MAIN LOOP
-# ==============================
-def main():
-    print("""\n
-=============================================================================
-   TIKTOK CREATOR ASSISTANT — QUICK GUIDE (assistant-only, FIX-C timings)
-=============================================================================
-
-IMPORTANT: Always run /analyze first so I understand your videos.
-
-COMMANDS:
---------------------------------------------------
-/analyze      → Analyze all videos in the 'tik_tok_downloads' folder
-/yaml         → Generate new config.yml automatically
-/hooks        → Generate viral TikTok opening hooks
-/captions     → Suggest caption ideas
-/hashtags     → Create 15 optimized hashtags
-/overlay      → [descriptive | punchy| cinematic] (Puts captions on your videos depending on mode you choose)
-/story        → Generate a 12-second TikTok story script
-/ideas        → Suggest creative video ideas
-/cta          → Suggest booking call-to-actions
-/music        → Recommend background music (genre/mood/BPM)
-/timings      → Auto-calculate FIX-C timing durations for all clips
-/timings smart [seconds | punchy | cinematic]
-              → Let AI balance durations and pacing dynamically
-/scale        → Adjust zoom for one clip or all
-                 e.g. /scale img_3780.mov 1.2
-/fgscale      → Adjust global foreground scale (blur-border intensity)
-                 e.g. /fgscale 0.85  or  "make the foreground smaller"
-/instant on|off
-              → Enable or disable instant YAML saving after edits
-/export       → Render and export final TikTok video
-                 Uses config.yml settings for timing, text, scale, and blur
-/mock on|off  → Off = Uses AI Models and interacts with you, On = Better for Testing/Offline 
-
-VOICEOVER (TTS) COMMANDS:
---------------------------------------------------
-/tts on       → Enable AI voiceover narration
-/tts off      → Disable voiceover (default: text only mode)
-/tts          → Check current TTS status
-/voice alloy  → Change TTS voice (options: alloy, verse, coral, sage, amber, onyx)
-
-/ 💬 Natural language toggles also work:
-   "enable voiceover"     → turns on AI narration
-   "disable narration"    → turns it off
-   "check voiceover"      → shows whether it’s on or off
-   "use verse voice"      → switches to a new voice
-
-💡 Examples:
---------------------------------------------------
-'zoom out on all videos'              → reduces zoom for every clip
-'zoom in on IMG_3753.mov'             → zooms only that clip
-'make the foreground smaller'         → increases blur border (reduces fgscale)
-'less blur border'                    → decreases blur border (raises fgscale)
-'change text color to yellow on all'  → updates overlay text color
-'enable voiceover narration'          → adds AI-generated voice
-'turn off voiceover'                  → disables narration
-
-🗂 Folder setup:
---------------------------------------------------
-🎞️  Place all videos in:      ./tik_tok_downloads/
-🧠  Config file location:      ./config.yml
-🧩  Normalized cache folder:   ./normalized_cache/
-🎥  Exported final video:      ./output_tiktok_final.mp4
-🎵  Optional music files:      ./music/
-🪄  Google Drive downloader:   Downloads into ./tik_tok_downloads/
-
-NOTES:
---------------------------------------------------
-- Run /analyze before generating YAML or timings.
-- Text from config.yml is used both for overlays and voiceovers.
-- Blurred background and cinematic framing apply automatically.
-- FIX-C engine ensures all start_times = 0 with locally trimmed durations.
-- You can toggle TTS narration at any time without re-rendering YAML.
-
-Type exit or quit to leave.
------------------------------------------------------------------------------
-""")
-    global MOCK_MODE
-    global INSTANT_APPLY
-    
-    while True:
-        user_message = input("Say something: ").strip()
-        msg = user_message.lower().strip()
-
-        try:
-            # Exit
-            if msg in ["exit", "quit", "q"]:
-                print("Goodbye!")
-                logging.info("Goodbye!")
-                break
-
-            # Analyze
-            if msg == "/analyze":
-                print("\n🔍 Fetching videos from S3…\n")
-                logging.info("\n🔍 Fetching videos from S3…\n")
-
-                # 1. List videos in S3 bucket/prefix
-                s3_videos = list_videos_from_s3()
-                if not s3_videos:
-                    print("No videos found in S3.")
-                    logging.info("No videos found in S3.")
-                    continue
-
-                print(f"Found {len(s3_videos)} videos.")
-                logging.info(f"Found {len(s3_videos)} videos.")
-
-                reanalyzed = []
-                skipped = []
-
-                # 2. Loop through S3 videos
-                for key in s3_videos:
-                    print(f"\nProcessing {key}…")
-                    logging.info(f"Processing {key}…")
-
-                    # ✅ Skip if already analyzed
-                    if key in analysis_cache:
-                        print(f"✅ Skipping — already analyzed: {key}")
-                        skipped.append(key)
-                        continue
-
-                    # ✅ Download only if needed
-                    tmp_local_path = download_s3_video(key)
-                    if not tmp_local_path:
-                        print(f"❌ Failed to download {key}")
-                        logging.error(f"Failed to download {key}")
-                        continue
-
-                    # ✅ Create normalized file
-                    normalized_path = tempfile.NamedTemporaryFile(
-                        delete=False,
-                        suffix=os.path.splitext(key)[1]
-                    ).name
-
-                    # ✅ Check normalization cache
-                    if key not in normalized_cache:
-                        print(f"Normalizing {key} via FFmpeg…")
-                        normalize_video(tmp_local_path, normalized_path)
-                        normalized_cache.add(key)
-                        save_cache(NORMALIZED_CACHE_FILE, normalized_cache)
-                        reanalyzed.append(key)
-                    else:
-                        print(f"{key} already normalized, skipping normalization.")
-                        normalized_path = tmp_local_path
-                        skipped.append(key)
-
-                    print(f"Analyzing {key} with LLM…")
-                    result = analyze_video(normalized_path)
-
-                    # ✅ Save analysis text
-                    save_analysis_result(key, result)
-
-                    # ✅ Update analysis cache
-                    analysis_cache.add(key)
-                    save_cache(ANALYSIS_CACHE_FILE, analysis_cache)
-
-                    print(f"✅ Analysis complete for {key}")
-
-                print("\n🎯 Analysis complete.")
-                print(f"Reanalyzed: {len(reanalyzed)}")
-                print(f"Skipped: {len(skipped)}")
-                continue
-
-            # YAML
-            if msg == "/yaml":
-                if not video_analyses_cache:
-                    print("\n⚠️ Run /analyze first.\n")
-                    continue
-                analyses = [video_analyses_cache.get(v, "") for v in video_files if v]
-                yaml_prompt = build_yaml_prompt(video_files, analyses)
-
-                if MOCK_MODE:
-                    yaml_text = yaml_prompt  # pretend the model echoed YAML
-                else:
-                    response = client.chat.completions.create(
-                        model=TEXT_MODEL,
-                        messages=[{"role": "user", "content": yaml_prompt}],
-                        temperature=0.2
-                    )
-                    yaml_text = (response.choices[0].message.content or "").strip()
-
-                # scrub code fences if any
-                yaml_text = yaml_text.replace("```yaml", "").replace("```", "").strip()
-
-                if not validate_yaml(yaml_text):
-                    print("\n❌ Invalid YAML from model. Try again.\n")
-                    logging.warning("Invalid YAML returned from model — likely missing fields or bad indentation.")
-                    continue
-
-                # Load, force lowercase filenames, preserve start_time=0 as designed
-                cfg = yaml.safe_load(yaml_text) or {}
-                cfg = lowercase_filenames(cfg)
-                with open(output_yaml, "w") as f:
-                    yaml.safe_dump(cfg, f, sort_keys=False)
-
-                _reload_config()
-                logging.info(f"✅ YAML saved successfully: {output_yaml}")
-                print("\n✅ YAML saved:", output_yaml, "\n")
-                print(yaml.safe_dump(config, sort_keys=False))
-                continue
-            
-            if msg.startswith("/voice"):
-                parts = msg.split()
-                if len(parts) == 2:
-                    new_voice = parts[1].lower()
-                    config.setdefault("render", {})["tts_voice"] = new_voice
-                    _save_yaml()
-                    print(f"🎤 Default voice changed to '{new_voice}'")
-                    logging.info(f"Voice changed to {new_voice} via command.")
-                else:
-                    print("Usage: /voice alloy|verse|coral|sage|amber|onyx")
-                continue
-
-            if msg.startswith("/fgscale"):
-                try:
-                    val = float(msg.split()[1])
-                    if val < 0.5 or val > 2.0:
-                        print("fg_scale_default must be between 0.5 and 2.0.")
-                        continue
-                    config.setdefault("render", {})["fg_scale_default"] = val
-                    _save_yaml()
-                    print(f"✅ Foreground default scale updated → {val}")
-                except:
-                    print("❌ Usage: /fgscale <number> (e.g. /fgscale 0.88)")
-                continue
-
-                # =========================================================
-                # Export final TikTok video directly from the assistant
-                # =========================================================
-            if msg == "/export" or "export video" in msg:
-                print("\n🎬 Exporting your TikTok video...\n")
-                logging.info("User triggered video export process.")
-
-                try:
-                    from tiktok_template import edit_video  # adjust if your file is named differently
-                    output_path = os.path.join(BASE_DIR, "output_tiktok_final.mp4")
-
-                    edit_video(output_file=output_path)
-
-                    print(f"\n✅ Export complete! Video saved at: {output_path}\n")
-                    logging.info(f"Export complete. File saved to {output_path}")
-
-                except Exception as e:
-                    print(f"\n❌ Export failed: {e}\n")
-                    logging.error(f"Export failed: {e}", exc_info=True)  # ⬅️ upgraded to error
-                continue
-
-            
-            #Natural Langage for exporting video
-            if any(p in msg for p in ["export video", "render final", "create final video", "make the tiktok"]):
-                print("🎥 Starting final render using your current config...")
-                from tiktok_template import edit_video
-                output_path = os.path.join(BASE_DIR, "output_tiktok_final.mp4")
-                edit_video(output_file=output_path)
-                print(f"✅ Done! Video exported to {output_path}")
-                continue
-
-            # --- Natural language control for foreground (blur border) scale ---
-            if any(word in msg for word in ["foreground", "border", "blur border", "inset"]):
-                val = None
-                current_val = config.get("render", {}).get("fg_scale_default", 1.0)
-
-                match = re.search(r"\b(\d\.\d+|\d+)\b", msg)
-                if match:
-                    val = float(match.group(1))
-                else:
-                    # Interpret natural phrases specifically for blur-border effect
-                    if "more blur" in msg or "smaller" in msg or "inset" in msg or "reduce foreground" in msg:
-                        val = max(current_val - 0.05, 0.7)
-                    elif "less blur" in msg or "larger" in msg or "expand" in msg or "bring forward" in msg:
-                        val = min(current_val + 0.05, 1.1)
-
-                if val:
-                    config.setdefault("render", {})["fg_scale_default"] = val
-                    _save_yaml()
-                    print(f"✅ Foreground scale updated → {current_val:.2f} → {val:.2f}")
-                else:
-                    print("🤔 Sorry, I couldn’t understand. Try phrases like 'increase blur border' or '/fgscale 0.88'.")
-                continue
-
-            # Timings (FIX-C everywhere)
-            if msg == "/timings":
-                apply_smart_timings()
-                continue
-
-            if msg.startswith("/timings smart"):
-                parts = msg.split()
-                if len(parts) == 2:
-                    apply_smart_timings()
-                    continue
-                if len(parts) == 3 and parts[2].isdigit():
-                    apply_smart_timings(target_total=int(parts[2]))
-                    continue
-                if "punchy" in msg:
-                    apply_smart_timings(pacing="punchy")
-                    continue
-                if "cinematic" in msg:
-                    apply_smart_timings(pacing="cinematic")
-                    continue
-                print("❌ Usage: /timings smart [seconds] [punchy|cinematic]")
-                continue
-
-            # Viral text commands (simple, using scene analyses)
-            viral_commands = {
-                "/hooks":    "Give 10 high-retention TikTok hooks.",
-                "/captions": "Give 10 strong TikTok captions.",
-                "/hashtags": "Give 15 viral hashtags optimized for hotel travel.",
-                "/story":    "Write a 12-second TikTok storyline using these scenes.",
-                "/ideas":    "Give 10 TikTok ideas inspired by these videos.",
-                "/cta":      "Give 10 strong booking call-to-actions.",
-            }
-            if msg in viral_commands:
-                if not video_analyses_cache:
-                    print("\n⚠️ Run /analyze first.\n")
-                    continue
-                analyses_text = "\n".join(f"{v}: {d}" for v, d in video_analyses_cache.items())
-                prompt = f"Here is what the videos contain:\n{analyses_text}\n\nTask:\n{viral_commands[msg]}"
-                if MOCK_MODE:
-                    print("\nAssistant:\n(Mocked text output)\n")
-                else:
-                    resp = client.chat.completions.create(
-                        model=TEXT_MODEL,
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=0.9
-                    )
-                    print("\nAssistant:\n", resp.choices[0].message.content, "\n")
-                continue
-
-            # Music
-            if msg == "/music":
-                run_music_command()
-                continue
-
-            # ---------------------------------------------------------
-            # /mock on | off  (Turn API mocking ON or OFF)
-            # ---------------------------------------------------------
-            if msg.startswith("/mock"):
-                if "on" in msg:
-                    MOCK_MODE = True
-                    print("🧪 MOCK MODE ENABLED — no real API calls will be made.")
-                    logging.info("MOCK MODE ENABLED")
-                elif "off" in msg:
-                    MOCK_MODE = False
-                    print("🔌 MOCK MODE DISABLED — using real API calls.")
-                    logging.info("MOCK MODE DISABLED")
-                else:
-                    print("Usage: /mock on  or  /mock off")
-                continue
-            # /tts on|off|status
-
-            # ---------------------------------------------------------
-            # /cta voiceover on/off  (toggle CTA TTS)
-            # ---------------------------------------------------------
-            if msg.startswith("/cta voiceover"):
-                parts = msg.split()
-                if len(parts) == 3:
-                    action = parts[2].lower()
-                    if action == "on":
-                        config.setdefault("cta", {})["voiceover"] = True
-                        _save_yaml()
-                        print("🎙️ CTA voiceover ENABLED.")
-                    elif action == "off":
-                        config.setdefault("cta", {})["voiceover"] = False
-                        _save_yaml()
-                        print("🔇 CTA voiceover DISABLED.")
-                    else:
-                        print("Usage: /cta voiceover on|off")
-                else:
-                    print("Usage: /cta voiceover on|off")
-                continue
-
-
-            # /cta on|off|status|text ...
-            if msg.startswith("/cta"):
-                parts = msg.split(maxsplit=2)
-
-                # /cta on | /cta off | /cta status
-                if len(parts) == 2 and parts[1].lower() in ["on", "off", "status"]:
-                    action = parts[1].lower()
-                    if action == "on":
-                        config.setdefault("cta", {})["enabled"] = True
-                        _save_yaml()
-                        print("📣 CTA ENABLED.")
-                    elif action == "off":
-                        config.setdefault("cta", {})["enabled"] = False
-                        _save_yaml()
-                        print("🚫 CTA DISABLED.")
-                    else:
-                        cta_state = config.get("cta", {}).get("enabled", False)
-                        print(f"CTA is currently {'ON' if cta_state else 'OFF'}.")
-                    continue
-
-                # /cta text Book now and save 10%...
-                if len(parts) >= 3 and parts[1].lower() == "text":
-                    cta_text = parts[2].strip()
-                    config.setdefault("cta", {})["text"] = cta_text
-                    config["cta"]["enabled"] = True
-                    _save_yaml()
-                    print(f"📣 CTA text set to: {cta_text}")
-                    continue
-
-                print("Usage: /cta on|off|status  or  /cta text <your CTA text>")
-                continue
-            
-            # Natural language CTA voiceover
-            if "cta voiceover" in msg:
-                if "on" in msg or "enable" in msg:
-                    config.setdefault("cta", {})["voiceover"] = True
-                    _save_yaml()
-                    print("🎙️ CTA voiceover ENABLED.")
-                    continue
-                if "off" in msg or "disable" in msg:
-                    config.setdefault("cta", {})["voiceover"] = False
-                    _save_yaml()
-                    print("🔇 CTA voiceover DISABLED.")
-                    continue
-
-
-            # Natural language CTA:
-            if "add cta" in msg or "cta:" in msg or "call to action" in msg:
-                # crude extraction: everything after "cta"
-                if "cta" in msg:
-                    after = user_message.split("cta", 1)[1].strip()
-                else:
-                    after = ""
-                config.setdefault("cta", {})["enabled"] = True
-                if after:
-                    config["cta"]["text"] = after
-                _save_yaml()
-                print("📣 CTA updated from natural language.")
-                continue
-
-            if "remove cta" in msg or "cta off" in msg:
-                config.setdefault("cta", {})["enabled"] = False
-                _save_yaml()
-                print("🚫 CTA disabled.")
-                continue
-
-
-            if msg.startswith("/tts"):
-                if "on" in msg:
-                    config.setdefault("render", {})["tts_enabled"] = True
-                    _save_yaml()
-                    print("🗣️ TTS (voiceover) enabled — future renders will include AI narration.")
-                    logging.info("TTS enabled.")
-                elif "off" in msg:
-                    config.setdefault("render", {})["tts_enabled"] = False
-                    _save_yaml()
-                    print("🔇 TTS (voiceover) disabled — text only mode.")
-                    logging.info("TTS disabled.")
-                else:
-                    state = config.get("render", {}).get("tts_enabled", False)
-                    print(f"TTS is currently {'ON' if state else 'OFF'} (use /tts on|off)")
-                continue
-
-            # /voice alloy|verse|...
-            if msg.startswith("/voice"):
-                parts = msg.split()
-                if len(parts) == 2:
-                    new_voice = parts[1].lower()
-                    config.setdefault("render", {})["tts_voice"] = new_voice
-                    _save_yaml()
-                    print(f"🎤 Default voice changed to '{new_voice}'")
-                    logging.info(f"TTS voice set to {new_voice}")
-                else:
-                    print("Usage: /voice alloy|verse|coral|sage|amber|onyx")
-                continue
-
-            # Natural language: voiceover on/off
-            if any(phrase in msg for phrase in [
-                "enable voiceover", "turn on voiceover", "voiceover on",
-                "enable narration", "turn on narration"
-            ]):
-                config.setdefault("render", {})["tts_enabled"] = True
-                _save_yaml()
-                print("🗣️ Voiceover ENABLED.")
-                continue
-
-            if any(phrase in msg for phrase in [
-                "disable voiceover", "turn off voiceover", "voiceover off",
-                "disable narration", "turn off narration", "no voiceover"
-            ]):
-                config.setdefault("render", {})["tts_enabled"] = False
-                _save_yaml()
-                print("🔇 Voiceover DISABLED.")
-                continue
-
-
-            # Overlay rewriting
-            if msg.startswith("/overlay"):
-                parts = user_message.strip().split()
-                scope = "all"
-                style = "punchy"
-                file_arg = None
-
-                if len(parts) == 2:
-                    style = parts[1]
-                elif len(parts) >= 3:
-                    if parts[1].lower() == "all":
-                        scope = "all"
-                        style = parts[2]
-                    else:
-                        scope = "single"
-                        file_arg = parts[1]
-                        style = parts[2]
-
-                if scope == "single" and not file_arg:
-                    print("❌ Usage: /overlay <filename.mov> <style>")
-                    continue
-
-                apply_overlay(style=style, target=("single" if scope == "single" else "all"), filename=file_arg)
-                if scope == "single":
-                    print(f"✅ Overlay updated for {file_arg} → {style}")
-                else:
-                    print(f"✅ Overlay updated for ALL videos → {style}")
-                continue
-
-            # Scale command
-            if user_message.startswith("/scale"):
-                parts = user_message.split()
-                if len(parts) < 3:
-                    print("Usage: /scale <filename.mov> <value|in|out>")
-                    continue
-                filename = parts[1].strip().lower()
-                direction = parts[2].strip().lower()
-                if direction == "in":
-                    s = 1.1
-                elif direction == "out":
-                    s = 0.9
-                else:
-                    try:
-                        s = float(direction)
-                    except Exception:
-                        print("❌ Invalid scale. Use a number, 'in', or 'out'.")
-                        continue
-
-                if update_scale_in_config(filename, s):
-                    print(f"✅ Updated scale of {filename} → {s}")
-                else:
-                    print(f"❌ Could not find {filename} in YAML.")
-                continue
-
-            # Global numeric scale (all videos) via natural language
-            number_match = re.search(r"\b(\d\.\d+|\d+)\b", msg)
-            if ("all videos" in msg or "everything" in msg) and number_match:
-                scale_value = float(number_match.group(1))
-                if "first_clip" in config:
-                    config["first_clip"]["scale"] = scale_value
-                for c in config.get("middle_clips", []):
-                    c["scale"] = scale_value
-                if "last_clip" in config:
-                    config["last_clip"]["scale"] = scale_value
-                if INSTANT_APPLY:
-                    _save_yaml()
-                print(f"✅ Updated ALL videos to scale {scale_value}")
-                continue
-
-            # Natural language: change text color (supports any color + file/all targeting)
-            if "text" in msg and "color" in msg:
-
-                # Try to capture the color name (word after 'to')
-                color_match = re.search(r"\bto\s+([a-z]+)\b", msg)
-                color = color_match.group(1).lower() if color_match else None
-
-                if not color:
-                    print("❌ Could not detect color. Try: 'change text color to yellow on all videos'")
-                    continue
-
-                # Apply globally (all videos)
-                if "all" in msg or "every" in msg:
-                    print(f"🎨 Changing all text colors to {color}...")
-                    if "first_clip" in config:
-                        config["first_clip"]["text_color"] = color
-                    for c in config.get("middle_clips", []):
-                        c["text_color"] = color
-                    if "last_clip" in config:
-                        config["last_clip"]["text_color"] = color
-                    if INSTANT_APPLY:
-                        _save_yaml()
-                    print(f"✅ Text color updated to {color} on all videos.")
-                    continue
-
-                # Apply to a specific video
-                file_match = re.search(r"(img_\d+\.(?:mov|mp4|avi))", msg, re.IGNORECASE)
-                if file_match:
-                    filename = file_match.group(1).lower()
-                    updated = False
-                    for section in ["first_clip", "last_clip"]:
-                        if config.get(section, {}).get("file", "").lower() == filename:
-                            config[section]["text_color"] = color
-                            updated = True
-                    for c in config.get("middle_clips", []):
-                        if c.get("file", "").lower() == filename:
-                            c["text_color"] = color
-                            updated = True
-                    if updated:
-                        if INSTANT_APPLY:
-                            _save_yaml()
-                        print(f"✅ Text color updated to {color} for {filename}.")
-                    else:
-                        print(f"❌ Could not find {filename} in YAML.")
-                    continue
-
-                print("❌ Specify either 'on all videos' or a filename (e.g. IMG_3782.mov).")
-                continue      
-
-
-            # Natural language: change duration
-            if "duration" in msg and any(v.lower() in msg for v in [".mov", ".mp4", ".avi"]):
-                filename_match = re.search(r"(img_\d+\.(?:mov|mp4|avi))", msg, re.IGNORECASE)
-                value_match = re.search(r"(?:to|=)\s*(\d+(?:\.\d+)?)", msg)  # only match number after 'to' or '='
-
-                if filename_match and value_match:
-                    filename = filename_match.group(1).lower()
-                    duration_val = float(value_match.group(1))
-                    updated = False
-
-                    # First clip
-                    if config.get("first_clip", {}).get("file", "").lower() == filename:
-                        config["first_clip"]["duration"] = duration_val
-                        updated = True
-
-                    # Middle clips
-                    for c in config.get("middle_clips", []):
-                        if c.get("file", "").lower() == filename:
-                            c["duration"] = duration_val
-                            updated = True
-
-                    # Last clip
-                    if config.get("last_clip", {}).get("file", "").lower() == filename:
-                        config["last_clip"]["duration"] = duration_val
-                        updated = True
-
-                    if updated:
-                        if INSTANT_APPLY:
-                            _save_yaml()
-                        logging.info(f"✅ Updated duration of {filename} → {duration_val}s")
-                    else:
-                        logging.warning(f"❌ Could not find {filename} in YAML.")
-                else:
-                    logging.info("❌ Usage: 'change duration of IMG_3785.mov to 5.0'")
-                continue
-            
-            # Natural language TTS control
-            if "voiceover" in msg or "narration" in msg or "tts" in msg:
-                if any(word in msg for word in ["enable", "turn on", "activate", "start"]):
-                    config.setdefault("render", {})["tts_enabled"] = True
-                    _save_yaml()
-                    logging.info("🗣️ Voiceover enabled — future videos will include AI narration.")
-                    continue
-                elif any(word in msg for word in ["disable", "turn off", "remove", "stop"]):
-                    config.setdefault("render", {})["tts_enabled"] = False
-                    _save_yaml()
-                    logging.info("🔇 Voiceover disabled — text only mode is now active.")
-                    continue
-                elif "status" in msg or "check" in msg:
-                    tts_state = config.get("render", {}).get("tts_enabled", False)
-                    logging.info(f"🎛️ Voiceover is currently {'ON' if tts_state else 'OFF'}.")
-                    continue
-
-
-            # Fuzzy natural-language scaling
-            interpreted = fuzzy_scale_interpret(user_message)
-            if interpreted:
-                filename, scale_value = interpreted
-                if update_scale_in_config(filename, scale_value):
-                    print(f"✅ Updated scale of {filename} → {scale_value}")
-                    logging.info(f"✅ Updated scale of {filename} → {scale_value}")
-                else:
-                    print(f"❌ Could not find {filename} in YAML.")
-                    logging.warning(f"❌ Could not find {filename} in YAML.")
-                continue
-
-            # Instant apply toggle
-            if msg.startswith("/instant"):
-                if "on" in msg:
-                    INSTANT_APPLY = True
-                    print("⚡ Instant Apply: ON")
-                    logging.info("⚡ Instant Apply: ON")
-                elif "off" in msg:
-                    INSTANT_APPLY = False
-                    print("⏸️ Instant Apply: OFF")
-                    logging.info("⏸️ Instant Apply: OFF")
-                else:
-                    logging.info(f"Instant Apply is {'ON' if INSTANT_APPLY else 'OFF'} (use /instant on|off)")
-                continue
-
-            if msg.startswith("/tts"):
-                if "on" in msg:
-                    config.setdefault("render", {})["tts_enabled"] = True
-                    _save_yaml()
-                    print("🗣️ TTS (voiceover) enabled — future renders will include AI narration.")
-                    logging.info("🗣️ TTS (voiceover) enabled — future renders will include AI narration.")
-                elif "off" in msg:
-                    config.setdefault("render", {})["tts_enabled"] = False
-                    _save_yaml()
-                    print("🔇 TTS (voiceover) disabled — text only mode.")
-                    logging.info("🔇 TTS (voiceover) disabled — text only mode.")
-                else:
-                    state = config.get("render", {}).get("tts_enabled", False)
-                    print(f"TTS is currently {'ON' if state else 'OFF'} (use /tts on|off)")
-                    logging.info(f"TTS is currently {'ON' if state else 'OFF'} (use /tts on|off)")
-                continue
-
-
-            # ---------------------------------------------------------
-            # Natural language fallback (chat mode)
-            # ---------------------------------------------------------
-            try:
-                if not MOCK_MODE:
-                    prompt = (
-                        f"You are my TikTok creative assistant.\n"
-                        f"Cached analysis:\n{video_analyses_cache}\n\n"
-                        f"User message:\n{user_message}"
-                    )
-
-                    resp = client.chat.completions.create(
-                        model=TEXT_MODEL,
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=0.7
-                    )
-
-                    reply = resp.choices[0].message.content.strip()
-
-                    print(f"\n🧠 Assistant:\n{reply}\n")
-
-                    short_reply = reply[:200].replace("\n", " ") + ("..." if len(reply) > 200 else "")
-                    logging.info(f"Assistant responded: {short_reply}")
-
-                else:
-                    # MOCK RESPONSE
-                    reply = "(Mocked response — MOCK_MODE is ON)"
-                    print(f"\n🧠 Assistant:\n{reply}\n")
-                    logging.info("Assistant returned mocked response.")
-
-            except Exception as e:
-                print(f"\n⚠️ Sorry, I didn’t understand that. Error: {e}")
-                print("Please try again with a different command or format.\n")
-                logging.warning(f"Chat handling error: {e}")
-                continue
-
-
-        # --------------------------------------------------------
-        # ✅ Global error handler for ANY command or chat failure
-        # --------------------------------------------------------
-        except Exception as e:
-            print(f"\n⚠️ Sorry, I didn’t understand that. Error: {e}")
-            print("Please try again with a different command or format.\n")
-            logging.warning(f"Global command error: {e}")
-            continue
-
-if __name__ == "__main__":
-    main()

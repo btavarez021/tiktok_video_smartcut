@@ -1,6 +1,7 @@
 # assistant_api.py
 import os
 import yaml
+import tempfile
 
 from assistant_log import log_step, status_log, clear_status_log
 
@@ -8,7 +9,6 @@ from tiktok_template import (
     config_path,
     config,
     client,
-    normalize_video_ffmpeg,
     edit_video,
 )
 
@@ -20,14 +20,12 @@ from tiktok_assistant import (
     apply_overlay,
     video_analyses_cache,
     TEXT_MODEL,
-    save_from_raw_yaml,
+    save_from_raw_yaml,   # kept for completeness if you still use it
     list_videos_from_s3,
     download_s3_video,
     normalize_video,
-    save_analysis_result
+    save_analysis_result,
 )
-import tempfile
-
 
 # ============================================
 # CONFIG HELPERS
@@ -82,7 +80,7 @@ def api_analyze():
     log_step("Starting analysis…")
 
     # 1. Fetch list of videos from S3
-    log_step("Fetching videos from S3…")
+    log_step("Fetching videos from S3 (raw_uploads/)…")
     s3_keys = list_videos_from_s3()
 
     if not s3_keys:
@@ -92,7 +90,7 @@ def api_analyze():
     log_step(f"Found {len(s3_keys)} video(s) in S3.")
     os.makedirs("normalized_cache", exist_ok=True)
 
-    results = {}
+    results: dict[str, str] = {}
 
     for key in s3_keys:
         log_step(f"Processing {key}…")
@@ -106,10 +104,10 @@ def api_analyze():
         # 3. Create normalized output path
         normalized_path = tempfile.NamedTemporaryFile(
             delete=False,
-            suffix=os.path.splitext(key)[1]
+            suffix=os.path.splitext(key)[1],
         ).name
 
-        # 4. Normalize (always normalize for now)
+        # 4. Normalize
         log_step(f"Normalizing {key} via FFmpeg…")
         normalize_video(tmp_local_path, normalized_path)
         log_step(f"Normalization complete for {key}.")
@@ -119,13 +117,14 @@ def api_analyze():
         desc = analyze_video(normalized_path)
         log_step(f"Analysis complete for {key}.")
 
-        # 6. Save analysis result
+        # 6. Save analysis result (disk + in-memory cache)
         save_analysis_result(key, desc)
 
         results[key] = desc
 
     log_step("All videos analyzed ✅")
     return results
+
 
 # ============================================
 # /api/generate_yaml
@@ -140,6 +139,10 @@ def api_generate_yaml():
 
     video_files = list(video_analyses_cache.keys())
     analyses = [video_analyses_cache.get(v, "") for v in video_files]
+
+    if not video_files:
+        log_step("No videos available for YAML generation.")
+        return {}
 
     yaml_prompt = build_yaml_prompt(video_files, analyses)
     log_step("Calling LLM to produce YAML storyboard…")
@@ -189,15 +192,19 @@ def api_get_config():
 # -----------------------------------------------
 # /api/export  (supports standard vs optimized)
 # -----------------------------------------------
-def api_export(optimized: bool = False):
+def api_export(optimized: bool = False) -> str:
+    """
+    Render final video using tiktok_template.edit_video.
+    Returns the output filename on local disk.
+    """
     clear_status_log()
     mode_label = "OPTIMIZED" if optimized else "STANDARD"
     log_step(f"Starting export in {mode_label} mode…")
 
     filename = (
         "output_tiktok_final_optimized.mp4"
-        if optimized else
-        "output_tiktok_final.mp4"
+        if optimized
+        else "output_tiktok_final.mp4"
     )
 
     log_step("Rendering timeline with music, captions, and voiceover…")
@@ -223,7 +230,11 @@ def api_set_tts(enabled: bool, voice: str | None = None):
 # ============================================
 # /api/cta
 # ============================================
-def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None = None):
+def api_set_cta(
+    enabled: bool,
+    text: str | None = None,
+    voiceover: bool | None = None,
+):
     load_config()
     cta_cfg = config.setdefault("cta", {})
     cta_cfg["enabled"] = bool(enabled)

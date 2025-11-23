@@ -1,12 +1,15 @@
-from flask import Flask, request, jsonify, render_template
-import logging
+# app.py
 import os
-from tiktok_assistant import s3, S3_BUCKET, download_s3_video, list_processed_s3_videos, tempfile, S3_PUBLIC_BASE
 import time
+import logging
+
+from flask import Flask, request, jsonify, render_template, send_from_directory
+
+from tiktok_assistant import s3, S3_BUCKET
 from assistant_api import (
     api_analyze,
     api_generate_yaml,
-    api_export,
+    api_export as do_export,
     api_set_tts,
     api_set_cta,
     api_apply_overlay,
@@ -18,24 +21,22 @@ from assistant_api import (
     set_export_mode,
     api_save_yaml,
     api_save_captions,
-    load_config
+    load_config,
 )
 from assistant_log import clear_status_log, log_step, status_log
 
 app = Flask(__name__)
 
 # =============================================================
-# Configure Logging
+# Logging
 # =============================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 assistant_log_dir = os.path.join(BASE_DIR, "logs")
+os.makedirs(assistant_log_dir, exist_ok=True)
 assistant_log_file_path = os.path.join(assistant_log_dir, "tiktok_editor.log")
 
-if not os.path.exists(assistant_log_dir):
-    os.makedirs(assistant_log_dir, exist_ok=True)
-
 logging.basicConfig(
-    level=logging.INFO,  # Set to logging.DEBUG for more verbose output
+    level=logging.INFO,
     filename=assistant_log_file_path,
     filemode="a",
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -43,18 +44,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-# ============================================
+# =============================================================
 # ROOT
-# ============================================
+# =============================================================
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
-# ============================================
-# CORE WORKFLOW
-# ============================================
+# =============================================================
+# UPLOAD → S3 (raw_uploads/)
+# =============================================================
 RAW_PREFIX = "raw_uploads"
 
 @app.route("/api/upload", methods=["POST"])
@@ -65,9 +65,13 @@ def upload_route():
     key = f"{RAW_PREFIX}/{filename}"
     s3.upload_fileobj(file, S3_BUCKET, key)
 
-    return jsonify({"status": "uploaded", "file": filename})
+    log_step(f"Uploaded {filename} to s3://{S3_BUCKET}/{key}")
+    return jsonify({"status": "uploaded", "file": filename, "key": key})
 
 
+# =============================================================
+# ANALYZE
+# =============================================================
 @app.route("/api/analyze", methods=["POST"])
 def analyze_route():
     clear_status_log()
@@ -77,6 +81,9 @@ def analyze_route():
     return jsonify(out)
 
 
+# =============================================================
+# YAML
+# =============================================================
 @app.route("/api/generate_yaml", methods=["POST"])
 def yaml_route():
     clear_status_log()
@@ -101,55 +108,38 @@ def save_yaml_route():
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # EXPORT + EXPORT MODE
-# ============================================
+# =============================================================
 @app.route("/api/export", methods=["POST"])
-def api_export():
-    log_step("Starting export…")
+def export_route():
+    clear_status_log()
+    data = request.json or {}
+    mode = data.get("mode")  # optional override
 
-    # 1. Load config.yml
-    cfg = load_config()
+    if mode is None:
+        mode = get_export_mode().get("mode", "standard")
 
-    # 2. Fetch list of processed/normalized clips from S3
-    s3_videos = list_processed_s3_videos()
+    optimized = mode == "optimized"
 
-    if not s3_videos:
-        log_step("No processed videos found in S3.")
-        return jsonify({"error": "no_videos"}), 400
+    log_step(f"Starting export (mode={mode})…")
+    filename = do_export(optimized=optimized)
 
-    # 3. Download them to temp local paths
-    local_clip_paths = []
-    for key in s3_videos:
-        tmp = download_s3_video(key)
-        if tmp:
-            local_clip_paths.append(tmp)
+    # Return filename; frontend can download via /download/<filename>
+    return jsonify({"status": "ok", "filename": filename})
 
-    # 4. Call edit_video with local temp files
-    from tiktok_template import edit_video
 
-    output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-    edit_video(clips=local_clip_paths, output_file=output_path, config=cfg)
-
-    # 5. Upload final to S3
-    final_key = f"exports/final_{int(time.time())}.mp4"
-    s3.upload_file(output_path, S3_BUCKET, final_key)
-
-    url = f"{S3_PUBLIC_BASE}/{final_key}"
-
-    log_step("✅ Export complete.")
-
-    return jsonify({
-        "status": "ok",
-        "file_url": url
-    })
-
+@app.route("/download/<path:filename>", methods=["GET"])
+def download_route(filename):
+    """
+    Simple download endpoint for exported videos.
+    """
+    return send_from_directory(BASE_DIR, filename, as_attachment=True)
 
 
 @app.route("/api/export_mode", methods=["GET", "POST"])
 def export_mode_route():
     if request.method == "GET":
-        # Returns {"mode": "..."}
         return jsonify(get_export_mode())
 
     data = request.json or {}
@@ -160,9 +150,9 @@ def export_mode_route():
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # TTS SETTINGS
-# ============================================
+# =============================================================
 @app.route("/api/tts", methods=["POST"])
 def tts_route():
     clear_status_log()
@@ -176,9 +166,9 @@ def tts_route():
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # CTA SETTINGS
-# ============================================
+# =============================================================
 @app.route("/api/cta", methods=["POST"])
 def cta_route():
     clear_status_log()
@@ -193,9 +183,9 @@ def cta_route():
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # SAVE CAPTIONS (from editor)
-# ============================================
+# =============================================================
 @app.route("/api/save_captions", methods=["POST"])
 def save_captions_route():
     clear_status_log()
@@ -208,9 +198,9 @@ def save_captions_route():
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # OVERLAY STYLE
-# ============================================
+# =============================================================
 @app.route("/api/overlay", methods=["POST"])
 def overlay_route():
     clear_status_log()
@@ -223,9 +213,9 @@ def overlay_route():
     return jsonify(result)
 
 
-# ============================================
+# =============================================================
 # FOREGROUND SCALE
-# ============================================
+# =============================================================
 @app.route("/api/fgscale", methods=["POST"])
 def fgscale_route():
     clear_status_log()
@@ -238,25 +228,25 @@ def fgscale_route():
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # TIMINGS
-# ============================================
+# =============================================================
 @app.route("/api/timings", methods=["POST"])
 def timings_route():
     clear_status_log()
     data = request.json or {}
     smart = bool(data.get("smart", False))
-    mode = "Smart pacing" if smart else "Standard FIX-C"
+    mode_label = "Smart pacing" if smart else "Standard FIX-C"
 
-    log_step(f"⏱ Applying timings → {mode}")
+    log_step(f"⏱ Applying timings → {mode_label}")
     out = api_apply_timings(smart)
-    log_step(f"✅ {mode} applied.")
+    log_step(f"✅ {mode_label} applied.")
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # LLM CHAT
-# ============================================
+# =============================================================
 @app.route("/api/chat", methods=["POST"])
 def chat_route():
     data = request.json or {}
@@ -264,9 +254,9 @@ def chat_route():
     return jsonify(api_chat(message))
 
 
-# ============================================
-# GLOBAL LIVE LOG (for side log panel)
-# ============================================
+# =============================================================
+# LIVE STATUS LOG
+# =============================================================
 @app.route("/api/status", methods=["GET"])
 def status_route():
     return jsonify({"log": status_log})
