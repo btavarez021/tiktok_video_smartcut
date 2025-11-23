@@ -29,7 +29,7 @@ S3_REGION = os.environ.get("S3_REGION", "us-east-1")
 S3_PUBLIC_BASE = f"https://{S3_BUCKET_NAME}.s3.{S3_REGION}.amazonaws.com"
 
 # Prefix for raw uploads (matches app.py)
-RAW_PREFIX = "raw_uploads"
+RAW_PREFIX = "raw_uploads/"
 
 # Create S3 client
 s3 = boto3.client("s3", region_name=S3_REGION)
@@ -74,8 +74,7 @@ def list_videos_from_s3() -> List[str]:
     """
     Return list of .mp4/.mov/.avi/.m4v keys under raw_uploads/.
     """
-    prefix = f"{RAW_PREFIX}/"
-    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
     files: List[str] = []
 
     for obj in resp.get("Contents", []):
@@ -84,9 +83,6 @@ def list_videos_from_s3() -> List[str]:
             files.append(key)
 
     return files
-
-
-RAW_PREFIX = "raw_uploads/"
 
 
 def list_raw_s3_videos() -> List[str]:
