@@ -5,3 +5,4 @@ normalized_cache/
 *.mp4
 *.sh
 credentials.json
+.log
