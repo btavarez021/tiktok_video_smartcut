@@ -6,7 +6,7 @@ import json
 import yaml
 import base64
 import random
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from openai import OpenAI
 from moviepy.editor import VideoFileClip  # only for durations + frame grabs
 from tiktok_template import normalize_video_ffmpeg
@@ -47,8 +47,8 @@ video_folder = os.path.join(BASE_DIR, "tik_tok_downloads")
 # ==============================
 # SETUP
 # ==============================
-load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
+# load_dotenv()
+api_key = os.getenv("open_ai_api_key")
 client = OpenAI(api_key=api_key) if not MOCK_MODE else None
 
 # Load config (create minimal if missing)

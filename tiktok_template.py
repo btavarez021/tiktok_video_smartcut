@@ -15,7 +15,7 @@ from moviepy.audio.fx import audio_loop
 import logging # Add this line
 import subprocess
 import datetime
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import tempfile
 
 
@@ -25,8 +25,8 @@ import tempfile
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 assistant_log_dir  = os.path.join(BASE_DIR, "logs") # Define the directory path
 assistant_log_file_path  = os.path.join(assistant_log_dir , "tiktok_editor.log")
-load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
+# load_dotenv()
+api_key = os.getenv("open_ai_api_key")
 client = OpenAI(api_key=api_key)
 
 
