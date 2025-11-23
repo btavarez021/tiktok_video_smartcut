@@ -54,13 +54,15 @@ def home():
 # ============================================
 # CORE WORKFLOW
 # ============================================
+RAW_PREFIX = "raw_uploads"
 
 @app.route("/api/upload", methods=["POST"])
 def upload_route():
     file = request.files["file"]
     filename = file.filename
 
-    s3.upload_fileobj(file, S3_BUCKET, filename)
+    key = f"{RAW_PREFIX}/{filename}"
+    s3.upload_fileobj(file, S3_BUCKET, key)
 
     return jsonify({"status": "uploaded", "file": filename})
 
