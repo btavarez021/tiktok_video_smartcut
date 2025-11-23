@@ -58,6 +58,8 @@ BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 
 
 S3_BUCKET = os.getenv("S3_BUCKET_NAME")
+S3_PUBLIC_BASE = os.getenv("")
+PROCESSED_PREFIX = os.getenv("S3_PROCESSED_PREFIX")
 
 s3 = boto3.client(
     "s3",
@@ -141,6 +143,17 @@ def download_s3_video(key):
     except Exception as e:
         logging.error(f"Failed to download {key}: {e}")
         return None
+
+def list_processed_s3_videos():
+    """Return list of processed video outputs in S3."""
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix=PROCESSED_PREFIX)
+    files = []
+    for obj in resp.get("Contents", []):
+        key = obj["Key"]
+        if key.lower().endswith((".mp4", ".mov")):
+            files.append(key)
+    return files
+
 
 video_files = list_videos_from_s3()
 

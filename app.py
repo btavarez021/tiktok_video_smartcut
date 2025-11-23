@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify, render_template
 import logging
 import os
-from tiktok_assistant import s3, S3_BUCKET
-
+from tiktok_assistant import s3, S3_BUCKET, download_s3_video, list_processed_s3_videos, tempfile, S3_PUBLIC_BASE
+import time
 from assistant_api import (
     api_analyze,
     api_generate_yaml,
@@ -18,6 +18,7 @@ from assistant_api import (
     set_export_mode,
     api_save_yaml,
     api_save_captions,
+    load_config
 )
 from assistant_log import clear_status_log, log_step, status_log
 
@@ -104,20 +105,45 @@ def save_yaml_route():
 # EXPORT + EXPORT MODE
 # ============================================
 @app.route("/api/export", methods=["POST"])
-def export_route():
-    data = request.json or {}
-    optimized = data.get("mode") == "optimized"
+def api_export():
+    log_step("Starting export…")
 
-    clear_status_log()
-    log_step(
-        "🎬 Starting export render "
-        + ("(OPTIMIZED)…" if optimized else "(STANDARD)…")
-    )
+    # 1. Load config.yml
+    cfg = load_config()
 
-    out = api_export(optimized=optimized)
+    # 2. Fetch list of processed/normalized clips from S3
+    s3_videos = list_processed_s3_videos()
+
+    if not s3_videos:
+        log_step("No processed videos found in S3.")
+        return jsonify({"error": "no_videos"}), 400
+
+    # 3. Download them to temp local paths
+    local_clip_paths = []
+    for key in s3_videos:
+        tmp = download_s3_video(key)
+        if tmp:
+            local_clip_paths.append(tmp)
+
+    # 4. Call edit_video with local temp files
+    from tiktok_template import edit_video
+
+    output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+    edit_video(clips=local_clip_paths, output_file=output_path, config=cfg)
+
+    # 5. Upload final to S3
+    final_key = f"exports/final_{int(time.time())}.mp4"
+    s3.upload_file(output_path, S3_BUCKET, final_key)
+
+    url = f"{S3_PUBLIC_BASE}/{final_key}"
 
     log_step("✅ Export complete.")
-    return jsonify({"output": out, "log": status_log})
+
+    return jsonify({
+        "status": "ok",
+        "file_url": url
+    })
+
 
 
 @app.route("/api/export_mode", methods=["GET", "POST"])

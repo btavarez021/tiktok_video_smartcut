@@ -766,75 +766,48 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================
   // STEP 5: EXPORT (with timing summary update)
   // ============================================
-  if (btnExport) {
-    btnExport.addEventListener("click", async () => {
-      resetProcessingLog("Starting export...");
+  // ============================================
+// EXPORT FINAL VIDEO (S3-based)
+// ============================================
 
-      const mode =
-        exportOptimizedToggle && exportOptimizedToggle.checked
-          ? "optimized"
-          : "standard";
+if (btnExport) {
+  btnExport.addEventListener("click", async () => {
+    statusExport.textContent = "Preparing export…";
+    statusExport.className = "status-text";
 
-      const summaryBox = document.getElementById("timing-summary");
-      if (summaryBox) {
-        summaryBox.innerHTML = `⏳ Export started in ${
-          mode === "optimized" ? "Optimized" : "Standard"
-        } mode…`;
+    spinnerExport.classList.add("active");
+    btnExport.disabled = true;
+
+    try {
+      const optimized = document.getElementById("export-optimized").checked;
+
+      // ✅ Call new backend export route
+      const resp = await postJSON("/api/export", { optimized });
+
+      if (resp.error) {
+        statusExport.textContent = "❌ Export failed.";
+        statusExport.classList.add("error");
+      } else {
+        statusExport.innerHTML = `
+          ✅ Export complete!<br>
+          <a href="${resp.url}" target="_blank"
+             style="color:#00e6b8; text-decoration:underline;">
+            Download Final Video
+          </a>
+        `;
+        statusExport.classList.add("success");
       }
+    } catch (err) {
+      console.error(err);
+      statusExport.textContent = "❌ Error during export.";
+      statusExport.classList.add("error");
+    } finally {
+      spinnerExport.classList.remove("active");
+      btnExport.disabled = false;
+    }
+  });
+}
 
-      if (statusExport) {
-        statusExport.textContent =
-          mode === "optimized"
-            ? "Rendering video (optimized quality)…"
-            : "Rendering video (standard quality)…";
-        statusExport.className = "status-text";
-      }
-
-      const start = performance.now();
-
-      showLoader("Exporting final TikTok…");
-      setButtonLoading(btnExport, spinExport, true);
-
-      try {
-        const res = await postJSON("/api/export", { mode });
-
-        const end = performance.now();
-        const seconds = ((end - start) / 1000).toFixed(1);
-
-        if (statusExport) {
-          statusExport.textContent = `Export complete → ${res.output}`;
-          statusExport.classList.add("success");
-          markStepDone(4);
-        }
-
-        if (summaryBox) {
-          summaryBox.innerHTML = `
-            ✅ Export finished<br>
-            🕒 Duration: <strong>${seconds}s</strong><br>
-            🎞 Mode: <strong>${mode}</strong><br>
-            📁 File: ${res.output}
-          `;
-        }
-      } catch (err) {
-        console.error(err);
-
-        if (statusExport) {
-          statusExport.textContent = "Export failed. Check logs.";
-          statusExport.classList.add("error");
-        }
-
-        if (summaryBox) {
-          summaryBox.innerHTML = `
-            ❌ Export failed<br>
-            Error: ${err.message}
-          `;
-        }
-      } finally {
-        hideLoader();
-        setButtonLoading(btnExport, spinExport, false);
-      }
-    });
-  }
 
   // ============================================
   // LLM CHAT PANEL
