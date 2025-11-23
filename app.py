@@ -8,8 +8,9 @@ from tiktok_assistant import (
     s3,
     S3_BUCKET_NAME,
     S3_PUBLIC_BASE,
-    move_raw_to_processed,
-    list_raw_s3_videos
+    RAW_PREFIX,
+    EXPORT_PREFIX,
+    move_all_raw_to_processed,
 )
 
 from assistant_api import (
@@ -53,6 +54,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 # ============================================
 # ROOT
 # ============================================
@@ -64,10 +66,12 @@ def home():
 # ============================================
 # CORE WORKFLOW
 # ============================================
-RAW_PREFIX = "raw_uploads/"
-
 @app.route("/api/upload", methods=["POST"])
 def upload_route():
+    """
+    Upload a single file to S3 under raw_uploads/<filename>.
+    Frontend calls this once per file.
+    """
     file = request.files["file"]
     filename = file.filename
 
@@ -134,15 +138,13 @@ def export_route():
 
     # 2. Upload final to S3
     ts = int(time.time())
-    final_key = f"exports/final_{ts}.mp4"
+    final_key = f"{EXPORT_PREFIX}final_{ts}.mp4"
     s3.upload_file(local_path, S3_BUCKET_NAME, final_key)
     url = f"{S3_PUBLIC_BASE}/{final_key}"
     log_step(f"✅ Final video uploaded to S3 → {final_key}")
 
-    # 3. Move raw_uploads → processed
-    raw_keys = list_raw_s3_videos()
-    for key in raw_keys:
-        move_raw_to_processed(key)
+    # 3. Move raw_uploads/ → processed/
+    move_all_raw_to_processed()
 
     log_step("✅ Export complete.")
     return jsonify({
@@ -213,7 +215,7 @@ def save_captions_route():
 
 
 # ============================================
-# OVERLAY STYLE
+# OVERLAY STYLE (caption chips)
 # ============================================
 @app.route("/api/overlay", methods=["POST"])
 def overlay_route():
@@ -277,4 +279,5 @@ def status_route():
 
 
 if __name__ == "__main__":
+    # For local dev; on Render, gunicorn will run app:app
     app.run(debug=True, port=5000)

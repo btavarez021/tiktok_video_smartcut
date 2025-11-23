@@ -2,7 +2,6 @@
 import os
 import yaml
 import shutil
-import tempfile
 
 from assistant_log import log_step, status_log, clear_status_log
 
@@ -11,7 +10,7 @@ from tiktok_template import (
     config,
     client,
     edit_video,
-    video_folder,   # <-- use local folder from template
+    video_folder,  # local /tik_tok_downloads folder
 )
 
 from tiktok_assistant import (
@@ -80,9 +79,8 @@ def get_export_mode() -> dict:
 def api_analyze():
     log_step("Starting analysis…")
 
-    # Ensure local folder exists & is clean
+    # Ensure local folder exists & is clean so we don't mix clip sets
     os.makedirs(video_folder, exist_ok=True)
-    # Optional: clear old clips so we don't mix sets
     for name in os.listdir(video_folder):
         path = os.path.join(video_folder, name)
         if os.path.isfile(path):
@@ -91,7 +89,7 @@ def api_analyze():
             except OSError:
                 pass
 
-    # 1. Fetch list of videos from S3
+    # 1. Fetch list of videos from S3 raw_uploads/
     log_step("Fetching videos from S3 (raw_uploads/)…")
     s3_keys = list_videos_from_s3()
 
@@ -122,17 +120,16 @@ def api_analyze():
             log_step(f"❌ Failed to copy {tmp_local_path} → {local_path}: {e}")
             continue
 
-        # 4. (Optional) debug dimensions if you want
+        # 4. Optional debug
         # debug_video_dimensions(video_folder)
 
-        # 5. Analyze with LLM (or stub)
+        # 5. Analyze with LLM
         log_step(f"Analyzing {base} with LLM…")
         desc = analyze_video(local_path)
         log_step(f"Analysis complete for {base}.")
 
-        # 6. Save analysis result (by basename)
+        # 6. Save analysis result
         save_analysis_result(base, desc)
-
         results[base] = desc
 
     log_step("All videos analyzed ✅")
@@ -150,7 +147,8 @@ def api_generate_yaml():
         log_step("No cached analyses; running quick analyze before YAML generation…")
         api_analyze()
 
-    video_files = list(video_analyses_cache.keys())        # basenames
+    # Keys in cache are basenames (same as you'll store in config.yml)
+    video_files = list(video_analyses_cache.keys())
     analyses = [video_analyses_cache.get(v, "") for v in video_files]
 
     yaml_prompt = build_yaml_prompt(video_files, analyses)
@@ -198,9 +196,9 @@ def api_get_config():
     }
 
 
-# -----------------------------------------------
-# /api/export  (MoviePy render to local file)
-# -----------------------------------------------
+# ============================================
+# /api/export  (MoviePy → local file)
+# ============================================
 def api_export(optimized: bool = False):
     clear_status_log()
     mode_label = "OPTIMIZED" if optimized else "STANDARD"
@@ -208,8 +206,8 @@ def api_export(optimized: bool = False):
 
     filename = (
         "output_tiktok_final_optimized.mp4"
-        if optimized else
-        "output_tiktok_final.mp4"
+        if optimized
+        else "output_tiktok_final.mp4"
     )
 
     log_step("Rendering timeline with music, captions, and voiceover…")
@@ -253,6 +251,7 @@ def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None =
 def api_apply_overlay(style: str):
     """
     Apply overlay style (punchy / cinematic / descriptive / etc.) to all clips.
+    Uses LLM to rewrite text fields then reloads config.
     """
     apply_overlay(style=style, target="all", filename=None)
     load_config()
@@ -275,16 +274,16 @@ def api_save_captions(text: str):
 
     idx = 0
 
-    if "first_clip" in config and idx < len(parts):
+    if "first_clip" in config and isinstance(config.get("first_clip"), dict) and idx < len(parts):
         config["first_clip"]["text"] = parts[idx]
         idx += 1
 
     for c in config.get("middle_clips", []):
-        if idx < len(parts):
+        if isinstance(c, dict) and idx < len(parts):
             c["text"] = parts[idx]
             idx += 1
 
-    if "last_clip" in config and idx < len(parts):
+    if "last_clip" in config and isinstance(config.get("last_clip"), dict) and idx < len(parts):
         config["last_clip"]["text"] = parts[idx]
 
     save_config()
