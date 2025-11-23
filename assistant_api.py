@@ -2,7 +2,7 @@
 import os
 import yaml
 import tempfile
-
+import logging
 from assistant_log import log_step, status_log, clear_status_log
 
 from tiktok_template import (
@@ -28,6 +28,7 @@ from tiktok_assistant import (
     save_analysis_result,
 )
 
+logging.getLogger().setLevel(logging.DEBUG)
 
 # ============================================
 # CONFIG HELPERS
@@ -76,55 +77,80 @@ def get_export_mode() -> dict:
 
 
 # ============================================
-# /api/analyze  (RAW → Normalize → Analyze)
+# /api/analyze  (with debugging logs)
 # ============================================
 def api_analyze():
+    clear_status_log()
     log_step("Starting analysis…")
 
-    # 1. Fetch list of raw videos from S3
-    log_step("Fetching RAW videos from S3…")
-    s3_keys = list_raw_s3_videos()
-
-    if not s3_keys:
-        log_step("No RAW videos found in S3.")
+    try:
+        from tiktok_assistant import list_raw_s3_videos
+    except Exception as e:
+        log_step(f"❌ ERROR importing list_raw_s3_videos: {e}")
+        logging.exception("Import failure in api_analyze()")
         return {}
 
-    log_step(f"Found {len(s3_keys)} RAW video(s).")
+    # 1. Fetch list of videos from S3
+    log_step("Fetching videos from S3…")
+
+    try:
+        s3_keys = list_raw_s3_videos()
+    except Exception as e:
+        log_step(f"❌ ERROR listing S3 videos: {e}")
+        logging.exception("S3 listing failed in api_analyze()")
+        return {}
+
+    if not s3_keys:
+        log_step("⚠ No videos found in raw_uploads/")
+        return {}
+
+    log_step(f"Found {len(s3_keys)} video(s). Creating normalized_cache…")
+
     os.makedirs("normalized_cache", exist_ok=True)
-
     results = {}
-
+    
+    # PROCESS EACH VIDEO
     for key in s3_keys:
         log_step(f"Processing {key}…")
 
-        # 2. Download to temporary file
-        tmp_local_path = download_s3_video(key)
-        if not tmp_local_path:
-            log_step(f"❌ Failed to download {key}")
+        # Download
+        try:
+            tmp_local_path = download_s3_video(key)
+        except Exception as e:
+            log_step(f"❌ Download failed for {key}: {e}")
+            logging.exception("Download failure")
             continue
 
-        # 3. Create normalized output path
-        normalized_path = tempfile.NamedTemporaryFile(
-            delete=False,
-            suffix=os.path.splitext(key)[1],
-        ).name
+        if not tmp_local_path:
+            log_step(f"❌ No temp file path returned for {key}")
+            continue
 
-        # 4. Normalize with FFmpeg
-        log_step(f"Normalizing {key} via FFmpeg…")
-        normalize_video(tmp_local_path, normalized_path)
-        log_step(f"Normalization complete for {key}.")
+        # Normalize
+        try:
+            normalized_path = tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=os.path.splitext(key)[1]
+            ).name
+            log_step(f"Normalizing {key} via FFmpeg…")
+            normalize_video(tmp_local_path, normalized_path)
+        except Exception as e:
+            log_step(f"❌ Normalization failed for {key}: {e}")
+            logging.exception("Normalization failure")
+            continue
 
-        # 5. Analyze using LLM
-        log_step(f"Analyzing {key} with LLM…")
-        desc = analyze_video(normalized_path)
-        log_step(f"Analysis complete for {key}.")
+        # Analyze
+        try:
+            log_step(f"Analyzing {key} with LLM…")
+            desc = analyze_video(normalized_path)
+            save_analysis_result(key, desc)
+            results[key] = desc
+            log_step(f"✅ Analysis complete for {key}")
+        except Exception as e:
+            log_step(f"❌ Analysis failed for {key}: {e}")
+            logging.exception("LLM analysis failure")
+            continue
 
-        # 6. Cache/save result
-        save_analysis_result(key, desc)
-
-        results[key] = desc
-
-    log_step("All RAW videos analyzed ✅")
+    log_step("✅ All videos analyzed.")
     return results
 
 # ============================================
