@@ -151,12 +151,91 @@ def build_yaml_prompt(video_files, analyses) -> str:
     return "\n".join(lines)
 
 
-def apply_smart_timings(pacing: str = "standard") -> None:
-    logging.info("apply_smart_timings stub called with pacing=%s", pacing)
+def apply_smart_timings(pacing: str = "standard"):
+    """
+    Adjust durations in config.yml.
+    'standard' = keep durations
+    'smart' = rebalance based on simple proportional weighting
+    """
+    import yaml
+
+    CONFIG_PATH = "config.yml"
+
+    with open(CONFIG_PATH, "r") as f:
+        cfg = yaml.safe_load(f) or {}
+
+    clips = []
+
+    if cfg.get("first_clip"):
+        clips.append(cfg["first_clip"])
+    clips.extend(cfg.get("middle_clips", []))
+    if cfg.get("last_clip"):
+        clips.append(cfg["last_clip"])
+
+    if pacing == "smart":
+        total = len(clips)
+        for i, c in enumerate(clips):
+            c["duration"] = max(2, 5 - abs(i - total // 2))  # simple cinematic bias
+    else:
+        # default duration if missing
+        for c in clips:
+            c.setdefault("duration", 3)
+
+    # write back
+    with open(CONFIG_PATH, "w") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+
+    logging.info(f"✅ Timings applied ({pacing})")
 
 
 def apply_overlay(style: str, target: str = "all", filename: Optional[str] = None) -> None:
-    logging.info("apply_overlay stub called with style=%s", style)
+    """
+    Rewrite captions in config.yml according to selected style.
+    Very simplified transformation — enough to make UI work.
+    """
+    import yaml
+
+    # load config.yml
+    with open("config.yml", "r") as f:
+        cfg = yaml.safe_load(f) or {}
+
+    def transform(text: str) -> str:
+        if not text:
+            return text
+
+        if style == "punchy":
+            return text.upper()
+
+        if style == "cinematic":
+            return f"✨ {text.capitalize()} ✨"
+
+        if style == "descriptive":
+            return f"{text}. A beautiful scene unfolds."
+
+        if style == "influencer":
+            return f"OMG! {text}! 😍🔥"
+
+        if style == "travel_blog":
+            return f"{text}. We loved this moment and recommend it!"
+
+        return text
+
+    # apply to first / middle / last
+    if cfg.get("first_clip") and cfg["first_clip"].get("text"):
+        cfg["first_clip"]["text"] = transform(cfg["first_clip"]["text"])
+
+    for mc in cfg.get("middle_clips", []):
+        if mc.get("text"):
+            mc["text"] = transform(mc["text"])
+
+    if cfg.get("last_clip") and cfg["last_clip"].get("text"):
+        cfg["last_clip"]["text"] = transform(cfg["last_clip"]["text"])
+
+    # save back
+    with open("config.yml", "w") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+
+    log_step(f"Overlay style applied: {style}")
 
 
 def save_from_raw_yaml(*args, **kwargs):
