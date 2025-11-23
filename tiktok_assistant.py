@@ -58,6 +58,18 @@ def list_videos_from_s3() -> List[str]:
 
     return files
 
+RAW_PREFIX = "raw_uploads/"
+
+def list_raw_s3_videos():
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
+    files = []
+    for obj in resp.get("Contents", []):
+        key = obj["Key"]
+        if key.lower().endswith((".mp4", ".mov", ".avi")):
+            files.append(key)
+    return files
+
+
 
 def download_s3_video(key: str) -> Optional[str]:
     """

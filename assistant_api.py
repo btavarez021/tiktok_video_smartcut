@@ -22,7 +22,7 @@ from tiktok_assistant import (
     video_analyses_cache,
     TEXT_MODEL,
     save_from_raw_yaml,
-    list_videos_from_s3,
+    list_raw_s3_videos, 
     download_s3_video,
     normalize_video,
     save_analysis_result,
@@ -76,20 +76,20 @@ def get_export_mode() -> dict:
 
 
 # ============================================
-# /api/analyze
+# /api/analyze  (RAW → Normalize → Analyze)
 # ============================================
 def api_analyze():
     log_step("Starting analysis…")
 
-    # 1. Fetch list of videos from S3
-    log_step("Fetching videos from S3…")
-    s3_keys = list_videos_from_s3()
+    # 1. Fetch list of raw videos from S3
+    log_step("Fetching RAW videos from S3…")
+    s3_keys = list_raw_s3_videos()
 
     if not s3_keys:
-        log_step("No videos found in S3.")
+        log_step("No RAW videos found in S3.")
         return {}
 
-    log_step(f"Found {len(s3_keys)} video(s) in S3.")
+    log_step(f"Found {len(s3_keys)} RAW video(s).")
     os.makedirs("normalized_cache", exist_ok=True)
 
     results = {}
@@ -109,24 +109,23 @@ def api_analyze():
             suffix=os.path.splitext(key)[1],
         ).name
 
-        # 4. Normalize
+        # 4. Normalize with FFmpeg
         log_step(f"Normalizing {key} via FFmpeg…")
         normalize_video(tmp_local_path, normalized_path)
         log_step(f"Normalization complete for {key}.")
 
-        # 5. Analyze with LLM (or stub)
+        # 5. Analyze using LLM
         log_step(f"Analyzing {key} with LLM…")
         desc = analyze_video(normalized_path)
         log_step(f"Analysis complete for {key}.")
 
-        # 6. Save analysis result
+        # 6. Cache/save result
         save_analysis_result(key, desc)
 
         results[key] = desc
 
-    log_step("All videos analyzed ✅")
+    log_step("All RAW videos analyzed ✅")
     return results
-
 
 # ============================================
 # /api/generate_yaml
