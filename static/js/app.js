@@ -455,6 +455,7 @@ document.addEventListener("DOMContentLoaded", () => {
             captionsEditor.value = extractCaptionsFromConfig(cfg);
           }
 
+
           if (statusYaml) {
             statusYaml.textContent = `✅ Captions rewritten using: ${style}`;
             statusYaml.classList.add("success");

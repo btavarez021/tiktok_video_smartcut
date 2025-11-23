@@ -9,6 +9,7 @@ from tiktok_assistant import (
     S3_BUCKET_NAME,
     S3_PUBLIC_BASE,
     move_raw_to_processed,
+    list_raw_s3_videos
 )
 
 from assistant_api import (
@@ -63,14 +64,14 @@ def home():
 # ============================================
 # CORE WORKFLOW
 # ============================================
-RAW_PREFIX = "raw_uploads"
+RAW_PREFIX = "raw_uploads/"
 
 @app.route("/api/upload", methods=["POST"])
 def upload_route():
     file = request.files["file"]
     filename = file.filename
 
-    key = f"{RAW_PREFIX}/{filename}"
+    key = f"{RAW_PREFIX}{filename}"
     s3.upload_fileobj(file, S3_BUCKET_NAME, key)
 
     log_step(f"Uploaded {filename} to S3 at {key}")
@@ -139,7 +140,9 @@ def export_route():
     log_step(f"✅ Final video uploaded to S3 → {final_key}")
 
     # 3. Move raw_uploads → processed
-    move_raw_to_processed()
+    raw_keys = list_raw_s3_videos()
+    for key in raw_keys:
+        move_raw_to_processed(key)
 
     log_step("✅ Export complete.")
     return jsonify({
