@@ -52,7 +52,6 @@
       <section class="grid-2">
         <!-- LEFT COLUMN: steps -->
         <div class="steps-column">
-
           <!-- STEP 1: Analyze -->
           <section class="card">
             <div class="card-header">
@@ -65,6 +64,9 @@
                 <span class="spinner" id="spinner-analyze"></span>
               </button>
               <p id="status-analyze" class="status-text"></p>
+              <!-- Live processing log -->
+              <div id="analysis-log" class="analysis-log-box"></div>
+
               <!-- Scrollable analysis box -->
               <div id="analysis-list" class="analysis-box"></div>
             </div>
@@ -76,7 +78,9 @@
               <h2>Step 2 · YAML Config & Caption Style</h2>
               <p>Generate your <code>config.yml</code> and choose caption style.</p>
             </div>
+
             <div class="card-body">
+              <!-- YAML buttons -->
               <div class="button-row">
                 <button id="btn-generate-yaml" class="btn secondary">
                   <span class="btn-label">Generate YAML (LLM)</span>
@@ -89,17 +93,54 @@
 
               <p id="status-yaml" class="status-text"></p>
 
+              <!-- Caption style chips -->
               <div class="caption-style-group">
                 <span class="label">Caption style (overlay):</span>
                 <div class="button-row">
                   <button class="btn chip" data-style="punchy">Punchy</button>
                   <button class="btn chip" data-style="cinematic">Cinematic</button>
                   <button class="btn chip" data-style="descriptive">Descriptive</button>
+                  <button class="btn chip" data-style="influencer">Influencer</button>
+                  <button class="btn chip" data-style="travel_blog">Travel Blog Review</button>
                 </div>
                 <p class="hint">
-                  These map to your <code>/overlay</code> logic and will rewrite captions in <code>config.yml</code>.
+                  These rewrite captions in <code>config.yml</code>.
                 </p>
               </div>
+
+              <!-- Editable Captions Block -->
+              <section class="captions-edit-card">
+                <div class="card-header compact">
+                  <h2>Edit Captions</h2>
+                  <p>Edit generated captions directly, then save back to config.yml.</p>
+                </div>
+
+                <div class="card-body">
+                  <textarea
+                    id="captions-editor"
+                    class="code-block"
+                    style="height:180px;"
+                  ></textarea>
+
+                  <button
+                    id="btn-save-captions"
+                    class="btn small primary"
+                    style="margin-top:8px;"
+                  >
+                    Save Captions
+                  </button>
+
+                  <p id="status-captions" class="status-text"></p>
+
+                  <!-- Sync narration hint (hidden by default) -->
+                  <div id="tts-sync-hint" class="sync-hint hidden">
+                    <p>🎤 You edited captions — regenerate narration to match?</p>
+                    <button id="btn-sync-tts" class="btn small primary">
+                      Sync Narration to Captions
+                    </button>
+                  </div>
+                </div>
+              </section>
             </div>
           </section>
 
@@ -146,8 +187,11 @@
                 </label>
                 <label class="field">
                   <span>CTA Text</span>
-                  <textarea id="cta-text" rows="2"
-                    placeholder="Book now and save 10% with the link in bio..."></textarea>
+                  <textarea
+                    id="cta-text"
+                    rows="2"
+                    placeholder="Book now and save 10% with the link in bio..."
+                  ></textarea>
                 </label>
                 <label class="field inline">
                   <span>Voiceover for CTA</span>
@@ -165,7 +209,14 @@
                 <h3>Foreground & Blur Border</h3>
                 <label class="field">
                   <span>Foreground scale (fg_scale_default)</span>
-                  <input type="range" id="fg-scale" min="0.7" max="1.2" step="0.01" value="1.0" />
+                  <input
+                    type="range"
+                    id="fg-scale"
+                    min="0.7"
+                    max="1.2"
+                    step="0.01"
+                    value="1.0"
+                  />
                   <div class="range-labels">
                     <span>More blur / inset</span>
                     <span id="fg-scale-value">1.00</span>
@@ -218,6 +269,17 @@
               <p>Render your final TikTok with voiceover, music, CTA, and all settings.</p>
             </div>
             <div class="card-body">
+              <div class="field inline">
+                <span>Optimized quality (slower)</span>
+                <label class="toggle">
+                  <input type="checkbox" id="export-optimized" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <p class="hint">
+                Off = Standard (faster export). On = Optimized (heavier encode, better for final uploads).
+              </p>
+
               <button id="btn-export" class="btn primary">
                 <span class="btn-label">Export Final Video</span>
                 <span class="spinner" id="spinner-export"></span>
@@ -229,14 +291,44 @@
 
         <!-- RIGHT COLUMN: YAML + Chat -->
         <div class="side-column">
-          <!-- YAML preview -->
+          <!-- YAML preview + editor -->
           <section class="card yaml-card">
             <div class="card-header compact">
               <h2>Live config.yml Preview</h2>
-              <p>Updates after Analyze / YAML / Settings / Timings.</p>
+              <p>Edit captions & settings directly, then save.</p>
             </div>
             <div class="card-body">
-              <pre id="yaml-preview" class="code-block">Loading config.yml…</pre>
+              <textarea id="yaml-editor" class="yaml-editor"></textarea>
+              <button id="btn-save-yaml" class="btn small primary save-yaml-btn">
+                Save YAML Changes
+              </button>
+              <p id="status-save-yaml" class="status-text"></p>
+            </div>
+          </section>
+
+          <!-- TIMING SUMMARY CARD -->
+          <section class="card timing-card">
+            <div class="card-header compact">
+              <h2>Export Timing Summary</h2>
+              <p>Compare Standard vs Optimized duration.</p>
+            </div>
+            <div class="card-body">
+              <pre id="timing-summary" class="code-block timing-box">
+No export run yet.
+              </pre>
+            </div>
+          </section>
+
+          <!-- Processing Log -->
+          <section class="card log-card">
+            <div class="card-header compact">
+              <h2>Processing Log</h2>
+              <p>Live steps for each operation.</p>
+            </div>
+            <div class="card-body">
+              <pre id="live-log" class="code-block log-box">
+Loading log…
+              </pre>
             </div>
           </section>
 

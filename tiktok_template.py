@@ -312,8 +312,15 @@ def auto_select_music(music_meta):
 tempfile.tempdir = os.path.join(BASE_DIR, "temp")
 os.makedirs(tempfile.tempdir, exist_ok=True)
 
-def edit_video(output_file="output_tiktok_final_cinematic.mp4"):
+def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
     global config
+
+    # Choose encoding flags based on mode
+    if optimized:
+        ffmpeg_flags = "-preset veryfast -crf 28"
+    else:
+        ffmpeg_flags = "-preset slow -crf 18"
+
 
     # Reload config before every render
     try:
@@ -486,11 +493,13 @@ def edit_video(output_file="output_tiktok_final_cinematic.mp4"):
         fps=24,
         codec="libx264",
         audio_codec="aac",
-        preset="medium",
-        bitrate="5000k",
         threads=4,
-        ffmpeg_params=["-pix_fmt", "yuv420p", "-vf", "scale=1080:1920"],
+        ffmpeg_params=[
+            "-pix_fmt", "yuv420p",
+            "-vf", "scale=1080:1920"
+        ] + ffmpeg_flags.split(),
     )
+
 
     logging.info(f"✅ Export done → {output_file}")
 

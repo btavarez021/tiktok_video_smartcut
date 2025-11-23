@@ -1,6 +1,7 @@
 first_clip:
   file: img_3753.mov
-  text: "Your world can break in seconds\u2014could you start over?"
+  text: "Trust me, you\u2019ll thank yourself later\u2014take a moment right now to\
+    \ back up your important files!"
   duration: 6.74
   start_time: 0.0
   text_color: white
@@ -8,22 +9,25 @@ first_clip:
   voice: alloy
 middle_clips:
 - file: img_3780.mov
-  text: "Tonight, one decision could change your life forever\u2014are you ready?"
-  duration: 5.0
+  text: I just discovered the most amazing hotel, and you seriously need to add it
+    to your travel list!
+  duration: 5.45
   start_time: 0.0
   text_color: white
   scale: 1.0
   voice: alloy
 - file: img_3782.mov
-  text: "Every shadow tonight hides a secret you won\u2019t see coming."
-  duration: 6.0
+  text: "I seriously had to make sure this was legit because it\u2019s incredible\u2014\
+    you need to experience this yourself!"
+  duration: 7.62
   start_time: 0.0
   text_color: white
   scale: 1.0
   voice: alloy
 last_clip:
   file: img_3785.mov
-  text: Will you seize today's magic or let it fade away?
+  text: "Trust me, you cannot miss the hotel\u2019s nightly magic show\u2014it completely\
+    \ blew me away and you\u2019ll love it!"
   duration: 5.0
   start_time: 0.0
   text_color: yellow
@@ -36,11 +40,11 @@ music:
   volume: 0.25
 render:
   fg_scale_default: 0.9
-  tts_voice: verse
+  tts_voice: alloy
   tts_enabled: true
 cta:
   enabled: true
-  text: Book now!
+  text: Book now and save 10% using link in the description.
   text_color: white
   duration: 3.0
   scale: 1.0

@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // ---------------------------
-  // Element references
-  // ---------------------------
+  // ============================================
+  // ELEMENT REFERENCES
+  // ============================================
   const loader = document.getElementById("global-loader");
 
   // Step 1
@@ -15,8 +15,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const spinYaml = document.getElementById("spinner-yaml");
   const btnRefreshConfig = document.getElementById("btn-refresh-config");
   const statusYaml = document.getElementById("status-yaml");
-  const yamlPreview = document.getElementById("yaml-preview");
   const captionChips = document.querySelectorAll(".btn.chip");
+  const captionsEditor = document.getElementById("captions-editor");
+  const btnSaveCaptions = document.getElementById("btn-save-captions");
+  const statusCaptions = document.getElementById("status-captions");
+
+  // YAML editor (right side)
+  const yamlEditor = document.getElementById("yaml-editor");
+  const btnSaveYaml = document.getElementById("btn-save-yaml");
+  const statusSaveYaml = document.getElementById("status-save-yaml");
 
   // Step 3: TTS
   const ttsEnabled = document.getElementById("tts-enabled");
@@ -51,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnExport = document.getElementById("btn-export");
   const spinExport = document.getElementById("spinner-export");
   const statusExport = document.getElementById("status-export");
+  const exportOptimizedToggle = document.getElementById("export-optimized");
 
   // Chat
   const chatForm = document.getElementById("chat-form");
@@ -59,9 +67,32 @@ document.addEventListener("DOMContentLoaded", () => {
   const spinChat = document.getElementById("spinner-chat");
   const chatMessages = document.getElementById("chat-messages");
 
-  // ---------------------------
-  // Helpers
-  // ---------------------------
+  // Processing log panel (right side)
+  const liveLogBox = document.getElementById("live-log");
+
+  // ============================================
+  // GENERIC HELPERS
+  // ============================================
+
+  function extractCaptionsFromConfig(cfg) {
+    const captions = [];
+
+    if (cfg.first_clip && cfg.first_clip.text) {
+      captions.push(cfg.first_clip.text);
+    }
+
+    (cfg.middle_clips || []).forEach((c) => {
+      if (c.text) captions.push(c.text);
+    });
+
+    if (cfg.last_clip && cfg.last_clip.text) {
+      captions.push(cfg.last_clip.text);
+    }
+
+    // simple paragraph breaks between clips
+    return captions.join("\n\n");
+  }
+
   function showLoader(message) {
     if (!loader) return;
     loader.classList.remove("hidden");
@@ -98,28 +129,130 @@ document.addEventListener("DOMContentLoaded", () => {
     return res.json();
   }
 
+  function markStepDone(stepIndex) {
+    const steps = document.querySelectorAll(".stepper .step");
+    if (!steps[stepIndex]) return;
+
+    const step = steps[stepIndex];
+    const circle = step.querySelector(".step-number");
+
+    step.classList.add("success");
+    circle.classList.add("checkmark");
+  }
+
+  function resetProcessingLog(title = "") {
+    if (!liveLogBox) return;
+    liveLogBox.textContent = title ? `${title}\n` : "";
+    liveLogBox.scrollTop = liveLogBox.scrollHeight;
+  }
+
+  // ============================================
+  // YAML PREVIEW / EDITOR
+  // ============================================
   async function refreshYamlPreview() {
     try {
       const data = await postJSON("/api/config", {});
-      if (yamlPreview) {
-        yamlPreview.textContent = data.yaml || "# Empty config.yml";
+      if (yamlEditor) {
+        yamlEditor.value = data.yaml || "# Empty config.yml";
       }
+      // Also return parsed config for captions editor
+      return data.config || {};
     } catch (err) {
-      if (yamlPreview) {
-        yamlPreview.textContent = "# Error loading config.yml";
-      }
       console.error(err);
+      if (yamlEditor) {
+        yamlEditor.value = "# Error loading config.yml";
+      }
+      return {};
     }
   }
 
-  // Initialize YAML preview on page load
-  refreshYamlPreview();
+  if (btnSaveYaml) {
+    btnSaveYaml.addEventListener("click", async () => {
+      if (!yamlEditor) return;
 
-  // ---------------------------
-  // Step 1: Analyze
-  // ---------------------------
+      statusSaveYaml.textContent = "Saving YAML…";
+      statusSaveYaml.className = "status-text";
+
+      try {
+        await postJSON("/api/save_yaml", { yaml: yamlEditor.value });
+        statusSaveYaml.textContent = "YAML saved.";
+        statusSaveYaml.classList.add("success");
+        await refreshYamlPreview();
+      } catch (err) {
+        console.error(err);
+        statusSaveYaml.textContent = "Error saving YAML.";
+        statusSaveYaml.classList.add("error");
+      }
+    });
+  }
+
+  // ============================================
+  // LIVE LOG AUTO-REFRESH (1s) → /api/status
+  // ============================================
+  async function refreshLogs() {
+    if (!liveLogBox) return;
+    try {
+      const res = await fetch("/api/status");
+      if (!res.ok) return;
+      const data = await res.json();
+      const lines = data.log || [];
+      liveLogBox.textContent = lines.join("\n") || "";
+      liveLogBox.scrollTop = liveLogBox.scrollHeight;
+    } catch (err) {
+      console.error("Log refresh failed:", err);
+    }
+  }
+  setInterval(refreshLogs, 1000);
+
+  // ============================================
+  // EXPORT MODE INIT (toggle)
+  // ============================================
+  async function initExportMode() {
+    if (!exportOptimizedToggle) return;
+    try {
+      const res = await fetch("/api/export_mode");
+      if (!res.ok) return;
+      const data = await res.json();
+      const mode = data.mode || "standard";
+      exportOptimizedToggle.checked = mode === "optimized";
+    } catch (err) {
+      console.error("Failed to init export mode:", err);
+    }
+  }
+
+  if (exportOptimizedToggle) {
+    exportOptimizedToggle.addEventListener("change", async () => {
+      const mode = exportOptimizedToggle.checked ? "optimized" : "standard";
+      try {
+        await fetch("/api/export_mode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode }),
+        });
+      } catch (err) {
+        console.error("Failed to save export mode:", err);
+      }
+    });
+  }
+
+  // ============================================
+  // INITIAL LOAD
+  // ============================================
+  (async () => {
+    const cfg = await refreshYamlPreview();
+    if (captionsEditor && cfg) {
+      captionsEditor.value = extractCaptionsFromConfig(cfg);
+    }
+  })();
+  initExportMode();
+
+  // ============================================
+  // STEP 1: ANALYZE
+  // ============================================
   if (btnAnalyze) {
     btnAnalyze.addEventListener("click", async () => {
+      resetProcessingLog();
+
       if (statusAnalyze) {
         statusAnalyze.textContent = "Analyzing videos in tik_tok_downloads/…";
         statusAnalyze.className = "status-text";
@@ -128,15 +261,16 @@ document.addEventListener("DOMContentLoaded", () => {
         analysisList.innerHTML = "";
       }
 
-      showLoader("Analyzing videos…");
       setButtonLoading(btnAnalyze, spinAnalyze, true);
 
       try {
         const data = await postJSON("/api/analyze", {});
         const count = Object.keys(data || {}).length;
+
         if (statusAnalyze) {
           statusAnalyze.textContent = `Found and analyzed ${count} video(s).`;
           statusAnalyze.classList.add("success");
+          markStepDone(0);
         }
 
         if (analysisList) {
@@ -157,27 +291,26 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (err) {
         console.error(err);
         if (statusAnalyze) {
-          statusAnalyze.textContent = "Error during analysis. Check logs.";
+          statusAnalyze.textContent =
+            "Error during analysis. Check logs.";
           statusAnalyze.classList.add("error");
         }
       } finally {
-        hideLoader();
         setButtonLoading(btnAnalyze, spinAnalyze, false);
       }
     });
   }
 
-  // ---------------------------
-  // Step 2: YAML generation
-  // ---------------------------
+  // ============================================
+  // STEP 2: YAML GENERATION
+  // ============================================
   if (btnGenerateYaml) {
     btnGenerateYaml.addEventListener("click", async () => {
+      resetProcessingLog();
+
       if (statusYaml) {
         statusYaml.textContent = "Calling LLM to generate config.yml…";
         statusYaml.className = "status-text";
-      }
-      if (yamlPreview) {
-        yamlPreview.textContent = "";
       }
 
       showLoader("Generating YAML storyboard…");
@@ -188,8 +321,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusYaml) {
           statusYaml.textContent = "YAML generated and saved to config.yml.";
           statusYaml.classList.add("success");
+          markStepDone(1);
         }
-        await refreshYamlPreview();
+        const cfg = await refreshYamlPreview();
+        if (captionsEditor && cfg) {
+          captionsEditor.value = extractCaptionsFromConfig(cfg);
+        }
       } catch (err) {
         console.error(err);
         if (statusYaml) {
@@ -205,16 +342,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnRefreshConfig) {
     btnRefreshConfig.addEventListener("click", async () => {
+      resetProcessingLog();
+
       if (statusYaml) {
         statusYaml.textContent = "Refreshing from config.yml…";
         statusYaml.className = "status-text";
       }
+
       showLoader("Refreshing config…");
       try {
-        await refreshYamlPreview();
+        const cfg = await refreshYamlPreview();
+        if (captionsEditor && cfg) {
+          captionsEditor.value = extractCaptionsFromConfig(cfg);
+        }
         if (statusYaml) {
           statusYaml.textContent = "Config reloaded from config.yml.";
           statusYaml.classList.add("success");
+          markStepDone(2);
         }
       } catch (err) {
         console.error(err);
@@ -228,32 +372,49 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Caption style chips → /api/overlay
+  // ============================================
+  // CAPTION STYLE CHIPS → /api/overlay
+  // ============================================
   if (captionChips && captionChips.length) {
     captionChips.forEach((chip) => {
       chip.addEventListener("click", async () => {
+        resetProcessingLog();
+
         const style = chip.dataset.style || "punchy";
 
         captionChips.forEach((c) => c.classList.remove("active"));
         chip.classList.add("active");
 
         if (statusYaml) {
-          statusYaml.textContent = `Applying “${style}” overlay style…`;
+          statusYaml.textContent = `Applying "${style}" overlay style…`;
           statusYaml.className = "status-text";
         }
 
         showLoader("Updating captions via overlay…");
+
         try {
           await postJSON("/api/overlay", { style });
-          if (statusYaml) {
-            statusYaml.textContent = `Overlay style “${style}” applied.`;
-            statusYaml.classList.add("success");
+
+          // Fetch updated config + YAML
+          const cfg = await refreshYamlPreview();
+
+          // Fill captions editor
+          if (captionsEditor && cfg) {
+            captionsEditor.value = extractCaptionsFromConfig(cfg);
           }
-          await refreshYamlPreview();
+
+          if (statusYaml) {
+            statusYaml.textContent = `✅ Captions rewritten using: ${style}`;
+            statusYaml.classList.add("success");
+            if (!chip.classList.contains("visited")) {
+              markStepDone(3);
+              chip.classList.add("visited");
+            }
+          }
         } catch (err) {
           console.error(err);
           if (statusYaml) {
-            statusYaml.textContent = "Error applying overlay style.";
+            statusYaml.textContent = "❌ Failed updating captions.";
             statusYaml.classList.add("error");
           }
         } finally {
@@ -263,11 +424,86 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---------------------------
-  // Step 3: TTS
-  // ---------------------------
+  // ============================================
+  // SAVE EDITED CAPTIONS BACK TO CONFIG
+  // ============================================
+  if (btnSaveCaptions && captionsEditor) {
+    btnSaveCaptions.addEventListener("click", async () => {
+      const text = captionsEditor.value.trim();
+
+      statusCaptions.textContent = "Saving captions…";
+      statusCaptions.className = "status-text";
+
+      showLoader("Saving edited captions…");
+
+      try {
+        await postJSON("/api/save_captions", { text });
+
+        statusCaptions.textContent = "✅ Captions saved.";
+        statusCaptions.classList.add("success");
+
+        // show sync suggestion banner
+        const ttsHint = document.getElementById("tts-sync-hint");
+        if (ttsHint) ttsHint.classList.remove("hidden");
+
+        await refreshYamlPreview();
+      } catch (err) {
+        console.error(err);
+        statusCaptions.textContent = "❌ Failed saving captions.";
+        statusCaptions.classList.add("error");
+      } finally {
+        hideLoader();
+      }
+    });
+  }
+
+  // ============================================
+  // SYNC NARRATION TO CAPTIONS (Option A)
+  // ============================================
+  const btnSyncTts = document.getElementById("btn-sync-tts");
+  if (btnSyncTts) {
+    btnSyncTts.addEventListener("click", async () => {
+      const ttsHint = document.getElementById("tts-sync-hint");
+      if (ttsHint) ttsHint.classList.add("hidden");
+
+      const enabled = true;
+      const voice = ttsVoice ? ttsVoice.value : "alloy";
+
+      if (statusTts) {
+        statusTts.textContent = "Updating narration to match captions…";
+        statusTts.className = "status-text";
+      }
+
+      showLoader("Generating narration…");
+      setButtonLoading(btnApplyTts, spinTts, true);
+
+      try {
+        await postJSON("/api/tts", { enabled, voice });
+        if (statusTts) {
+          statusTts.textContent = "✅ Narration synced to captions.";
+          statusTts.classList.add("success");
+        }
+        await refreshYamlPreview();
+      } catch (err) {
+        console.error(err);
+        if (statusTts) {
+          statusTts.textContent = "❌ Failed updating narration.";
+          statusTts.classList.add("error");
+        }
+      } finally {
+        hideLoader();
+        setButtonLoading(btnApplyTts, spinTts, false);
+      }
+    });
+  }
+
+  // ============================================
+  // STEP 3: TTS
+  // ============================================
   if (btnApplyTts) {
     btnApplyTts.addEventListener("click", async () => {
+      resetProcessingLog();
+
       const enabled = ttsEnabled ? ttsEnabled.checked : false;
       const voice = ttsVoice ? ttsVoice.value : "alloy";
 
@@ -288,6 +524,7 @@ document.addEventListener("DOMContentLoaded", () => {
             res.tts_enabled ? "ON" : "OFF"
           } (voice: ${res.tts_voice || voice}).`;
           statusTts.classList.add("success");
+          markStepDone(4);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -303,11 +540,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---------------------------
-  // Step 3: CTA
-  // ---------------------------
+  // ============================================
+  // STEP 3: CTA
+  // ============================================
   if (btnApplyCta) {
     btnApplyCta.addEventListener("click", async () => {
+      resetProcessingLog();
+
       const enabled = ctaEnabled ? ctaEnabled.checked : false;
       const text = ctaText ? ctaText.value : "";
       const voiceover = ctaVoiceover ? ctaVoiceover.checked : false;
@@ -331,6 +570,7 @@ document.addEventListener("DOMContentLoaded", () => {
             res.enabled ? "enabled" : "disabled"
           }${res.text ? " — text updated." : "."}`;
           statusCta.classList.add("success");
+          markStepDone(5);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -346,9 +586,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---------------------------
-  // Step 3: Foreground scale
-  // ---------------------------
+  // ============================================
+  // STEP 3: FOREGROUND SCALE
+  // ============================================
   if (fgSlider && fgValue) {
     fgValue.textContent = parseFloat(fgSlider.value).toFixed(2);
     fgSlider.addEventListener("input", () => {
@@ -358,6 +598,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnApplyFg) {
     btnApplyFg.addEventListener("click", async () => {
+      resetProcessingLog();
+
       const value = fgSlider ? parseFloat(fgSlider.value) : 1.0;
 
       if (statusFg) {
@@ -375,6 +617,7 @@ document.addEventListener("DOMContentLoaded", () => {
             res.fg_scale_default
           ).toFixed(2)}.`;
           statusFg.classList.add("success");
+          markStepDone(5);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -390,11 +633,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---------------------------
-  // Step 4: Timings
-  // ---------------------------
+  // ============================================
+  // STEP 4: TIMINGS
+  // ============================================
   if (btnTimingsFixc) {
     btnTimingsFixc.addEventListener("click", async () => {
+      resetProcessingLog();
+
       if (statusTimings) {
         statusTimings.textContent = "Applying standard FIX-C timings…";
         statusTimings.className = "status-text";
@@ -408,6 +653,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusTimings) {
           statusTimings.textContent = "Standard FIX-C timings applied.";
           statusTimings.classList.add("success");
+          markStepDone(6);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -425,6 +671,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnTimingsSmart) {
     btnTimingsSmart.addEventListener("click", async () => {
+      resetProcessingLog();
+
       if (statusTimings) {
         statusTimings.textContent = "Applying smart, cinematic pacing…";
         statusTimings.className = "status-text";
@@ -438,6 +686,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusTimings) {
           statusTimings.textContent = "Smart, cinematic pacing applied.";
           statusTimings.classList.add("success");
+          markStepDone(7);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -453,30 +702,71 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---------------------------
-  // Step 5: Export
-  // ---------------------------
+  // ============================================
+  // STEP 5: EXPORT (with timing summary update)
+  // ============================================
   if (btnExport) {
     btnExport.addEventListener("click", async () => {
+      resetProcessingLog("Starting export...");
+
+      const mode =
+        exportOptimizedToggle && exportOptimizedToggle.checked
+          ? "optimized"
+          : "standard";
+
+      const summaryBox = document.getElementById("timing-summary");
+      if (summaryBox) {
+        summaryBox.innerHTML = `⏳ Export started in ${
+          mode === "optimized" ? "Optimized" : "Standard"
+        } mode…`;
+      }
+
       if (statusExport) {
-        statusExport.textContent = "Rendering video with current config…";
+        statusExport.textContent =
+          mode === "optimized"
+            ? "Rendering video (optimized quality)…"
+            : "Rendering video (standard quality)…";
         statusExport.className = "status-text";
       }
+
+      const start = performance.now();
 
       showLoader("Exporting final TikTok…");
       setButtonLoading(btnExport, spinExport, true);
 
       try {
-        const res = await postJSON("/api/export", {});
+        const res = await postJSON("/api/export", { mode });
+
+        const end = performance.now();
+        const seconds = ((end - start) / 1000).toFixed(1);
+
         if (statusExport) {
           statusExport.textContent = `Export complete → ${res.output}`;
           statusExport.classList.add("success");
+          markStepDone(4);
+        }
+
+        if (summaryBox) {
+          summaryBox.innerHTML = `
+            ✅ Export finished<br>
+            🕒 Duration: <strong>${seconds}s</strong><br>
+            🎞 Mode: <strong>${mode}</strong><br>
+            📁 File: ${res.output}
+          `;
         }
       } catch (err) {
         console.error(err);
+
         if (statusExport) {
           statusExport.textContent = "Export failed. Check logs.";
           statusExport.classList.add("error");
+        }
+
+        if (summaryBox) {
+          summaryBox.innerHTML = `
+            ❌ Export failed<br>
+            Error: ${err.message}
+          `;
         }
       } finally {
         hideLoader();
@@ -485,16 +775,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---------------------------
-  // LLM Chat Panel
-  // ---------------------------
+  // ============================================
+  // LLM CHAT PANEL
+  // ============================================
   if (chatForm && chatMessages && chatSendBtn) {
     chatForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const msg = (chatInput.value || "").trim();
       if (!msg) return;
 
-      // User bubble
       chatMessages.innerHTML += `
         <div class="chat-message user">
           <div class="bubble">${msg}</div>

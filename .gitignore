@@ -3,3 +3,5 @@ temp/
 normalized_cache/
 *.mp3
 *.mp4
+*.sh
+credentials.json

@@ -2,6 +2,8 @@
 import os
 import yaml
 
+from assistant_log import log_step, status_log, clear_status_log
+
 from tiktok_template import (
     config_path,
     config,
@@ -19,9 +21,12 @@ from tiktok_assistant import (
     apply_overlay,
     video_analyses_cache,
     TEXT_MODEL,
+    save_from_raw_yaml,
 )
 
-
+# ============================================
+# CONFIG HELPERS
+# ============================================
 def load_config():
     """Reload config.yml into global config dict."""
     global config
@@ -39,57 +44,93 @@ def save_config():
         yaml.safe_dump(config, f, sort_keys=False)
 
 
-# -------------------------------------------------
+# ============================================
+# EXPORT MODE HELPERS (standard / optimized)
+# ============================================
+EXPORT_MODE_FILE = "export_mode.txt"
+
+
+def set_export_mode(mode: str) -> dict:
+    """Persist export mode to a small text file."""
+    if mode not in ("standard", "optimized"):
+        mode = "standard"
+    with open(EXPORT_MODE_FILE, "w") as f:
+        f.write(mode)
+    return {"mode": mode}
+
+
+def get_export_mode() -> dict:
+    """Return {"mode": "..."} for frontend toggle."""
+    if not os.path.exists(EXPORT_MODE_FILE):
+        return {"mode": "standard"}
+    with open(EXPORT_MODE_FILE, "r") as f:
+        mode = (f.read().strip() or "standard")
+    if mode not in ("standard", "optimized"):
+        mode = "standard"
+    return {"mode": mode}
+
+
+# ============================================
 # /api/analyze
-# -------------------------------------------------
+# ============================================
 def api_analyze():
-    """
-    Normalize & analyze all videos in tik_tok_downloads/, fill video_analyses_cache,
-    and return {filename: description}.
-    """
+    log_step("Starting analysis…")
     os.makedirs("normalized_cache", exist_ok=True)
 
     results = {}
     files = sorted(
-        f
-        for f in os.listdir(video_folder)
+        f for f in os.listdir(video_folder)
         if f.lower().endswith((".mp4", ".mov", ".avi"))
     )
 
+    log_step(f"Found {len(files)} file(s) in tik_tok_downloads/.")
+
     if not files:
+        log_step("No videos found. Exiting analysis.")
         return results
 
     debug_video_dimensions(video_folder)
+    log_step("Checked video dimensions.")
 
     for v in files:
+        log_step(f"Processing {v}…")
+
         input_path = os.path.join(video_folder, v)
         normalized_path = os.path.join("normalized_cache", v)
 
         if not os.path.exists(normalized_path):
+            log_step(f"Normalizing {v} via FFmpeg…")
             normalize_video_ffmpeg(input_path, normalized_path)
+            log_step(f"Normalization complete for {v}.")
+        else:
+            log_step(f"{v} already normalized, skipping normalization.")
 
+        log_step(f"Analyzing {v} with LLM…")
         desc = analyze_video(normalized_path)
-        video_analyses_cache[v] = desc
+        log_step(f"Analysis complete for {v}.")
+
         results[v] = desc
 
+    log_step("All videos analyzed ✅")
     return results
 
 
-# -------------------------------------------------
+# ============================================
 # /api/generate_yaml
-# -------------------------------------------------
+# ============================================
 def api_generate_yaml():
     """
     Use build_yaml_prompt + LLM to generate YAML, save to config.yml, and return dict.
     """
     if not video_analyses_cache:
-        # If user forgot to analyze, do a quick analyze here
+        log_step("No cached analyses; running quick analyze before YAML generation…")
         api_analyze()
 
     video_files = list(video_analyses_cache.keys())
     analyses = [video_analyses_cache.get(v, "") for v in video_files]
 
     yaml_prompt = build_yaml_prompt(video_files, analyses)
+    log_step("Calling LLM to produce YAML storyboard…")
 
     resp = client.chat.completions.create(
         model=TEXT_MODEL,
@@ -105,33 +146,58 @@ def api_generate_yaml():
         yaml.safe_dump(cfg, f, sort_keys=False)
 
     load_config()
+    log_step("YAML written to config.yml ✅")
     return cfg
 
 
-# -------------------------------------------------
-# /api/config  (for YAML preview panel)
-# -------------------------------------------------
-def api_get_config():
-    """
-    Return both raw YAML string and parsed config dict.
-    """
+def api_save_yaml(yaml_text: str):
+    cfg = yaml.safe_load(yaml_text) or {}
+    with open(config_path, "w") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
     load_config()
-    yaml_str = yaml.safe_dump(config, sort_keys=False) if config else "# Empty config.yml"
-    return {"yaml": yaml_str, "config": config}
+    return {"status": "ok"}
 
 
-# -------------------------------------------------
-# /api/export
-# -------------------------------------------------
-def api_export():
-    output_file = "output_tiktok_final.mp4"
-    edit_video(output_file=output_file)
-    return output_file
+# ============================================
+# /api/config  (for YAML + captions)
+# ============================================
+def api_get_config():
+    load_config()
+    if os.path.exists(config_path):
+        with open(config_path, "r") as f:
+            yaml_text = f.read()
+    else:
+        yaml_text = "# No config.yml found yet."
+    return {
+        "yaml": yaml_text,
+        "config": config,  # parsed dict used by frontend for captions editor
+    }
 
 
-# -------------------------------------------------
+# -----------------------------------------------
+# /api/export  (supports standard vs optimized)
+# -----------------------------------------------
+def api_export(optimized: bool = False):
+    clear_status_log()
+    mode_label = "OPTIMIZED" if optimized else "STANDARD"
+    log_step(f"Starting export in {mode_label} mode…")
+
+    filename = (
+        "output_tiktok_final_optimized.mp4"
+        if optimized else
+        "output_tiktok_final.mp4"
+    )
+
+    log_step("Rendering timeline with music, captions, and voiceover…")
+    edit_video(output_file=filename, optimized=optimized)
+
+    log_step(f"Export finished → {filename}")
+    return filename
+
+
+# ============================================
 # /api/tts
-# -------------------------------------------------
+# ============================================
 def api_set_tts(enabled: bool, voice: str | None = None):
     load_config()
     render_cfg = config.setdefault("render", {})
@@ -142,9 +208,9 @@ def api_set_tts(enabled: bool, voice: str | None = None):
     return render_cfg
 
 
-# -------------------------------------------------
+# ============================================
 # /api/cta
-# -------------------------------------------------
+# ============================================
 def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None = None):
     load_config()
     cta_cfg = config.setdefault("cta", {})
@@ -157,21 +223,53 @@ def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None =
     return cta_cfg
 
 
-# -------------------------------------------------
+# ============================================
 # /api/overlay
-# -------------------------------------------------
+# ============================================
 def api_apply_overlay(style: str):
     """
-    Apply overlay style (punchy / cinematic / descriptive) to all clips.
+    Apply overlay style (punchy / cinematic / descriptive / etc.) to all clips.
     """
     apply_overlay(style=style, target="all", filename=None)
     load_config()
     return {"status": "ok"}
 
 
-# -------------------------------------------------
+# ============================================
+# /api/save_captions
+# ============================================
+def api_save_captions(text: str):
+    """
+    Overwrite captions in config.yml while keeping structure.
+    Splits textarea text into first / middle / last using blank lines.
+    """
+    load_config()
+
+    parts = [p.strip() for p in text.split("\n\n") if p.strip()]
+    if not parts:
+        return {"status": "no_captions"}
+
+    idx = 0
+
+    if "first_clip" in config and idx < len(parts):
+        config["first_clip"]["text"] = parts[idx]
+        idx += 1
+
+    for c in config.get("middle_clips", []):
+        if idx < len(parts):
+            c["text"] = parts[idx]
+            idx += 1
+
+    if "last_clip" in config and idx < len(parts):
+        config["last_clip"]["text"] = parts[idx]
+
+    save_config()
+    return {"status": "ok", "count": len(parts)}
+
+
+# ============================================
 # /api/timings
-# -------------------------------------------------
+# ============================================
 def api_apply_timings(smart: bool = False):
     """
     Standard FIX-C or smart pacing (cinematic).
@@ -184,9 +282,9 @@ def api_apply_timings(smart: bool = False):
     return config
 
 
-# -------------------------------------------------
+# ============================================
 # /api/fgscale
-# -------------------------------------------------
+# ============================================
 def api_fgscale(value: float):
     load_config()
     render_cfg = config.setdefault("render", {})
@@ -195,9 +293,9 @@ def api_fgscale(value: float):
     return render_cfg
 
 
-# -------------------------------------------------
+# ============================================
 # /api/chat  — LLM Creative Assistant
-# -------------------------------------------------
+# ============================================
 def api_chat(message: str):
     prompt = (
         "You are the TikTok Creative Assistant. Use the user's video analyses to "

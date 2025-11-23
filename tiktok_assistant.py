@@ -252,10 +252,13 @@ def apply_smart_timings(target_total: int | None = None, pacing: str = "default"
 # Overlay / Text rewriting
 # ==============================
 STYLE_ALIASES = {
-    "punchy":      ["punchy", "hook", "short", "tiktok"],
-    "descriptive": ["descriptive", "detailed", "rich"],
-    "cinematic":   ["cinematic", "emotional", "poetic"],
+    "punchy":       ["punchy", "hook", "short", "tiktok"],
+    "descriptive":  ["descriptive", "detailed", "rich"],
+    "cinematic":    ["cinematic", "emotional", "poetic"],
+    "influencer":   ["influencer", "social", "personal", "authentic"],
+    "travel_blog":  ["travel_blog", "travel", "review", "informative"],
 }
+
 def _style_key(s: str) -> str:
     s = (s or "").strip().lower()
     for key, aliases in STYLE_ALIASES.items():
@@ -266,11 +269,22 @@ def _style_key(s: str) -> str:
 def _style_prompt(key: str) -> str:
     if key == "punchy":
         return "Rewrite as a short, high-retention TikTok hook (8–12 words). No hashtags or emojis."
+
     if key == "descriptive":
         return "Rewrite as vivid, descriptive copy (12–18 words). No hashtags or emojis."
+
     if key == "cinematic":
         return "Rewrite as cinematic, emotional copy (15–22 words). No hashtags or emojis."
+
+    # ✅ NEW STYLES
+    if key == "influencer":
+        return "Rewrite in a friendly influencer tone, speaking directly to the viewer, as if sharing a personal recommendation (12–18 words). No hashtags or emojis."
+
+    if key == "travel_blog":
+        return "Rewrite as an informative hotel-review style caption (14-20 words). Friendly, helpful, observational. No hashtags or emojis."
+
     return "Rewrite succinctly for TikTok viewers. No hashtags or emojis."
+    
 
 def _rewrite_caption(seed: str, hint: str, style_key: str) -> str:
     try:
@@ -291,6 +305,11 @@ def _rewrite_caption(seed: str, hint: str, style_key: str) -> str:
         return out or (seed or "")
     except Exception:
         return seed or ""
+
+def save_from_raw_yaml(text: str):
+    global config
+    config = yaml.safe_load(text) or {}
+    _save_yaml()
 
 def apply_overlay(style: str, target: str = "all", filename: str | None = None):
     style_key = _style_key(style)
