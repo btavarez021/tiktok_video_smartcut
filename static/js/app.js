@@ -72,6 +72,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const uploadInput = document.getElementById("upload-input");
   const uploadBtn = document.getElementById("btn-upload");
   const uploadStatus = document.getElementById("status-upload");
+  const btnUpload = document.getElementById("btn-upload");
+  const statusUpload = document.getElementById("status-upload");
 
   // Processing log panel
   const liveLogBox = document.getElementById("live-log");
