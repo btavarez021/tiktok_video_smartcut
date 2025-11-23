@@ -1,35 +1,17 @@
-# --- Core Python Utilities ---
+# --- Core ---
 logging
-os
-io
-re
-json
-random
-base64
-tk
-
-# --- Google Drive Downloader ---
-google-api-python-client
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
-
-# --- Environment Management ---
 python-dotenv
-
-# --- AI Integration ---
+PyYAML
 openai
 
-# --- Video Editing ---
+# --- Video Processing ---
 moviepy
 Pillow
+imageio
+imageio-ffmpeg
 
-# --- YAML + Diff Utilities ---
-PyYAML
-difflib
+# --- Web Server ---
+flask
 
-# --- Audio/Video Helpers ---
-imageio[ffmpeg]
-
-# --- Optional GUI Dialogs (macOS-friendly) ---
-tkinter
+# --- Optional (but recommended) ---
+requests
