@@ -41,8 +41,16 @@ TEXT_MODEL   = "gpt-4.1"    # for captions/hashtags/hooks etc.
 
 output_yaml  = "config.yml"
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
-video_folder = os.path.join(BASE_DIR, "tik_tok_downloads")
 
+DOWNLOADS_FOLDER_NAME = "tik_tok_downloads"
+
+video_folder = os.path.join(BASE_DIR, DOWNLOADS_FOLDER_NAME)
+
+if not os.path.exists(video_folder):
+    os.makedirs(video_folder)
+    print(f"Created directory: {video_folder}")
+
+logger.info(f"Resolved video folder: {video_folder}")
 
 # ==============================
 # SETUP

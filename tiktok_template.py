@@ -59,10 +59,26 @@ else:
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-video_folder = os.path.join(BASE_DIR, "tik_tok_downloads")
-music_folder = os.path.join(BASE_DIR, "music")
+
+# Define the relative path for the downloads folder
+DOWNLOADS_FOLDER_NAME = "tik_tok_downloads"
+MUSIC_FOLDER_NAME = "music"
+# Define the full path for the downloads folder
+video_folder = os.path.join(BASE_DIR, DOWNLOADS_FOLDER_NAME)
+
+if not os.path.exists(video_folder):
+    os.makedirs(video_folder)
+    print(f"Created directory: {video_folder}")
 
 logger.info(f"Resolved video folder: {video_folder}")
+
+music_folder = os.path.join(BASE_DIR, MUSIC_FOLDER_NAME)
+
+if not os.path.exists(music_folder):
+    os.makedirs(music_folder)
+    print(f"Created directory: {music_folder}")
+
+logger.info(f"Resolved music folder: {music_folder}")
 
 config_path = os.path.abspath("config.yml")
 logger.info(f"Using config file: {config_path}")
