@@ -11,6 +11,7 @@ from openai import OpenAI
 from moviepy.editor import VideoFileClip  # only for durations + frame grabs
 from tiktok_template import normalize_video_ffmpeg
 import logging
+from cache_store import load_cache, save_cache
 
 # =============================================================
 # Configure Logging
@@ -31,6 +32,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 # ==============================
 # CONFIG
 # ==============================
@@ -42,16 +44,33 @@ TEXT_MODEL   = "gpt-4.1"    # for captions/hashtags/hooks etc.
 output_yaml  = "config.yml"
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 
-DOWNLOADS_FOLDER_NAME = "tik_tok_downloads"
+# DOWNLOADS_FOLDER_NAME = "tik_tok_downloads"
 
-video_folder = os.path.join(BASE_DIR, DOWNLOADS_FOLDER_NAME)
+# video_folder = os.path.join(BASE_DIR, DOWNLOADS_FOLDER_NAME)
 
-if not os.path.exists(video_folder):
-    os.makedirs(video_folder)
-    print(f"Created directory: {video_folder}")
+# if not os.path.exists(video_folder):
+#     os.makedirs(video_folder)
+#     print(f"Created directory: {video_folder}")
 
-logger.info(f"Resolved video folder: {video_folder}")
+# logger.info(f"Resolved video folder: {video_folder}")
 
+import boto3
+import tempfile
+
+S3_BUCKET = os.getenv("S3_BUCKET_NAME")
+
+s3 = boto3.client(
+    "s3",
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+)
+
+
+NORMALIZED_CACHE_FILE = "normalized_cache.json"
+ANALYSIS_CACHE_FILE = "analysis_cache.json"
+
+normalized_cache = load_cache(NORMALIZED_CACHE_FILE)
+analysis_cache = load_cache(ANALYSIS_CACHE_FILE)
 # ==============================
 # SETUP
 # ==============================
@@ -95,10 +114,35 @@ config = lowercase_filenames(config)
 _save_yaml()
 
 # Discover videos in folder (just names)
-video_files = sorted([
-    f for f in os.listdir(video_folder)
-    if f.lower().endswith((".mp4", ".mov", ".avi"))
-])
+# video_files = sorted([
+#     f for f in os.listdir(video_folder)
+#     if f.lower().endswith((".mp4", ".mov", ".avi"))
+# ])
+
+S3_PREFIX = "raw_uploads/"
+
+def list_videos_from_s3():
+    """Return list of .mp4/.mov/.avi keys in S3 prefix."""
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix=S3_PREFIX)
+    files = []
+    for obj in resp.get("Contents", []):
+        key = obj["Key"]
+        if key.lower().endswith((".mp4", ".mov", ".avi")):
+            files.append(key)
+    return files
+
+def download_s3_video(key):
+    """Download S3 video to a temporary file and return its path."""
+    ext = os.path.splitext(key)[1]
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    try:
+        s3.download_fileobj(S3_BUCKET, key, tmp)
+        return tmp.name
+    except Exception as e:
+        logging.error(f"Failed to download {key}: {e}")
+        return None
+
+video_files = list_videos_from_s3()
 
 
 if len(video_files) < 2:
@@ -109,11 +153,21 @@ video_analyses_cache = {}
 # ==============================
 # UTILITIES
 # ==============================
-def resolve_path(filename: str | None):
+# def resolve_path(filename: str | None):
+#     if not filename:
+#         return None
+#     full = os.path.join(video_folder, filename)
+#     return full if os.path.exists(full) else None
+
+def resolve_path(filename):
     if not filename:
         return None
-    full = os.path.join(video_folder, filename)
-    return full if os.path.exists(full) else None
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=filename)
+    s3.download_fileobj(S3_BUCKET, filename, tmp)
+    tmp.close()
+    return tmp.name
+
 
 def extract_frames(video_path):
     """Grab 3 frames (5%, 50%, 90%) for VLM analysis."""
@@ -601,6 +655,49 @@ def debug_video_dimensions(video_folder):
             except Exception as e:
                 logging.debug(f"⚠️ Error reading {f}: {e}")
     logging.debug("-" * 50)
+    
+
+def is_already_normalized(path: str) -> bool:
+    """
+    Basic check — determine if a video is already normalized.
+    You may replace this with metadata probing later.
+    """
+    try:
+        # Example rule: if resolution < 1080, normalize
+        return False  # force normalization for safety
+    except Exception:
+        return False
+
+import subprocess
+
+def normalize_video(input_path: str, output_path: str):
+    """
+    Normalize video with FFmpeg — ensures H.264, AAC, TikTok-safe settings.
+    """
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", input_path,
+        "-vf", "scale=1080:-2",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "23",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        output_path
+    ]
+
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+import json
+
+ANALYSIS_DIR = "analysis"
+os.makedirs("analysis", exist_ok=True)
+
+def save_analysis_result(key, result):
+    with open(f"analysis/{key}.txt", "w") as f:
+        f.write(result)
+
 
 # ==============================
 # MAIN LOOP
@@ -683,7 +780,7 @@ Type exit or quit to leave.
 """)
     global MOCK_MODE
     global INSTANT_APPLY
-
+    
     while True:
         user_message = input("Say something: ").strip()
         msg = user_message.lower().strip()
@@ -697,55 +794,69 @@ Type exit or quit to leave.
 
             # Analyze
             if msg == "/analyze":
-                print("\n🔍 Analyzing videos...\n")
-                logging.info("\n🔍 Analyzing videos...\n")
+                print("\n🔍 Fetching videos from S3…\n")
+                logging.info("\n🔍 Fetching videos from S3…\n")
 
-                debug_video_dimensions(video_folder)
+                # 1. List videos in S3 bucket/prefix
+                s3_videos = list_videos_from_s3()  # returns list of S3 keys
+                if not s3_videos:
+                    print("No videos found in S3.")
+                    logging.info("No videos found in S3.")
+                    continue
+
+                print(f"Found {len(s3_videos)} videos.")
+                logging.info(f"Found {len(s3_videos)} videos.")
+
                 os.makedirs("normalized_cache", exist_ok=True)
 
-                # Track which videos will be (re)analyzed
                 reanalyzed = []
                 skipped = []
 
-                for v in video_files:
-                    input_path = os.path.join(video_folder, v)
-                    normalized_path = os.path.join("normalized_cache", v)
+                # 2. Loop through S3 videos
+                for key in s3_videos:
+                    print(f"\nProcessing {key}…")
+                    logging.info(f"Processing {key}…")
 
-                    # Normalize only once if not already done
-                    if not os.path.exists(normalized_path):
-                        logging.info(f"⚙️ Normalizing {v} for analysis...")
-                        print(f"⚙️ Normalizing {v} for analysis...")
-                        normalize_video_ffmpeg(input_path, normalized_path)
-                    else:
-                        print(f"✅ Using cached normalized file for {v}")
-                        logging.info(f"✅ Using cached normalized file for {v}")
-
-                    # --- Smart skip logic ---
-                    file_mod_time = os.path.getmtime(input_path)
-                    cache_key = f"{v}|{file_mod_time}"
-                    prev_key = getattr(analyze_video, "_last_key", None)
-
-                    if prev_key == cache_key and v in video_analyses_cache:
-                        print(f"⏩ Skipping {v} (unchanged since last analysis)")
-                        logging.info(f"⏩ Skipping {v} (unchanged since last analysis)")
-                        skipped.append(v)
+                    # ✅ Skip if already analyzed
+                    if key in analysis_cache:
+                        print(f"✅ Skipping — already analyzed: {key}")
+                        skipped.append(key)
                         continue
 
-                    # Analyze new/changed file
-                    desc = analyze_video(normalized_path)
-                    video_analyses_cache[v] = desc
-                    analyze_video._last_key = cache_key  # store last analyzed file+timestamp
-                    reanalyzed.append(v)
-                    print(f"{v}: {desc}")
+                    # ✅ Download to temp only if needed
+                    tmp_local_path = download_s3_video(key)
 
-                print("\n--------------------------------------------------")
-                if reanalyzed:
-                    print(f"✅ Re-analyzed {len(reanalyzed)} videos: {', '.join(reanalyzed)}")
-                if skipped:
-                    print(f"⏩ Skipped {len(skipped)} unchanged videos: {', '.join(skipped)}")
-                print("--------------------------------------------------\n")
+                    if not tmp_local_path:
+                        print(f"❌ Failed to download {key}")
+                        logging.error(f"Failed to download {key}")
+                        continue
 
-                print("✅ Analysis complete. You can now run /yaml, /overlay, /timings.\n")
+                    # Create unique normalized file
+                    normalized_path = tempfile.NamedTemporaryFile(
+                        delete=False, suffix=os.path.splitext(key)[1]
+                    ).name
+
+                    # ✅ Check normalization cache
+                    if key not in normalized_cache:
+                        print(f"Normalizing {key} via FFmpeg…")
+                        normalize_video(tmp_local_path, normalized_path)
+                        normalized_cache.add(key)
+                        save_cache(NORMALIZED_CACHE_FILE, normalized_cache)
+                    else:
+                        print(f"{key} already normalized, skipping normalization.")
+                        normalized_path = tmp_local_path
+
+                    print(f"Analyzing {key} with LLM…")
+                    result = analyze_video(normalized_path)
+
+                    save_analysis_result(key, result)
+
+                    # ✅ Record in analysis cache
+                    analysis_cache.add(key)
+                    save_cache(ANALYSIS_CACHE_FILE, analysis_cache)
+
+                    print(f"✅ Analysis complete for {key}")
+
                 continue
 
 

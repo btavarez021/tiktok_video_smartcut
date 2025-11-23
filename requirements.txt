@@ -13,6 +13,8 @@ srt
 
 # --- Web Server ---
 flask
+boto3
+
 
 # --- Optional (but recommended) ---
 requests

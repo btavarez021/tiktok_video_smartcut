@@ -1,3 +1,14 @@
+document.getElementById("btn-upload").addEventListener("click", async () => {
+  const files = document.getElementById("upload-input").files;
+  for (const file of files) {
+    const formData = new FormData();
+    formData.append("file", file);
+    await fetch("/api/upload", { method: "POST", body: formData });
+  }
+  document.getElementById("status-upload").textContent = "✅ Uploaded!";
+});
+
+
 document.addEventListener("DOMContentLoaded", () => {
   // ============================================
   // ELEMENT REFERENCES
