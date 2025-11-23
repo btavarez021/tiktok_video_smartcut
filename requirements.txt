@@ -3,10 +3,6 @@ logging
 python-dotenv
 PyYAML
 openai
-google-api-python-client
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
 
 # --- Video Processing ---
 moviepy
