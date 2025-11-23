@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 import logging
+from werkzeug.utils import secure_filename
 import os
-
 from assistant_api import (
     api_analyze,
     api_generate_yaml,
@@ -41,6 +41,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+UPLOAD_FOLDER = "tik_tok_downloads"
+ALLOWED_EXTENSIONS = {"mp4", "mov", "avi", "mkv"}
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ============================================
 # ROOT
@@ -53,6 +61,34 @@ def home():
 # ============================================
 # CORE WORKFLOW
 # ============================================
+
+@app.route("/api/upload", methods=["POST"])
+def upload_route():
+    if "video" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+
+    file = request.files["video"]
+
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        save_path = os.path.join(UPLOAD_FOLDER, filename)
+
+        # Avoid overwriting
+        base, ext = os.path.splitext(save_path)
+        counter = 1
+        while os.path.exists(save_path):
+            save_path = f"{base}_{counter}{ext}"
+            counter += 1
+
+        file.save(save_path)
+
+        return jsonify({"success": True, "file": save_path})
+
+    return jsonify({"error": "Invalid file type"}), 400
+
 @app.route("/api/analyze", methods=["POST"])
 def analyze_route():
     clear_status_log()
@@ -84,6 +120,8 @@ def save_yaml_route():
     out = api_save_yaml(yaml_text)
     log_step("✅ YAML saved.")
     return jsonify(out)
+
+
 
 
 # ============================================

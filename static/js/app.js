@@ -67,6 +67,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const spinChat = document.getElementById("spinner-chat");
   const chatMessages = document.getElementById("chat-messages");
 
+  //upload video
+  const uploadForm = document.getElementById("upload-form");
+  const uploadInput = document.getElementById("upload-input");
+  const uploadStatus = document.getElementById("upload-status");
+
+
   // Processing log panel (right side)
   const liveLogBox = document.getElementById("live-log");
 
@@ -185,6 +191,50 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
+  // ============================================
+  // Upload Video Handler
+  // ============================================
+
+  if (uploadForm) {
+  uploadForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const file = uploadInput.files[0];
+    if (!file) {
+      uploadStatus.textContent = "Please select a video file to upload.";
+      uploadStatus.className = "status-text error";
+      return;
+    }
+
+    uploadStatus.textContent = "Uploading...";
+    uploadStatus.className = "status-text";
+
+    const formData = new FormData();
+    formData.append("video", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        uploadStatus.textContent = "✅ Upload successful! You can now Analyze.";
+        uploadStatus.classList.add("success");
+      } else {
+        uploadStatus.textContent = "❌ Upload failed.";
+        uploadStatus.classList.add("error");
+      }
+    } catch (err) {
+      uploadStatus.textContent = "❌ Upload error.";
+      uploadStatus.classList.add("error");
+    }
+  });
+}
+
 
   // ============================================
   // LIVE LOG AUTO-REFRESH (1s) → /api/status

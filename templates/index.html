@@ -52,6 +52,15 @@
       <section class="grid-2">
         <!-- LEFT COLUMN: steps -->
         <div class="steps-column">
+        <!-- Upload Video-->
+          <form id="upload-form" enctype="multipart/form-data" style="margin-bottom:12px;">
+          <input type="file" id="upload-input" accept="video/*" />
+          <button type="submit" class="btn small secondary">
+            Upload Video
+          </button>
+        </form>
+        <p id="upload-status" class="status-text"></p>
+
           <!-- STEP 1: Analyze -->
           <section class="card">
             <div class="card-header">
