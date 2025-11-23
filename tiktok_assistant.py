@@ -12,6 +12,8 @@ from moviepy.editor import VideoFileClip  # only for durations + frame grabs
 from tiktok_template import normalize_video_ffmpeg
 import logging
 from cache_store import load_cache, save_cache
+import boto3
+import tempfile
 
 # =============================================================
 # Configure Logging
@@ -54,8 +56,6 @@ BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 
 # logger.info(f"Resolved video folder: {video_folder}")
 
-import boto3
-import tempfile
 
 S3_BUCKET = os.getenv("S3_BUCKET_NAME")
 
@@ -798,7 +798,7 @@ Type exit or quit to leave.
                 logging.info("\n🔍 Fetching videos from S3…\n")
 
                 # 1. List videos in S3 bucket/prefix
-                s3_videos = list_videos_from_s3()  # returns list of S3 keys
+                s3_videos = list_videos_from_s3()
                 if not s3_videos:
                     print("No videos found in S3.")
                     logging.info("No videos found in S3.")
@@ -806,8 +806,6 @@ Type exit or quit to leave.
 
                 print(f"Found {len(s3_videos)} videos.")
                 logging.info(f"Found {len(s3_videos)} videos.")
-
-                os.makedirs("normalized_cache", exist_ok=True)
 
                 reanalyzed = []
                 skipped = []
@@ -823,17 +821,17 @@ Type exit or quit to leave.
                         skipped.append(key)
                         continue
 
-                    # ✅ Download to temp only if needed
+                    # ✅ Download only if needed
                     tmp_local_path = download_s3_video(key)
-
                     if not tmp_local_path:
                         print(f"❌ Failed to download {key}")
                         logging.error(f"Failed to download {key}")
                         continue
 
-                    # Create unique normalized file
+                    # ✅ Create normalized file
                     normalized_path = tempfile.NamedTemporaryFile(
-                        delete=False, suffix=os.path.splitext(key)[1]
+                        delete=False,
+                        suffix=os.path.splitext(key)[1]
                     ).name
 
                     # ✅ Check normalization cache
@@ -842,23 +840,28 @@ Type exit or quit to leave.
                         normalize_video(tmp_local_path, normalized_path)
                         normalized_cache.add(key)
                         save_cache(NORMALIZED_CACHE_FILE, normalized_cache)
+                        reanalyzed.append(key)
                     else:
                         print(f"{key} already normalized, skipping normalization.")
                         normalized_path = tmp_local_path
+                        skipped.append(key)
 
                     print(f"Analyzing {key} with LLM…")
                     result = analyze_video(normalized_path)
 
+                    # ✅ Save analysis text
                     save_analysis_result(key, result)
 
-                    # ✅ Record in analysis cache
+                    # ✅ Update analysis cache
                     analysis_cache.add(key)
                     save_cache(ANALYSIS_CACHE_FILE, analysis_cache)
 
                     print(f"✅ Analysis complete for {key}")
 
+                print("\n🎯 Analysis complete.")
+                print(f"Reanalyzed: {len(reanalyzed)}")
+                print(f"Skipped: {len(skipped)}")
                 continue
-
 
             # YAML
             if msg == "/yaml":

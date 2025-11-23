@@ -15,14 +15,19 @@ from tiktok_template import (
 from tiktok_assistant import (
     debug_video_dimensions,
     analyze_video,
-    video_folder,
     build_yaml_prompt,
     apply_smart_timings,
     apply_overlay,
     video_analyses_cache,
     TEXT_MODEL,
     save_from_raw_yaml,
+    list_videos_from_s3,
+    download_s3_video,
+    normalize_video,
+    save_analysis_result
 )
+import tempfile
+
 
 # ============================================
 # CONFIG HELPERS
@@ -75,45 +80,52 @@ def get_export_mode() -> dict:
 # ============================================
 def api_analyze():
     log_step("Starting analysis…")
+
+    # 1. Fetch list of videos from S3
+    log_step("Fetching videos from S3…")
+    s3_keys = list_videos_from_s3()
+
+    if not s3_keys:
+        log_step("No videos found in S3.")
+        return {}
+
+    log_step(f"Found {len(s3_keys)} video(s) in S3.")
     os.makedirs("normalized_cache", exist_ok=True)
 
     results = {}
-    files = sorted(
-        f for f in os.listdir(video_folder)
-        if f.lower().endswith((".mp4", ".mov", ".avi"))
-    )
 
-    log_step(f"Found {len(files)} file(s) in tik_tok_downloads/.")
+    for key in s3_keys:
+        log_step(f"Processing {key}…")
 
-    if not files:
-        log_step("No videos found. Exiting analysis.")
-        return results
+        # 2. Download to temporary file
+        tmp_local_path = download_s3_video(key)
+        if not tmp_local_path:
+            log_step(f"❌ Failed to download {key}")
+            continue
 
-    debug_video_dimensions(video_folder)
-    log_step("Checked video dimensions.")
+        # 3. Create normalized output path
+        normalized_path = tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=os.path.splitext(key)[1]
+        ).name
 
-    for v in files:
-        log_step(f"Processing {v}…")
+        # 4. Normalize (always normalize for now)
+        log_step(f"Normalizing {key} via FFmpeg…")
+        normalize_video(tmp_local_path, normalized_path)
+        log_step(f"Normalization complete for {key}.")
 
-        input_path = os.path.join(video_folder, v)
-        normalized_path = os.path.join("normalized_cache", v)
-
-        if not os.path.exists(normalized_path):
-            log_step(f"Normalizing {v} via FFmpeg…")
-            normalize_video_ffmpeg(input_path, normalized_path)
-            log_step(f"Normalization complete for {v}.")
-        else:
-            log_step(f"{v} already normalized, skipping normalization.")
-
-        log_step(f"Analyzing {v} with LLM…")
+        # 5. Analyze with LLM
+        log_step(f"Analyzing {key} with LLM…")
         desc = analyze_video(normalized_path)
-        log_step(f"Analysis complete for {v}.")
+        log_step(f"Analysis complete for {key}.")
 
-        results[v] = desc
+        # 6. Save analysis result
+        save_analysis_result(key, desc)
+
+        results[key] = desc
 
     log_step("All videos analyzed ✅")
     return results
-
 
 # ============================================
 # /api/generate_yaml
