@@ -70,8 +70,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Upload
   const uploadInput = document.getElementById("upload-input");
-  const uploadBtn = document.getElementById("btn-upload");
-  const uploadStatus = document.getElementById("status-upload");
   const btnUpload = document.getElementById("btn-upload");
   const statusUpload = document.getElementById("status-upload");
 
@@ -96,7 +94,6 @@ document.addEventListener("DOMContentLoaded", () => {
       captions.push(cfg.last_clip.text);
     }
 
-    // simple paragraph breaks between clips
     return captions.join("\n\n");
   }
 
@@ -134,17 +131,6 @@ document.addEventListener("DOMContentLoaded", () => {
       throw new Error(text || `HTTP ${res.status}`);
     }
     return res.json();
-  }
-
-  function markStepDone(stepIndex) {
-    const steps = document.querySelectorAll(".stepper .step");
-    if (!steps[stepIndex]) return;
-
-    const step = steps[stepIndex];
-    const circle = step.querySelector(".step-number");
-
-    step.classList.add("success");
-    circle.classList.add("checkmark");
   }
 
   function resetProcessingLog(title = "") {
@@ -193,28 +179,28 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================
-  // SIMPLE UPLOAD HANDLER → /api/upload (S3 raw_uploads/)
+  // SIMPLE UPLOAD HANDLER → /api/upload
   // ============================================
   if (btnUpload && uploadInput) {
     btnUpload.addEventListener("click", async () => {
       const files = uploadInput.files;
       if (!files || !files.length) {
-        if (uploadStatus) {
-          uploadStatus.textContent = "Please select at least one video file.";
-          uploadStatus.className = "status-text error";
+        if (statusUpload) {
+          statusUpload.textContent = "Please select at least one video file.";
+          statusUpload.className = "status-text error";
         }
         return;
       }
 
-      if (uploadStatus) {
-        uploadStatus.textContent = "Uploading...";
-        uploadStatus.className = "status-text";
+      if (statusUpload) {
+        statusUpload.textContent = "Uploading...";
+        statusUpload.className = "status-text";
       }
 
       try {
         for (const file of files) {
           const formData = new FormData();
-          formData.append("file", file); // <-- backend expects "file"
+          formData.append("file", file);
 
           const res = await fetch("/api/upload", {
             method: "POST",
@@ -226,15 +212,16 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        if (uploadStatus) {
-          uploadStatus.textContent = "✅ Upload successful! You can now Analyze.";
-          uploadStatus.className = "status-text success";
+        if (statusUpload) {
+          statusUpload.textContent =
+            "✅ Upload successful! You can now Analyze.";
+          statusUpload.className = "status-text success";
         }
       } catch (err) {
         console.error(err);
-        if (uploadStatus) {
-          uploadStatus.textContent = "❌ Upload error.";
-          uploadStatus.className = "status-text error";
+        if (statusUpload) {
+          statusUpload.textContent = "❌ Upload error.";
+          statusUpload.className = "status-text error";
         }
       }
     });
@@ -259,7 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(refreshLogs, 1000);
 
   // ============================================
-  // EXPORT MODE INIT (toggle)
+  // EXPORT MODE INIT
   // ============================================
   async function initExportMode() {
     if (!exportOptimizedToggle) return;
@@ -324,7 +311,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusAnalyze) {
           statusAnalyze.textContent = `Found and analyzed ${count} video(s).`;
           statusAnalyze.classList.add("success");
-          markStepDone(0);
         }
 
         if (analysisList) {
@@ -375,7 +361,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusYaml) {
           statusYaml.textContent = "YAML generated and saved to config.yml.";
           statusYaml.classList.add("success");
-          markStepDone(1);
         }
         const cfg = await refreshYamlPreview();
         if (captionsEditor && cfg) {
@@ -412,7 +397,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusYaml) {
           statusYaml.textContent = "Config reloaded from config.yml.";
           statusYaml.classList.add("success");
-          markStepDone(2);
         }
       } catch (err) {
         console.error(err);
@@ -427,57 +411,49 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================
-// CAPTION STYLE CHIPS → /api/overlay
-// ============================================
-if (captionChips && captionChips.length) {
-  captionChips.forEach((chip) => {
-    chip.addEventListener("click", async () => {
+  // CAPTION STYLE CHIPS → /api/overlay
+  // ============================================
+  if (captionChips && captionChips.length) {
+    captionChips.forEach((chip) => {
+      chip.addEventListener("click", async () => {
+        resetProcessingLog();
 
-      resetProcessingLog();
+        const style = chip.dataset.style || "punchy";
 
-      const style = chip.dataset.style || "punchy";
-
-      captionChips.forEach((c) => c.classList.remove("active"));
-      chip.classList.add("active");
-
-      if (statusYaml) {
-        statusYaml.textContent = `Applying "${style}" overlay style…`;
-        statusYaml.className = "status-text";
-      }
-
-      showLoader("Updating captions via overlay…");
-
-      try {
-        await postJSON("/api/overlay", { style });
-
-        // ✅ Always reload full YAML again
-        const cfg = await refreshYamlPreview();
-
-        // ✅ Always repopulate captions editor
-        if (captionsEditor) {
-          captionsEditor.value = extractCaptionsFromConfig(cfg || {});
-        }
+        captionChips.forEach((c) => c.classList.remove("active"));
+        chip.classList.add("active");
 
         if (statusYaml) {
-          statusYaml.textContent = `✅ Captions rewritten using: ${style}`;
-          statusYaml.classList.add("success");
-          markStepDone(3);
+          statusYaml.textContent = `Applying "${style}" overlay style…`;
+          statusYaml.className = "status-text";
         }
 
-      } catch (err) {
-        console.error(err);
-        if (statusYaml) {
-          statusYaml.textContent = "❌ Failed updating captions.";
-          statusYaml.classList.add("error");
+        showLoader("Updating captions via overlay…");
+
+        try {
+          await postJSON("/api/overlay", { style });
+
+          const cfg = await refreshYamlPreview();
+          if (captionsEditor && cfg) {
+            captionsEditor.value = extractCaptionsFromConfig(cfg);
+          }
+
+          if (statusYaml) {
+            statusYaml.textContent = `✅ Captions rewritten using: ${style}`;
+            statusYaml.classList.add("success");
+          }
+        } catch (err) {
+          console.error(err);
+          if (statusYaml) {
+            statusYaml.textContent = "❌ Failed updating captions.";
+            statusYaml.classList.add("error");
+          }
+        } finally {
+          hideLoader();
         }
-      } finally {
-        hideLoader();
-      }
+      });
     });
-  });
-}
-
-
+  }
 
   // ============================================
   // SAVE EDITED CAPTIONS BACK TO CONFIG
@@ -512,7 +488,7 @@ if (captionChips && captionChips.length) {
   }
 
   // ============================================
-  // SYNC NARRATION TO CAPTIONS
+  // SYNC NARRATION TO CAPTIONS (helper button)
   // ============================================
   const btnSyncTts = document.getElementById("btn-sync-tts");
   if (btnSyncTts) {
@@ -578,7 +554,6 @@ if (captionChips && captionChips.length) {
             res.tts_enabled ? "ON" : "OFF"
           } (voice: ${res.tts_voice || voice}).`;
           statusTts.classList.add("success");
-          markStepDone(4);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -624,7 +599,6 @@ if (captionChips && captionChips.length) {
             res.enabled ? "enabled" : "disabled"
           }${res.text ? " — text updated." : "."}`;
           statusCta.classList.add("success");
-          markStepDone(5);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -671,7 +645,6 @@ if (captionChips && captionChips.length) {
             res.fg_scale_default,
           ).toFixed(2)}.`;
           statusFg.classList.add("success");
-          markStepDone(5);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -707,7 +680,6 @@ if (captionChips && captionChips.length) {
         if (statusTimings) {
           statusTimings.textContent = "Standard FIX-C timings applied.";
           statusTimings.classList.add("success");
-          markStepDone(6);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -740,7 +712,6 @@ if (captionChips && captionChips.length) {
         if (statusTimings) {
           statusTimings.textContent = "Smart, cinematic pacing applied.";
           statusTimings.classList.add("success");
-          markStepDone(7);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -757,7 +728,7 @@ if (captionChips && captionChips.length) {
   }
 
   // ============================================
-  // STEP 5: EXPORT (S3-based, using /api/export)
+  // STEP 5: EXPORT
   // ============================================
   if (btnExport) {
     btnExport.addEventListener("click", async () => {

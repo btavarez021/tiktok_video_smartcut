@@ -35,20 +35,14 @@ from assistant_log import clear_status_log, log_step, status_log
 
 app = Flask(__name__)
 
-# Prefixes
-RAW_PREFIX = "raw_uploads/"
-PROCESSED_PREFIX = "processed/"
-EXPORT_PREFIX = "exports/"
-
 # =============================================================
-# Configure Logging
+# Logging
 # =============================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 assistant_log_dir = os.path.join(BASE_DIR, "logs")
 assistant_log_file_path = os.path.join(assistant_log_dir, "tiktok_editor.log")
 
-if not os.path.exists(assistant_log_dir):
-    os.makedirs(assistant_log_dir, exist_ok=True)
+os.makedirs(assistant_log_dir, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -59,24 +53,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-# ============================================
+# =============================================================
 # ROOT
-# ============================================
+# =============================================================
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
-# ============================================
+# =============================================================
 # CORE WORKFLOW
-# ============================================
+# =============================================================
 @app.route("/api/upload", methods=["POST"])
 def upload_route():
-    """
-    Upload a single file to S3 under raw_uploads/<filename>.
-    Frontend calls this once per file.
-    """
     file = request.files["file"]
     filename = file.filename
 
@@ -120,9 +109,9 @@ def save_yaml_route():
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # EXPORT + EXPORT MODE
-# ============================================
+# =============================================================
 @app.route("/api/export", methods=["POST"])
 def export_route():
     clear_status_log()
@@ -132,23 +121,27 @@ def export_route():
     mode_label = "optimized" if optimized else "standard"
     log_step(f"Starting export (mode={mode_label})…")
 
-    # 1. Render via MoviePy
     load_config()
-    local_filename = api_export(optimized=optimized)
+    try:
+        local_filename = api_export(optimized=optimized)
+    except Exception:
+        # api_export already logged details
+        return jsonify({"error": "export_failed"}), 500
+
     local_path = os.path.abspath(local_filename)
 
     if not os.path.exists(local_path):
         log_step("❌ Export failed: local file not found.")
         return jsonify({"error": "export_failed"}), 500
 
-    # 2. Upload final video to S3
+    # Upload final to S3
     ts = int(time.time())
     final_key = f"{EXPORT_PREFIX}final_{ts}.mp4"
     s3.upload_file(local_path, S3_BUCKET_NAME, final_key)
     url = f"{S3_PUBLIC_BASE}/{final_key}"
     log_step(f"✅ Final video uploaded to S3 → {final_key}")
 
-    # 3. Move raw_uploads/ → processed/
+    # Move raw_uploads/ → processed/
     move_all_raw_to_processed()
 
     log_step("✅ Export complete.")
@@ -171,9 +164,9 @@ def export_mode_route():
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # TTS SETTINGS
-# ============================================
+# =============================================================
 @app.route("/api/tts", methods=["POST"])
 def tts_route():
     clear_status_log()
@@ -187,9 +180,9 @@ def tts_route():
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # CTA SETTINGS
-# ============================================
+# =============================================================
 @app.route("/api/cta", methods=["POST"])
 def cta_route():
     clear_status_log()
@@ -204,9 +197,9 @@ def cta_route():
     return jsonify(out)
 
 
-# ============================================
-# SAVE CAPTIONS (from editor)
-# ============================================
+# =============================================================
+# SAVE CAPTIONS
+# =============================================================
 @app.route("/api/save_captions", methods=["POST"])
 def save_captions_route():
     clear_status_log()
@@ -219,9 +212,9 @@ def save_captions_route():
     return jsonify(out)
 
 
-# ============================================
-# OVERLAY STYLE (caption chips)
-# ============================================
+# =============================================================
+# OVERLAY STYLE
+# =============================================================
 @app.route("/api/overlay", methods=["POST"])
 def overlay_route():
     clear_status_log()
@@ -229,18 +222,14 @@ def overlay_route():
     style = data.get("style", "punchy")
 
     log_step(f"🎨 Applying overlay style: {style}…")
-    api_apply_overlay(style)
-
-    # reload updated config.yml
-    cfg = api_get_config()
-
+    result = api_apply_overlay(style)
     log_step("✅ Overlay captions updated.")
-    return jsonify(cfg)
+    return jsonify(result)
 
 
-# ============================================
+# =============================================================
 # FOREGROUND SCALE
-# ============================================
+# =============================================================
 @app.route("/api/fgscale", methods=["POST"])
 def fgscale_route():
     clear_status_log()
@@ -253,9 +242,9 @@ def fgscale_route():
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # TIMINGS
-# ============================================
+# =============================================================
 @app.route("/api/timings", methods=["POST"])
 def timings_route():
     clear_status_log()
@@ -269,9 +258,9 @@ def timings_route():
     return jsonify(out)
 
 
-# ============================================
+# =============================================================
 # LLM CHAT
-# ============================================
+# =============================================================
 @app.route("/api/chat", methods=["POST"])
 def chat_route():
     data = request.json or {}
@@ -279,14 +268,13 @@ def chat_route():
     return jsonify(api_chat(message))
 
 
-# ============================================
-# GLOBAL LIVE LOG (for side log panel)
-# ============================================
+# =============================================================
+# GLOBAL LIVE LOG
+# =============================================================
 @app.route("/api/status", methods=["GET"])
 def status_route():
     return jsonify({"log": status_log})
 
 
 if __name__ == "__main__":
-    # For local dev; on Render, gunicorn will run app:app
     app.run(debug=True, port=5000)

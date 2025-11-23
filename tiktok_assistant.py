@@ -11,36 +11,36 @@ from tiktok_template import normalize_video_ffmpeg, config_path, client
 from assistant_log import log_step
 
 # -------------------------------------------------
-# OpenAI model name used by assistant_api + overlay
+# Logging
+# -------------------------------------------------
+logger = logging.getLogger(__name__)
+
+# -------------------------------------------------
+# OpenAI model
 # -------------------------------------------------
 TEXT_MODEL = "gpt-4.1-mini"
 
 # -------------------------------------------------
 # S3 CONFIG
 # -------------------------------------------------
-# Expect S3_BUCKET_NAME and S3_REGION in environment on Render
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
 if not S3_BUCKET_NAME:
     raise RuntimeError("S3_BUCKET_NAME environment variable is required")
 
-S3_REGION = os.environ.get("S3_REGION", "us-east-2")
+S3_REGION = os.environ.get("S3_REGION", "us-east-2")  # you said us-east-2
 
-# Public base URL (bucket must allow public read for exports/)
-S3_PUBLIC_BASE = f"https://{S3_BUCKET_NAME}.s3.{S3_REGION}.amazonaws.com"
-
-# Prefixes
 RAW_PREFIX = "raw_uploads/"
 PROCESSED_PREFIX = "processed/"
 EXPORT_PREFIX = "exports/"
 
-# Create S3 client
+S3_PUBLIC_BASE = f"https://{S3_BUCKET_NAME}.s3.{S3_REGION}.amazonaws.com"
+
 s3 = boto3.client("s3", region_name=S3_REGION)
 
 # -------------------------------------------------
 # GLOBAL ANALYSIS CACHE
 # -------------------------------------------------
 video_analyses_cache: Dict[str, str] = {}
-
 
 # -------------------------------------------------
 # S3 HELPERS
@@ -51,46 +51,16 @@ def list_videos_from_s3() -> List[str]:
     """
     resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
     files: List[str] = []
-
     for obj in resp.get("Contents", []):
         key = obj["Key"]
         if key.lower().endswith((".mp4", ".mov", ".avi", ".m4v")):
             files.append(key)
-
     return files
 
 
 def list_raw_s3_videos() -> List[str]:
-    """
-    Same as list_videos_from_s3, kept for compatibility.
-    """
+    # alias for clarity (same as above)
     return list_videos_from_s3()
-
-
-def move_all_raw_to_processed() -> None:
-    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
-    contents = resp.get("Contents", [])
-    if not contents:
-        log_step("No files to move from raw_uploads/.")
-        return
-
-    for obj in contents:
-        key = obj["Key"]
-        if not key.lower().endswith((".mp4", ".mov", ".avi", ".m4v")):
-            continue
-
-        processed_key = key.replace(RAW_PREFIX, PROCESSED_PREFIX, 1)
-
-        try:
-            s3.copy_object(
-                Bucket=S3_BUCKET_NAME,
-                CopySource={"Bucket": S3_BUCKET_NAME, "Key": key},
-                Key=processed_key,
-            )
-            s3.delete_object(Bucket=S3_BUCKET_NAME, Key=key)
-            log_step(f"Moved {key} → {processed_key}")
-        except Exception as e:
-            logging.error(f"Failed to move {key} to processed/: {e}")
 
 
 def download_s3_video(key: str) -> Optional[str]:
@@ -110,35 +80,63 @@ def download_s3_video(key: str) -> Optional[str]:
 
 def normalize_video(src: str, dst: str) -> None:
     """
-    Thin wrapper around your existing normalize_video_ffmpeg helper.
+    Thin wrapper around existing normalize_video_ffmpeg helper.
     """
     normalize_video_ffmpeg(src, dst)
 
 
 def save_analysis_result(key: str, desc: str) -> None:
     """
-    Cache analysis results in memory (by basename) and log them.
+    Cache analysis results in memory and log them.
     """
     video_analyses_cache[key] = desc
     log_step(f"Cached analysis for {key}.")
 
+# -------------------------------------------------
+# Move raw_uploads/ → processed/
+# -------------------------------------------------
+def move_all_raw_to_processed() -> None:
+    """
+    Move ALL files under raw_uploads/ → processed/.
+    Safe to call after successful export.
+    """
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
+    contents = resp.get("Contents", [])
+    if not contents:
+        log_step("No files to move from raw_uploads/.")
+        return
+
+    for obj in contents:
+        key = obj["Key"]
+        if not key.lower().endswith((".mp4", ".mov", ".avi", ".m4v")):
+            continue
+
+        processed_key = key.replace(RAW_PREFIX, PROCESSED_PREFIX, 1)
+        try:
+            s3.copy_object(
+                Bucket=S3_BUCKET_NAME,
+                CopySource={"Bucket": S3_BUCKET_NAME, "Key": key},
+                Key=processed_key,
+            )
+            s3.delete_object(Bucket=S3_BUCKET_NAME, Key=key)
+            log_step(f"Moved {key} → {processed_key}")
+        except Exception as e:
+            logging.error(f"Failed to move {key} to processed/: {e}")
 
 # -------------------------------------------------
-# DEBUG HELPER (optional)
+# LLM-POWERED IMPLEMENTATIONS
 # -------------------------------------------------
 def debug_video_dimensions(path: str) -> None:
     logging.info("debug_video_dimensions stub called for %s", path)
 
 
-# -------------------------------------------------
-# LLM-POWERED ANALYSIS
-# -------------------------------------------------
 def analyze_video(path: str) -> str:
     """
     Use LLM to generate a travel/hotel-style analysis for this clip.
-    We don't "see" the video, but we assume hotel/travel content.
     """
     basename = os.path.basename(path)
+    if not client:
+        return f"Travel/hotel clip: describe views and amenities in {basename}."
 
     prompt = f"""
 You are helping script a vertical TikTok about a HOTEL or TRAVEL experience.
@@ -151,8 +149,7 @@ views, restaurants, etc.
 Write 1–2 short sentences (MAX ~220 characters total) describing what the
 viewer likely sees AND the main selling point of this clip.
 
-Tone: travel review + influencer enthusiasm + hotel-focused.
-No hashtags. No quotes. No emojis.
+Tone: natural, helpful travel review. No hashtags. No quotes. No emojis.
 Return ONLY the 1–2 sentence description.
 """.strip()
 
@@ -167,23 +164,17 @@ Return ONLY the 1–2 sentence description.
         return desc
     except Exception as e:
         logging.error(f"analyze_video LLM call failed for {basename}: {e}")
-        # Fallback generic text
         return f"Travel/hotel clip: highlight views, room details, and amenities in {basename}."
 
 
-# -------------------------------------------------
-# YAML PROMPT BUILDER
-# -------------------------------------------------
 def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
     """
-    Build a prompt asking the LLM to output a full YAML storyboard.
-    video_files: basenames of local clips (same as in config.yml 'file' fields).
-    analyses: per-clip description from analyze_video.
+    Build prompt asking LLM to output a full YAML storyboard.
     """
     if not video_files:
         return "Generate an empty YAML config.yml."
 
-    lines = [
+    lines: List[str] = [
         "You are a TikTok editor for HOTEL / TRAVEL review videos.",
         "",
         "You will generate a YAML config.yml for a vertical TikTok.",
@@ -235,11 +226,11 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
         "  duration: 3.0",
         '  position: "bottom"',
         "",
-        "Here are the clips and analyses:",
+        "Now use the following clips and analyses:",
     ]
 
     for idx, (vf, a) in enumerate(zip(video_files, analyses)):
-        lines.append(f"- clip_{idx + 1}:")
+        lines.append(f"- clip_{idx+1}:")
         lines.append(f"    file: {vf}")
         lines.append(f"    analysis: {a or 'No analysis.'}")
 
@@ -249,32 +240,32 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
     return "\n".join(lines)
 
 
-# -------------------------------------------------
-# CAPTION STYLE OVERLAY (chips)
-# -------------------------------------------------
 def _style_instructions(style: str) -> str:
-    """
-    Map style keys from the UI chips to natural-language instructions.
-    """
     style = (style or "").lower()
     if style == "punchy":
-        return "Short, punchy hooks, 1–2 sentences, direct and energetic. A couple of emojis are okay."
+        return "Short, punchy hooks, 1–2 sentences, direct and energetic. Minimal emojis."
     if style == "cinematic":
-        return "Cinematic, atmospheric travel storytelling. Focus on mood, imagery, and flow. Minimal emojis."
+        return ("Cinematic, atmospheric travel storytelling. Focus on mood and imagery. "
+                "Minimal emojis.")
     if style == "descriptive":
-        return "Clear, descriptive captions literally describing what is on screen with a slight travel-review tone."
+        return "Clear, descriptive captions that literally describe what is on screen."
     if style == "influencer":
-        return "First-person, enthusiastic influencer tone ('I', 'you'), high energy, social-media vibe, a few emojis."
+        return ("First-person, enthusiastic influencer tone ('I', 'you'), high energy, "
+                "social-media vibe.")
     if style == "travel_blog":
-        return (
-            "Hotel-review travel blogger tone. Focus on property, room type, "
-            "amenities, views, and why it's a great stay. Friendly, helpful."
-        )
-    # default
+        return ("Hotel-review travel blogger tone. Focus on room, views, amenities and "
+                "why it's a great stay.")
     return "Friendly, hotel-focused travel review tone with light influencer enthusiasm."
 
 
 def apply_overlay(style: str, target: str = "all", filename: Optional[str] = None) -> None:
+    """
+    Rewrite caption texts in config.yml according to selected style.
+    """
+    if not client:
+        logging.warning("apply_overlay: no OpenAI client configured.")
+        return
+
     try:
         with open(config_path, "r") as f:
             current_yaml = f.read()
@@ -285,31 +276,30 @@ def apply_overlay(style: str, target: str = "all", filename: Optional[str] = Non
     instructions = _style_instructions(style)
 
     prompt = f"""
-        You are rewriting captions for a HOTEL / TRAVEL TikTok.
+    You are rewriting captions for a HOTEL / TRAVEL TikTok.
 
-        Caption style: {style}
-        Style instructions: {instructions}
+    Caption style: {style}
+    Style instructions: {instructions}
 
-        Rules:
-        - Work on the YAML config.yml below.
-        - KEEP THE SAME STRUCTURE and keys.
-        - Do NOT add or remove clips.
-        - Only change the values of fields named "text" in:
-        - first_clip
-        - each item in middle_clips
-        - last_clip
-        - Each caption <= 150 characters.
-        - Assume the content is hotel-focused: property, rooms, views, pool, restaurants, location.
-        - Make captions natural, not spammy. No hashtags.
+    Rules:
+    - Work on the YAML config.yml below.
+    - KEEP THE SAME STRUCTURE and keys.
+    - Do NOT add or remove clips.
+    - Only change the values of fields named "text" in:
+    - first_clip
+    - each item in middle_clips
+    - last_clip
+    - Each caption <= 150 characters.
+    - Assume the content is hotel-focused.
+    - Make captions natural, not spammy. No hashtags.
 
-        Current YAML:
-        ```yaml
-        {current_yaml}
-        Return ONLY the updated YAML. No backticks, no explanation.
-        """.strip()
-    ...
+    Current YAML:
+    ```yaml
+    {current_yaml}
 
-    
+    Return ONLY the updated YAML. No backticks, no explanation.
+    """.strip()
+        
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
@@ -317,7 +307,6 @@ def apply_overlay(style: str, target: str = "all", filename: Optional[str] = Non
             temperature=0.7,
         )
         new_yaml = (resp.choices[0].message.content or "").strip()
-        # Strip code fences defensively
         new_yaml = new_yaml.replace("```yaml", "").replace("```", "").strip()
 
         cfg = yaml.safe_load(new_yaml) or {}
@@ -332,16 +321,14 @@ def apply_overlay(style: str, target: str = "all", filename: Optional[str] = Non
     except Exception as e:
         logging.error(f"apply_overlay LLM call failed: {e}")
 
-#-------------------------------------------------
-#SMART TIMINGS
-#-------------------------------------------------
-
 def apply_smart_timings(pacing: str = "standard") -> None:
     """
     Use LLM to adjust clip durations in config.yml.
-    - pacing="standard": small tweaks.
-    - pacing="cinematic": stronger smart pacing (hooks & flow).
     """
+    if not client:
+        logging.warning("apply_smart_timings: no OpenAI client configured.")
+        return
+    
     try:
         with open(config_path, "r") as f:
             current_yaml = f.read()
@@ -360,39 +347,39 @@ def apply_smart_timings(pacing: str = "standard") -> None:
             "Respect current durations but nudge them to feel more natural."
         )
 
-        prompt = f"""
-            You are adjusting clip durations for a HOTEL / TRAVEL TikTok config.yml.
+    prompt = f"""
+        You are adjusting clip durations for a HOTEL / TRAVEL TikTok config.yml.
 
-            Pacing mode: {pacing}
-            Instructions: {pacing_desc}
+        Pacing mode: {pacing}
+        Instructions: {pacing_desc}
 
-            Rules:
+        Rules:
 
-            Work on the YAML below.
+        Work on the YAML below.
 
-            KEEP THE SAME STRUCTURE and keys.
+        KEEP THE SAME STRUCTURE and keys.
 
-            Only change numeric "duration" values inside:
+        Only change numeric "duration" values inside:
 
-            first_clip
+        first_clip
 
-            each item in middle_clips
+        each item in middle_clips
 
-            last_clip
+        last_clip
 
-            If a duration is missing, add a reasonable one.
+        If a duration is missing, add a reasonable one.
 
-            Durations must be positive numbers (seconds).
+        Durations must be positive numbers (seconds).
 
-            Try to keep the total video length <= 60 seconds.
+        Try to keep total video length <= 60 seconds.
 
-            Do NOT change text, file names, or other fields.
+        Do NOT change text, file names, or other fields.
 
-            Current YAML:
-            {current_yaml}
+        Current YAML: 
+        {current_yaml}
 
-            Return ONLY the updated YAML. No backticks, no explanation.
-            """.strip()
+        Return ONLY the updated YAML. No backticks, no explanation.
+        """.strip()
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
@@ -414,9 +401,6 @@ def apply_smart_timings(pacing: str = "standard") -> None:
     except Exception as e:
         logging.error(f"apply_smart_timings LLM call failed: {e}")
 
-#-------------------------------------------------
-#PLACEHOLDER (unused but kept for import)
-#-------------------------------------------------
-
 def save_from_raw_yaml(*args, **kwargs):
-    logging.info("save_from_raw_yaml stub called (unused)")
+    logging.info("save_from_raw_yaml stub called (unused)") 
+
