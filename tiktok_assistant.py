@@ -44,6 +44,32 @@ video_analyses_cache: Dict[str, str] = {}
 # -------------------------------------------------
 # S3 HELPERS
 # -------------------------------------------------
+
+def move_raw_to_processed(key: str) -> str:
+    """
+    Move a file from raw_uploads/ to processed/ in S3.
+    Returns the new processed key.
+    """
+    processed_key = key.replace("raw_uploads/", "processed/")
+
+    try:
+        # Copy to processed/
+        s3.copy_object(
+            Bucket=S3_BUCKET_NAME,
+            CopySource={'Bucket': S3_BUCKET_NAME, 'Key': key},
+            Key=processed_key
+        )
+
+        # Delete original
+        s3.delete_object(Bucket=S3_BUCKET_NAME, Key=key)
+
+        log_step(f"Moved {key} → {processed_key}")
+        return processed_key
+
+    except Exception as e:
+        logging.error(f"Failed to move {key} to processed/: {e}")
+        return key  # fallback - don't break flow
+    
 def list_videos_from_s3() -> List[str]:
     """
     Return list of .mp4/.mov/.avi/.m4v keys under raw_uploads/.
