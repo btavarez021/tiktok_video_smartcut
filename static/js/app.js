@@ -71,7 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Upload
   const uploadInput = document.getElementById("upload-input");
   const btnUpload = document.getElementById("btn-upload");
-  const statusUpload = document.getElementById("status-upload");
+  const uploadStatus = document.getElementById("status-upload");
 
   // Processing log panel
   const liveLogBox = document.getElementById("live-log");
@@ -94,6 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
       captions.push(cfg.last_clip.text);
     }
 
+    // simple paragraph breaks between clips
     return captions.join("\n\n");
   }
 
@@ -131,6 +132,17 @@ document.addEventListener("DOMContentLoaded", () => {
       throw new Error(text || `HTTP ${res.status}`);
     }
     return res.json();
+  }
+
+  function markStepDone(stepIndex) {
+    const steps = document.querySelectorAll(".stepper .step");
+    if (!steps[stepIndex]) return;
+
+    const step = steps[stepIndex];
+    const circle = step.querySelector(".step-number");
+
+    step.classList.add("success");
+    circle.classList.add("checkmark");
   }
 
   function resetProcessingLog(title = "") {
@@ -179,28 +191,28 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================
-  // SIMPLE UPLOAD HANDLER → /api/upload
+  // SIMPLE UPLOAD HANDLER → /api/upload (S3 raw_uploads/)
   // ============================================
   if (btnUpload && uploadInput) {
     btnUpload.addEventListener("click", async () => {
       const files = uploadInput.files;
       if (!files || !files.length) {
-        if (statusUpload) {
-          statusUpload.textContent = "Please select at least one video file.";
-          statusUpload.className = "status-text error";
+        if (uploadStatus) {
+          uploadStatus.textContent = "Please select at least one video file.";
+          uploadStatus.className = "status-text error";
         }
         return;
       }
 
-      if (statusUpload) {
-        statusUpload.textContent = "Uploading...";
-        statusUpload.className = "status-text";
+      if (uploadStatus) {
+        uploadStatus.textContent = "Uploading...";
+        uploadStatus.className = "status-text";
       }
 
       try {
         for (const file of files) {
           const formData = new FormData();
-          formData.append("file", file);
+          formData.append("file", file); // backend expects "file"
 
           const res = await fetch("/api/upload", {
             method: "POST",
@@ -212,16 +224,15 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        if (statusUpload) {
-          statusUpload.textContent =
-            "✅ Upload successful! You can now Analyze.";
-          statusUpload.className = "status-text success";
+        if (uploadStatus) {
+          uploadStatus.textContent = "✅ Upload successful! You can now Analyze.";
+          uploadStatus.className = "status-text success";
         }
       } catch (err) {
         console.error(err);
-        if (statusUpload) {
-          statusUpload.textContent = "❌ Upload error.";
-          statusUpload.className = "status-text error";
+        if (uploadStatus) {
+          uploadStatus.textContent = "❌ Upload error.";
+          uploadStatus.className = "status-text error";
         }
       }
     });
@@ -246,7 +257,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(refreshLogs, 1000);
 
   // ============================================
-  // EXPORT MODE INIT
+  // EXPORT MODE INIT (toggle)
   // ============================================
   async function initExportMode() {
     if (!exportOptimizedToggle) return;
@@ -311,6 +322,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusAnalyze) {
           statusAnalyze.textContent = `Found and analyzed ${count} video(s).`;
           statusAnalyze.classList.add("success");
+          markStepDone(0);
         }
 
         if (analysisList) {
@@ -321,7 +333,7 @@ document.addEventListener("DOMContentLoaded", () => {
             analysisList.innerHTML = Object.entries(data)
               .map(
                 ([file, desc]) =>
-                  `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`,
+                  `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
               )
               .join("");
           }
@@ -331,8 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (err) {
         console.error(err);
         if (statusAnalyze) {
-          statusAnalyze.textContent =
-            "Error during analysis. Check logs.";
+          statusAnalyze.textContent = "Error during analysis. Check logs.";
           statusAnalyze.classList.add("error");
         }
       } finally {
@@ -361,6 +372,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusYaml) {
           statusYaml.textContent = "YAML generated and saved to config.yml.";
           statusYaml.classList.add("success");
+          markStepDone(1);
         }
         const cfg = await refreshYamlPreview();
         if (captionsEditor && cfg) {
@@ -397,6 +409,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusYaml) {
           statusYaml.textContent = "Config reloaded from config.yml.";
           statusYaml.classList.add("success");
+          markStepDone(2);
         }
       } catch (err) {
         console.error(err);
@@ -441,6 +454,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (statusYaml) {
             statusYaml.textContent = `✅ Captions rewritten using: ${style}`;
             statusYaml.classList.add("success");
+            markStepDone(3);
           }
         } catch (err) {
           console.error(err);
@@ -488,7 +502,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================
-  // SYNC NARRATION TO CAPTIONS (helper button)
+  // SYNC NARRATION TO CAPTIONS
   // ============================================
   const btnSyncTts = document.getElementById("btn-sync-tts");
   if (btnSyncTts) {
@@ -554,6 +568,7 @@ document.addEventListener("DOMContentLoaded", () => {
             res.tts_enabled ? "ON" : "OFF"
           } (voice: ${res.tts_voice || voice}).`;
           statusTts.classList.add("success");
+          markStepDone(4);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -599,6 +614,7 @@ document.addEventListener("DOMContentLoaded", () => {
             res.enabled ? "enabled" : "disabled"
           }${res.text ? " — text updated." : "."}`;
           statusCta.classList.add("success");
+          markStepDone(5);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -642,9 +658,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const res = await postJSON("/api/fgscale", { value });
         if (statusFg) {
           statusFg.textContent = `Foreground scale set to ${Number(
-            res.fg_scale_default,
+            res.fg_scale_default
           ).toFixed(2)}.`;
           statusFg.classList.add("success");
+          markStepDone(5);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -680,6 +697,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusTimings) {
           statusTimings.textContent = "Standard FIX-C timings applied.";
           statusTimings.classList.add("success");
+          markStepDone(6);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -712,6 +730,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusTimings) {
           statusTimings.textContent = "Smart, cinematic pacing applied.";
           statusTimings.classList.add("success");
+          markStepDone(7);
         }
         await refreshYamlPreview();
       } catch (err) {
@@ -728,7 +747,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================
-  // STEP 5: EXPORT
+  // STEP 5: EXPORT (S3-based, using /api/export)
   // ============================================
   if (btnExport) {
     btnExport.addEventListener("click", async () => {
