@@ -1,16 +1,17 @@
 # assistant_api.py
 import os
 import yaml
+import shutil
 import tempfile
-import logging
+
 from assistant_log import log_step, status_log, clear_status_log
 
 from tiktok_template import (
     config_path,
     config,
     client,
-    normalize_video_ffmpeg,
     edit_video,
+    video_folder,   # <-- use local folder from template
 )
 
 from tiktok_assistant import (
@@ -22,13 +23,10 @@ from tiktok_assistant import (
     video_analyses_cache,
     TEXT_MODEL,
     save_from_raw_yaml,
-    list_raw_s3_videos, 
+    list_videos_from_s3,
     download_s3_video,
-    normalize_video,
     save_analysis_result,
 )
-
-logging.getLogger().setLevel(logging.DEBUG)
 
 # ============================================
 # CONFIG HELPERS
@@ -77,81 +75,69 @@ def get_export_mode() -> dict:
 
 
 # ============================================
-# /api/analyze  (with debugging logs)
+# /api/analyze
 # ============================================
 def api_analyze():
-    clear_status_log()
     log_step("Starting analysis…")
 
-    try:
-        from tiktok_assistant import list_raw_s3_videos
-    except Exception as e:
-        log_step(f"❌ ERROR importing list_raw_s3_videos: {e}")
-        logging.exception("Import failure in api_analyze()")
-        return {}
+    # Ensure local folder exists & is clean
+    os.makedirs(video_folder, exist_ok=True)
+    # Optional: clear old clips so we don't mix sets
+    for name in os.listdir(video_folder):
+        path = os.path.join(video_folder, name)
+        if os.path.isfile(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
     # 1. Fetch list of videos from S3
-    log_step("Fetching videos from S3…")
-
-    try:
-        s3_keys = list_raw_s3_videos()
-    except Exception as e:
-        log_step(f"❌ ERROR listing S3 videos: {e}")
-        logging.exception("S3 listing failed in api_analyze()")
-        return {}
+    log_step("Fetching videos from S3 (raw_uploads/)…")
+    s3_keys = list_videos_from_s3()
 
     if not s3_keys:
-        log_step("⚠ No videos found in raw_uploads/")
+        log_step("No videos found in raw_uploads/.")
         return {}
 
-    log_step(f"Found {len(s3_keys)} video(s). Creating normalized_cache…")
-
+    log_step(f"Found {len(s3_keys)} video(s) in raw_uploads.")
     os.makedirs("normalized_cache", exist_ok=True)
+
     results = {}
-    
-    # PROCESS EACH VIDEO
+
     for key in s3_keys:
         log_step(f"Processing {key}…")
 
-        # Download
-        try:
-            tmp_local_path = download_s3_video(key)
-        except Exception as e:
-            log_step(f"❌ Download failed for {key}: {e}")
-            logging.exception("Download failure")
-            continue
-
+        # 2. Download to temporary file
+        tmp_local_path = download_s3_video(key)
         if not tmp_local_path:
-            log_step(f"❌ No temp file path returned for {key}")
+            log_step(f"❌ Failed to download {key}")
             continue
 
-        # Normalize
+        # 3. Copy into local tik_tok_downloads/ with basename
+        base = os.path.basename(key)
+        local_path = os.path.join(video_folder, base)
         try:
-            normalized_path = tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=os.path.splitext(key)[1]
-            ).name
-            log_step(f"Normalizing {key} via FFmpeg…")
-            normalize_video(tmp_local_path, normalized_path)
+            shutil.copy(tmp_local_path, local_path)
         except Exception as e:
-            log_step(f"❌ Normalization failed for {key}: {e}")
-            logging.exception("Normalization failure")
+            log_step(f"❌ Failed to copy {tmp_local_path} → {local_path}: {e}")
             continue
 
-        # Analyze
-        try:
-            log_step(f"Analyzing {key} with LLM…")
-            desc = analyze_video(normalized_path)
-            save_analysis_result(key, desc)
-            results[key] = desc
-            log_step(f"✅ Analysis complete for {key}")
-        except Exception as e:
-            log_step(f"❌ Analysis failed for {key}: {e}")
-            logging.exception("LLM analysis failure")
-            continue
+        # 4. (Optional) debug dimensions if you want
+        # debug_video_dimensions(video_folder)
 
-    log_step("✅ All videos analyzed.")
+        # 5. Analyze with LLM (or stub)
+        log_step(f"Analyzing {base} with LLM…")
+        desc = analyze_video(local_path)
+        log_step(f"Analysis complete for {base}.")
+
+        # 6. Save analysis result (by basename)
+        save_analysis_result(base, desc)
+
+        results[base] = desc
+
+    log_step("All videos analyzed ✅")
     return results
+
 
 # ============================================
 # /api/generate_yaml
@@ -164,7 +150,7 @@ def api_generate_yaml():
         log_step("No cached analyses; running quick analyze before YAML generation…")
         api_analyze()
 
-    video_files = list(video_analyses_cache.keys())
+    video_files = list(video_analyses_cache.keys())        # basenames
     analyses = [video_analyses_cache.get(v, "") for v in video_files]
 
     yaml_prompt = build_yaml_prompt(video_files, analyses)
@@ -213,7 +199,7 @@ def api_get_config():
 
 
 # -----------------------------------------------
-# /api/export  (NOTE: not used directly by Flask now)
+# /api/export  (MoviePy render to local file)
 # -----------------------------------------------
 def api_export(optimized: bool = False):
     clear_status_log()
@@ -222,8 +208,8 @@ def api_export(optimized: bool = False):
 
     filename = (
         "output_tiktok_final_optimized.mp4"
-        if optimized
-        else "output_tiktok_final.mp4"
+        if optimized else
+        "output_tiktok_final.mp4"
     )
 
     log_step("Rendering timeline with music, captions, and voiceover…")

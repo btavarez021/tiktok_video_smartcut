@@ -191,40 +191,49 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================
-  // UPLOAD VIDEOS (→ /api/upload, S3 raw_uploads/)
+  // SIMPLE UPLOAD HANDLER → /api/upload (S3 raw_uploads/)
   // ============================================
-  if (uploadBtn && uploadInput) {
-    uploadBtn.addEventListener("click", async () => {
+  if (btnUpload && uploadInput) {
+    btnUpload.addEventListener("click", async () => {
       const files = uploadInput.files;
       if (!files || !files.length) {
-        uploadStatus.textContent = "Please select at least one video file.";
-        uploadStatus.className = "status-text error";
+        if (uploadStatus) {
+          uploadStatus.textContent = "Please select at least one video file.";
+          uploadStatus.className = "status-text error";
+        }
         return;
       }
 
-      uploadStatus.textContent = "Uploading…";
-      uploadStatus.className = "status-text";
+      if (uploadStatus) {
+        uploadStatus.textContent = "Uploading...";
+        uploadStatus.className = "status-text";
+      }
 
       try {
         for (const file of files) {
           const formData = new FormData();
-          formData.append("file", file);
+          formData.append("file", file); // <-- backend expects "file"
+
           const res = await fetch("/api/upload", {
             method: "POST",
             body: formData,
           });
-          if (!res.ok) {
-            throw new Error(`Upload failed for ${file.name}`);
+          const data = await res.json();
+          if (!res.ok || data.status !== "uploaded") {
+            throw new Error("Upload failed for " + file.name);
           }
         }
 
-        uploadStatus.textContent =
-          "✅ Upload successful! You can now Analyze.";
-        uploadStatus.classList.add("success");
+        if (uploadStatus) {
+          uploadStatus.textContent = "✅ Upload successful! You can now Analyze.";
+          uploadStatus.className = "status-text success";
+        }
       } catch (err) {
         console.error(err);
-        uploadStatus.textContent = "❌ Upload failed.";
-        uploadStatus.classList.add("error");
+        if (uploadStatus) {
+          uploadStatus.textContent = "❌ Upload error.";
+          uploadStatus.className = "status-text error";
+        }
       }
     });
   }
@@ -743,45 +752,50 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================
-  // STEP 5: EXPORT (S3-based)
+  // STEP 5: EXPORT (S3-based, using /api/export)
   // ============================================
   if (btnExport) {
     btnExport.addEventListener("click", async () => {
-      resetProcessingLog();
+      if (statusExport) {
+        statusExport.textContent = "Preparing export…";
+        statusExport.className = "status-text";
+      }
 
-      statusExport.textContent = "Preparing export…";
-      statusExport.className = "status-text";
-
-      setButtonLoading(btnExport, spinExport, true);
-      showLoader("Rendering final video…");
+      if (spinExport) spinExport.classList.add("active");
+      btnExport.disabled = true;
 
       try {
-        const optimized = exportOptimizedToggle
-          ? exportOptimizedToggle.checked
-          : false;
+        const optimized =
+          exportOptimizedToggle && exportOptimizedToggle.checked ? true : false;
 
         const resp = await postJSON("/api/export", { optimized });
-
         if (resp.error) {
-          statusExport.textContent = "❌ Export failed.";
-          statusExport.classList.add("error");
+          if (statusExport) {
+            statusExport.textContent = "❌ Export failed.";
+            statusExport.classList.add("error");
+          }
         } else {
-          statusExport.innerHTML = `
-            ✅ Export complete!<br>
-            <a href="${resp.file_url}" target="_blank"
-               style="color:#00e6b8; text-decoration:underline;">
-               Download Final Video
-            </a>
-          `;
-          statusExport.classList.add("success");
+          const url = resp.file_url;
+          if (statusExport) {
+            statusExport.innerHTML = `
+              ✅ Export complete!<br>
+              <a href="${url}" target="_blank"
+                 style="color:#00e6b8; text-decoration:underline;">
+                 Download Final Video
+              </a>
+            `;
+            statusExport.classList.add("success");
+          }
         }
       } catch (err) {
         console.error(err);
-        statusExport.textContent = "❌ Error during export.";
-        statusExport.classList.add("error");
+        if (statusExport) {
+          statusExport.textContent = "❌ Error during export.";
+          statusExport.classList.add("error");
+        }
       } finally {
-        hideLoader();
-        setButtonLoading(btnExport, spinExport, false);
+        if (spinExport) spinExport.classList.remove("active");
+        btnExport.disabled = false;
       }
     });
   }

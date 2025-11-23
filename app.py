@@ -3,19 +3,18 @@ from flask import Flask, request, jsonify, render_template
 import logging
 import os
 import time
-import tempfile
 
 from tiktok_assistant import (
     s3,
     S3_BUCKET_NAME,
     S3_PUBLIC_BASE,
-    list_videos_from_s3,
-    download_s3_video,
+    move_raw_to_processed,
 )
 
 from assistant_api import (
     api_analyze,
     api_generate_yaml,
+    api_export,
     api_set_tts,
     api_set_cta,
     api_apply_overlay,
@@ -29,9 +28,8 @@ from assistant_api import (
     api_save_captions,
     load_config,
 )
-from assistant_log import clear_status_log, log_step, status_log
 
-from tiktok_template import edit_video  # your renderer
+from assistant_log import clear_status_log, log_step, status_log
 
 app = Flask(__name__)
 
@@ -42,17 +40,17 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 assistant_log_dir = os.path.join(BASE_DIR, "logs")
 assistant_log_file_path = os.path.join(assistant_log_dir, "tiktok_editor.log")
 
-os.makedirs(assistant_log_dir, exist_ok=True)
+if not os.path.exists(assistant_log_dir):
+    os.makedirs(assistant_log_dir, exist_ok=True)
 
 logging.basicConfig(
-    level=logging.INFO,  # Set to logging.DEBUG for more verbose output
+    level=logging.INFO,
     filename=assistant_log_file_path,
     filemode="a",
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
-
 
 # ============================================
 # ROOT
@@ -67,18 +65,16 @@ def home():
 # ============================================
 RAW_PREFIX = "raw_uploads"
 
-
 @app.route("/api/upload", methods=["POST"])
 def upload_route():
-    file = request.files.get("file")
-    if not file:
-        return jsonify({"success": False, "error": "no_file"}), 400
-
+    file = request.files["file"]
     filename = file.filename
+
     key = f"{RAW_PREFIX}/{filename}"
     s3.upload_fileobj(file, S3_BUCKET_NAME, key)
 
-    return jsonify({"success": True, "file": filename})
+    log_step(f"Uploaded {filename} to S3 at {key}")
+    return jsonify({"status": "uploaded", "file": filename})
 
 
 @app.route("/api/analyze", methods=["POST"])
@@ -120,63 +116,41 @@ def save_yaml_route():
 @app.route("/api/export", methods=["POST"])
 def export_route():
     clear_status_log()
-    log_step("🎬 Starting export…")
-
     data = request.json or {}
     optimized = bool(data.get("optimized", False))
 
-    # 1. Load config.yml
-    cfg = load_config()
+    mode_label = "optimized" if optimized else "standard"
+    log_step(f"Starting export (mode={mode_label})…")
 
-    # 2. Fetch list of uploaded clips from S3
-    s3_videos = list_videos_from_s3()
-    if not s3_videos:
-        log_step("No videos found in S3 raw_uploads/.")
-        return jsonify({"error": "no_videos"}), 400
+    # 1. Render locally via MoviePy
+    load_config()
+    local_filename = api_export(optimized=optimized)  # e.g. "output_tiktok_final.mp4"
+    local_path = os.path.abspath(local_filename)
 
-    # 3. Download them to temp local paths
-    local_clip_paths = []
-    for key in s3_videos:
-        tmp = download_s3_video(key)
-        if tmp:
-            local_clip_paths.append(tmp)
+    if not os.path.exists(local_path):
+        log_step("❌ Export failed: local file not found.")
+        return jsonify({"error": "export_failed"}), 500
 
-    if not local_clip_paths:
-        log_step("Failed to download any videos from S3.")
-        return jsonify({"error": "download_failed"}), 500
-
-    # 4. Call edit_video with local temp files
-    output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-    log_step("Rendering timeline with music, captions, and voiceover…")
-
-    # Assumes your edit_video accepts these args. Adjust if needed.
-    edit_video(
-        clips=local_clip_paths,
-        output_file=output_path,
-        config=cfg,
-        optimized=optimized,
-    )
-
-    # 5. Upload final to S3
-    final_key = f"exports/final_{int(time.time())}.mp4"
-    s3.upload_file(output_path, S3_BUCKET_NAME, final_key)
-
+    # 2. Upload final to S3
+    ts = int(time.time())
+    final_key = f"exports/final_{ts}.mp4"
+    s3.upload_file(local_path, S3_BUCKET_NAME, final_key)
     url = f"{S3_PUBLIC_BASE}/{final_key}"
+    log_step(f"✅ Final video uploaded to S3 → {final_key}")
+
+    # 3. Move raw_uploads → processed
+    move_raw_to_processed()
 
     log_step("✅ Export complete.")
-
-    return jsonify(
-        {
-            "status": "ok",
-            "file_url": url,
-        }
-    )
+    return jsonify({
+        "status": "ok",
+        "file_url": url,
+    })
 
 
 @app.route("/api/export_mode", methods=["GET", "POST"])
 def export_mode_route():
     if request.method == "GET":
-        # Returns {"mode": "..."}
         return jsonify(get_export_mode())
 
     data = request.json or {}
