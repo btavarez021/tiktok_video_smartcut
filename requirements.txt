@@ -5,7 +5,7 @@ PyYAML
 openai
 
 # --- Video Processing ---
-moviepy
+moviepy==1.0.3
 Pillow
 imageio
 imageio-ffmpeg
