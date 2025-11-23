@@ -9,6 +9,7 @@ from tiktok_template import (
     config_path,
     config,
     client,
+    normalize_video_ffmpeg,
     edit_video,
 )
 
@@ -20,12 +21,13 @@ from tiktok_assistant import (
     apply_overlay,
     video_analyses_cache,
     TEXT_MODEL,
-    save_from_raw_yaml,   # kept for completeness if you still use it
+    save_from_raw_yaml,
     list_videos_from_s3,
     download_s3_video,
     normalize_video,
     save_analysis_result,
 )
+
 
 # ============================================
 # CONFIG HELPERS
@@ -80,7 +82,7 @@ def api_analyze():
     log_step("Starting analysis…")
 
     # 1. Fetch list of videos from S3
-    log_step("Fetching videos from S3 (raw_uploads/)…")
+    log_step("Fetching videos from S3…")
     s3_keys = list_videos_from_s3()
 
     if not s3_keys:
@@ -90,7 +92,7 @@ def api_analyze():
     log_step(f"Found {len(s3_keys)} video(s) in S3.")
     os.makedirs("normalized_cache", exist_ok=True)
 
-    results: dict[str, str] = {}
+    results = {}
 
     for key in s3_keys:
         log_step(f"Processing {key}…")
@@ -112,12 +114,12 @@ def api_analyze():
         normalize_video(tmp_local_path, normalized_path)
         log_step(f"Normalization complete for {key}.")
 
-        # 5. Analyze with LLM
+        # 5. Analyze with LLM (or stub)
         log_step(f"Analyzing {key} with LLM…")
         desc = analyze_video(normalized_path)
         log_step(f"Analysis complete for {key}.")
 
-        # 6. Save analysis result (disk + in-memory cache)
+        # 6. Save analysis result
         save_analysis_result(key, desc)
 
         results[key] = desc
@@ -139,10 +141,6 @@ def api_generate_yaml():
 
     video_files = list(video_analyses_cache.keys())
     analyses = [video_analyses_cache.get(v, "") for v in video_files]
-
-    if not video_files:
-        log_step("No videos available for YAML generation.")
-        return {}
 
     yaml_prompt = build_yaml_prompt(video_files, analyses)
     log_step("Calling LLM to produce YAML storyboard…")
@@ -190,13 +188,9 @@ def api_get_config():
 
 
 # -----------------------------------------------
-# /api/export  (supports standard vs optimized)
+# /api/export  (NOTE: not used directly by Flask now)
 # -----------------------------------------------
-def api_export(optimized: bool = False) -> str:
-    """
-    Render final video using tiktok_template.edit_video.
-    Returns the output filename on local disk.
-    """
+def api_export(optimized: bool = False):
     clear_status_log()
     mode_label = "OPTIMIZED" if optimized else "STANDARD"
     log_step(f"Starting export in {mode_label} mode…")
@@ -230,11 +224,7 @@ def api_set_tts(enabled: bool, voice: str | None = None):
 # ============================================
 # /api/cta
 # ============================================
-def api_set_cta(
-    enabled: bool,
-    text: str | None = None,
-    voiceover: bool | None = None,
-):
+def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None = None):
     load_config()
     cta_cfg = config.setdefault("cta", {})
     cta_cfg["enabled"] = bool(enabled)
@@ -317,7 +307,7 @@ def api_fgscale(value: float):
 
 
 # ============================================
-# /api/chat  — LLM Creative Assistant
+# /api/chat — LLM Creative Assistant
 # ============================================
 def api_chat(message: str):
     prompt = (

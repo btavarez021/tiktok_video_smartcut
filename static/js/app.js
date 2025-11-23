@@ -1,14 +1,4 @@
-document.getElementById("btn-upload").addEventListener("click", async () => {
-  const files = document.getElementById("upload-input").files;
-  for (const file of files) {
-    const formData = new FormData();
-    formData.append("file", file);
-    await fetch("/api/upload", { method: "POST", body: formData });
-  }
-  document.getElementById("status-upload").textContent = "✅ Uploaded!";
-});
-
-
+// static/js/app.js
 document.addEventListener("DOMContentLoaded", () => {
   // ============================================
   // ELEMENT REFERENCES
@@ -31,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnSaveCaptions = document.getElementById("btn-save-captions");
   const statusCaptions = document.getElementById("status-captions");
 
-  // YAML editor (right side)
+  // YAML editor
   const yamlEditor = document.getElementById("yaml-editor");
   const btnSaveYaml = document.getElementById("btn-save-yaml");
   const statusSaveYaml = document.getElementById("status-save-yaml");
@@ -78,19 +68,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const spinChat = document.getElementById("spinner-chat");
   const chatMessages = document.getElementById("chat-messages");
 
-  //upload video
-  const uploadForm = document.getElementById("upload-form");
+  // Upload
   const uploadInput = document.getElementById("upload-input");
-  const uploadStatus = document.getElementById("upload-status");
+  const uploadBtn = document.getElementById("btn-upload");
+  const uploadStatus = document.getElementById("status-upload");
 
-
-  // Processing log panel (right side)
+  // Processing log panel
   const liveLogBox = document.getElementById("live-log");
 
   // ============================================
   // GENERIC HELPERS
   // ============================================
-
   function extractCaptionsFromConfig(cfg) {
     const captions = [];
 
@@ -172,7 +160,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (yamlEditor) {
         yamlEditor.value = data.yaml || "# Empty config.yml";
       }
-      // Also return parsed config for captions editor
       return data.config || {};
     } catch (err) {
       console.error(err);
@@ -204,51 +191,46 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================
-  // Upload Video Handler
+  // UPLOAD VIDEOS (→ /api/upload, S3 raw_uploads/)
   // ============================================
+  if (uploadBtn && uploadInput) {
+    uploadBtn.addEventListener("click", async () => {
+      const files = uploadInput.files;
+      if (!files || !files.length) {
+        uploadStatus.textContent = "Please select at least one video file.";
+        uploadStatus.className = "status-text error";
+        return;
+      }
 
-  if (uploadForm) {
-  uploadForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
+      uploadStatus.textContent = "Uploading…";
+      uploadStatus.className = "status-text";
 
-    const file = uploadInput.files[0];
-    if (!file) {
-      uploadStatus.textContent = "Please select a video file to upload.";
-      uploadStatus.className = "status-text error";
-      return;
-    }
+      try {
+        for (const file of files) {
+          const formData = new FormData();
+          formData.append("file", file);
+          const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
+          if (!res.ok) {
+            throw new Error(`Upload failed for ${file.name}`);
+          }
+        }
 
-    uploadStatus.textContent = "Uploading...";
-    uploadStatus.className = "status-text";
-
-    const formData = new FormData();
-    formData.append("video", file);
-
-    try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        uploadStatus.textContent = "✅ Upload successful! You can now Analyze.";
+        uploadStatus.textContent =
+          "✅ Upload successful! You can now Analyze.";
         uploadStatus.classList.add("success");
-      } else {
+      } catch (err) {
+        console.error(err);
         uploadStatus.textContent = "❌ Upload failed.";
         uploadStatus.classList.add("error");
       }
-    } catch (err) {
-      uploadStatus.textContent = "❌ Upload error.";
-      uploadStatus.classList.add("error");
-    }
-  });
-}
-
+    });
+  }
 
   // ============================================
-  // LIVE LOG AUTO-REFRESH (1s) → /api/status
+  // LIVE LOG AUTO-REFRESH
   // ============================================
   async function refreshLogs() {
     if (!liveLogBox) return;
@@ -315,7 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
       resetProcessingLog();
 
       if (statusAnalyze) {
-        statusAnalyze.textContent = "Analyzing videos in tik_tok_downloads/…";
+        statusAnalyze.textContent = "Analyzing your uploaded S3 videos…";
         statusAnalyze.className = "status-text";
       }
       if (analysisList) {
@@ -337,12 +319,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (analysisList) {
           if (!count) {
             analysisList.innerHTML =
-              '<div class="analysis-item">No videos found in tik_tok_downloads/.</div>';
+              '<div class="analysis-item">No videos found in S3 raw_uploads/.</div>';
           } else {
             analysisList.innerHTML = Object.entries(data)
               .map(
                 ([file, desc]) =>
-                  `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
+                  `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`,
               )
               .join("");
           }
@@ -456,10 +438,8 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           await postJSON("/api/overlay", { style });
 
-          // Fetch updated config + YAML
           const cfg = await refreshYamlPreview();
 
-          // Fill captions editor
           if (captionsEditor && cfg) {
             captionsEditor.value = extractCaptionsFromConfig(cfg);
           }
@@ -503,7 +483,6 @@ document.addEventListener("DOMContentLoaded", () => {
         statusCaptions.textContent = "✅ Captions saved.";
         statusCaptions.classList.add("success");
 
-        // show sync suggestion banner
         const ttsHint = document.getElementById("tts-sync-hint");
         if (ttsHint) ttsHint.classList.remove("hidden");
 
@@ -519,7 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================
-  // SYNC NARRATION TO CAPTIONS (Option A)
+  // SYNC NARRATION TO CAPTIONS
   // ============================================
   const btnSyncTts = document.getElementById("btn-sync-tts");
   if (btnSyncTts) {
@@ -675,7 +654,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const res = await postJSON("/api/fgscale", { value });
         if (statusFg) {
           statusFg.textContent = `Foreground scale set to ${Number(
-            res.fg_scale_default
+            res.fg_scale_default,
           ).toFixed(2)}.`;
           statusFg.classList.add("success");
           markStepDone(5);
@@ -764,50 +743,48 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================
-  // STEP 5: EXPORT (with timing summary update)
+  // STEP 5: EXPORT (S3-based)
   // ============================================
-  // ============================================
-// EXPORT FINAL VIDEO (S3-based)
-// ============================================
+  if (btnExport) {
+    btnExport.addEventListener("click", async () => {
+      resetProcessingLog();
 
-if (btnExport) {
-  btnExport.addEventListener("click", async () => {
-    statusExport.textContent = "Preparing export…";
-    statusExport.className = "status-text";
+      statusExport.textContent = "Preparing export…";
+      statusExport.className = "status-text";
 
-    spinnerExport.classList.add("active");
-    btnExport.disabled = true;
+      setButtonLoading(btnExport, spinExport, true);
+      showLoader("Rendering final video…");
 
-    try {
-      const optimized = document.getElementById("export-optimized").checked;
+      try {
+        const optimized = exportOptimizedToggle
+          ? exportOptimizedToggle.checked
+          : false;
 
-      // ✅ Call new backend export route
-      const resp = await postJSON("/api/export", { optimized });
+        const resp = await postJSON("/api/export", { optimized });
 
-      if (resp.error) {
-        statusExport.textContent = "❌ Export failed.";
+        if (resp.error) {
+          statusExport.textContent = "❌ Export failed.";
+          statusExport.classList.add("error");
+        } else {
+          statusExport.innerHTML = `
+            ✅ Export complete!<br>
+            <a href="${resp.file_url}" target="_blank"
+               style="color:#00e6b8; text-decoration:underline;">
+               Download Final Video
+            </a>
+          `;
+          statusExport.classList.add("success");
+        }
+      } catch (err) {
+        console.error(err);
+        statusExport.textContent = "❌ Error during export.";
         statusExport.classList.add("error");
-      } else {
-        statusExport.innerHTML = `
-          ✅ Export complete!<br>
-          <a href="${resp.url}" target="_blank"
-             style="color:#00e6b8; text-decoration:underline;">
-            Download Final Video
-          </a>
-        `;
-        statusExport.classList.add("success");
+      } finally {
+        hideLoader();
+        setButtonLoading(btnExport, spinExport, false);
       }
-    } catch (err) {
-      console.error(err);
-      statusExport.textContent = "❌ Error during export.";
-      statusExport.classList.add("error");
-    } finally {
-      spinnerExport.classList.remove("active");
-      btnExport.disabled = false;
-    }
-  });
-}
-
+    });
+  }
 
   // ============================================
   // LLM CHAT PANEL
