@@ -68,10 +68,6 @@ def list_raw_s3_videos() -> List[str]:
 
 
 def move_all_raw_to_processed() -> None:
-    """
-    Move ALL files under raw_uploads/ → processed/.
-    Safe to call after successful export.
-    """
     resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
     contents = resp.get("Contents", [])
     if not contents:
@@ -84,6 +80,7 @@ def move_all_raw_to_processed() -> None:
             continue
 
         processed_key = key.replace(RAW_PREFIX, PROCESSED_PREFIX, 1)
+
         try:
             s3.copy_object(
                 Bucket=S3_BUCKET_NAME,
@@ -278,10 +275,6 @@ def _style_instructions(style: str) -> str:
 
 
 def apply_overlay(style: str, target: str = "all", filename: Optional[str] = None) -> None:
-    """
-    Use LLM to rewrite caption texts in config.yml according to the selected style.
-    This powers the caption style chips (Punchy / Cinematic / Descriptive / Influencer / Travel Blog).
-    """
     try:
         with open(config_path, "r") as f:
             current_yaml = f.read()
@@ -312,9 +305,10 @@ def apply_overlay(style: str, target: str = "all", filename: Optional[str] = Non
         Current YAML:
         ```yaml
         {current_yaml}
-
         Return ONLY the updated YAML. No backticks, no explanation.
         """.strip()
+    ...
+
     
     try:
         resp = client.chat.completions.create(

@@ -427,55 +427,57 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================
-  // CAPTION STYLE CHIPS → /api/overlay
-  // ============================================
-  if (captionChips && captionChips.length) {
-    captionChips.forEach((chip) => {
-      chip.addEventListener("click", async () => {
-        resetProcessingLog();
+// CAPTION STYLE CHIPS → /api/overlay
+// ============================================
+if (captionChips && captionChips.length) {
+  captionChips.forEach((chip) => {
+    chip.addEventListener("click", async () => {
 
-        const style = chip.dataset.style || "punchy";
+      resetProcessingLog();
 
-        captionChips.forEach((c) => c.classList.remove("active"));
-        chip.classList.add("active");
+      const style = chip.dataset.style || "punchy";
+
+      captionChips.forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+
+      if (statusYaml) {
+        statusYaml.textContent = `Applying "${style}" overlay style…`;
+        statusYaml.className = "status-text";
+      }
+
+      showLoader("Updating captions via overlay…");
+
+      try {
+        await postJSON("/api/overlay", { style });
+
+        // ✅ Always reload full YAML again
+        const cfg = await refreshYamlPreview();
+
+        // ✅ Always repopulate captions editor
+        if (captionsEditor) {
+          captionsEditor.value = extractCaptionsFromConfig(cfg || {});
+        }
 
         if (statusYaml) {
-          statusYaml.textContent = `Applying "${style}" overlay style…`;
-          statusYaml.className = "status-text";
+          statusYaml.textContent = `✅ Captions rewritten using: ${style}`;
+          statusYaml.classList.add("success");
+          markStepDone(3);
         }
 
-        showLoader("Updating captions via overlay…");
-
-        try {
-          await postJSON("/api/overlay", { style });
-
-          const cfg = await refreshYamlPreview();
-
-          if (captionsEditor && cfg) {
-            captionsEditor.value = extractCaptionsFromConfig(cfg);
-          }
-
-
-          if (statusYaml) {
-            statusYaml.textContent = `✅ Captions rewritten using: ${style}`;
-            statusYaml.classList.add("success");
-            if (!chip.classList.contains("visited")) {
-              markStepDone(3);
-              chip.classList.add("visited");
-            }
-          }
-        } catch (err) {
-          console.error(err);
-          if (statusYaml) {
-            statusYaml.textContent = "❌ Failed updating captions.";
-            statusYaml.classList.add("error");
-          }
-        } finally {
-          hideLoader();
+      } catch (err) {
+        console.error(err);
+        if (statusYaml) {
+          statusYaml.textContent = "❌ Failed updating captions.";
+          statusYaml.classList.add("error");
         }
-      });
+      } finally {
+        hideLoader();
+      }
     });
-  }
+  });
+}
+
+
 
   // ============================================
   // SAVE EDITED CAPTIONS BACK TO CONFIG

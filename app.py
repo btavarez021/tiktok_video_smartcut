@@ -35,6 +35,11 @@ from assistant_log import clear_status_log, log_step, status_log
 
 app = Flask(__name__)
 
+# Prefixes
+RAW_PREFIX = "raw_uploads/"
+PROCESSED_PREFIX = "processed/"
+EXPORT_PREFIX = "exports/"
+
 # =============================================================
 # Configure Logging
 # =============================================================
@@ -127,16 +132,16 @@ def export_route():
     mode_label = "optimized" if optimized else "standard"
     log_step(f"Starting export (mode={mode_label})…")
 
-    # 1. Render locally via MoviePy
+    # 1. Render via MoviePy
     load_config()
-    local_filename = api_export(optimized=optimized)  # e.g. "output_tiktok_final.mp4"
+    local_filename = api_export(optimized=optimized)
     local_path = os.path.abspath(local_filename)
 
     if not os.path.exists(local_path):
         log_step("❌ Export failed: local file not found.")
         return jsonify({"error": "export_failed"}), 500
 
-    # 2. Upload final to S3
+    # 2. Upload final video to S3
     ts = int(time.time())
     final_key = f"{EXPORT_PREFIX}final_{ts}.mp4"
     s3.upload_file(local_path, S3_BUCKET_NAME, final_key)
@@ -224,9 +229,13 @@ def overlay_route():
     style = data.get("style", "punchy")
 
     log_step(f"🎨 Applying overlay style: {style}…")
-    result = api_apply_overlay(style)
+    api_apply_overlay(style)
+
+    # reload updated config.yml
+    cfg = api_get_config()
+
     log_step("✅ Overlay captions updated.")
-    return jsonify(result)
+    return jsonify(cfg)
 
 
 # ============================================
