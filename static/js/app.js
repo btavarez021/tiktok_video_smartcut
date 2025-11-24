@@ -131,57 +131,69 @@ function hideAnalyzeOverlay() {
   async function watchForAnalysisCompletion() {
   const poll = setInterval(async () => {
     try {
-      // ✅ Always GET (never POST)
-      const res = await fetch("/api/analyses_cache", { method: "GET" });
+      const res = await fetch("/api/status");
+      if (!res.ok) return;
 
-      if (!res.ok) {
-        console.warn("Analysis cache polling failed:", res.status);
-        return;
-      }
+      const data = await res.json();
+      const logLines = data.log || [];
 
-      const analyses = await res.json();
-      const count = Object.keys(analyses || {}).length;
+      updateProcessingLog(logLines);
 
-      // ✅ Only complete after real results exist
-      if (count > 0) {
+      // ✅ Detect backend completion from status log
+      const done =
+        logLines.some(line =>
+          line.includes("All videos analyzed")
+        ) ||
+        logLines.some(line =>
+          line.includes("✅ Analysis complete")
+        );
+
+      const ts = new Date().toLocaleTimeString();
+      statusAnalyze.textContent += ` (finished at ${ts})`;
+
+      if (done) {
         clearInterval(poll);
 
-        // ✅ stop analyze spinner
+        // ✅ Stop spinner
         if (spinAnalyze) spinAnalyze.classList.remove("active");
 
-        // ✅ status update
+        // ✅ Update status text
         if (statusAnalyze) {
-          statusAnalyze.textContent = `✅ Analysis complete (${count} videos).`;
+          statusAnalyze.textContent = "✅ Analysis complete!";
           statusAnalyze.classList.remove("working");
           statusAnalyze.classList.add("success");
         }
 
-        // ✅ mark step 1 complete
+        // ✅ Mark Step 1 done
         markStepDone(0);
 
-        // ✅ unlock UI
+        // ✅ Unlock rest of UI
         setStepsLocked(false);
 
-        // ✅ populate results
-        if (analysisList) {
-          analysisList.innerHTML = Object.entries(analyses)
-            .map(([file, desc]) =>
-              `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
-            )
-            .join("");
-        }
+        // ✅ Populate analysis list
+        try {
+          const cacheRes = await fetch("/api/analyses_cache");
+          if (cacheRes.ok) {
+            const analyses = await cacheRes.json();
+            if (analysisList) {
+              analysisList.innerHTML = Object.entries(analyses)
+                .map(([file, desc]) =>
+                  `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
+                )
+                .join("");
+            }
+          }
+        } catch {}
 
-        // ✅ hide overlay
-        hideAnalyzeOverlay();
-
-        return;
+        // ✅ Hide overlay
+        hideAnalyzeOverlay?.();
       }
 
     } catch (err) {
-      console.warn("Analysis polling stopped.", err);
+      console.warn("Analysis completion polling stopped.", err);
       clearInterval(poll);
     }
-  }, 1500);
+  }, 1200);
 }
 
 
@@ -452,9 +464,9 @@ if (btnAnalyze) {
       // ✅ Start backend processing
       await postJSON("/api/analyze", {});
 
-      // ✅ Begin polling for logs & completion
-      startAnalyzeStatusPolling();
-      watchForAnalysisCompletion();
+    // ✅ Start log + completion polling
+    startAnalyzeStatusPolling();
+    watchForAnalysisCompletion();
 
     } catch (err) {
       console.error(err);
