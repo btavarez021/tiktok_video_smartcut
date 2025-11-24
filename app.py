@@ -40,19 +40,17 @@ app = Flask(__name__)
 # Configure Logging
 # =============================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-assistant_log_dir = os.path.join(BASE_DIR, "logs")
-assistant_log_file_path = os.path.join(assistant_log_dir, "tiktok_editor.log")
-
-os.makedirs(assistant_log_dir, exist_ok=True)
+import logging
 
 logging.basicConfig(
     level=logging.INFO,
-    filename=assistant_log_file_path,
-    filemode="a",
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+
 logger = logging.getLogger(__name__)
+
+
 
 
 # ============================================
