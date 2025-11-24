@@ -84,7 +84,39 @@ document.addEventListener("DOMContentLoaded", () => {
   // GENERIC HELPERS
   // ============================================
 
-  let analyzePollInterval = null;
+  async function watchForAnalysisCompletion() {
+  const check = setInterval(async () => {
+    const res = await fetch("/api/config");
+    const data = await res.json();
+    const cfg = data.config || {};
+    
+    // When config.yml exists AND video_analyses_cache filled
+    if (Object.keys(cfg).length > 0) {
+      clearInterval(check);
+
+      // ✅ populate UI with real analysis results
+      const analysesRes = await fetch("/api/analyses_cache");
+      const analyses = await analysesRes.json();
+
+      if (analysisList) {
+        analysisList.innerHTML = Object.entries(analyses)
+          .map(([file, desc]) =>
+            `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
+          )
+          .join("");
+      }
+
+      if (statusAnalyze) {
+        statusAnalyze.textContent = `✅ Analysis complete!`;
+        statusAnalyze.classList.add("success");
+        markStepDone(0);
+      }
+    }
+  }, 1500);
+}
+
+
+let analyzePollInterval = null;
 
 function startAnalyzeStatusPolling() {
   if (analyzePollInterval) clearInterval(analyzePollInterval);
@@ -341,13 +373,15 @@ if (btnAnalyze) {
       // ✅ Kick off backend analysis
     await postJSON("/api/analyze", {});
 
-    // ✅ Begin polling live log
+    // ✅ start polling immediately
     startAnalyzeStatusPolling();
+    watchForAnalysisCompletion();
 
-    // ✅ UI stays in "processing" mode
+
+    // ✅ show “processing…”
     if (statusAnalyze) {
-      statusAnalyze.textContent = "Analyzing… watch the live log for progress.";
-      statusAnalyze.className = "status-text";
+      statusAnalyze.textContent = "Analyzing… check live log below";
+      statusAnalyze.classList.add("working");
     }
 
     // ✅ We DO NOT try to read results yet
