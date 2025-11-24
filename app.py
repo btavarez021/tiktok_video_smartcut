@@ -124,30 +124,39 @@ def export_route():
     mode_label = "optimized" if optimized else "standard"
     log_step(f"Starting export (mode={mode_label})…")
 
-    # 1. Render locally via MoviePy/ffmpeg through tiktok_template.edit_video
-    load_config()
-    local_filename = api_export(optimized=optimized)  # e.g. "output_tiktok_final.mp4"
-    local_path = os.path.abspath(local_filename)
+    try:
+        # 1. Render locally via MoviePy/ffmpeg through tiktok_template.edit_video
+        load_config()
+        local_filename = api_export(optimized=optimized)  # e.g. "output_tiktok_final.mp4"
+        local_path = os.path.abspath(local_filename)
 
-    if not os.path.exists(local_path):
-        log_step("❌ Export failed: local file not found.")
-        return jsonify({"error": "export_failed"}), 500
+        if not os.path.exists(local_path):
+            msg = "Export failed: local file not found after render."
+            log_step(f"❌ {msg}")
+            return jsonify({"error": "export_failed", "detail": msg}), 500
 
-    # 2. Upload final to S3
-    ts = int(time.time())
-    final_key = f"{EXPORT_PREFIX}final_{ts}.mp4"
-    s3.upload_file(local_path, S3_BUCKET_NAME, final_key)
-    url = f"{S3_PUBLIC_BASE}/{final_key}"
-    log_step(f"✅ Final video uploaded to S3 → {final_key}")
+        # 2. Upload final to S3
+        ts = int(time.time())
+        final_key = f"{EXPORT_PREFIX}final_{ts}.mp4"
+        s3.upload_file(local_path, S3_BUCKET_NAME, final_key)
+        url = f"{S3_PUBLIC_BASE}/{final_key}"
+        log_step(f"✅ Final video uploaded to S3 → {final_key}")
 
-    # 3. Move raw_uploads/ → processed/
-    move_all_raw_to_processed()
+        # 3. Move raw_uploads/ → processed/
+        move_all_raw_to_processed()
 
-    log_step("✅ Export complete.")
-    return jsonify({
-        "status": "ok",
-        "file_url": url,
-    })
+        log_step("✅ Export complete.")
+        return jsonify({
+            "status": "ok",
+            "file_url": url,
+        })
+
+    except Exception as e:
+        # Make sure the error shows up BOTH in your side log and as JSON
+        msg = f"Export route failed: {e}"
+        log_step(f"❌ {msg}")
+        logger.exception(msg)
+        return jsonify({"error": "export_failed", "detail": str(e)}), 500
 
 
 @app.route("/api/export_mode", methods=["GET", "POST"])

@@ -296,6 +296,7 @@ def api_get_config():
 def api_export(optimized: bool = False) -> str:
     """
     Calls tiktok_template.edit_video and returns the local output filename.
+    Raises on failure so the Flask route can handle it.
     """
     clear_status_log()
     mode_label = "OPTIMIZED" if optimized else "STANDARD"
@@ -307,10 +308,24 @@ def api_export(optimized: bool = False) -> str:
         else "output_tiktok_final.mp4"
     )
 
-    log_step("Rendering timeline with music, captions, and voiceover…")
-    edit_video(output_file=filename, optimized=optimized)
+    try:
+        log_step("Rendering timeline with music, captions, and voiceover…")
+        edit_video(output_file=filename, optimized=optimized)
+        log_step(f"Export finished → {filename}")
+    except Exception as e:
+        msg = f"Export failed while calling edit_video: {e}"
+        log_step(f"❌ {msg}")
+        logger.exception(msg)
+        # Reraise so the Flask route can return a 500 JSON
+        raise
 
-    log_step(f"Export finished → {filename}")
+    # Final sanity check that the file exists
+    if not os.path.exists(filename):
+        msg = f"Export failed: file {filename} not found after render."
+        log_step(f"❌ {msg}")
+        logger.error(msg)
+        raise FileNotFoundError(msg)
+
     return filename
 
 

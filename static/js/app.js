@@ -747,51 +747,48 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================
   // STEP 5: EXPORT (S3-based, using /api/export)
   // ============================================
-  if (btnExport) {
-    btnExport.addEventListener("click", async () => {
-      if (statusExport) {
-        statusExport.textContent = "Preparing export…";
-        statusExport.className = "status-text";
-      }
+  // EXPORT
+if (btnExport) {
+  btnExport.addEventListener("click", async () => {
+    if (statusExport) {
+      statusExport.textContent = "Exporting...";
+      statusExport.className = "status-text";
+    }
 
-      if (spinExport) spinExport.classList.add("active");
-      btnExport.disabled = true;
+    try {
+      const optimized = exportOptimizedToggle && exportOptimizedToggle.checked;
+      const resp = await postJSON("/api/export", { optimized });
 
-      try {
-        const optimized =
-          exportOptimizedToggle && exportOptimizedToggle.checked ? true : false;
-
-        const resp = await postJSON("/api/export", { optimized });
-        if (resp.error) {
-          if (statusExport) {
-            statusExport.textContent = "❌ Export failed.";
-            statusExport.classList.add("error");
-          }
-        } else {
-          const url = resp.file_url;
-          if (statusExport) {
-            statusExport.innerHTML = `
-              ✅ Export complete!<br>
-              <a href="${url}" target="_blank"
-                 style="color:#00e6b8; text-decoration:underline;">
-                 Download Final Video
-              </a>
-            `;
-            statusExport.classList.add("success");
-          }
-        }
-      } catch (err) {
-        console.error(err);
+      if (resp.error) {
+        // Backend returned JSON error with detail
         if (statusExport) {
-          statusExport.textContent = "❌ Error during export.";
+          statusExport.textContent =
+            "❌ Export failed: " + (resp.detail || "Unknown error.");
           statusExport.classList.add("error");
         }
-      } finally {
-        if (spinExport) spinExport.classList.remove("active");
-        btnExport.disabled = false;
+        return;
       }
-    });
-  }
+
+      const url = resp.file_url;
+      if (statusExport) {
+        statusExport.innerHTML = `
+          ✅ Export complete!<br>
+          <a href="${url}" target="_blank">
+            Download Final Video
+          </a>
+        `;
+        statusExport.classList.add("success");
+      }
+    } catch (err) {
+      console.error(err);
+      if (statusExport) {
+        statusExport.textContent =
+          "❌ Error during export: " + (err.message || err);
+        statusExport.classList.add("error");
+      }
+    }
+  });
+}
 
   // ============================================
   // LLM CHAT PANEL
