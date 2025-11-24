@@ -113,7 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   });
 
-// ============================================
+  // ============================================
 // SAVE EDITED CAPTIONS BACK TO CONFIG
 // ============================================
 if (btnSaveCaptions && captionsEditor) {
@@ -145,6 +145,7 @@ if (btnSaveCaptions && captionsEditor) {
       hideLoader();
     }
   });
+}
 
   refreshYamlPreview();
 });
