@@ -158,3 +158,9 @@ input[type="text"], select {
 input[type="range"] {
   width: 100%;
 }
+
+.disabled-ui {
+  opacity: 0.45 !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+}

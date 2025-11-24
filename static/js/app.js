@@ -84,6 +84,31 @@ document.addEventListener("DOMContentLoaded", () => {
   // GENERIC HELPERS
   // ============================================
 
+  function setStepsLocked(isLocked) {
+  const allSelectors = [
+    "#btn-generate-yaml",
+    "#btn-refresh-config",
+    "#btn-save-yaml",
+    "#btn-save-captions",
+    "#btn-apply-tts",
+    "#btn-sync-tts",
+    "#btn-apply-cta",
+    "#btn-apply-fgscale",
+    "#btn-timings-fixc",
+    "#btn-timings-smart",
+    "#btn-export",
+    ".btn.chip"
+  ];
+
+  allSelectors.forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => {
+      el.disabled = isLocked;
+      if (isLocked) el.classList.add("disabled-ui");
+      else el.classList.remove("disabled-ui");
+    });
+  });
+}
+
   async function watchForAnalysisCompletion() {
   const check = setInterval(async () => {
     const res = await fetch("/api/config");
@@ -111,6 +136,9 @@ document.addEventListener("DOMContentLoaded", () => {
         statusAnalyze.classList.add("success");
         markStepDone(0);
       }
+
+      // ✅ Unlock next steps
+      setStepsLocked(false);
     }
   }, 1500);
 }
@@ -357,28 +385,25 @@ function startAnalyzeStatusPolling() {
 // ============================================
 if (btnAnalyze) {
   btnAnalyze.addEventListener("click", async () => {
-    resetProcessingLog("Analyzing…");
+  resetProcessingLog();
 
-    if (statusAnalyze) {
-      statusAnalyze.textContent = "Analyzing your uploaded S3 videos…";
-      statusAnalyze.className = "status-text";
-    }
+  // ✅ lock all later steps
+  setStepsLocked(true);
 
-    if (analysisList) {
-      analysisList.innerHTML = "";
-    }
+  if (statusAnalyze) {
+    statusAnalyze.textContent = "Analyzing videos… this will take 1–3 minutes.";
+    statusAnalyze.className = "status-text working";
+  }
 
-    setButtonLoading(btnAnalyze, spinAnalyze, true);
+  if (analysisList) analysisList.innerHTML = "";
 
-    try {
-      // ✅ Kick off backend analysis (fire and forget)
-      await postJSON("/api/analyze", {});
+  setButtonLoading(btnAnalyze, spinAnalyze, true);
 
-      // ✅ start live log polling
-      startAnalyzeStatusPolling();
+  try {
+    await postJSON("/api/analyze", {});
 
-      // ✅ watch until analysis results + config.yml appear
-      watchForAnalysisCompletion();
+    startAnalyzeStatusPolling();
+    watchForAnalysisCompletion();
 
       if (statusAnalyze) {
         statusAnalyze.textContent = "Analyzing… check live log below";
