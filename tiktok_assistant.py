@@ -132,12 +132,30 @@ def move_all_raw_to_processed() -> None:
             logger.error(f"Failed to move {key} to processed/: {e}")
 
 
+ANALYSIS_CACHE_DIR = "video_analysis_cache"
+
 def save_analysis_result(key: str, desc: str) -> None:
     """
-    Cache analysis results in memory (and log them).
+    Cache analysis results BOTH in memory and to disk so API can read them.
     """
-    video_analyses_cache[key.lower()] = desc
-    log_step(f"Cached analysis for {key}.")
+    # normalize key
+    key_lower = key.lower()
+
+    # update in-memory cache
+    video_analyses_cache[key_lower] = desc
+
+    # ensure folder exists
+    os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
+
+    # write to file
+    file_path = os.path.join(ANALYSIS_CACHE_DIR, f"{key_lower}.json")
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "filename": key_lower,
+            "description": desc
+        }, f, indent=2)
+
+    log_step(f"Cached analysis for {key_lower} (memory + file).")
 
 # -------------------------------------------------
 # DEBUG HELPER (simple)

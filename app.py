@@ -99,7 +99,10 @@ def analyze_route():
 
 @app.route("/api/analyses_cache", methods=["GET"])
 def analyses_cache_route():
-    return jsonify(dict(sorted(video_analyses_cache.items())))
+    # merge disk + memory
+    disk_results = load_all_analysis_results()
+    merged = {**disk_results, **video_analyses_cache}
+    return jsonify(dict(sorted(merged.items())))
 
 @app.route("/api/generate_yaml", methods=["POST"])
 def yaml_route():
