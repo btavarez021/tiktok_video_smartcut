@@ -134,51 +134,51 @@ function hideAnalyzeOverlay() {
       const res = await fetch("/api/analyses_cache", { method: "GET" });
       if (!res.ok) return;
 
-      const analyses = await res.json();
-      const count = Object.keys(analyses || {}).length;
+      const data = await res.json();
+      const count = Object.keys(data || {}).length;
 
-      // ✅ Stop when at least one analysis exists AND log says finished
-      if (count > 0 && liveLogBox.textContent.includes("All videos analyzed")) {
-
+      // ✅ Completion condition: cache has entries
+      if (count > 0) {
         clearInterval(poll);
-        clearInterval(analyzePollInterval);
 
-        // ✅ stop analyze spinner
+        // ✅ stop spinner
         if (spinAnalyze) spinAnalyze.classList.remove("active");
 
-        // ✅ update status text
+        // ✅ update status text once
         if (statusAnalyze) {
-          statusAnalyze.textContent = "✅ Analysis complete!";
+          statusAnalyze.textContent = `✅ Analysis complete (${count} videos)`;
           statusAnalyze.classList.remove("working");
           statusAnalyze.classList.add("success");
         }
 
-        // ✅ mark step 1 done
-        markStepDone(0);
-
-        // ✅ unlock UI
-        setStepsLocked(false);
-
-        // ✅ populate list
+        // ✅ show results
         if (analysisList) {
-          analysisList.innerHTML = Object.entries(analyses)
+          analysisList.innerHTML = Object.entries(data)
             .map(([file, desc]) =>
               `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
             )
             .join("");
         }
 
+        // ✅ mark step done
+        markStepDone(0);
+
+        // ✅ unlock UI
+        setStepsLocked(false);
+
         // ✅ hide overlay
-        hideAnalyzeOverlay();
+        if (typeof hideAnalyzeOverlay === "function") hideAnalyzeOverlay();
 
         return;
       }
+
     } catch (err) {
-      console.warn("Completion polling stopped.", err);
+      console.warn("Analysis polling stopped.", err);
       clearInterval(poll);
     }
   }, 1500);
 }
+
 
 
 let analyzePollInterval = null;
@@ -449,7 +449,6 @@ if (btnAnalyze) {
       await postJSON("/api/analyze", {});
 
     // ✅ Start log + completion polling
-    startAnalyzeStatusPolling();
     watchForAnalysisCompletion();
 
     } catch (err) {
