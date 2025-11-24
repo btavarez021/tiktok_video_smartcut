@@ -127,6 +127,25 @@ def api_generate_yaml():
     log_step("✅ YAML written to config.yml")
     return cfg
 
+# -----------------------------------------------
+# /api/export  (renders MoviePy locally)
+# -----------------------------------------------
+def api_export(optimized: bool = False):
+    clear_status_log()
+    mode_label = "OPTIMIZED" if optimized else "STANDARD"
+    log_step(f"Starting export in {mode_label} mode…")
+
+    filename = (
+        "output_tiktok_final_optimized.mp4"
+        if optimized else
+        "output_tiktok_final.mp4"
+    )
+
+    log_step("Rendering timeline with music, captions, and voiceover…")
+    edit_video(output_file=filename, optimized=optimized)
+
+    log_step(f"Export finished → {filename}")
+    return filename
 
 # ============================================
 # /api/config
@@ -258,3 +277,4 @@ def api_chat(message: str):
 
     reply = resp.choices[0].message.content
     return {"reply": reply}
+
