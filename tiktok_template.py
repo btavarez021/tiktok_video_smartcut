@@ -144,22 +144,30 @@ def force_even_size(clip):
     return clip.resize((new_w, new_h))
 
 
-def make_clip(path: str, duration: float | None = None, start_time: float = 0,
-              text: str = "", text_color: str = "white",
-              scale: float = 1.0, voice: str | None = None):
+def make_clip(
+    path: str,
+    duration: float | None = None,
+    start_time: float = 0,
+    text: str = "",
+    text_color: str = "white",
+    scale: float = 1.0,
+    voice: str | None = None,
+):
+    """
+    Build one vertical clip with:
+    - blurred background
+    - foreground scaled/cropped
+    - optional caption text
+    - optional per-clip TTS
+
+    IMPORTANT: With Option A, `path` is already a normalized 1080x1920-ish
+    file produced during /api/analyze. We do NOT run ffmpeg here anymore.
+    """
     if not os.path.exists(path):
         raise ValueError(f"File not found: {path}")
 
-    # 1) Normalize via ffmpeg to 1080x1920
-    norm_dir = os.path.join(BASE_DIR, "normalized_cache")
-    os.makedirs(norm_dir, exist_ok=True)
-    norm_path = os.path.join(norm_dir, os.path.basename(path))
-
-    if not os.path.exists(norm_path):
-        logging.info(f"Normalizing {path} → {norm_path}")
-        normalize_video_ffmpeg(path, norm_path)
-
-    clip = VideoFileClip(norm_path)
+    # ✅ No ffmpeg here – just open the already-normalized file
+    clip = VideoFileClip(path)
 
     # Fix rotation from iPhone, etc.
     if hasattr(clip, "rotation") and clip.rotation in [90, 270]:
@@ -222,6 +230,8 @@ def make_clip(path: str, duration: float | None = None, start_time: float = 0,
     tts_enabled = config.get("render", {}).get("tts_enabled", False)
     if tts_enabled and text and client:
         try:
+            norm_dir = os.path.join(BASE_DIR, "normalized_cache")
+            os.makedirs(norm_dir, exist_ok=True)
             voice_name = voice or config.get("render", {}).get("tts_voice", "alloy")
             tts_path = os.path.join(norm_dir, f"{os.path.basename(path)}_voice.mp3")
 
@@ -239,7 +249,11 @@ def make_clip(path: str, duration: float | None = None, start_time: float = 0,
             if voiceover.duration > final.duration:
                 freeze_time = final.duration - 0.05
                 extend_by = voiceover.duration - final.duration + 0.05
-                final = final.fx(vfx.freeze, t=freeze_time, freeze_duration=extend_by)
+                final = final.fx(
+                    vfx.freeze,
+                    t=freeze_time,
+                    freeze_duration=extend_by,
+                )
 
             final = final.set_duration(voiceover.duration)
             final = final.set_audio(voiceover)
@@ -247,6 +261,7 @@ def make_clip(path: str, duration: float | None = None, start_time: float = 0,
             logging.error(f"Voiceover failed for {path}: {e}")
 
     return force_even_size(final)
+
 
 
 def debug_video_dimensions(folder: str):

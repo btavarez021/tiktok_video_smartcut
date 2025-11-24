@@ -11,6 +11,7 @@ from tiktok_template import (
     edit_video,
     video_folder,   # local folder used for normalized / downloaded clips
     client,
+    normalize_video_ffmpeg,
 )
 
 from tiktok_assistant import (
@@ -94,6 +95,7 @@ def api_analyze():
     """
     - Clears local tik_tok_downloads folder
     - Downloads all S3 raw_uploads/*.mp4 into that folder
+    - **Normalizes with ffmpeg here** (1080x1920) → video_folder
     - Runs LLM analysis per file
     - Caches results in video_analyses_cache
     - Returns {filename: description}
@@ -119,7 +121,6 @@ def api_analyze():
         return {}
 
     log_step(f"Found {len(s3_keys)} video(s) in raw_uploads.")
-    os.makedirs("normalized_cache", exist_ok=True)
 
     results = {}
 
@@ -132,33 +133,30 @@ def api_analyze():
             log_step(f"❌ Failed to download {key}")
             continue
 
-        # 3. Copy into local tik_tok_downloads/ with basename
-        raw_base = os.path.basename(key)
-        base = raw_base.lower()
+        # 3. **Normalize directly into tik_tok_downloads/** (final render source)
+        base = os.path.basename(key)
         local_path = os.path.join(video_folder, base)
         try:
-            shutil.copy(tmp_local_path, local_path)
+            log_step(f"Normalizing {base} → {local_path} …")
+            normalize_video_ffmpeg(tmp_local_path, local_path)
         except Exception as e:
-            log_step(f"❌ Failed to copy {tmp_local_path} → {local_path}: {e}")
+            log_step(f"❌ Failed to normalize {tmp_local_path} → {local_path}: {e}")
             continue
 
-        # 4. (Optional) debug dimensions if you want
-        # debug_video_dimensions(video_folder)
-
-        # 5. Analyze with LLM
-        log_step(f"Analyzing {base} with LLM…")
-        desc = analyze_video(local_path)
-        log_step(f"Analysis complete for {base}.")
-
-        # 6. Save analysis result (by basename)
-        save_analysis_result(base, desc)
-        results[base] = desc
-
-        # Clean up temp file
+        # Optional: clean up temp file
         try:
             os.remove(tmp_local_path)
         except OSError:
             pass
+
+        # 4. Analyze with LLM (file path mainly used for logging context)
+        log_step(f"Analyzing {base} with LLM…")
+        desc = analyze_video(local_path)
+        log_step(f"Analysis complete for {base}.")
+
+        # 5. Save analysis result (by basename)
+        save_analysis_result(base, desc)
+        results[base] = desc
 
     log_step("All videos analyzed ✅")
     return results
