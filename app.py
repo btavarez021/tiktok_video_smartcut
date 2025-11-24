@@ -67,8 +67,7 @@ def home():
 @app.route("/api/upload", methods=["POST"])
 def upload_route():
     file = request.files["file"]
-    raw_filename = file.filename
-    filename = raw_filename.filename.lower()
+    filename = file.filename
 
     key = f"{RAW_PREFIX}{filename}"
     s3.upload_fileobj(file, S3_BUCKET_NAME, key)

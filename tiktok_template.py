@@ -105,13 +105,31 @@ def normalize_video_ffmpeg(input_path: str, output_path: str) -> str:
 # Video helpers (MoviePy-based)
 # =============================================================
 def resolve_path(filename: str | None) -> str | None:
+    """
+    Resolves clip filenames in a case-insensitive way.
+
+    - YAML may contain lower-case filenames
+    - S3 uploads may retain original case
+    - This function ensures we find the correct file
+    """
     if not filename:
         return None
+
+    # Exact path first
     full = os.path.join(video_folder, filename)
-    if not os.path.exists(full):
-        logging.warning(f"❌ File does NOT exist: {full}")
-        return None
-    return full
+    if os.path.exists(full):
+        return full
+
+    # Case-insensitive fallback
+    target_lower = filename.lower()
+    for name in os.listdir(video_folder):
+        if name.lower() == target_lower:
+            fixed_full = os.path.join(video_folder, name)
+            logging.info(f"✅ resolve_path matched case-insensitive: {name}")
+            return fixed_full
+
+    logging.error(f"❌ resolve_path could not find file for: {filename}")
+    return None
 
 
 def fake_blur(clip, amount: int = 4):

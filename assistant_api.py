@@ -176,7 +176,7 @@ def api_generate_yaml():
         api_analyze()
 
     video_files = list(video_analyses_cache.keys())  # basenames
-    analyses = [video_analyses_cache.get(v, "") for v in video_files]
+    analyses = [video_analyses_cache.get(v.lower(), "") for v in video_files]
 
     if not video_files:
         log_step("No videos available for YAML generation.")
