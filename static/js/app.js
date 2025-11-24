@@ -123,8 +123,6 @@ if (btnSaveCaptions && captionsEditor) {
     statusCaptions.textContent = "Saving captions…";
     statusCaptions.className = "status-text";
 
-    showLoader("Saving edited captions…");
-
     try {
       await postJSON("/api/save_captions", { text });
 
@@ -134,16 +132,14 @@ if (btnSaveCaptions && captionsEditor) {
       // ✅ REFRESH YAML + sync editor again
       const cfg = await refreshYamlPreview();
       if (captionsEditor && cfg) {
-        captionsEditor.value = extractCaptionsFromConfig(cfg);
+        captionsEditor.value = extractCaptions(cfg);
       }
 
     } catch (err) {
       console.error(err);
       statusCaptions.textContent = "❌ Failed saving captions.";
       statusCaptions.classList.add("error");
-    } finally {
-      hideLoader();
-    }
+    } 
   });
 }
 
