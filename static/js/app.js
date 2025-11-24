@@ -357,12 +357,13 @@ function startAnalyzeStatusPolling() {
 // ============================================
 if (btnAnalyze) {
   btnAnalyze.addEventListener("click", async () => {
-    resetProcessingLog();
+    resetProcessingLog("Analyzing…");
 
     if (statusAnalyze) {
       statusAnalyze.textContent = "Analyzing your uploaded S3 videos…";
       statusAnalyze.className = "status-text";
     }
+
     if (analysisList) {
       analysisList.innerHTML = "";
     }
@@ -370,39 +371,22 @@ if (btnAnalyze) {
     setButtonLoading(btnAnalyze, spinAnalyze, true);
 
     try {
-      // ✅ Kick off backend analysis
-    await postJSON("/api/analyze", {});
+      // ✅ Kick off backend analysis (fire and forget)
+      await postJSON("/api/analyze", {});
 
-    // ✅ start polling immediately
-    startAnalyzeStatusPolling();
-    watchForAnalysisCompletion();
+      // ✅ start live log polling
+      startAnalyzeStatusPolling();
 
+      // ✅ watch until analysis results + config.yml appear
+      watchForAnalysisCompletion();
 
-    // ✅ show “processing…”
-    if (statusAnalyze) {
-      statusAnalyze.textContent = "Analyzing… check live log below";
-      statusAnalyze.classList.add("working");
-    }
-
-    // ✅ We DO NOT try to read results yet
-    // Results will be loaded later when user hits Generate YAML
-
-
-      if (analysisList) {
-        if (!count) {
-          analysisList.innerHTML =
-            '<div class="analysis-item">No videos found in S3 raw_uploads/.</div>';
-        } else {
-          analysisList.innerHTML = Object.entries(data)
-            .map(
-              ([file, desc]) =>
-                `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
-            )
-            .join("");
-        }
+      if (statusAnalyze) {
+        statusAnalyze.textContent = "Analyzing… check live log below";
+        statusAnalyze.classList.add("working");
       }
 
-      await refreshYamlPreview();
+      // ✅ DO NOT try to display data yet — it will be shown when ready
+
     } catch (err) {
       console.error(err);
       if (statusAnalyze) {

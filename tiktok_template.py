@@ -6,7 +6,12 @@ import logging
 import tempfile
 import subprocess
 from typing import Dict, Any
-
+# --- Pillow ANTIALIAS compatibility patch ---
+from PIL import Image
+if not hasattr(Image, "ANTIALIAS"):
+    from PIL import Image as _Image
+    Image.ANTIALIAS = getattr(_Image, "Resampling", _Image).LANCZOS
+# --------------------------------------------
 from moviepy.editor import (
     VideoFileClip,
     AudioFileClip,
