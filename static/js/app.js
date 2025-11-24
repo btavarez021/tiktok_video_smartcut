@@ -21,6 +21,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const liveLogBox = document.getElementById("live-log");
 
+  const btnSaveCaptions = document.getElementById("btn-save-captions");
+  const statusCaptions = document.getElementById("status-captions");
+
   async function postJSON(url, body) {
     const res = await fetch(url, {
       method: "POST",
@@ -108,6 +111,39 @@ document.addEventListener("DOMContentLoaded", () => {
       ✅ Export complete!<br>
       <a href="${resp.file_url}" target="_blank">Download Final Video</a>
     `;
+  });
+
+// ============================================
+// SAVE EDITED CAPTIONS BACK TO CONFIG
+// ============================================
+if (btnSaveCaptions && captionsEditor) {
+  btnSaveCaptions.addEventListener("click", async () => {
+    const text = captionsEditor.value.trim();
+
+    statusCaptions.textContent = "Saving captions…";
+    statusCaptions.className = "status-text";
+
+    showLoader("Saving edited captions…");
+
+    try {
+      await postJSON("/api/save_captions", { text });
+
+      statusCaptions.textContent = "✅ Captions saved.";
+      statusCaptions.classList.add("success");
+
+      // ✅ REFRESH YAML + sync editor again
+      const cfg = await refreshYamlPreview();
+      if (captionsEditor && cfg) {
+        captionsEditor.value = extractCaptionsFromConfig(cfg);
+      }
+
+    } catch (err) {
+      console.error(err);
+      statusCaptions.textContent = "❌ Failed saving captions.";
+      statusCaptions.classList.add("error");
+    } finally {
+      hideLoader();
+    }
   });
 
   refreshYamlPreview();

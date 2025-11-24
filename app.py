@@ -210,7 +210,6 @@ def save_captions_route():
     log_step("✅ Captions saved to config.yml")
     return jsonify(out)
 
-
 # ============================================
 # OVERLAY STYLE (caption chips)
 # ============================================
