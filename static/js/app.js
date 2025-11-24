@@ -131,69 +131,53 @@ function hideAnalyzeOverlay() {
   async function watchForAnalysisCompletion() {
   const poll = setInterval(async () => {
     try {
-      const res = await fetch("/api/status");
+      const res = await fetch("/api/analyses_cache", { method: "GET" });
       if (!res.ok) return;
 
-      const data = await res.json();
-      const logLines = data.log || [];
+      const analyses = await res.json();
+      const count = Object.keys(analyses || {}).length;
 
-      updateProcessingLog(logLines);
+      // ✅ Stop when at least one analysis exists AND log says finished
+      if (count > 0 && liveLogBox.textContent.includes("All videos analyzed")) {
 
-      // ✅ Detect backend completion from status log
-      const done =
-        logLines.some(line =>
-          line.includes("All videos analyzed")
-        ) ||
-        logLines.some(line =>
-          line.includes("✅ Analysis complete")
-        );
-
-      const ts = new Date().toLocaleTimeString();
-      statusAnalyze.textContent += ` (finished at ${ts})`;
-
-      if (done) {
         clearInterval(poll);
+        clearInterval(analyzePollInterval);
 
-        // ✅ Stop spinner
+        // ✅ stop analyze spinner
         if (spinAnalyze) spinAnalyze.classList.remove("active");
 
-        // ✅ Update status text
+        // ✅ update status text
         if (statusAnalyze) {
           statusAnalyze.textContent = "✅ Analysis complete!";
           statusAnalyze.classList.remove("working");
           statusAnalyze.classList.add("success");
         }
 
-        // ✅ Mark Step 1 done
+        // ✅ mark step 1 done
         markStepDone(0);
 
-        // ✅ Unlock rest of UI
+        // ✅ unlock UI
         setStepsLocked(false);
 
-        // ✅ Populate analysis list
-        try {
-          const cacheRes = await fetch("/api/analyses_cache");
-          if (cacheRes.ok) {
-            const analyses = await cacheRes.json();
-            if (analysisList) {
-              analysisList.innerHTML = Object.entries(analyses)
-                .map(([file, desc]) =>
-                  `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
-                )
-                .join("");
-            }
-          }
-        } catch {}
+        // ✅ populate list
+        if (analysisList) {
+          analysisList.innerHTML = Object.entries(analyses)
+            .map(([file, desc]) =>
+              `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
+            )
+            .join("");
+        }
 
-        // ✅ Hide overlay
-        hideAnalyzeOverlay?.();
+        // ✅ hide overlay
+        hideAnalyzeOverlay();
+
+        return;
       }
-
     } catch (err) {
-      console.warn("Analysis completion polling stopped.", err);
+      console.warn("Completion polling stopped.", err);
       clearInterval(poll);
     }
-  }, 1200);
+  }, 1500);
 }
 
 
