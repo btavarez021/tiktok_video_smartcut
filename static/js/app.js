@@ -138,7 +138,7 @@ function hideAnalyzeOverlay() {
       const count = Object.keys(data || {}).length;
 
       // ✅ Completion condition: cache has entries
-      if (count > 0) {
+      if (expectedCount > 0 && count >= expectedCount) {
 
         // ✅ stop THIS polling loop
         clearInterval(poll);
@@ -431,6 +431,19 @@ function startAnalyzeStatusPolling() {
   })();
   initExportMode();
 
+let expectedCount = 0;
+
+async function fetchExpectedCount() {
+  try {
+    const res = await fetch("/api/video_count");
+    const data = await res.json();
+    expectedCount = data.count || 0;
+  } catch (e) {
+    console.warn("Could not fetch expected video count", e);
+    expectedCount = 0;
+  }
+}
+
 // ============================================
 // STEP 1: ANALYZE
 // ============================================
@@ -459,6 +472,7 @@ if (btnAnalyze) {
       await postJSON("/api/analyze", {});
 
       // ✅ begin polling (these will stop spinner when done)
+      await fetchExpectedCount();
       startAnalyzeStatusPolling();
       watchForAnalysisCompletion();
 

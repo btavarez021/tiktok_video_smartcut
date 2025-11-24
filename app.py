@@ -2,6 +2,8 @@
 import logging
 import os
 import time
+from tiktok_assistant import list_videos_from_s3
+
 
 from flask import Flask, request, jsonify, render_template
 
@@ -81,6 +83,10 @@ def upload_route():
 # ============================================
 # CORE WORKFLOW
 # ============================================
+@app.route("/api/video_count", methods=["GET"])
+def video_count_route():
+    return jsonify({"count": len(list_videos_from_s3())})
+
 @app.route("/api/analyze", methods=["POST"])
 def analyze_route():
     clear_status_log()
