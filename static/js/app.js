@@ -126,23 +126,34 @@ function hideAnalyzeOverlay() {
     const res = await fetch("/api/config");
     const data = await res.json();
     const cfg = data.config || {};
-    
-    // When config.yml exists AND video_analyses_cache filled
+
     if (Object.keys(cfg).length > 0) {
       clearInterval(check);
 
-      // ✅ populate UI with real analysis results
       const analysesRes = await fetch("/api/analyses_cache");
       const analyses = await analysesRes.json();
 
       if (statusAnalyze) {
-        statusAnalyze.textContent = `✅ Analysis complete!`;
+        statusAnalyze.textContent = "✅ Analysis complete!";
+        statusAnalyze.classList.remove("working");
         statusAnalyze.classList.add("success");
         markStepDone(0);
       }
 
-      // ✅ Unlock next steps
+      // ✅ unlock steps
       setStepsLocked(false);
+
+      // ✅ hide overlay here
+      hideAnalyzeOverlay();
+
+      // ✅ show results
+      if (analysisList) {
+        analysisList.innerHTML = Object.entries(analyses)
+          .map(([file, desc]) =>
+            `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
+          )
+          .join("");
+      }
     }
   }, 1500);
 }
@@ -389,44 +400,40 @@ function startAnalyzeStatusPolling() {
 // ============================================
 if (btnAnalyze) {
   btnAnalyze.addEventListener("click", async () => {
-  resetProcessingLog();
-  showAnalyzeOverlay();   // ✅ ADD HERE
+    resetProcessingLog();
+    showAnalyzeOverlay();     // spinner overlay
+    setStepsLocked(true);     // lock all later steps
 
-  // ✅ lock all later steps
-  setStepsLocked(true);
+    if (statusAnalyze) {
+      statusAnalyze.textContent =
+        "Analyzing videos… this will take 1–3 minutes.";
+      statusAnalyze.className = "status-text working";
+    }
 
-  if (statusAnalyze) {
-    statusAnalyze.textContent = "Analyzing videos… this will take 1–3 minutes.";
-    statusAnalyze.className = "status-text working";
-  }
+    if (analysisList) analysisList.innerHTML = "";
 
-  if (analysisList) analysisList.innerHTML = "";
+    setButtonLoading(btnAnalyze, spinAnalyze, true);
 
-  setButtonLoading(btnAnalyze, spinAnalyze, true);
+    try {
+      // ✅ Start backend processing
+      await postJSON("/api/analyze", {});
 
-  try {
-    await postJSON("/api/analyze", {});
-
-    startAnalyzeStatusPolling();
-    watchForAnalysisCompletion();
-
-      if (statusAnalyze) {
-        statusAnalyze.textContent = "Analyzing… check live log below";
-        statusAnalyze.classList.add("working");
-      }
-
-      // ✅ DO NOT try to display data yet — it will be shown when ready
+      // ✅ Begin polling for logs & completion
+      startAnalyzeStatusPolling();
+      watchForAnalysisCompletion();
 
     } catch (err) {
       console.error(err);
       if (statusAnalyze) {
-        statusAnalyze.textContent = "Error during analysis. Check logs.";
+        statusAnalyze.textContent =
+          "Error during analysis. Check logs.";
         statusAnalyze.classList.add("error");
       }
+      setStepsLocked(false);
     } finally {
       setButtonLoading(btnAnalyze, spinAnalyze, false);
-        hideAnalyzeOverlay();   // ✅ ADD HERE
 
+      // ❗ DO NOT hide overlay until completion watcher unlocks UI
     }
   });
 }
