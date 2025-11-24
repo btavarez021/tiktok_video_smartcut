@@ -1,5 +1,6 @@
 // static/js/app.js
 document.addEventListener("DOMContentLoaded", () => {
+
   // ============================================
   // ELEMENT REFERENCES
   // ============================================
@@ -77,738 +78,318 @@ document.addEventListener("DOMContentLoaded", () => {
   // Processing log panel
   const liveLogBox = document.getElementById("live-log");
 
-  // Small TTS hint text (optional)
-  const ttsSyncHint = document.getElementById("tts-sync-hint");
-
   const analyzeOverlay = document.getElementById("analyze-overlay");
-
 
   // ============================================
   // GENERIC HELPERS
   // ============================================
 
   function updateProcessingLog(lines) {
-  if (!liveLogBox) return;
-  liveLogBox.textContent = (lines || []).join("\n");
-  liveLogBox.scrollTop = liveLogBox.scrollHeight;
-}
-
-
-  function showAnalyzeOverlay() {
-  if (analyzeOverlay) analyzeOverlay.classList.remove("hidden");
-}
-
-function hideAnalyzeOverlay() {
-  if (analyzeOverlay) analyzeOverlay.classList.add("hidden");
-}
-
-
-  function setStepsLocked(isLocked) {
-  const allSelectors = [
-    "#btn-generate-yaml",
-    "#btn-refresh-config",
-    "#btn-save-yaml",
-    "#btn-save-captions",
-    "#btn-apply-tts",
-    "#btn-sync-tts",
-    "#btn-apply-cta",
-    "#btn-apply-fgscale",
-    "#btn-timings-fixc",
-    "#btn-timings-smart",
-    "#btn-export",
-    ".btn.chip"
-  ];
-
-  allSelectors.forEach(sel => {
-    document.querySelectorAll(sel).forEach(el => {
-      el.disabled = isLocked;
-      if (isLocked) el.classList.add("disabled-ui");
-      else el.classList.remove("disabled-ui");
-    });
-  });
-}
-
-  async function watchForAnalysisCompletion() {
-  const poll = setInterval(async () => {
-    try {
-      const res = await fetch("/api/analyses_cache", { method: "GET" });
-      if (!res.ok) return;
-
-      const data = await res.json();
-      const count = Object.keys(data || {}).length;
-
-      // ✅ Completion condition: cache has entries
-      if (expectedCount > 0 && count >= expectedCount) {
-
-        // ✅ stop THIS polling loop
-        clearInterval(poll);
-
-        // ✅ stop status polling loop (the missing piece)
-        if (analyzePollInterval) {
-          clearInterval(analyzePollInterval);
-          analyzePollInterval = null;
-        }
-
-        // ✅ stop spinner
-        if (spinAnalyze) spinAnalyze.classList.remove("active");
-
-        // ✅ update status text once
-        if (statusAnalyze) {
-          statusAnalyze.textContent = `✅ Analysis complete (${count} videos)`;
-          statusAnalyze.classList.remove("working");
-          statusAnalyze.classList.add("success");
-        }
-
-        // ✅ show results
-        if (analysisList) {
-          analysisList.innerHTML = Object.entries(data)
-            .map(([file, desc]) =>
-              `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
-            )
-            .join("");
-        }
-
-        // ✅ mark step done
-        markStepDone(0);
-
-        // ✅ unlock UI
-        setStepsLocked(false);
-
-        // ✅ hide overlay
-        if (typeof hideAnalyzeOverlay === "function") hideAnalyzeOverlay();
-
-        return;
-      }
-
-    } catch (err) {
-      console.warn("Analysis polling stopped.", err);
-      clearInterval(poll);
-    }
-  }, 1500);
-}
-
-let analyzePollInterval = null;
-
-function startAnalyzeStatusPolling() {
-  if (analyzePollInterval) clearInterval(analyzePollInterval);
-
-  analyzePollInterval = setInterval(async () => {
-    try {
-      const res = await fetch("/api/status");
-      const data = await res.json();
-      updateProcessingLog(data.log);
-
-      // ✅ Update timestamp
-      const stamp = document.getElementById("log-timestamp");
-      if (stamp) {
-        const now = new Date();
-        stamp.textContent = `Last updated: ${now.toLocaleTimeString()}`;
-      }
-
-    } catch (e) {
-      console.warn("Status polling stopped.", e);
-      clearInterval(analyzePollInterval);
-    }
-  }, 1500);
-} 
-
-  function extractCaptionsFromConfig(cfg) {
-    const captions = [];
-
-    if (cfg.first_clip && cfg.first_clip.text) {
-      captions.push(cfg.first_clip.text);
-    }
-
-    (cfg.middle_clips || []).forEach((c) => {
-      if (c.text) captions.push(c.text);
-    });
-
-    if (cfg.last_clip && cfg.last_clip.text) {
-      captions.push(cfg.last_clip.text);
-    }
-
-    // simple paragraph breaks between clips
-    return captions.join("\n\n");
-  }
-
-  function showLoader(message) {
-    if (!loader) return;
-    loader.classList.remove("hidden");
-    const text = loader.querySelector(".loader-text");
-    if (text && message) text.textContent = message;
-  }
-
-  function hideLoader() {
-    if (!loader) return;
-    loader.classList.add("hidden");
-  }
-
-  function setButtonLoading(btn, spinner, isLoading) {
-    if (!btn || !spinner) return;
-    if (isLoading) {
-      btn.disabled = true;
-      spinner.classList.add("active");
-    } else {
-      btn.disabled = false;
-      spinner.classList.remove("active");
-    }
-  }
-
-  async function postJSON(url, body) {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: body ? JSON.stringify(body) : "{}",
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || `HTTP ${res.status}`);
-    }
-    return res.json();
-  }
-
-  function markStepDone(stepIndex) {
-    const steps = document.querySelectorAll(".stepper .step");
-    if (!steps[stepIndex]) return;
-
-    const step = steps[stepIndex];
-    const circle = step.querySelector(".step-number");
-
-    step.classList.add("success");
-    circle.classList.add("checkmark");
-  }
-
-  function resetProcessingLog(title = "") {
     if (!liveLogBox) return;
-    liveLogBox.textContent = title ? `${title}\n` : "";
+    liveLogBox.textContent = (lines || []).join("\n");
     liveLogBox.scrollTop = liveLogBox.scrollHeight;
   }
 
-  // ============================================
-  // YAML PREVIEW / EDITOR
-  // ============================================
-  async function refreshYamlPreview() {
-    try {
-      const data = await postJSON("/api/config", {});
-      if (yamlEditor) {
-        yamlEditor.value = data.yaml || "# Empty config.yml";
-      }
-      const cfg = data.config || {};
-      if (captionsEditor) {
-        captionsEditor.value = extractCaptionsFromConfig(cfg);
-      }
-      return cfg;
-    } catch (err) {
-      console.error(err);
-      if (yamlEditor) {
-        yamlEditor.value = "# Error loading config.yml";
-      }
-      return {};
-    }
+  function showAnalyzeOverlay() {
+    if (analyzeOverlay) analyzeOverlay.classList.remove("hidden");
   }
 
-  if (btnSaveYaml && yamlEditor) {
-    btnSaveYaml.addEventListener("click", async () => {
-      statusSaveYaml.textContent = "Saving YAML…";
-      statusSaveYaml.className = "status-text";
-
-      try {
-        await postJSON("/api/save_yaml", { yaml: yamlEditor.value });
-        statusSaveYaml.textContent = "YAML saved.";
-        statusSaveYaml.classList.add("success");
-        await refreshYamlPreview();
-      } catch (err) {
-        console.error(err);
-        statusSaveYaml.textContent = "Error saving YAML.";
-        statusSaveYaml.classList.add("error");
-      }
-    });
+  function hideAnalyzeOverlay() {
+    if (analyzeOverlay) analyzeOverlay.classList.add("hidden");
   }
 
-  // ============================================
-  // SIMPLE UPLOAD HANDLER → /api/upload (S3 raw_uploads/)
-  // ============================================
-  if (btnUpload && uploadInput) {
-    btnUpload.addEventListener("click", async () => {
-      const files = uploadInput.files;
-      if (!files || !files.length) {
-        if (statusUpload) {
-          statusUpload.textContent = "Please select at least one video file.";
-          statusUpload.className = "status-text error";
-        }
-        return;
-      }
+  function setStepsLocked(isLocked) {
+    const allSelectors = [
+      "#btn-generate-yaml",
+      "#btn-refresh-config",
+      "#btn-save-yaml",
+      "#btn-save-captions",
+      "#btn-apply-tts",
+      "#btn-sync-tts",
+      "#btn-apply-cta",
+      "#btn-apply-fgscale",
+      "#btn-timings-fixc",
+      "#btn-timings-smart",
+      "#btn-export",
+      ".btn.chip"
+    ];
 
-      if (statusUpload) {
-        statusUpload.textContent = "Uploading...";
-        statusUpload.className = "status-text";
-      }
-
-      try {
-        for (const file of files) {
-          const formData = new FormData();
-          formData.append("file", file); // backend expects "file"
-
-          const res = await fetch("/api/upload", {
-            method: "POST",
-            body: formData,
-          });
-          const data = await res.json();
-          if (!res.ok || data.status !== "uploaded") {
-            throw new Error("Upload failed for " + file.name);
-          }
-        }
-
-        if (statusUpload) {
-          statusUpload.textContent =
-            "✅ Upload successful! You can now Analyze.";
-          statusUpload.className = "status-text success";
-        }
-      } catch (err) {
-        console.error(err);
-        if (statusUpload) {
-          statusUpload.textContent = "❌ Upload error.";
-          statusUpload.className = "status-text error";
-        }
-      }
-    });
-  }
-
-  // ============================================
-  // LIVE LOG AUTO-REFRESH
-  // ============================================
-  async function refreshLogs() {
-    if (!liveLogBox) return;
-    try {
-      const res = await fetch("/api/status");
-      if (!res.ok) return;
-      const data = await res.json();
-      const lines = data.log || [];
-      liveLogBox.textContent = lines.join("\n") || "";
-      liveLogBox.scrollTop = liveLogBox.scrollHeight;
-    } catch (err) {
-      console.error("Log refresh failed:", err);
-    }
-  }
-  setInterval(refreshLogs, 1200);
-
-  // ============================================
-  // EXPORT MODE INIT (toggle)
-  // ============================================
-  async function initExportMode() {
-    if (!exportOptimizedToggle) return;
-    try {
-      const res = await fetch("/api/export_mode");
-      if (!res.ok) return;
-      const data = await res.json();
-      const mode = data.mode || "standard";
-      exportOptimizedToggle.checked = mode === "optimized";
-    } catch (err) {
-      console.error("Failed to init export mode:", err);
-    }
-  }
-
-  if (exportOptimizedToggle) {
-    exportOptimizedToggle.addEventListener("change", async () => {
-      const mode = exportOptimizedToggle.checked ? "optimized" : "standard";
-      try {
-        await fetch("/api/export_mode", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode }),
-        });
-      } catch (err) {
-        console.error("Failed to save export mode:", err);
-      }
-    });
-  }
-
-  // ============================================
-  // INITIAL LOAD
-  // ============================================
-  (async () => {
-    await refreshYamlPreview();
-  })();
-  initExportMode();
-
-let expectedCount = 0;
-
-async function fetchExpectedCount() {
-  try {
-    const res = await fetch("/api/video_count");
-    const data = await res.json();
-    expectedCount = data.count || 0;
-  } catch (e) {
-    console.warn("Could not fetch expected video count", e);
-    expectedCount = 0;
-  }
-}
-
-// ============================================
-// STEP 1: ANALYZE
-// ============================================
-// ============================================
-// STEP 1: ANALYZE (FINAL PATCHED VERSION)
-// ============================================
-if (btnAnalyze) {
-  btnAnalyze.addEventListener("click", async () => {
-    resetProcessingLog();
-    showAnalyzeOverlay();
-    setStepsLocked(true);
-
-    if (statusAnalyze) {
-      statusAnalyze.textContent =
-        "Analyzing videos… this will take 1–3 minutes.";
-      statusAnalyze.className = "status-text working";
-    }
-
-    if (analysisList) analysisList.innerHTML = "";
-
-    // ✅ Start spinner visibly
-    spinAnalyze.classList.add("active");
-    btnAnalyze.disabled = true;
-
-    try {
-      await postJSON("/api/analyze", {});
-
-      // ✅ begin polling (these will stop spinner when done)
-      await fetchExpectedCount();
-      startAnalyzeStatusPolling();
-      watchForAnalysisCompletion();
-
-    } catch (err) {
-      console.error(err);
-      if (statusAnalyze) {
-        statusAnalyze.textContent = "Error during analysis. Check logs.";
-        statusAnalyze.classList.add("error");
-      }
-      setStepsLocked(false);
-      // ✅ allow retry
-      btnAnalyze.disabled = false;
-      spinAnalyze.classList.remove("active");
-
-    } finally {
-      // ✅ DO NOT stop spinner here — watcher will stop it
-    }
-  });
-}
-
-
-  // ============================================
-  // STEP 2: YAML GENERATION
-  // ============================================
-  if (btnGenerateYaml) {
-    btnGenerateYaml.addEventListener("click", async () => {
-      resetProcessingLog();
-
-      if (statusYaml) {
-        statusYaml.textContent = "Calling LLM to generate config.yml…";
-        statusYaml.className = "status-text";
-      }
-
-      showLoader("Generating YAML storyboard…");
-      setButtonLoading(btnGenerateYaml, spinYaml, true);
-
-      try {
-        await postJSON("/api/generate_yaml", {});
-        if (statusYaml) {
-          statusYaml.textContent = "YAML generated and saved to config.yml.";
-          statusYaml.classList.add("success");
-          markStepDone(1);
-        }
-        await refreshYamlPreview();
-      } catch (err) {
-        console.error(err);
-        if (statusYaml) {
-          statusYaml.textContent = "Error generating YAML. Check logs.";
-          statusYaml.classList.add("error");
-        }
-      } finally {
-        hideLoader();
-        setButtonLoading(btnGenerateYaml, spinYaml, false);
-      }
-    });
-  }
-
-  if (btnRefreshConfig) {
-    btnRefreshConfig.addEventListener("click", async () => {
-      resetProcessingLog();
-
-      if (statusYaml) {
-        statusYaml.textContent = "Refreshing from config.yml…";
-        statusYaml.className = "status-text";
-      }
-
-      showLoader("Refreshing config…");
-      try {
-        await refreshYamlPreview();
-        if (statusYaml) {
-          statusYaml.textContent = "Config reloaded from config.yml.";
-          statusYaml.classList.add("success");
-          markStepDone(2);
-        }
-      } catch (err) {
-        console.error(err);
-        if (statusYaml) {
-          statusYaml.textContent = "Error refreshing config.";
-          statusYaml.classList.add("error");
-        }
-      } finally {
-        hideLoader();
-      }
-    });
-  }
-
-  // ============================================
-  // CAPTION STYLE CHIPS → /api/overlay
-  // ============================================
-  if (captionChips && captionChips.length) {
-    captionChips.forEach((chip) => {
-      chip.addEventListener("click", async () => {
-        resetProcessingLog();
-
-        const style = chip.dataset.style || "punchy";
-
-        captionChips.forEach((c) => c.classList.remove("active"));
-        chip.classList.add("active");
-
-        if (statusYaml) {
-          statusYaml.textContent = `Applying "${style}" overlay style…`;
-          statusYaml.className = "status-text";
-        }
-
-        showLoader("Updating captions via overlay…");
-
-        try {
-          await postJSON("/api/overlay", { style });
-
-          const cfg = await refreshYamlPreview();
-          if (captionsEditor && cfg) {
-            captionsEditor.value = extractCaptionsFromConfig(cfg);
-          }
-
-          if (statusYaml) {
-            statusYaml.textContent = `✅ Captions rewritten using: ${style}`;
-            statusYaml.classList.add("success");
-            markStepDone(3);
-          }
-        } catch (err) {
-          console.error(err);
-          if (statusYaml) {
-            statusYaml.textContent = "❌ Failed updating captions.";
-            statusYaml.classList.add("error");
-          }
-        } finally {
-          hideLoader();
-        }
+    allSelectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        el.disabled = isLocked;
+        if (isLocked) el.classList.add("disabled-ui");
+        else el.classList.remove("disabled-ui");
       });
     });
   }
 
   // ============================================
-  // SAVE EDITED CAPTIONS BACK TO CONFIG
+  // LIVE LOG POLLING
   // ============================================
-  if (btnSaveCaptions && captionsEditor) {
-    btnSaveCaptions.addEventListener("click", async () => {
-      const text = captionsEditor.value.trim();
+  let analyzePollInterval = null;
 
-      statusCaptions.textContent = "Saving captions…";
-      statusCaptions.className = "status-text";
+  function startAnalyzeStatusPolling() {
+    if (analyzePollInterval) clearInterval(analyzePollInterval);
 
-      showLoader("Saving edited captions…");
-
+    analyzePollInterval = setInterval(async () => {
       try {
-        await postJSON("/api/save_captions", { text });
+        const res = await fetch("/api/status");
+        const data = await res.json();
+        updateProcessingLog(data.log);
 
-        statusCaptions.textContent = "✅ Captions saved.";
-        statusCaptions.classList.add("success");
-
-        const cfg = await refreshYamlPreview();
-        if (captionsEditor && cfg) {
-          captionsEditor.value = extractCaptionsFromConfig(cfg);
+        const stamp = document.getElementById("log-timestamp");
+        if (stamp) {
+          const now = new Date();
+          stamp.textContent = `Last updated: ${now.toLocaleTimeString()}`;
         }
 
-        if (ttsSyncHint) ttsSyncHint.classList.remove("hidden");
+      } catch (e) {
+        console.warn("Status polling stopped.", e);
+        clearInterval(analyzePollInterval);
+      }
+    }, 1500);
+  }
+
+  // ============================================
+  // STABLE COMPLETION WATCHER (NO SPINNING)
+  // ============================================
+  let lastCount = 0;
+  let stablePolls = 0;
+
+  async function watchForAnalysisCompletion() {
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch("/api/analyses_cache", { method: "GET" });
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const count = Object.keys(data || {}).length;
+
+        // ✅ Require at least one result
+        if (count > 0) {
+
+          // ✅ Detect stability (no new analyses)
+          if (count === lastCount) {
+            stablePolls++;
+          } else {
+            stablePolls = 0;
+          }
+
+          lastCount = count;
+
+          // ✅ After ~3 stable polls (~4.5 seconds), we are done
+          if (stablePolls >= 3) {
+            clearInterval(poll);
+
+            if (analyzePollInterval) {
+              clearInterval(analyzePollInterval);
+              analyzePollInterval = null;
+            }
+
+            // ✅ Stop spinner
+            spinAnalyze.classList.remove("active");
+
+            // ✅ Update UI status
+            statusAnalyze.textContent = `✅ Analysis complete (${count} videos)`;
+            statusAnalyze.classList.remove("working");
+            statusAnalyze.classList.add("success");
+
+            // ✅ Show all results
+            if (analysisList) {
+              analysisList.innerHTML = Object.entries(data)
+                .map(([file, desc]) =>
+                  `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
+                )
+                .join("");
+            }
+
+            // ✅ Mark Step 1 complete
+            markStepDone(0);
+
+            // ✅ Unlock rest of UI
+            setStepsLocked(false);
+
+            // ✅ Hide overlay
+            if (typeof hideAnalyzeOverlay === "function") hideAnalyzeOverlay();
+
+            return;
+          }
+        }
+
+      } catch (err) {
+        console.warn("Analysis polling stopped.", err);
+        clearInterval(poll);
+      }
+    }, 1500);
+  }
+
+  // ============================================
+  // STEP 1: ANALYZE BUTTON HANDLER
+  // ============================================
+  if (btnAnalyze) {
+    btnAnalyze.addEventListener("click", async () => {
+      resetProcessingLog();
+      showAnalyzeOverlay();
+      setStepsLocked(true);
+
+      if (statusAnalyze) {
+        statusAnalyze.textContent =
+          "Analyzing videos… this will take 1–3 minutes.";
+        statusAnalyze.className = "status-text working";
+      }
+
+      if (analysisList) analysisList.innerHTML = "";
+
+      // ✅ Start spinner
+      spinAnalyze.classList.add("active");
+      btnAnalyze.disabled = true;
+
+      // ✅ Reset stability counters
+      lastCount = 0;
+      stablePolls = 0;
+
+      try {
+        await postJSON("/api/analyze", {});
+
+        // ✅ Begin polling loops
+        startAnalyzeStatusPolling();
+        watchForAnalysisCompletion();
+
       } catch (err) {
         console.error(err);
-        statusCaptions.textContent = "❌ Failed saving captions.";
-        statusCaptions.classList.add("error");
-      } finally {
-        hideLoader();
+        statusAnalyze.textContent = "Error during analysis. Check logs.";
+        statusAnalyze.classList.add("error");
+        setStepsLocked(false);
+        btnAnalyze.disabled = false;
+        spinAnalyze.classList.remove("active");
       }
     });
   }
 
   // ============================================
-  // SYNC NARRATION TO CAPTIONS
+  // STEP 2: GENERATE YAML
   // ============================================
-  if (btnSyncTts) {
-    btnSyncTts.addEventListener("click", async () => {
-      if (ttsSyncHint) ttsSyncHint.classList.add("hidden");
-
-      const enabled = true;
-      const voice = ttsVoice ? ttsVoice.value : "alloy";
-
-      if (statusTts) {
-        statusTts.textContent = "Updating narration to match captions…";
-        statusTts.className = "status-text";
-      }
-
-      showLoader("Generating narration…");
-      setButtonLoading(btnApplyTts, spinTts, true);
+  if (btnGenerateYaml) {
+    btnGenerateYaml.addEventListener("click", async () => {
+      spinYaml.classList.add("active");
+      statusYaml.textContent = "Generating storyboard YAML...";
+      statusYaml.classList.remove("success", "error");
 
       try {
-        await postJSON("/api/tts", { enabled, voice });
-        if (statusTts) {
-          statusTts.textContent = "✅ Narration synced to captions.";
-          statusTts.classList.add("success");
-        }
-        await refreshYamlPreview();
+        const data = await postJSON("/api/generate_yaml", {});
+        yamlEditor.value = data.yaml || "";
+        statusYaml.textContent = "✅ YAML generated";
+        statusYaml.classList.add("success");
+        markStepDone(1);
       } catch (err) {
         console.error(err);
-        if (statusTts) {
-          statusTts.textContent = "❌ Failed updating narration.";
-          statusTts.classList.add("error");
-        }
+        statusYaml.textContent = "❌ Error generating YAML";
+        statusYaml.classList.add("error");
       } finally {
-        hideLoader();
-        setButtonLoading(btnApplyTts, spinTts, false);
+        spinYaml.classList.remove("active");
       }
     });
   }
 
   // ============================================
-  // STEP 3: TTS ON / OFF
+  // SAVE YAML
+  // ============================================
+  if (btnSaveYaml) {
+    btnSaveYaml.addEventListener("click", async () => {
+      spinYaml.classList.add("active");
+      statusSaveYaml.textContent = "Saving YAML...";
+      statusSaveYaml.classList.remove("success", "error");
+
+      try {
+        await postJSON("/api/save_yaml", { yaml: yamlEditor.value });
+        statusSaveYaml.textContent = "✅ YAML saved";
+        statusSaveYaml.classList.add("success");
+      } catch (err) {
+        statusSaveYaml.textContent = "❌ Error saving YAML";
+        statusSaveYaml.classList.add("error");
+      } finally {
+        spinYaml.classList.remove("active");
+      }
+    });
+  }
+
+  // ============================================
+  // STEP 3: APPLY TTS
   // ============================================
   if (btnApplyTts) {
     btnApplyTts.addEventListener("click", async () => {
-      resetProcessingLog();
-
-      const enabled = ttsEnabled ? ttsEnabled.checked : false;
-      const voice = ttsVoice ? ttsVoice.value : "alloy";
-
-      if (statusTts) {
-        statusTts.textContent = enabled
-          ? "Enabling voiceover narration…"
-          : "Disabling voiceover…";
-        statusTts.className = "status-text";
-      }
-
-      showLoader("Updating TTS settings…");
-      setButtonLoading(btnApplyTts, spinTts, true);
+      spinTts.classList.add("active");
+      statusTts.textContent = "Applying TTS settings...";
+      statusTts.classList.remove("success", "error");
 
       try {
-        const res = await postJSON("/api/tts", { enabled, voice });
-        if (statusTts) {
-          statusTts.textContent = `Voiceover is now ${
-            res.tts_enabled ? "ON" : "OFF"
-          } (voice: ${res.tts_voice || voice}).`;
-          statusTts.classList.add("success");
-          markStepDone(4);
-        }
-        await refreshYamlPreview();
+        await postJSON("/api/apply_tts", {
+          enabled: ttsEnabled.checked,
+          voice: ttsVoice.value
+        });
+
+        statusTts.textContent = "✅ TTS applied";
+        statusTts.classList.add("success");
+
       } catch (err) {
-        console.error(err);
-        if (statusTts) {
-          statusTts.textContent = "Error updating TTS. Check logs.";
-          statusTts.classList.add("error");
-        }
+        statusTts.textContent = "❌ Error applying TTS";
+        statusTts.classList.add("error");
       } finally {
-        hideLoader();
-        setButtonLoading(btnApplyTts, spinTts, false);
+        spinTts.classList.remove("active");
       }
     });
   }
 
   // ============================================
-  // STEP 3: CTA
+  // STEP 3: APPLY CTA
   // ============================================
   if (btnApplyCta) {
     btnApplyCta.addEventListener("click", async () => {
-      resetProcessingLog();
-
-      const enabled = ctaEnabled ? ctaEnabled.checked : false;
-      const text = ctaText ? ctaText.value : "";
-      const voiceover = ctaVoiceover ? ctaVoiceover.checked : false;
-
-      if (statusCta) {
-        statusCta.textContent = "Saving CTA settings…";
-        statusCta.className = "status-text";
-      }
-
-      showLoader("Updating CTA…");
-      setButtonLoading(btnApplyCta, spinCta, true);
+      spinCta.classList.add("active");
+      statusCta.textContent = "Applying CTA...";
+      statusCta.classList.remove("success", "error");
 
       try {
-        const res = await postJSON("/api/cta", {
-          enabled,
-          text,
-          voiceover,
+        await postJSON("/api/apply_cta", {
+          enabled: ctaEnabled.checked,
+          text: ctaText.value,
+          voiceover: ctaVoiceover.value
         });
-        if (statusCta) {
-          statusCta.textContent = `CTA ${
-            res.enabled ? "enabled" : "disabled"
-          }${res.text ? " — text updated." : "."}`;
-          statusCta.classList.add("success");
-          markStepDone(5);
-        }
-        await refreshYamlPreview();
+
+        statusCta.textContent = "✅ CTA applied";
+        statusCta.classList.add("success");
+
       } catch (err) {
-        console.error(err);
-        if (statusCta) {
-          statusCta.textContent = "Error saving CTA. Check logs.";
-          statusCta.classList.add("error");
-        }
+        statusCta.textContent = "❌ Error applying CTA";
+        statusCta.classList.add("error");
       } finally {
-        hideLoader();
-        setButtonLoading(btnApplyCta, spinCta, false);
+        spinCta.classList.remove("active");
       }
     });
   }
 
   // ============================================
-  // STEP 3: FOREGROUND SCALE
+  // STEP 3: APPLY FG SCALE
   // ============================================
-  if (fgSlider && fgValue) {
-    fgValue.textContent = parseFloat(fgSlider.value || "1").toFixed(2);
-    fgSlider.addEventListener("input", () => {
-      fgValue.textContent = parseFloat(fgSlider.value || "1").toFixed(2);
-    });
-  }
-
   if (btnApplyFg) {
     btnApplyFg.addEventListener("click", async () => {
-      resetProcessingLog();
-
-      const value = fgSlider ? parseFloat(fgSlider.value || "1") : 1.0;
-
-      if (statusFg) {
-        statusFg.textContent = "Updating foreground scale…";
-        statusFg.className = "status-text";
-      }
-
-      showLoader("Applying foreground scale…");
-      setButtonLoading(btnApplyFg, spinFg, true);
+      spinFg.classList.add("active");
+      statusFg.textContent = "Applying foreground scale...";
+      statusFg.classList.remove("success", "error");
 
       try {
-        const res = await postJSON("/api/fgscale", { value });
-        if (statusFg) {
-          statusFg.textContent = `Foreground scale set to ${Number(
-            res.fg_scale_default
-          ).toFixed(2)}.`;
-          statusFg.classList.add("success");
-          markStepDone(5);
-        }
-        await refreshYamlPreview();
+        await postJSON("/api/apply_fgscale", {
+          scale: fgSlider.value
+        });
+
+        statusFg.textContent = "✅ Foreground scale applied";
+        statusFg.classList.add("success");
+
       } catch (err) {
-        console.error(err);
-        if (statusFg) {
-          statusFg.textContent = "Error updating foreground scale.";
-          statusFg.classList.add("error");
-        }
+        statusFg.textContent = "❌ Error applying FG scale";
+        statusFg.classList.add("error");
       } finally {
-        hideLoader();
-        setButtonLoading(btnApplyFg, spinFg, false);
+        spinFg.classList.remove("active");
       }
     });
   }
@@ -816,157 +397,145 @@ if (btnAnalyze) {
   // ============================================
   // STEP 4: TIMINGS
   // ============================================
-  if (btnTimingsFixc) {
-    btnTimingsFixc.addEventListener("click", async () => {
-      resetProcessingLog();
-
-      if (statusTimings) {
-        statusTimings.textContent = "Applying standard FIX-C timings…";
-        statusTimings.className = "status-text";
-      }
-
-      showLoader("Applying FIX-C timings…");
-      setButtonLoading(btnTimingsFixc, spinTimingsFixc, true);
-
-      try {
-        await postJSON("/api/timings", { smart: false });
-        if (statusTimings) {
-          statusTimings.textContent = "Standard FIX-C timings applied.";
-          statusTimings.classList.add("success");
-          markStepDone(6);
-        }
-        await refreshYamlPreview();
-      } catch (err) {
-        console.error(err);
-        if (statusTimings) {
-          statusTimings.textContent = "Error applying timings.";
-          statusTimings.classList.add("error");
-        }
-      } finally {
-        hideLoader();
-        setButtonLoading(btnTimingsFixc, spinTimingsFixc, false);
-      }
-    });
-  }
-
   if (btnTimingsSmart) {
     btnTimingsSmart.addEventListener("click", async () => {
-      resetProcessingLog();
-
-      if (statusTimings) {
-        statusTimings.textContent = "Applying smart, cinematic pacing…";
-        statusTimings.className = "status-text";
-      }
-
-      showLoader("Applying smart pacing…");
-      setButtonLoading(btnTimingsSmart, spinTimingsSmart, true);
+      spinTimingsSmart.classList.add("active");
+      statusTimings.textContent = "Smart timing in progress...";
+      statusTimings.classList.remove("success", "error");
 
       try {
-        await postJSON("/api/timings", { smart: true });
-        if (statusTimings) {
-          statusTimings.textContent = "Smart, cinematic pacing applied.";
-          statusTimings.classList.add("success");
-          markStepDone(7);
-        }
-        await refreshYamlPreview();
+        await postJSON("/api/timings_smart", {});
+        statusTimings.textContent = "✅ Timings optimized";
+        statusTimings.classList.add("success");
+
       } catch (err) {
-        console.error(err);
-        if (statusTimings) {
-          statusTimings.textContent = "Error applying smart pacing.";
-          statusTimings.classList.add("error");
-        }
+        statusTimings.textContent = "❌ Error adjusting timings";
+        statusTimings.classList.add("error");
       } finally {
-        hideLoader();
-        setButtonLoading(btnTimingsSmart, spinTimingsSmart, false);
+        spinTimingsSmart.classList.remove("active");
       }
     });
   }
 
   // ============================================
-  // STEP 5: EXPORT (S3-based, using /api/export)
+  // STEP 5: EXPORT FINAL VIDEO
   // ============================================
-  // EXPORT
-if (btnExport) {
-  btnExport.addEventListener("click", async () => {
-    if (statusExport) {
-      statusExport.textContent = "Exporting...";
-      statusExport.className = "status-text";
-    }
+  if (btnExport) {
+    btnExport.addEventListener("click", async () => {
+      spinExport.classList.add("active");
+      statusExport.textContent = "Exporting final video...";
+      statusExport.classList.remove("success", "error");
 
-    try {
-      const optimized = exportOptimizedToggle && exportOptimizedToggle.checked;
-      const resp = await postJSON("/api/export", { optimized });
+      try {
+        const data = await postJSON("/api/export", {
+          optimized: exportOptimizedToggle.checked
+        });
 
-      if (resp.error) {
-        // Backend returned JSON error with detail
-        if (statusExport) {
-          statusExport.textContent =
-            "❌ Export failed: " + (resp.detail || "Unknown error.");
-          statusExport.classList.add("error");
-        }
-        return;
-      }
-
-      const url = resp.file_url;
-      if (statusExport) {
-        statusExport.innerHTML = `
-          ✅ Export complete!<br>
-          <a href="${url}" target="_blank">
-            Download Final Video
-          </a>
-        `;
+        statusExport.textContent = "✅ Export complete";
         statusExport.classList.add("success");
-      }
-    } catch (err) {
-      console.error(err);
-      if (statusExport) {
-        statusExport.textContent =
-          "❌ Error during export: " + (err.message || err);
+
+        if (data.url) {
+          window.open(data.url, "_blank");
+        }
+
+      } catch (err) {
+        statusExport.textContent = "❌ Export failed";
         statusExport.classList.add("error");
+      } finally {
+        spinExport.classList.remove("active");
       }
-    }
-  });
-}
+    });
+  }
 
   // ============================================
-  // LLM CHAT PANEL
+  // CHAT
   // ============================================
-  if (chatForm && chatMessages && chatSendBtn) {
+  if (chatForm) {
     chatForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const msg = (chatInput.value || "").trim();
+      const msg = chatInput.value.trim();
       if (!msg) return;
 
-      chatMessages.innerHTML += `
-        <div class="chat-message user">
-          <div class="bubble">${msg}</div>
-        </div>
-      `;
-      chatInput.value = "";
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-
-      setButtonLoading(chatSendBtn, spinChat, true);
+      chatSendBtn.disabled = true;
+      spinChat.classList.add("active");
 
       try {
-        const res = await postJSON("/api/chat", { message: msg });
-        const reply = res.reply || "(No response)";
-        chatMessages.innerHTML += `
-          <div class="chat-message assistant">
-            <div class="bubble">${reply}</div>
-          </div>
-        `;
+        const data = await postJSON("/api/chat", { message: msg });
+
+        const div = document.createElement("div");
+        div.className = "chat-message assistant";
+        div.textContent = data.reply;
+        chatMessages.appendChild(div);
         chatMessages.scrollTop = chatMessages.scrollHeight;
+
       } catch (err) {
         console.error(err);
-        chatMessages.innerHTML += `
-          <div class="chat-message assistant">
-            <div class="bubble">(Error talking to assistant.)</div>
-          </div>
-        `;
-        chatMessages.scrollTop = chatMessages.scrollHeight;
       } finally {
-        setButtonLoading(chatSendBtn, spinChat, false);
+        chatSendBtn.disabled = false;
+        spinChat.classList.remove("active");
+        chatInput.value = "";
       }
     });
   }
+
+  // ============================================
+  // UPLOAD
+  // ============================================
+  if (btnUpload) {
+    btnUpload.addEventListener("click", async () => {
+      const file = uploadInput.files[0];
+      if (!file) return;
+
+      statusUpload.textContent = "Uploading...";
+      statusUpload.classList.remove("success", "error");
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+
+        statusUpload.textContent = "✅ Uploaded";
+        statusUpload.classList.add("success");
+
+      } catch (err) {
+        statusUpload.textContent = "❌ Upload failed";
+        statusUpload.classList.add("error");
+      }
+    });
+  }
+
+  // ============================================
+  // RESET LOG
+  // ============================================
+  function resetProcessingLog() {
+    updateProcessingLog([]);
+    const stamp = document.getElementById("log-timestamp");
+    if (stamp) stamp.textContent = "";
+  }
+
+  // ============================================
+  // UTIL: POST JSON
+  // ============================================
+  async function postJSON(url, payload) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  }
+
+  // ============================================
+  // STEP MARKING
+  // ============================================
+  function markStepDone(stepIndex) {
+    const steps = document.querySelectorAll(".step");
+    if (steps[stepIndex]) steps[stepIndex].classList.add("done");
+  }
+
 });
