@@ -123,37 +123,37 @@ function hideAnalyzeOverlay() {
 
   async function watchForAnalysisCompletion() {
   const check = setInterval(async () => {
-    const res = await fetch("/api/config");
-    const data = await res.json();
-    const cfg = data.config || {};
+    try {
+      const res = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}"
+      });
 
-    if (Object.keys(cfg).length > 0) {
+      const data = await res.json();
+      const cfg = data.config || {};
+
+      if (Object.keys(cfg).length > 0) {
+        clearInterval(check);
+
+        const analysesRes = await fetch("/api/analyses_cache");
+        const analyses = await analysesRes.json();
+
+        if (statusAnalyze) {
+          statusAnalyze.textContent = `✅ Analysis complete!`;
+          statusAnalyze.classList.add("success");
+          markStepDone(0);
+        }
+
+        // ✅ unlock UI
+        setStepsLocked(false);
+
+        // ✅ hide overlay
+        hideAnalyzeOverlay();
+      }
+    } catch (err) {
+      console.warn("Config polling stopped.", err);
       clearInterval(check);
-
-      const analysesRes = await fetch("/api/analyses_cache");
-      const analyses = await analysesRes.json();
-
-      if (statusAnalyze) {
-        statusAnalyze.textContent = "✅ Analysis complete!";
-        statusAnalyze.classList.remove("working");
-        statusAnalyze.classList.add("success");
-        markStepDone(0);
-      }
-
-      // ✅ unlock steps
-      setStepsLocked(false);
-
-      // ✅ hide overlay here
-      hideAnalyzeOverlay();
-
-      // ✅ show results
-      if (analysisList) {
-        analysisList.innerHTML = Object.entries(analyses)
-          .map(([file, desc]) =>
-            `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
-          )
-          .join("");
-      }
     }
   }, 1500);
 }
