@@ -137,25 +137,36 @@ function hideAnalyzeOverlay() {
       const data = await res.json();
       const count = Object.keys(data || {}).length;
 
+      // ✅ Completion condition: cache has entries
       if (count > 0) {
+
+        // ✅ stop THIS polling loop
         clearInterval(poll);
 
-        // ✅ stop spinner
-        spinAnalyze.classList.remove("active");
-        btnAnalyze.disabled = false;
+        // ✅ stop status polling loop (the missing piece)
+        if (analyzePollInterval) {
+          clearInterval(analyzePollInterval);
+          analyzePollInterval = null;
+        }
 
-        // ✅ update status only once
-        statusAnalyze.textContent = `✅ Analysis complete (${count} videos)`;
-        statusAnalyze.classList.remove("working");
-        statusAnalyze.classList.add("success");
+        // ✅ stop spinner
+        if (spinAnalyze) spinAnalyze.classList.remove("active");
+
+        // ✅ update status text once
+        if (statusAnalyze) {
+          statusAnalyze.textContent = `✅ Analysis complete (${count} videos)`;
+          statusAnalyze.classList.remove("working");
+          statusAnalyze.classList.add("success");
+        }
 
         // ✅ show results
-        analysisList.innerHTML = Object.entries(data)
-          .map(
-            ([file, desc]) =>
+        if (analysisList) {
+          analysisList.innerHTML = Object.entries(data)
+            .map(([file, desc]) =>
               `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
-          )
-          .join("");
+            )
+            .join("");
+        }
 
         // ✅ mark step done
         markStepDone(0);
@@ -164,19 +175,17 @@ function hideAnalyzeOverlay() {
         setStepsLocked(false);
 
         // ✅ hide overlay
-        hideAnalyzeOverlay();
+        if (typeof hideAnalyzeOverlay === "function") hideAnalyzeOverlay();
 
         return;
       }
+
     } catch (err) {
       console.warn("Analysis polling stopped.", err);
       clearInterval(poll);
     }
   }, 1500);
 }
-
-
-
 
 let analyzePollInterval = null;
 
