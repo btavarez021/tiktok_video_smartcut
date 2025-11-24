@@ -12,6 +12,7 @@ from tiktok_assistant import (
     RAW_PREFIX,
     EXPORT_PREFIX,
     move_all_raw_to_processed,
+    video_analyses_cache
 )
 
 from assistant_api import (
@@ -92,7 +93,7 @@ def analyze_route():
 
 @app.route("/api/analyses_cache", methods=["GET"])
 def analyses_cache_route():
-    return jsonify(load_all_analysis_results())
+    return jsonify(video_analyses_cache)
 
 @app.route("/api/generate_yaml", methods=["POST"])
 def yaml_route():
