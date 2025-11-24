@@ -83,6 +83,24 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================
   // GENERIC HELPERS
   // ============================================
+
+  let analyzePollInterval = null;
+
+function startAnalyzeStatusPolling() {
+  if (analyzePollInterval) clearInterval(analyzePollInterval);
+
+  analyzePollInterval = setInterval(async () => {
+    try {
+      const res = await fetch("/api/status");
+      const data = await res.json();
+      updateProcessingLog(data.log); // ✅ existing log output updater
+    } catch (e) {
+      console.warn("Status polling stopped.", e);
+      clearInterval(analyzePollInterval);
+    }
+  }, 1500); // every 1.5 seconds
+}
+
   function extractCaptionsFromConfig(cfg) {
     const captions = [];
 
@@ -303,58 +321,64 @@ document.addEventListener("DOMContentLoaded", () => {
   initExportMode();
 
   // ============================================
-  // STEP 1: ANALYZE
-  // ============================================
-  if (btnAnalyze) {
-    btnAnalyze.addEventListener("click", async () => {
-      resetProcessingLog();
+// STEP 1: ANALYZE
+// ============================================
+if (btnAnalyze) {
+  btnAnalyze.addEventListener("click", async () => {
+    resetProcessingLog();
+
+    if (statusAnalyze) {
+      statusAnalyze.textContent = "Analyzing your uploaded S3 videos…";
+      statusAnalyze.className = "status-text";
+    }
+    if (analysisList) {
+      analysisList.innerHTML = "";
+    }
+
+    setButtonLoading(btnAnalyze, spinAnalyze, true);
+
+    try {
+      // ✅ Kick off backend analysis
+      const data = await postJSON("/api/analyze", {});
+
+      // ✅ Immediately start polling /api/status
+      startAnalyzeStatusPolling();   // <-- INSERT THIS LINE
+
+      const count = Object.keys(data || {}).length;
 
       if (statusAnalyze) {
-        statusAnalyze.textContent = "Analyzing your uploaded S3 videos…";
-        statusAnalyze.className = "status-text";
+        statusAnalyze.textContent = `Found and analyzed ${count} video(s).`;
+        statusAnalyze.classList.add("success");
+        markStepDone(0);
       }
+
       if (analysisList) {
-        analysisList.innerHTML = "";
+        if (!count) {
+          analysisList.innerHTML =
+            '<div class="analysis-item">No videos found in S3 raw_uploads/.</div>';
+        } else {
+          analysisList.innerHTML = Object.entries(data)
+            .map(
+              ([file, desc]) =>
+                `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
+            )
+            .join("");
+        }
       }
 
-      setButtonLoading(btnAnalyze, spinAnalyze, true);
-
-      try {
-        const data = await postJSON("/api/analyze", {});
-        const count = Object.keys(data || {}).length;
-
-        if (statusAnalyze) {
-          statusAnalyze.textContent = `Found and analyzed ${count} video(s).`;
-          statusAnalyze.classList.add("success");
-          markStepDone(0);
-        }
-
-        if (analysisList) {
-          if (!count) {
-            analysisList.innerHTML =
-              '<div class="analysis-item">No videos found in S3 raw_uploads/.</div>';
-          } else {
-            analysisList.innerHTML = Object.entries(data)
-              .map(
-                ([file, desc]) =>
-                  `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
-              )
-              .join("");
-          }
-        }
-
-        await refreshYamlPreview();
-      } catch (err) {
-        console.error(err);
-        if (statusAnalyze) {
-          statusAnalyze.textContent = "Error during analysis. Check logs.";
-          statusAnalyze.classList.add("error");
-        }
-      } finally {
-        setButtonLoading(btnAnalyze, spinAnalyze, false);
+      await refreshYamlPreview();
+    } catch (err) {
+      console.error(err);
+      if (statusAnalyze) {
+        statusAnalyze.textContent = "Error during analysis. Check logs.";
+        statusAnalyze.classList.add("error");
       }
-    });
-  }
+    } finally {
+      setButtonLoading(btnAnalyze, spinAnalyze, false);
+    }
+  });
+}
+
 
   // ============================================
   // STEP 2: YAML GENERATION

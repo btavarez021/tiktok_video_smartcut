@@ -83,9 +83,11 @@ def upload_route():
 def analyze_route():
     clear_status_log()
     log_step("🔍 Starting video analysis…")
-    out = api_analyze()
-    log_step(f"✅ Analysis complete. {len(out)} video(s) processed.")
-    return jsonify(out)
+    
+    import threading
+    threading.Thread(target=api_analyze, daemon=True).start()
+
+    return jsonify({"status": "started"})
 
 
 @app.route("/api/generate_yaml", methods=["POST"])

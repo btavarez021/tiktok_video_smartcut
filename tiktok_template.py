@@ -263,7 +263,6 @@ def make_clip(
     return force_even_size(final)
 
 
-
 def debug_video_dimensions(folder: str):
     logging.debug("\n🎥 Debug: Video Dimensions Overview\n" + "-" * 50)
     for f in sorted(os.listdir(folder)):
