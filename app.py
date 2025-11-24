@@ -93,7 +93,7 @@ def analyze_route():
 
 @app.route("/api/analyses_cache", methods=["GET"])
 def analyses_cache_route():
-    return jsonify(video_analyses_cache)
+    return jsonify(dict(sorted(video_analyses_cache.items())))
 
 @app.route("/api/generate_yaml", methods=["POST"])
 def yaml_route():

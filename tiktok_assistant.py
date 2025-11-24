@@ -136,7 +136,7 @@ def save_analysis_result(key: str, desc: str) -> None:
     """
     Cache analysis results in memory (and log them).
     """
-    video_analyses_cache[key] = desc
+    video_analyses_cache[key.lower()] = desc
     log_step(f"Cached analysis for {key}.")
 
 # -------------------------------------------------
