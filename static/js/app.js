@@ -131,28 +131,27 @@ function hideAnalyzeOverlay() {
   async function watchForAnalysisCompletion() {
   const poll = setInterval(async () => {
     try {
-      // ✅ Call backend correctly (GET, not POST)
-      const res = await fetch("/api/config", { method: "GET" });
+      // ✅ Always GET (never POST)
+      const res = await fetch("/api/analyses_cache", { method: "GET" });
 
       if (!res.ok) {
-        console.warn("Config polling failed:", res.status);
+        console.warn("Analysis cache polling failed:", res.status);
         return;
       }
 
-      const data = await res.json();
-      const cfg = data.config || {};
+      const analyses = await res.json();
+      const count = Object.keys(analyses || {}).length;
 
-      // ✅ Wait until config.yml exists (means analyze completed)
-      if (Object.keys(cfg).length > 0) {
-
+      // ✅ Only complete after real results exist
+      if (count > 0) {
         clearInterval(poll);
 
         // ✅ stop analyze spinner
         if (spinAnalyze) spinAnalyze.classList.remove("active");
 
-        // ✅ update status text
+        // ✅ status update
         if (statusAnalyze) {
-          statusAnalyze.textContent = "✅ Analysis complete!";
+          statusAnalyze.textContent = `✅ Analysis complete (${count} videos).`;
           statusAnalyze.classList.remove("working");
           statusAnalyze.classList.add("success");
         }
@@ -163,33 +162,23 @@ function hideAnalyzeOverlay() {
         // ✅ unlock UI
         setStepsLocked(false);
 
-        // ✅ try to load cached results (optional)
-        try {
-          const cacheRes = await fetch("/api/analyses_cache", { method: "GET" });
-          if (cacheRes.ok) {
-            const analyses = await cacheRes.json();
-            if (analysisList) {
-              analysisList.innerHTML = Object.entries(analyses)
-                .map(([file, desc]) =>
-                  `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
-                )
-                .join("");
-            }
-          }
-        } catch (err) {
-          console.warn("No analyses_cache available. Safe to ignore.");
+        // ✅ populate results
+        if (analysisList) {
+          analysisList.innerHTML = Object.entries(analyses)
+            .map(([file, desc]) =>
+              `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
+            )
+            .join("");
         }
 
-        // ✅ hide overlay if present
-        if (typeof hideAnalyzeOverlay === "function") {
-          hideAnalyzeOverlay();
-        }
+        // ✅ hide overlay
+        hideAnalyzeOverlay();
 
         return;
       }
 
     } catch (err) {
-      console.warn("Config polling stopped.", err);
+      console.warn("Analysis polling stopped.", err);
       clearInterval(poll);
     }
   }, 1500);
@@ -205,13 +194,21 @@ function startAnalyzeStatusPolling() {
     try {
       const res = await fetch("/api/status");
       const data = await res.json();
-      updateProcessingLog(data.log); // ✅ existing log output updater
+      updateProcessingLog(data.log);
+
+      // ✅ Update timestamp
+      const stamp = document.getElementById("log-timestamp");
+      if (stamp) {
+        const now = new Date();
+        stamp.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+      }
+
     } catch (e) {
       console.warn("Status polling stopped.", e);
       clearInterval(analyzePollInterval);
     }
-  }, 1500); // every 1.5 seconds
-}
+  }, 1500);
+} 
 
   function extractCaptionsFromConfig(cfg) {
     const captions = [];
