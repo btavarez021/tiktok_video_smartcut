@@ -87,6 +87,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // GENERIC HELPERS
   // ============================================
 
+  function updateProcessingLog(lines) {
+  if (!liveLogBox) return;
+  liveLogBox.textContent = (lines || []).join("\n");
+  liveLogBox.scrollTop = liveLogBox.scrollHeight;
+}
+
+
   function showAnalyzeOverlay() {
   if (analyzeOverlay) analyzeOverlay.classList.remove("hidden");
 }
@@ -122,38 +129,68 @@ function hideAnalyzeOverlay() {
 }
 
   async function watchForAnalysisCompletion() {
-  const check = setInterval(async () => {
+  const poll = setInterval(async () => {
     try {
-      const res = await fetch("/api/config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}"
-      });
+      // ✅ Call backend correctly (GET, not POST)
+      const res = await fetch("/api/config", { method: "GET" });
+
+      if (!res.ok) {
+        console.warn("Config polling failed:", res.status);
+        return;
+      }
 
       const data = await res.json();
       const cfg = data.config || {};
 
+      // ✅ Wait until config.yml exists (means analyze completed)
       if (Object.keys(cfg).length > 0) {
-        clearInterval(check);
 
-        const analysesRes = await fetch("/api/analyses_cache");
-        const analyses = await analysesRes.json();
+        clearInterval(poll);
 
+        // ✅ stop analyze spinner
+        if (spinAnalyze) spinAnalyze.classList.remove("active");
+
+        // ✅ update status text
         if (statusAnalyze) {
-          statusAnalyze.textContent = `✅ Analysis complete!`;
+          statusAnalyze.textContent = "✅ Analysis complete!";
+          statusAnalyze.classList.remove("working");
           statusAnalyze.classList.add("success");
-          markStepDone(0);
         }
+
+        // ✅ mark step 1 complete
+        markStepDone(0);
 
         // ✅ unlock UI
         setStepsLocked(false);
 
-        // ✅ hide overlay
-        hideAnalyzeOverlay();
+        // ✅ try to load cached results (optional)
+        try {
+          const cacheRes = await fetch("/api/analyses_cache", { method: "GET" });
+          if (cacheRes.ok) {
+            const analyses = await cacheRes.json();
+            if (analysisList) {
+              analysisList.innerHTML = Object.entries(analyses)
+                .map(([file, desc]) =>
+                  `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
+                )
+                .join("");
+            }
+          }
+        } catch (err) {
+          console.warn("No analyses_cache available. Safe to ignore.");
+        }
+
+        // ✅ hide overlay if present
+        if (typeof hideAnalyzeOverlay === "function") {
+          hideAnalyzeOverlay();
+        }
+
+        return;
       }
+
     } catch (err) {
       console.warn("Config polling stopped.", err);
-      clearInterval(check);
+      clearInterval(poll);
     }
   }, 1500);
 }

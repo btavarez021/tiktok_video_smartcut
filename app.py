@@ -30,6 +30,7 @@ from assistant_api import (
     api_save_yaml,
     api_save_captions,
     load_config,
+    load_all_analysis_results
 )
 
 from assistant_log import clear_status_log, log_step, status_log
@@ -89,6 +90,9 @@ def analyze_route():
 
     return jsonify({"status": "started"})
 
+@app.route("/api/analyses_cache", methods=["GET"])
+def analyses_cache_route():
+    return jsonify(load_all_analysis_results())
 
 @app.route("/api/generate_yaml", methods=["POST"])
 def yaml_route():
@@ -99,7 +103,7 @@ def yaml_route():
     return jsonify(out)
 
 
-@app.route("/api/config", methods=["POST"])
+@app.route("/api/config", methods=["POST", "GET"])
 def config_route():
     return jsonify(api_get_config())
 

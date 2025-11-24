@@ -3,7 +3,7 @@ import os
 import yaml
 import shutil
 import tempfile
-
+import json
 from assistant_log import log_step, status_log, clear_status_log
 
 from tiktok_template import (
@@ -161,6 +161,37 @@ def api_analyze():
     log_step("All videos analyzed ✅")
     return results
 
+ANALYSIS_CACHE_DIR = "video_analyses_cache"
+
+def load_all_analysis_results():
+    """
+    Loads all cached analysis results stored as .json files in video_analyses_cache/
+    Returns { filename: description }
+    """
+    results = {}
+
+    if not os.path.exists(ANALYSIS_CACHE_DIR):
+        return results
+
+    for name in os.listdir(ANALYSIS_CACHE_DIR):
+        if not name.endswith(".json"):
+            continue
+
+        file_path = os.path.join(ANALYSIS_CACHE_DIR, name)
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            # Expected format: { "filename": "...", "description": "..." }
+            filename = data.get("filename") or name.replace(".json", "")
+            desc = data.get("description") or ""
+            results[filename] = desc
+
+        except Exception as e:
+            print(f"⚠ Failed loading cached analysis file {name}: {e}")
+
+    return results
 
 # ============================================
 # /api/generate_yaml
