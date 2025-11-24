@@ -80,9 +80,21 @@ document.addEventListener("DOMContentLoaded", () => {
   // Small TTS hint text (optional)
   const ttsSyncHint = document.getElementById("tts-sync-hint");
 
+  const analyzeOverlay = document.getElementById("analyze-overlay");
+
+
   // ============================================
   // GENERIC HELPERS
   // ============================================
+
+  function showAnalyzeOverlay() {
+  if (analyzeOverlay) analyzeOverlay.classList.remove("hidden");
+}
+
+function hideAnalyzeOverlay() {
+  if (analyzeOverlay) analyzeOverlay.classList.add("hidden");
+}
+
 
   function setStepsLocked(isLocked) {
   const allSelectors = [
@@ -122,14 +134,6 @@ document.addEventListener("DOMContentLoaded", () => {
       // ✅ populate UI with real analysis results
       const analysesRes = await fetch("/api/analyses_cache");
       const analyses = await analysesRes.json();
-
-      if (analysisList) {
-        analysisList.innerHTML = Object.entries(analyses)
-          .map(([file, desc]) =>
-            `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
-          )
-          .join("");
-      }
 
       if (statusAnalyze) {
         statusAnalyze.textContent = `✅ Analysis complete!`;
@@ -386,6 +390,7 @@ function startAnalyzeStatusPolling() {
 if (btnAnalyze) {
   btnAnalyze.addEventListener("click", async () => {
   resetProcessingLog();
+  showAnalyzeOverlay();   // ✅ ADD HERE
 
   // ✅ lock all later steps
   setStepsLocked(true);
@@ -420,6 +425,8 @@ if (btnAnalyze) {
       }
     } finally {
       setButtonLoading(btnAnalyze, spinAnalyze, false);
+        hideAnalyzeOverlay();   // ✅ ADD HERE
+
     }
   });
 }
