@@ -27,6 +27,15 @@ from tiktok_assistant import (
     move_all_raw_to_processed,
 )
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 
 EXPORT_PREFIX = "exports/"
