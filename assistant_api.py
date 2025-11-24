@@ -133,7 +133,8 @@ def api_analyze():
             continue
 
         # 3. Copy into local tik_tok_downloads/ with basename
-        base = os.path.basename(key)
+        raw_base = os.path.basename(key)
+        base = raw_base.lower()
         local_path = os.path.join(video_folder, base)
         try:
             shutil.copy(tmp_local_path, local_path)
