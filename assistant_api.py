@@ -12,6 +12,7 @@ from tiktok_template import (
     video_folder,   # local folder used for normalized / downloaded clips
     client,
     normalize_video_ffmpeg,
+    ANALYSIS_CACHE_DIR
 )
 
 from tiktok_assistant import (
@@ -160,8 +161,6 @@ def api_analyze():
 
     log_step("All videos analyzed ✅")
     return results
-
-ANALYSIS_CACHE_DIR = "video_analysis_cache"
 
 def load_all_analysis_results():
     """
