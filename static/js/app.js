@@ -320,7 +320,7 @@ function startAnalyzeStatusPolling() {
   })();
   initExportMode();
 
-  // ============================================
+// ============================================
 // STEP 1: ANALYZE
 // ============================================
 if (btnAnalyze) {
@@ -339,18 +339,20 @@ if (btnAnalyze) {
 
     try {
       // ✅ Kick off backend analysis
-      const data = await postJSON("/api/analyze", {});
+    await postJSON("/api/analyze", {});
 
-      // ✅ Immediately start polling /api/status
-      startAnalyzeStatusPolling();   // <-- INSERT THIS LINE
+    // ✅ Begin polling live log
+    startAnalyzeStatusPolling();
 
-      const count = Object.keys(data || {}).length;
+    // ✅ UI stays in "processing" mode
+    if (statusAnalyze) {
+      statusAnalyze.textContent = "Analyzing… watch the live log for progress.";
+      statusAnalyze.className = "status-text";
+    }
 
-      if (statusAnalyze) {
-        statusAnalyze.textContent = `Found and analyzed ${count} video(s).`;
-        statusAnalyze.classList.add("success");
-        markStepDone(0);
-      }
+    // ✅ We DO NOT try to read results yet
+    // Results will be loaded later when user hits Generate YAML
+
 
       if (analysisList) {
         if (!count) {
