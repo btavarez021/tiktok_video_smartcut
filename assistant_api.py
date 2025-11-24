@@ -11,9 +11,8 @@ from tiktok_template import (
     edit_video,
     video_folder,   # local folder used for normalized / downloaded clips
     client,
-    normalize_video_ffmpeg,
-    ANALYSIS_CACHE_DIR
-)
+    normalize_video_ffmpeg
+    )
 
 from tiktok_assistant import (
     debug_video_dimensions,
@@ -27,6 +26,7 @@ from tiktok_assistant import (
     list_videos_from_s3,
     download_s3_video,
     save_analysis_result,
+    ANALYSIS_CACHE_DIR
 )
 
 import logging
