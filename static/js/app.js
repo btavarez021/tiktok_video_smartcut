@@ -27,6 +27,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnSaveYaml = document.getElementById("btn-save-yaml");
   const statusSaveYaml = document.getElementById("status-save-yaml");
 
+  const btnApplyTts = document.getElementById("btn-apply-tts");
+  const statusTts = document.getElementById("status-tts");
+
+  const btnApplyCta = document.getElementById("btn-apply-cta");
+  const statusCta = document.getElementById("status-cta");
+
+  const btnApplyFg = document.getElementById("btn-apply-fgscale");
+  const statusFg = document.getElementById("status-fgscale");
+
+  const fgSlider = document.getElementById("fg-scale");
+  const fgValue = document.getElementById("fg-scale-value");
+
   async function postJSON(url, body) {
     const res = await fetch(url, {
       method: "POST",
@@ -170,6 +182,64 @@ if (btnSaveYaml && yamlEditor) {
       console.error(err);
       statusSaveYaml.textContent = "❌ Error saving YAML.";
       statusSaveYaml.classList.add("error");
+    }
+  });
+}
+
+// ============================================
+// TTS Function
+// ============================================
+if (btnApplyTts) {
+  btnApplyTts.addEventListener("click", async () => {
+    statusTts.textContent = "Updating voiceover…";
+    const enabled = ttsEnabled.checked;
+    const voice = ttsVoice.value;
+    try {
+      await postJSON("/api/tts", { enabled, voice });
+      statusTts.textContent = "✅ Voiceover updated.";
+      await refreshYamlPreview();
+    } catch (err) {
+      console.error(err);
+      statusTts.textContent = "❌ Error updating voiceover.";
+    }
+  });
+}
+
+
+// ============================================
+// CTA Function
+// ============================================
+if (btnApplyCta) {
+  btnApplyCta.addEventListener("click", async () => {
+    statusCta.textContent = "Updating CTA…";
+    const enabled = ctaEnabled.checked;
+    const text = ctaText.value;
+    const voiceover = ctaVoiceover.checked;
+    try {
+      await postJSON("/api/cta", { enabled, text, voiceover });
+      statusCta.textContent = "✅ CTA updated.";
+      await refreshYamlPreview();
+    } catch (err) {
+      console.error(err);
+      statusCta.textContent = "❌ Error updating CTA.";
+    }
+  });
+}
+
+// ============================================
+// FG Scale Function
+// ============================================
+if (btnApplyFg) {
+  btnApplyFg.addEventListener("click", async () => {
+    statusFg.textContent = "Updating scale…";
+    const value = parseFloat(fgSlider.value);
+    try {
+      await postJSON("/api/fgscale", { value });
+      statusFg.textContent = "✅ Scale updated.";
+      await refreshYamlPreview();
+    } catch (err) {
+      console.error(err);
+      statusFg.textContent = "❌ Error updating scale.";
     }
   });
 }
