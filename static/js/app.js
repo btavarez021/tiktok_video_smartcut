@@ -137,28 +137,25 @@ function hideAnalyzeOverlay() {
       const data = await res.json();
       const count = Object.keys(data || {}).length;
 
-      // ✅ Completion condition: cache has entries
       if (count > 0) {
         clearInterval(poll);
 
         // ✅ stop spinner
-        if (spinAnalyze) spinAnalyze.classList.remove("active");
+        spinAnalyze.classList.remove("active");
+        btnAnalyze.disabled = false;
 
-        // ✅ update status text once
-        if (statusAnalyze) {
-          statusAnalyze.textContent = `✅ Analysis complete (${count} videos)`;
-          statusAnalyze.classList.remove("working");
-          statusAnalyze.classList.add("success");
-        }
+        // ✅ update status only once
+        statusAnalyze.textContent = `✅ Analysis complete (${count} videos)`;
+        statusAnalyze.classList.remove("working");
+        statusAnalyze.classList.add("success");
 
         // ✅ show results
-        if (analysisList) {
-          analysisList.innerHTML = Object.entries(data)
-            .map(([file, desc]) =>
+        analysisList.innerHTML = Object.entries(data)
+          .map(
+            ([file, desc]) =>
               `<div class="analysis-item"><strong>${file}</strong><br>${desc}</div>`
-            )
-            .join("");
-        }
+          )
+          .join("");
 
         // ✅ mark step done
         markStepDone(0);
@@ -167,17 +164,17 @@ function hideAnalyzeOverlay() {
         setStepsLocked(false);
 
         // ✅ hide overlay
-        if (typeof hideAnalyzeOverlay === "function") hideAnalyzeOverlay();
+        hideAnalyzeOverlay();
 
         return;
       }
-
     } catch (err) {
       console.warn("Analysis polling stopped.", err);
       clearInterval(poll);
     }
   }, 1500);
 }
+
 
 
 
@@ -428,11 +425,14 @@ function startAnalyzeStatusPolling() {
 // ============================================
 // STEP 1: ANALYZE
 // ============================================
+// ============================================
+// STEP 1: ANALYZE (FINAL PATCHED VERSION)
+// ============================================
 if (btnAnalyze) {
   btnAnalyze.addEventListener("click", async () => {
     resetProcessingLog();
-    showAnalyzeOverlay();     // spinner overlay
-    setStepsLocked(true);     // lock all later steps
+    showAnalyzeOverlay();
+    setStepsLocked(true);
 
     if (statusAnalyze) {
       statusAnalyze.textContent =
@@ -442,27 +442,30 @@ if (btnAnalyze) {
 
     if (analysisList) analysisList.innerHTML = "";
 
-    setButtonLoading(btnAnalyze, spinAnalyze, true);
+    // ✅ Start spinner visibly
+    spinAnalyze.classList.add("active");
+    btnAnalyze.disabled = true;
 
     try {
-      // ✅ Start backend processing
       await postJSON("/api/analyze", {});
 
-    // ✅ Start log + completion polling
-    watchForAnalysisCompletion();
+      // ✅ begin polling (these will stop spinner when done)
+      startAnalyzeStatusPolling();
+      watchForAnalysisCompletion();
 
     } catch (err) {
       console.error(err);
       if (statusAnalyze) {
-        statusAnalyze.textContent =
-          "Error during analysis. Check logs.";
+        statusAnalyze.textContent = "Error during analysis. Check logs.";
         statusAnalyze.classList.add("error");
       }
       setStepsLocked(false);
-    } finally {
-      setButtonLoading(btnAnalyze, spinAnalyze, false);
+      // ✅ allow retry
+      btnAnalyze.disabled = false;
+      spinAnalyze.classList.remove("active");
 
-      // ❗ DO NOT hide overlay until completion watcher unlocks UI
+    } finally {
+      // ✅ DO NOT stop spinner here — watcher will stop it
     }
   });
 }
