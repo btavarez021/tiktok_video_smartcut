@@ -24,6 +24,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnSaveCaptions = document.getElementById("btn-save-captions");
   const statusCaptions = document.getElementById("status-captions");
 
+  const btnSaveYaml = document.getElementById("btn-save-yaml");
+  const statusSaveYaml = document.getElementById("status-save-yaml");
+
   async function postJSON(url, body) {
     const res = await fetch(url, {
       method: "POST",
@@ -140,6 +143,34 @@ if (btnSaveCaptions && captionsEditor) {
       statusCaptions.textContent = "❌ Failed saving captions.";
       statusCaptions.classList.add("error");
     } 
+  });
+}
+
+// ============================================
+// SAVE YAML BUTTON
+// ============================================
+if (btnSaveYaml && yamlEditor) {
+  btnSaveYaml.addEventListener("click", async () => {
+    statusSaveYaml.textContent = "Saving YAML…";
+    statusSaveYaml.className = "status-text";
+
+    try {
+      await postJSON("/api/save_yaml", { yaml: yamlEditor.value });
+
+      statusSaveYaml.textContent = "✅ YAML saved.";
+      statusSaveYaml.classList.add("success");
+
+      // refresh + sync captions editor
+      const cfg = await refreshYamlPreview();
+      if (captionsEditor && cfg) {
+        captionsEditor.value = extractCaptions(cfg);
+      }
+
+    } catch (err) {
+      console.error(err);
+      statusSaveYaml.textContent = "❌ Error saving YAML.";
+      statusSaveYaml.classList.add("error");
+    }
   });
 }
 
