@@ -39,6 +39,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const fgSlider = document.getElementById("fg-scale");
   const fgValue = document.getElementById("fg-scale-value");
 
+  const ttsEnabled = document.getElementById("tts-enabled");
+  const ttsVoice = document.getElementById("tts-voice");
+
+  const ctaEnabled = document.getElementById("cta-enabled");
+  const ctaText = document.getElementById("cta-text");
+  const ctaVoiceover = document.getElementById("cta-voiceover");
+
+
   async function postJSON(url, body) {
     const res = await fetch(url, {
       method: "POST",
@@ -243,6 +251,17 @@ if (btnApplyFg) {
     }
   });
 }
+
+btnTimingsFixc.addEventListener("click", async () => {
+  await postJSON("/api/timings", { smart: false });
+  await refreshYamlPreview();
+});
+
+
+btnTimingsSmart.addEventListener("click", async () => {
+  await postJSON("/api/timings", { smart: true });
+  await refreshYamlPreview();
+});
 
   refreshYamlPreview();
 });
