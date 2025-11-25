@@ -13,6 +13,8 @@ if not hasattr(Image, "ANTIALIAS"):
 
 import yaml
 
+from tiktok_assistant import enforce_mp4
+
 from moviepy.editor import (
     VideoFileClip,
     TextClip,
@@ -93,7 +95,9 @@ def _load_clip_from_config(conf: Dict[str, Any]):
     if not filename:
         return None
 
-    path = os.path.join(video_folder, os.path.basename(filename).lower())
+    filename = enforce_mp4(filename)
+    path = os.path.join(video_folder, filename)
+
 
     if not os.path.exists(path):
         logger.warning(f"[LOAD FAILED] File not found: {path}")

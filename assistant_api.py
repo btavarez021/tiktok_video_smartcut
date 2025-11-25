@@ -11,6 +11,8 @@ from openai import OpenAI
 from assistant_log import log_step, clear_status_log
 from tiktok_template import config_path, edit_video, video_folder
 from tiktok_assistant import (
+    sanitize_yaml_filenames,
+    enforce_mp4,
     analyze_video,
     build_yaml_prompt,
     apply_smart_timings,
@@ -198,8 +200,7 @@ def api_analyze_step() -> Dict[str, Any]:
         # --------------------------------------
         # FORCE LOWERCASE + FORCE .MP4 EXTENSION
         # --------------------------------------
-        base_no_ext = os.path.splitext(os.path.basename(key).lower())[0]
-        normalized_filename = base_no_ext + ".mp4"
+        normalized_filename = enforce_mp4(key)
         dst = os.path.join(video_folder, normalized_filename)
 
         log_step(f"Normalizing {key} -> {dst} ...")
@@ -321,20 +322,13 @@ def api_generate_yaml() -> Dict[str, Any]:
     yaml_text = (resp.choices[0].message.content or "").strip()
     yaml_text = yaml_text.replace("```yaml", "").replace("```", "").strip()
 
-    cfg = yaml.safe_load(yaml_text) or {}
+    cfg = sanitize_yaml_filenames(yaml.safe_load(yaml_text) or {})
 
     # -------------------------------
     # FIX #4 — Force lowercase .mp4 in YAML
     # -------------------------------
-    if "first_clip" in cfg and "file" in cfg["first_clip"]:
-        cfg["first_clip"]["file"] = cfg["first_clip"]["file"].lower()
+    cfg = sanitize_yaml_filenames(cfg)
 
-    for mc in cfg.get("middle_clips", []):
-        if "file" in mc:
-            mc["file"] = mc["file"].lower()
-
-    if "last_clip" in cfg and "file" in cfg["last_clip"]:
-        cfg["last_clip"]["file"] = cfg["last_clip"]["file"].lower()
 
     # -------------------------------
     # Save YAML
@@ -348,7 +342,7 @@ def api_generate_yaml() -> Dict[str, Any]:
 
 
 def api_save_yaml(yaml_text: str) -> Dict[str, str]:
-    cfg = yaml.safe_load(yaml_text) or {}
+    cfg = sanitize_yaml_filenames(yaml.safe_load(yaml_text) or {})
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
     load_config()

@@ -51,6 +51,17 @@ os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
 # -----------------------------------------
 # S3 Helpers
 # -----------------------------------------
+def enforce_mp4(name: str) -> str:
+    """
+    Force ANY filename to lowercase basename.mp4.
+    Removes any folder, any extension, any uppercase.
+    """
+    if not isinstance(name, str) or not name.strip():
+        return name
+    base = os.path.splitext(os.path.basename(name))[0]
+    return base.lower() + ".mp4"
+
+
 def list_videos_from_s3() -> List[str]:
     resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
 
@@ -224,7 +235,7 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
 # -----------------------------------------
 def save_analysis_result(key: str, desc: str) -> None:
     # IMPORTANT FIX: always store basename, lowercase
-    key_lower = os.path.basename(key).lower()
+    key_lower = enforce_mp4(key)
 
     video_analyses_cache[key_lower] = desc
 
@@ -239,6 +250,23 @@ def save_analysis_result(key: str, desc: str) -> None:
         )
 
     log_step(f"Cached analysis for {key_lower}")
+
+def sanitize_yaml_filenames(cfg: dict) -> dict:
+    if not isinstance(cfg, dict):
+        return cfg
+
+    if "first_clip" in cfg and "file" in cfg["first_clip"]:
+        cfg["first_clip"]["file"] = enforce_mp4(cfg["first_clip"]["file"])
+
+    if "middle_clips" in cfg:
+        for m in cfg["middle_clips"]:
+            if "file" in m:
+                m["file"] = enforce_mp4(m["file"])
+
+    if "last_clip" in cfg and "file" in cfg["last_clip"]:
+        cfg["last_clip"]["file"] = enforce_mp4(cfg["last_clip"]["file"])
+
+    return cfg
 
 
 # -----------------------------------------
@@ -296,6 +324,8 @@ Return ONLY YAML.
         if not isinstance(cfg, dict):
             raise ValueError("Overlay returned invalid YAML")
 
+        cfg = sanitize_yaml_filenames(cfg)
+
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
@@ -351,6 +381,8 @@ Return ONLY YAML.
         cfg = yaml.safe_load(new_yaml)
         if not isinstance(cfg, dict):
             raise ValueError("Timings returned invalid YAML")
+
+        cfg = sanitize_yaml_filenames(cfg)
 
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
