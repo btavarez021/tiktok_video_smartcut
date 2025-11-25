@@ -51,7 +51,9 @@ def healthz():
 # ---------------------------------
 @app.route("/api/status", methods=["GET"])
 def api_status():
+    # Return only last 100 entries so response is never too large
     return jsonify({"status_log": status_log[-100:]})
+
 
 
 # ---------------------------------
