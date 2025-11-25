@@ -87,11 +87,19 @@ def _load_config() -> Dict[str, Any]:
 # Clip loading
 # -----------------------------------------
 def _load_clip_from_config(conf: Dict[str, Any]):
+
+
     filename = conf.get("file")
     if not filename:
         return None
 
     path = os.path.join(video_folder, os.path.basename(filename))
+
+    if not os.path.exists(path):
+        logger.warning(f"[LOAD FAILED] File not found: {path}")
+        log_step(f"[LOAD FAILED] File not found: {path}")
+        return None
+    
     if not os.path.exists(path):
         logger.warning("Clip file not found: %s", path)
         return None
