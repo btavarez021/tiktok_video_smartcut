@@ -273,103 +273,62 @@ def api_analyze() -> Dict[str, str]:
 # ============================================
 def api_generate_yaml() -> Dict[str, Any]:
     """
-    Use build_yaml_prompt + LLM to generate YAML, save to config.yml, and return dict.
-    Uses both in-memory and disk cache for analyses.
+    Use build_yaml_prompt + LLM to generate YAML and save to config.yml.
+    Ensures ALL filenames are lowercase to match normalized video files.
     """
     merged = load_all_analysis_results()
 
-    if not merged:
+    # Lowercase keys in merged results
+    normalized = {k.lower(): v for k, v in merged.items()}
+
+    if not normalized:
         log_step("No cached analyses; running quick analyze before YAML generation...")
         api_analyze()
         merged = load_all_analysis_results()
+        normalized = {k.lower(): v for k, v in merged.items()}
 
-    video_files = list(merged.keys())
-    video_files = list(merged.keys())
-
-    # ✅ FORCE LOWERCASE FILENAMES
-    video_files = [v.lower() for v in video_files]
-
-    analyses = [merged.get(v, "") for v in video_files]
+    video_files = list(normalized.keys())
+    analyses = [normalized[v] for v in video_files]
 
     if not video_files:
         log_step("No videos available for YAML generation.")
         return {}
 
+    # Build YAML prompt USING LOWERCASE FILENAMES
     yaml_prompt = build_yaml_prompt(video_files, analyses)
+
     log_step("Calling LLM to produce YAML storyboard...")
-
-    if client is None:
-        # Fallback: build a simple config without LLM
-        log_step("No OpenAI client; generating simple fallback YAML.")
-        simple_cfg: Dict[str, Any] = {
-            "first_clip": {
-                "file": video_files[0],
-                "start_time": 0,
-                "duration": 5.0,
-                "text": analyses[0] or "Hotel TikTok intro.",
-                "scale": 1.0,
-            },
-            "middle_clips": [],
-            "last_clip": {
-                "file": video_files[-1],
-                "start_time": 0,
-                "duration": 5.0,
-                "text": "Would you stay here?",
-                "scale": 1.0,
-            },
-            "music": {
-                "style": "chill travel",
-                "mood": "uplifting",
-                "volume": 0.25,
-            },
-            "render": {
-                "tts_enabled": False,
-                "tts_voice": "alloy",
-                "fg_scale_default": 1.0,
-                "blur_background": True,
-            },
-            "cta": {
-                "enabled": False,
-                "text": "",
-                "voiceover": False,
-                "duration": 3.0,
-                "position": "bottom",
-            },
-        }
-        if len(video_files) > 2:
-            for vf, a in zip(video_files[1:-1], analyses[1:-1]):
-                simple_cfg["middle_clips"].append(
-                    {
-                        "file": vf,
-                        "start_time": 0,
-                        "duration": 5.0,
-                        "text": a or "Hotel detail shot.",
-                        "scale": 1.0,
-                    }
-                )
-
-        with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(simple_cfg, f, sort_keys=False)
-        load_config()
-        log_step("Fallback YAML written to config.yml")
-        return simple_cfg
 
     resp = client.chat.completions.create(
         model=TEXT_MODEL,
         messages=[{"role": "user", "content": yaml_prompt}],
         temperature=0.2,
     )
-    yaml_text = (resp.choices[0].message.content or "").strip()
+
+    yaml_text = resp.choices[0].message.content or ""
     yaml_text = yaml_text.replace("```yaml", "").replace("```", "").strip()
 
     cfg = yaml.safe_load(yaml_text) or {}
 
+    # ✅ ENFORCE lowercase in YAML result
+    if "first_clip" in cfg and "file" in cfg["first_clip"]:
+        cfg["first_clip"]["file"] = cfg["first_clip"]["file"].lower()
+
+    for mc in cfg.get("middle_clips", []):
+        if "file" in mc:
+            mc["file"] = mc["file"].lower()
+
+    if "last_clip" in cfg and "file" in cfg["last_clip"]:
+        cfg["last_clip"]["file"] = cfg["last_clip"]["file"].lower()
+
+    # Save fixed YAML
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
 
     load_config()
-    log_step("YAML written to config.yml")
+    log_step("YAML written to config.yml (lowercase normalized)")
     return cfg
+
 
 
 def api_save_yaml(yaml_text: str) -> Dict[str, str]:
