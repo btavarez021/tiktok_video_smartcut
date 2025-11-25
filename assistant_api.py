@@ -21,7 +21,7 @@ from tiktok_assistant import (
     download_s3_video,
     save_analysis_result,
     ANALYSIS_CACHE_DIR,
-    normalize_video,  
+    normalize_video
 )
 
 

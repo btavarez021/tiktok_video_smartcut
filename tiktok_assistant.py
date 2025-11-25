@@ -3,7 +3,7 @@ import logging
 import tempfile
 from typing import Dict, List, Optional
 import json
-
+import subprocess
 import boto3
 import yaml
 from openai import OpenAI
@@ -51,6 +51,40 @@ os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
 # -------------------------------------------------
 # S3 HELPERS
 # -------------------------------------------------
+
+def normalize_video_ffmpeg(src: str, dst: str):
+    """
+    Run ffmpeg to normalize any input video into a vertical-friendly MP4.
+    Used during the S3 → local → analysis step.
+    """
+    try:
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i", src,
+            "-vf", "scale=1080:-2",   # keep aspect ratio
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "18",
+            "-c:a", "aac",
+            dst,
+        ]
+
+        logger.info(f"Running ffmpeg: {' '.join(cmd)}")
+        subprocess.run(cmd, check=True)
+    except Exception as e:
+        logger.error(f"FFMPEG normalization failed for {src} → {dst}: {e}")
+        raise
+
+
+def normalize_video(src: str, dst: str):
+    """
+    Wrapper so assistant_api can call normalize_video(),
+    but internally we call normalize_video_ffmpeg().
+    """
+    normalize_video_ffmpeg(src, dst)
+
+
 def upload_raw_file(file_storage) -> str:
     """
     Upload a Flask FileStorage to S3 under raw_uploads/.
