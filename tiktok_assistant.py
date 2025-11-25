@@ -119,6 +119,10 @@ def normalize_video(src: str, dst: str) -> None:
     This does NOT replace your final renderer; it just makes clips consistent
     for LLM analysis and for your tiktok_template pipeline.
     """
+
+    # 🔥 FORCE LOWERCASE OUTPUT ALWAYS
+    dst = dst.lower()
+
     os.makedirs(os.path.dirname(dst), exist_ok=True)
 
     cmd = [

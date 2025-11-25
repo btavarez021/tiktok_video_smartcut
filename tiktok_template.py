@@ -93,7 +93,7 @@ def _load_clip_from_config(conf: Dict[str, Any]):
     if not filename:
         return None
 
-    path = os.path.join(video_folder, os.path.basename(filename))
+    path = os.path.join(video_folder, os.path.basename(filename).lower())
 
     if not os.path.exists(path):
         logger.warning(f"[LOAD FAILED] File not found: {path}")
