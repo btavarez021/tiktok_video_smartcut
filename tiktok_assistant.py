@@ -54,6 +54,41 @@ os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
 # ============================================================================
 # S3 HELPERS
 # ============================================================================
+
+def load_all_analysis_results() -> Dict[str, str]:
+    """
+    Load all cached analysis JSON files from video_analysis_cache folder
+    and merge them with in-memory cache.
+    """
+    results = {}
+
+    # Load in-memory cache first
+    try:
+        for k, v in video_analyses_cache.items():
+            results[k] = v
+    except Exception:
+        pass
+
+    # Load on-disk files
+    try:
+        os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
+        for filename in os.listdir(ANALYSIS_CACHE_DIR):
+            if filename.endswith(".json"):
+                path = os.path.join(ANALYSIS_CACHE_DIR, filename)
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        fname = data.get("filename")
+                        desc = data.get("description")
+                        if fname and desc:
+                            results[fname] = desc
+                except Exception:
+                    continue
+    except Exception:
+        pass
+
+    return results
+
 def list_videos_from_s3() -> List[str]:
     """
     Return a list of video files under raw_uploads/.
