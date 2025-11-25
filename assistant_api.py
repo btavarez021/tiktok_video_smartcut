@@ -1,4 +1,3 @@
-# assistant_api.py
 import os
 import yaml
 import shutil
@@ -11,7 +10,7 @@ from assistant_log import log_step, status_log, clear_status_log
 from tiktok_template import (
     config_path,
     edit_video,
-    video_folder,   # local folder used for normalized / downloaded clips
+    video_folder,  # local folder used for normalized / downloaded clips
     client,
     normalize_video_ffmpeg,
 )
@@ -39,9 +38,10 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# ============================================
+# ======================================================
 # MODULE-LEVEL CONFIG (mirror of config.yml)
-# ============================================
+# ======================================================
+
 config = {}
 
 
@@ -62,9 +62,10 @@ def save_config():
         yaml.safe_dump(config, f, sort_keys=False)
 
 
-# ============================================
-# EXPORT MODE HELPERS (standard / optimized)
-# ============================================
+# ======================================================
+# EXPORT MODE HELPERS
+# ======================================================
+
 EXPORT_MODE_FILE = "export_mode.txt"
 
 
@@ -82,15 +83,16 @@ def get_export_mode() -> dict:
     if not os.path.exists(EXPORT_MODE_FILE):
         return {"mode": "standard"}
     with open(EXPORT_MODE_FILE, "r") as f:
-        mode = (f.read().strip() or "standard")
+        mode = f.read().strip() or "standard"
     if mode not in ("standard", "optimized"):
         mode = "standard"
     return {"mode": mode}
 
 
-# ============================================
+# ======================================================
 # LOAD ALL ANALYSIS RESULTS FROM DISK
-# ============================================
+# ======================================================
+
 def load_all_analysis_results():
     """
     Loads all cached analysis results stored as .json files in video_analysis_cache/
@@ -114,15 +116,17 @@ def load_all_analysis_results():
             filename = data.get("filename") or name.replace(".json", "")
             desc = data.get("description") or ""
             results[filename] = desc
+
         except Exception as e:
             logger.warning(f"⚠ Failed loading cached analysis file {name}: {e}")
 
     return results
 
 
-# ============================================
+# ======================================================
 # /api/analyze
-# ============================================
+# ======================================================
+
 def api_analyze():
     """
     - Clears local tik_tok_downloads folder
@@ -160,13 +164,16 @@ def api_analyze():
         log_step(f"Processing {key}…")
 
         try:
+            # Download from S3 to temp file
             tmp_local_path = download_s3_video(key)
             if not tmp_local_path:
                 log_step(f"❌ Failed to download {key}")
                 continue
 
-            base = os.path.basename(key)
+            # Normalize name
+            base = os.path.basename(key).lower()
             local_path = os.path.join(video_folder, base)
+
             log_step(f"Normalizing {base} → {local_path} …")
             normalize_video_ffmpeg(tmp_local_path, local_path)
 
@@ -175,10 +182,12 @@ def api_analyze():
             except:
                 pass
 
+            # Analyze with LLM ONCE
             log_step(f"Analyzing {base} with LLM…")
             desc = analyze_video(local_path)
             log_step(f"Analysis complete for {base}.")
 
+            # Save results
             save_analysis_result(base, desc)
             results[base] = desc
 
@@ -193,20 +202,21 @@ def api_analyze():
     return results
 
 
-# ============================================
+# ======================================================
 # /api/generate_yaml
-# ============================================
+# ======================================================
+
 def api_generate_yaml():
     """
     Use build_yaml_prompt + LLM to generate YAML, save to config.yml, and return dict.
     Uses both in-memory and disk cache for analyses.
     """
-    # Merge disk + memory so we survive new processes
+    # Merge disk + memory
     disk_results = load_all_analysis_results()
     merged = {**disk_results, **video_analyses_cache}
 
     if not merged:
-        log_step("No cached analyses; running quick analyze before YAML generation…")
+        log_step("No cached analyses; running analyze before YAML generation…")
         api_analyze()
         disk_results = load_all_analysis_results()
         merged = {**disk_results, **video_analyses_cache}
@@ -222,8 +232,8 @@ def api_generate_yaml():
     log_step("Calling LLM to produce YAML storyboard…")
 
     if client is None:
-        # Fallback: build a simple config without LLM
-        log_step("No OpenAI client; generating simple fallback YAML.")
+        # fallback
+        log_step("No OpenAI client; using fallback YAML.")
         simple_cfg = {
             "first_clip": {
                 "file": video_files[0],
@@ -258,6 +268,7 @@ def api_generate_yaml():
                 "position": "bottom",
             },
         }
+
         if len(video_files) > 2:
             for vf, a in zip(video_files[1:-1], analyses[1:-1]):
                 simple_cfg["middle_clips"].append(
@@ -276,7 +287,7 @@ def api_generate_yaml():
         log_step("Fallback YAML written to config.yml ✅")
         return simple_cfg
 
-    # Normal LLM path
+    # normal LLM flow
     resp = client.chat.completions.create(
         model=TEXT_MODEL,
         messages=[{"role": "user", "content": yaml_prompt}],
@@ -295,6 +306,10 @@ def api_generate_yaml():
     return cfg
 
 
+# ======================================================
+# /api/save_yaml
+# ======================================================
+
 def api_save_yaml(yaml_text: str):
     cfg = yaml.safe_load(yaml_text) or {}
     with open(config_path, "w") as f:
@@ -303,17 +318,11 @@ def api_save_yaml(yaml_text: str):
     return {"status": "ok"}
 
 
-# ============================================
-# /api/config (for YAML + captions)
-# ============================================
+# ======================================================
+# /api/config
+# ======================================================
+
 def api_get_config():
-    """
-    Returns:
-    {
-      "yaml": "<raw yaml text>",
-      "config": <parsed dict>
-    }
-    """
     load_config()
     if os.path.exists(config_path):
         with open(config_path, "r") as f:
@@ -326,14 +335,11 @@ def api_get_config():
     }
 
 
-# ============================================
-# /api/export (render to local file)
-# ============================================
+# ======================================================
+# /api/export
+# ======================================================
+
 def api_export(optimized: bool = False) -> str:
-    """
-    Calls tiktok_template.edit_video and returns the local output filename.
-    Raises on failure so the Flask route can handle it.
-    """
     clear_status_log()
     mode_label = "OPTIMIZED" if optimized else "STANDARD"
     log_step(f"Rendering export in {mode_label} mode…")
@@ -363,9 +369,10 @@ def api_export(optimized: bool = False) -> str:
     return filename
 
 
-# ============================================
+# ======================================================
 # /api/tts
-# ============================================
+# ======================================================
+
 def api_set_tts(enabled: bool, voice: str | None = None):
     load_config()
     render_cfg = config.setdefault("render", {})
@@ -376,9 +383,10 @@ def api_set_tts(enabled: bool, voice: str | None = None):
     return render_cfg
 
 
-# ============================================
+# ======================================================
 # /api/cta
-# ============================================
+# ======================================================
+
 def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None = None):
     load_config()
     cta_cfg = config.setdefault("cta", {})
@@ -391,26 +399,21 @@ def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None =
     return cta_cfg
 
 
-# ============================================
+# ======================================================
 # /api/overlay
-# ============================================
+# ======================================================
+
 def api_apply_overlay(style: str):
-    """
-    Apply overlay style (punchy / cinematic / descriptive / etc.) to all clips.
-    """
     apply_overlay(style=style, target="all", filename=None)
     load_config()
     return {"status": "ok"}
 
 
-# ============================================
+# ======================================================
 # /api/save_captions
-# ============================================
+# ======================================================
+
 def api_save_captions(text: str):
-    """
-    Overwrite captions in config.yml while keeping structure.
-    Splits textarea text into first / middle / last using blank lines.
-    """
     load_config()
 
     parts = [p.strip() for p in text.split("\n\n") if p.strip()]
@@ -435,13 +438,11 @@ def api_save_captions(text: str):
     return {"status": "ok", "count": len(parts)}
 
 
-# ============================================
+# ======================================================
 # /api/timings
-# ============================================
+# ======================================================
+
 def api_apply_timings(smart: bool = False):
-    """
-    Standard FIX-C or smart pacing (cinematic).
-    """
     if smart:
         apply_smart_timings(pacing="cinematic")
     else:
@@ -450,9 +451,10 @@ def api_apply_timings(smart: bool = False):
     return config
 
 
-# ============================================
+# ======================================================
 # /api/fgscale
-# ============================================
+# ======================================================
+
 def api_fgscale(value: float):
     load_config()
     render_cfg = config.setdefault("render", {})
@@ -461,9 +463,10 @@ def api_fgscale(value: float):
     return render_cfg
 
 
-# ============================================
-# /api/chat — LLM Creative Assistant
-# ============================================
+# ======================================================
+# /api/chat
+# ======================================================
+
 def api_chat(message: str):
     if client is None:
         return {"reply": "LLM is not configured (no API key)."}
