@@ -5,7 +5,7 @@ import subprocess
 from typing import List, Dict, Any, Optional
 
 import yaml
-from moviepy import editor as mpe
+import moviepy.editor as mpe
 
 from assistant_log import log_step
 
