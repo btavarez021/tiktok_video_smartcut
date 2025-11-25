@@ -4,3 +4,6 @@ boto3
 openai>=1.0.0
 pyyaml
 gunicorn
+moviepy
+imageio-ffmpeg
+numpy
