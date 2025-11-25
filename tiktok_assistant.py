@@ -1,35 +1,39 @@
+# tiktok_assistant.py
 import os
 import logging
 import tempfile
-from typing import Dict, List, Optional
-import json
 import subprocess
+import json
+from typing import Dict, List, Optional
+
 import boto3
 import yaml
 from openai import OpenAI
 
-from tiktok_template import normalize_video_ffmpeg, config_path, client as template_client, video_folder
 from assistant_log import log_step
+
+# Use config_path/edit_video/video_folder from your existing renderer
+from tiktok_template import config_path, edit_video, video_folder
 
 logger = logging.getLogger(__name__)
 
-# -------------------------------------------------
+# -----------------------------
 # OpenAI client / model
-# -------------------------------------------------
+# -----------------------------
 api_key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
-client: Optional[OpenAI] = template_client or (OpenAI(api_key=api_key) if api_key else None)
+client: Optional[OpenAI] = OpenAI(api_key=api_key) if api_key else None
 
 if not api_key:
     logger.warning("OPENAI_API_KEY / open_ai_api_key not set; LLM features may fail.")
 
 TEXT_MODEL = "gpt-4.1-mini"
 
-# -------------------------------------------------
+# -----------------------------
 # S3 CONFIG
-# -------------------------------------------------
+# -----------------------------
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME") or os.environ.get("AWS_BUCKET_NAME")
 if not S3_BUCKET_NAME:
-    raise RuntimeError("S3_BUCKET_NAME environment variable is required")
+    raise RuntimeError("S3_BUCKET_NAME (or AWS_BUCKET_NAME) environment variable is required")
 
 S3_REGION = os.environ.get("S3_REGION", "us-east-2")
 
@@ -39,85 +43,51 @@ EXPORT_PREFIX = "exports/"
 
 s3 = boto3.client("s3", region_name=S3_REGION)
 
-# -------------------------------------------------
-# GLOBAL ANALYSIS CACHE (IN-MEMORY + DISK)
-# -------------------------------------------------
+# -----------------------------
+# Analysis cache
+# -----------------------------
 video_analyses_cache: Dict[str, str] = {}
 
 ANALYSIS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "video_analysis_cache")
 os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
 
 
-# -------------------------------------------------
-# S3 HELPERS
-# -------------------------------------------------
-
-def normalize_video_ffmpeg(src: str, dst: str):
-    """
-    Run ffmpeg to normalize any input video into a vertical-friendly MP4.
-    Used during the S3 → local → analysis step.
-    """
-    try:
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-i", src,
-            "-vf", "scale=1080:-2",   # keep aspect ratio
-            "-c:v", "libx264",
-            "-preset", "medium",
-            "-crf", "18",
-            "-c:a", "aac",
-            dst,
-        ]
-
-        logger.info(f"Running ffmpeg: {' '.join(cmd)}")
-        subprocess.run(cmd, check=True)
-    except Exception as e:
-        logger.error(f"FFMPEG normalization failed for {src} → {dst}: {e}")
-        raise
-
-
-def normalize_video(src: str, dst: str):
-    """
-    Wrapper so assistant_api can call normalize_video(),
-    but internally we call normalize_video_ffmpeg().
-    """
-    normalize_video_ffmpeg(src, dst)
-
-
-def upload_raw_file(file_storage) -> str:
-    """
-    Upload a Flask FileStorage to S3 under raw_uploads/.
-    Returns S3 key.
-    """
-    filename = os.path.basename(file_storage.filename)
-    if not filename:
-        raise ValueError("Missing filename in upload.")
-    key = RAW_PREFIX + filename
-    s3.upload_fileobj(file_storage, S3_BUCKET_NAME, key)
-    log_step(f"Uploaded {filename} → s3://{S3_BUCKET_NAME}/{key}")
-    return key
-
-
+# -----------------------------
+# S3 helpers
+# -----------------------------
 def list_videos_from_s3() -> List[str]:
     """
     Return list of .mp4/.mov/.avi/.m4v keys under raw_uploads/.
     """
     resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
+    keys = [obj["Key"] for obj in resp.get("Contents", [])]
+    log_step(f"S3 RAW KEYS: {keys}")
+
     files: List[str] = []
-
-    contents = resp.get("Contents", [])
-    raw_keys = [obj["Key"] for obj in contents]
-    print("S3 RAW KEYS:", raw_keys)
-    log_step(f"S3 RAW KEYS: {raw_keys}")
-
-    for obj in contents:
-        key = obj["Key"]
+    for key in keys:
         ext = os.path.splitext(key)[1].lower()
         if ext in [".mp4", ".mov", ".avi", ".m4v"]:
             files.append(key)
-
     return files
+
+
+def upload_raw_file(file_storage) -> str:
+    """
+    Upload a browser-uploaded file (Werkzeug FileStorage) into S3 RAW_PREFIX.
+    Returns the S3 key used.
+    """
+    filename = os.path.basename(file_storage.filename or "").strip()
+    if not filename:
+        raise ValueError("Empty filename")
+
+    # Simple "sanitization"
+    filename = filename.replace(" ", "_")
+    key = f"{RAW_PREFIX}{filename}"
+
+    log_step(f"Uploading {filename} to s3://{S3_BUCKET_NAME}/{key} ...")
+    s3.upload_fileobj(file_storage, S3_BUCKET_NAME, key)
+    log_step(f"Uploaded to {key}")
+    return key
 
 
 def download_s3_video(key: str) -> Optional[str]:
@@ -136,65 +106,53 @@ def download_s3_video(key: str) -> Optional[str]:
         return None
 
 
-def move_all_raw_to_processed() -> None:
+# -----------------------------
+# Video normalization for analysis
+# -----------------------------
+def normalize_video(src: str, dst: str) -> None:
     """
-    Move ALL files under raw_uploads/ → processed/.
-    Safe to call after successful export.
+    Normalize a clip into a TikTok-friendly portrait format for analysis:
+    - Force 1080px width, preserve aspect ratio
+    - Ensure yuv420p pixel format
+    - Strip rotation metadata
+
+    This does NOT replace your final renderer; it just makes clips consistent
+    for LLM analysis and for your tiktok_template pipeline.
     """
-    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
-    contents = resp.get("Contents", [])
-    if not contents:
-        log_step("No files to move from raw_uploads/.")
-        return
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
 
-    for obj in contents:
-        key = obj["Key"]
-        if not key.lower().endswith((".mp4", ".mov", ".avi", ".m4v")):
-            continue
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        src,
+        "-vf",
+        "scale=1080:-2,setsar=1,format=yuv420p",
+        "-metadata:s:v:0",
+        "rotate=0",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-an",
+        dst,
+    ]
 
-        processed_key = key.replace(RAW_PREFIX, PROCESSED_PREFIX, 1)
-        try:
-            s3.copy_object(
-                Bucket=S3_BUCKET_NAME,
-                CopySource={"Bucket": S3_BUCKET_NAME, "Key": key},
-                Key=processed_key,
-            )
-            s3.delete_object(Bucket=S3_BUCKET_NAME, Key=key)
-            log_step(f"Moved {key} → {processed_key}")
-        except Exception as e:
-            logger.error(f"Failed to move {key} to processed/: {e}")
-
-
-def save_analysis_result(key: str, desc: str) -> None:
-    """
-    Cache analysis results BOTH in memory and to disk so API can read them.
-    """
+    log_step(f"[FFMPEG] Normalizing video {src} -> {dst}")
     try:
-        key_lower = os.path.basename(key).lower()
-
-        # in-memory
-        video_analyses_cache[key_lower] = desc
-
-        # on disk
-        file_path = os.path.join(ANALYSIS_CACHE_DIR, f"{key_lower}.json")
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    "filename": key_lower,
-                    "description": desc,
-                },
-                f,
-                indent=2,
-            )
-
-        log_step(f"Cached analysis for {key_lower} (memory + file).")
-    except Exception as e:
-        logger.error(f"save_analysis_result failed for {key}: {e}")
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        if proc.stderr:
+            log_step(f"[FFMPEG STDERR for {src}] {proc.stderr.splitlines()[0]}")
+    except subprocess.CalledProcessError as e:
+        log_step(f"[FFMPEG ERROR] {e.stderr or e.stdout}")
+        raise
 
 
-# -------------------------------------------------
-# LLM HELPERS
-# -------------------------------------------------
+# -----------------------------
+# Analysis helpers (LLM)
+# -----------------------------
 def analyze_video(path: str) -> str:
     """
     Use LLM to generate a hotel/travel-style one-sentence analysis for this clip.
@@ -219,25 +177,24 @@ Tone: natural, helpful travel review. No hashtags. No quotation marks.
 Return ONLY the sentence.
 """.strip()
 
-    try:
-        resp = client.chat.completions.create(
-            model=TEXT_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-        )
-        desc = (resp.choices[0].message.content or "").strip()
-        logger.info("LLM analysis for %s: %s", basename, desc)
-        return desc
-    except Exception as e:
-        logger.error(f"analyze_video LLM call failed for {basename}: {e}")
-        return f"Hotel / travel clip showcasing views or amenities in {basename}."
+    resp = client.chat.completions.create(
+        model=TEXT_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
+    )
+    desc = (resp.choices[0].message.content or "").strip()
+    logger.info("LLM analysis for %s: %s", basename, desc)
+    return desc
 
 
 def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
+    """
+    Build a prompt asking the LLM to output a full YAML storyboard config.yml.
+    """
     if not video_files:
-        return "Generate an empty YAML config.yml with first_clip, middle_clips, last_clip."
+        return "Generate an empty config.yml with first_clip, middle_clips, last_clip."
 
-    lines = [
+    lines: List[str] = [
         "You are a TikTok editor for HOTEL / TRAVEL review videos.",
         "",
         "You will generate a YAML config.yml for a vertical TikTok.",
@@ -249,7 +206,7 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
         "- Each caption must be ONE sentence, <= 150 characters.",
         "- First clip: strong hook.",
         "- Middle clips: show value and visuals.",
-        "- Last clip: recap + soft CTA (eg. 'Would you stay here?').",
+        "- Last clip: recap + soft CTA (e.g. 'Would you stay here?').",
         "- Keep total video length ideally <= 60 seconds.",
         "",
         "Use this EXACT schema:",
@@ -276,35 +233,39 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
         "  scale: 1.0",
         "",
         "music:",
-        '  style: "chill travel"',
-        '  mood: "uplifting"',
+        '  style: \"chill travel\"',
+        '  mood: \"uplifting\"',
         "  volume: 0.25",
         "",
         "render:",
         "  tts_enabled: false",
-        '  tts_voice: "alloy"',
+        '  tts_voice: \"alloy\"',
         "  fg_scale_default: 1.0",
+        "  blur_background: true",
         "",
         "cta:",
         "  enabled: false",
-        '  text: ""',
+        '  text: \"\"',
         "  voiceover: false",
         "  duration: 3.0",
-        '  position: "bottom"',
+        '  position: \"bottom\"',
         "",
         "Now here are the clips and analyses:",
     ]
 
     for idx, (vf, a) in enumerate(zip(video_files, analyses)):
-        lines.append(f"- clip_{idx+1}:")
+        lines.append(f"- clip_{idx + 1}:")
         lines.append(f"    file: {vf}")
         lines.append(f"    analysis: {a or 'No analysis.'}")
 
     lines.append("")
-    lines.append("Return ONLY valid YAML for config.yml. No backticks, no prose.")
+    lines.append("Return ONLY valid YAML for config.yml. Do not include any backticks or commentary.")
     return "\n".join(lines)
 
 
+# -----------------------------
+# Overlay / timings (LLM)
+# -----------------------------
 def _style_instructions(style: str) -> str:
     style = (style or "").lower()
     if style == "punchy":
@@ -316,16 +277,13 @@ def _style_instructions(style: str) -> str:
     if style == "influencer":
         return "First-person, enthusiastic influencer tone ('I', 'you'), high energy, social-media vibe, a few emojis."
     if style == "travel_blog":
-        return (
-            "Hotel-review travel blogger tone. Focus on room type, amenities, views, "
-            "location, and why it's a great stay."
-        )
+        return "Hotel-review travel blogger tone. Focus on room type, amenities, views, location, and why it's a great stay."
     return "Friendly, hotel-focused travel review tone with light influencer enthusiasm."
 
 
 def apply_overlay(style: str, target: str = "all", filename: Optional[str] = None) -> None:
     try:
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             current_yaml = f.read()
     except Exception as e:
         logger.error(f"apply_overlay: failed to read config.yml: {e}")
@@ -338,29 +296,29 @@ def apply_overlay(style: str, target: str = "all", filename: Optional[str] = Non
     instructions = _style_instructions(style)
 
     prompt = f"""
-    You are rewriting captions for a HOTEL / TRAVEL TikTok.
+You are rewriting captions for a HOTEL / TRAVEL TikTok.
 
-    Caption style: {style}
-    Style instructions: {instructions}
+Caption style: {style}
+Style instructions: {instructions}
 
-    Rules:
-    - Work on the YAML config.yml below.
-    - KEEP THE SAME STRUCTURE and keys.
-    - Do NOT add or remove clips.
-    - Only change the values of fields named "text" in:
-    - first_clip
-    - each item in middle_clips
-    - last_clip
-    - Each caption must be ONE sentence and <= 150 characters.
-    - Assume the content is hotel-focused (property, rooms, views, pool, restaurants, location).
-    - Make captions natural, not spammy. No hashtags.
+Rules:
+- Work on the YAML config.yml below.
+- KEEP THE SAME STRUCTURE and keys.
+- Do NOT add or remove clips.
+- Only change the values of fields named "text" in:
+  - first_clip
+  - each item in middle_clips
+  - last_clip
+- Each caption must be ONE sentence and <= 150 characters.
+- Assume the content is hotel-focused (property, rooms, views, pool, restaurants, location).
+- Make captions natural, not spammy. No hashtags.
 
-    Current YAML:
-    ```yaml
-    {current_yaml}
-    Return ONLY the updated YAML. No backticks, no explanation.
-    """.strip()
-    
+Current YAML:
+{current_yaml}
+
+Return ONLY the updated YAML. No extra commentary.
+""".strip()
+
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
@@ -374,7 +332,7 @@ def apply_overlay(style: str, target: str = "all", filename: Optional[str] = Non
         if not isinstance(cfg, dict):
             raise ValueError("Overlay LLM did not return a dict config.")
 
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
         logger.info("apply_overlay: captions updated with style '%s'", style)
@@ -382,9 +340,10 @@ def apply_overlay(style: str, target: str = "all", filename: Optional[str] = Non
     except Exception as e:
         logger.error(f"apply_overlay LLM call failed: {e}")
 
+
 def apply_smart_timings(pacing: str = "standard") -> None:
     try:
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             current_yaml = f.read()
     except Exception as e:
         logger.error(f"apply_smart_timings: failed to read config.yml: {e}")
@@ -406,38 +365,29 @@ def apply_smart_timings(pacing: str = "standard") -> None:
         )
 
     prompt = f"""
-        You are adjusting clip durations for a HOTEL / TRAVEL TikTok config.yml.
+You are adjusting clip durations for a HOTEL / TRAVEL TikTok config.yml.
 
-        Pacing mode: {pacing}
-        Instructions: {pacing_desc}
+Pacing mode: {pacing}
+Instructions: {pacing_desc}
 
-        Rules:
+Rules:
+- Work on the YAML below.
+- KEEP THE SAME STRUCTURE and keys.
+- Only change numeric "duration" values inside:
+  - first_clip
+  - each item in middle_clips
+  - last_clip
+- If a duration is missing, add a reasonable one.
+- Durations must be positive numbers (seconds).
+- Try to keep the total video length <= 60 seconds.
+- Do NOT change text, file names, or other fields.
 
-        Work on the YAML below.
+Current YAML:
+{current_yaml}
 
-        KEEP THE SAME STRUCTURE and keys.
+Return ONLY the updated YAML. No extra commentary.
+""".strip()
 
-        Only change numeric "duration" values inside:
-
-        first_clip
-
-        each item in middle_clips
-
-        last_clip
-
-        If a duration is missing, add a reasonable one.
-
-        Durations must be positive numbers (seconds).
-
-        Try to keep the total video length <= 60 seconds.
-
-        Do NOT change text, file names, or other fields.
-
-        Current YAML:
-        {current_yaml}
-        Return ONLY the updated YAML. No backticks, no explanation.
-        """.strip()
-    
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
@@ -451,7 +401,7 @@ def apply_smart_timings(pacing: str = "standard") -> None:
         if not isinstance(cfg, dict):
             raise ValueError("Smart timings LLM did not return a dict config.")
 
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
         logger.info("apply_smart_timings: timings updated (pacing=%s)", pacing)
@@ -460,7 +410,33 @@ def apply_smart_timings(pacing: str = "standard") -> None:
         logger.error(f"apply_smart_timings LLM call failed: {e}")
 
 
+# -----------------------------
+# Cache helper
+# -----------------------------
+def save_analysis_result(key: str, desc: str) -> None:
+    """
+    Cache analysis results BOTH in memory and to disk so API can read them.
+    """
+    try:
+        key_lower = key.lower()
 
+        # in-memory
+        video_analyses_cache[key_lower] = desc
 
+        # on disk
+        os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
+        file_path = os.path.join(ANALYSIS_CACHE_DIR, f"{key_lower}.json")
 
-    
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "filename": key_lower,
+                    "description": desc,
+                },
+                f,
+                indent=2,
+            )
+
+        log_step(f"Cached analysis for {key_lower} (memory + file).")
+    except Exception as e:
+        logger.error(f"save_analysis_result failed for {key}: {e}")

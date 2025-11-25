@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="app-shell">
-        <!-- Sidebar / Header -->
+        <!-- Header -->
         <header class="app-header">
             <div class="brand">
                 <div class="brand-logo">TS</div>
@@ -27,7 +27,7 @@
         <nav class="stepper">
             <button class="step active" data-target="#step-1">
                 <span class="step-index">1</span>
-                <span class="step-label">Analyze Clips</span>
+                <span class="step-label">Upload & Analyze</span>
             </button>
             <button class="step" data-target="#step-2">
                 <span class="step-index">2</span>
@@ -50,15 +50,31 @@
         <main class="layout">
             <!-- Main content (left) -->
             <section class="main-column">
-                <!-- STEP 1: Analyze -->
+                <!-- STEP 1: Upload & Analyze -->
                 <section class="card step-card" id="step-1">
                     <div class="card-header">
-                        <h2>Step 1 · Analyze S3 Clips</h2>
+                        <h2>Step 1 · Upload & Analyze Clips</h2>
                         <p class="card-subtitle">
-                            Reads videos from your <code>raw_uploads/</code> S3 folder and generates short hotel-style descriptions.
+                            Upload from your device to <code>raw_uploads/</code> in S3, then auto-generate hotel-style descriptions for each clip.
                         </p>
                     </div>
                     <div class="card-body">
+                        <div class="card-subsection">
+                            <h3>Upload to S3</h3>
+                            <p class="hint-text">
+                                Choose vertical-friendly clips from your phone or computer. They will be stored under <code>raw_uploads/</code> in your bucket.
+                            </p>
+                            <div class="row">
+                                <input id="uploadFiles" type="file" multiple />
+                                <button id="uploadBtn" class="btn secondary">
+                                    ⬆ Upload selected clips
+                                </button>
+                            </div>
+                            <div id="uploadStatus" class="hint-text"></div>
+                        </div>
+
+                        <hr class="divider" />
+
                         <div class="row">
                             <button id="analyzeBtn" class="btn primary">
                                 🔍 Analyze clips from S3
@@ -217,7 +233,11 @@
                                     <label for="ctaText" class="field-label">
                                         CTA text
                                     </label>
-                                    <input id="ctaText" class="input" placeholder="Tap to see tonight's rate & deals 🔗" />
+                                    <input
+                                        id="ctaText"
+                                        class="input"
+                                        placeholder="Tap to see tonight's rate & deals 🔗"
+                                    />
                                     <label class="checkbox">
                                         <input type="checkbox" id="ctaVoiceover" />
                                         <span>Include CTA in voiceover</span>
@@ -297,8 +317,12 @@
                         </p>
                     </div>
                     <div class="card-body">
-                        <textarea id="chatInput" class="textarea" rows="3"
-                            placeholder="E.g. 'Give me 3 hook ideas for these clips focusing on the ocean-view balcony.'"></textarea>
+                        <textarea
+                            id="chatInput"
+                            class="textarea"
+                            rows="3"
+                            placeholder="E.g. 'Give me 3 hook ideas for these clips focusing on the ocean-view balcony.'"
+                        ></textarea>
                         <button id="chatSendBtn" class="btn secondary full">
                             💬 Ask the assistant
                         </button>

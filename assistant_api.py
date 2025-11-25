@@ -1,12 +1,12 @@
-
-## 5️⃣ `assistant_api.py`
-    
+# assistant_api.py
 import os
 import yaml
 import json
 import logging
 import traceback
 from typing import Dict, Any, List
+
+from openai import OpenAI
 
 from assistant_log import log_step, clear_status_log
 from tiktok_template import config_path, edit_video, video_folder
@@ -21,9 +21,9 @@ from tiktok_assistant import (
     download_s3_video,
     save_analysis_result,
     ANALYSIS_CACHE_DIR,
-    normalize_video
+    normalize_video,
+    client as shared_client,
 )
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,24 +32,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Reuse client from tiktok_assistant (or create fallback)
+client: OpenAI | None = shared_client
+if client is None:
+    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
+    client = OpenAI(api_key=api_key) if api_key else None
+
 # ============================================
 # MODULE-LEVEL CONFIG (mirror of config.yml)
 # ============================================
 CONFIG: Dict[str, Any] = {}
 
 
-def load_config():
+def load_config() -> Dict[str, Any]:
     global CONFIG
     if os.path.exists(config_path):
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             CONFIG = yaml.safe_load(f) or {}
     else:
         CONFIG = {}
     return CONFIG
 
 
-def save_config():
-    with open(config_path, "w") as f:
+def save_config() -> None:
+    with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(CONFIG, f, sort_keys=False)
 
 
@@ -62,7 +68,7 @@ EXPORT_MODE_FILE = "export_mode.txt"
 def set_export_mode(mode: str) -> Dict[str, str]:
     if mode not in ("standard", "optimized"):
         mode = "standard"
-    with open(EXPORT_MODE_FILE, "w") as f:
+    with open(EXPORT_MODE_FILE, "w", encoding="utf-8") as f:
         f.write(mode)
     return {"mode": mode}
 
@@ -70,7 +76,7 @@ def set_export_mode(mode: str) -> Dict[str, str]:
 def get_export_mode() -> Dict[str, str]:
     if not os.path.exists(EXPORT_MODE_FILE):
         return {"mode": "standard"}
-    with open(EXPORT_MODE_FILE, "r") as f:
+    with open(EXPORT_MODE_FILE, "r", encoding="utf-8") as f:
         mode = (f.read().strip() or "standard")
     if mode not in ("standard", "optimized"):
         mode = "standard"
@@ -102,7 +108,7 @@ def load_all_analysis_results() -> Dict[str, str]:
             desc = data.get("description") or ""
             results[filename] = desc
         except Exception as e:
-            logger.warning(f"⚠ Failed loading cached analysis file {name}: {e}")
+            logger.warning(f"Failed loading cached analysis file {name}: {e}")
 
     # merge with in-memory cache
     results.update(video_analyses_cache)
@@ -116,7 +122,7 @@ _ANALYZE_QUEUE: List[str] = []
 _ANALYZE_INDEX: int = 0
 
 
-def _reset_local_video_folder():
+def _reset_local_video_folder() -> None:
     os.makedirs(video_folder, exist_ok=True)
     for name in os.listdir(video_folder):
         path = os.path.join(video_folder, name)
@@ -127,7 +133,7 @@ def _reset_local_video_folder():
                 pass
 
 
-def api_analyze_start():
+def api_analyze_start() -> Dict[str, Any]:
     """
     - Clears local tik_tok_downloads folder
     - Lists raw_uploads/*.mp4 from S3 and stores in queue
@@ -135,11 +141,11 @@ def api_analyze_start():
     global _ANALYZE_QUEUE, _ANALYZE_INDEX
 
     clear_status_log()
-    log_step("Starting analysis…")
+    log_step("Starting analysis...")
 
     _reset_local_video_folder()
 
-    log_step("Fetching videos from S3 (raw_uploads/)…")
+    log_step("Fetching videos from S3 (raw_uploads/)...")
     s3_keys = list_videos_from_s3()
 
     if not s3_keys:
@@ -155,7 +161,7 @@ def api_analyze_start():
     return {"total": len(s3_keys), "remaining": len(s3_keys), "keys": s3_keys}
 
 
-def api_analyze_step():
+def api_analyze_step() -> Dict[str, Any]:
     """
     Process ONE video from _ANALYZE_QUEUE.
     Returns {done, total, index, key, description?}
@@ -166,16 +172,16 @@ def api_analyze_step():
         return {"done": True, "total": 0, "index": 0}
 
     if _ANALYZE_INDEX >= len(_ANALYZE_QUEUE):
-        log_step("All videos analyzed ✅")
+        log_step("All videos analyzed.")
         return {"done": True, "total": len(_ANALYZE_QUEUE), "index": _ANALYZE_INDEX}
 
     key = _ANALYZE_QUEUE[_ANALYZE_INDEX]
-    log_step(f"Processing {key}…")
+    log_step(f"Processing {key}...")
 
     try:
         tmp_local_path = download_s3_video(key)
         if not tmp_local_path:
-            log_step(f"❌ Failed to download {key}")
+            log_step(f"Failed to download {key}")
             _ANALYZE_INDEX += 1
             return {
                 "done": _ANALYZE_INDEX >= len(_ANALYZE_QUEUE),
@@ -187,7 +193,7 @@ def api_analyze_step():
 
         base = os.path.basename(key).lower()
         local_path = os.path.join(video_folder, base)
-        log_step(f"Normalizing {base} → {local_path} …")
+        log_step(f"Normalizing {base} -> {local_path} ...")
         normalize_video(tmp_local_path, local_path)
 
         try:
@@ -195,12 +201,12 @@ def api_analyze_step():
         except OSError:
             pass
 
-        log_step(f"Analyzing {base} with LLM…")
+        log_step(f"Analyzing {base} with LLM...")
         desc = analyze_video(local_path)
         log_step(f"Analysis complete for {base}.")
 
         save_analysis_result(base, desc)
-        result = {
+        result: Dict[str, Any] = {
             "done": False,
             "total": len(_ANALYZE_QUEUE),
             "index": _ANALYZE_INDEX + 1,
@@ -208,7 +214,7 @@ def api_analyze_step():
             "description": desc,
         }
     except Exception as e:
-        err_msg = f"❌ ERROR processing {key}: {e}"
+        err_msg = f"ERROR processing {key}: {e}"
         log_step(err_msg)
         log_step(traceback.format_exc())
         logger.exception(err_msg)
@@ -222,21 +228,21 @@ def api_analyze_step():
 
     _ANALYZE_INDEX += 1
     if _ANALYZE_INDEX >= len(_ANALYZE_QUEUE):
-        log_step("All videos analyzed ✅")
+        log_step("All videos analyzed.")
         result["done"] = True
 
     return result
 
 
-def api_analyze():
+def api_analyze() -> Dict[str, str]:
     """
     Convenience one-shot analyze (loops steps).
-    May be slower, but keeps compatibility with /api/analyze.
+    Used by /api/analyze from the UI.
     """
     start_info = api_analyze_start()
     total = start_info.get("total", 0)
     if total == 0:
-        return {"results": {}, "total": 0}
+        return {}
 
     while True:
         step = api_analyze_step()
@@ -249,7 +255,7 @@ def api_analyze():
 # ============================================
 # YAML GENERATION
 # ============================================
-def api_generate_yaml():
+def api_generate_yaml() -> Dict[str, Any]:
     """
     Use build_yaml_prompt + LLM to generate YAML, save to config.yml, and return dict.
     Uses both in-memory and disk cache for analyses.
@@ -257,7 +263,7 @@ def api_generate_yaml():
     merged = load_all_analysis_results()
 
     if not merged:
-        log_step("No cached analyses; running quick analyze before YAML generation…")
+        log_step("No cached analyses; running quick analyze before YAML generation...")
         api_analyze()
         merged = load_all_analysis_results()
 
@@ -269,12 +275,12 @@ def api_generate_yaml():
         return {}
 
     yaml_prompt = build_yaml_prompt(video_files, analyses)
-    log_step("Calling LLM to produce YAML storyboard…")
+    log_step("Calling LLM to produce YAML storyboard...")
 
     if client is None:
         # Fallback: build a simple config without LLM
         log_step("No OpenAI client; generating simple fallback YAML.")
-        simple_cfg = {
+        simple_cfg: Dict[str, Any] = {
             "first_clip": {
                 "file": video_files[0],
                 "start_time": 0,
@@ -299,6 +305,7 @@ def api_generate_yaml():
                 "tts_enabled": False,
                 "tts_voice": "alloy",
                 "fg_scale_default": 1.0,
+                "blur_background": True,
             },
             "cta": {
                 "enabled": False,
@@ -320,13 +327,12 @@ def api_generate_yaml():
                     }
                 )
 
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(simple_cfg, f, sort_keys=False)
         load_config()
-        log_step("Fallback YAML written to config.yml ✅")
+        log_step("Fallback YAML written to config.yml")
         return simple_cfg
 
-    # Normal LLM path
     resp = client.chat.completions.create(
         model=TEXT_MODEL,
         messages=[{"role": "user", "content": yaml_prompt}],
@@ -337,26 +343,26 @@ def api_generate_yaml():
 
     cfg = yaml.safe_load(yaml_text) or {}
 
-    with open(config_path, "w") as f:
+    with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
 
     load_config()
-    log_step("YAML written to config.yml ✅")
+    log_step("YAML written to config.yml")
     return cfg
 
 
-def api_save_yaml(yaml_text: str):
+def api_save_yaml(yaml_text: str) -> Dict[str, str]:
     cfg = yaml.safe_load(yaml_text) or {}
-    with open(config_path, "w") as f:
+    with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
     load_config()
     return {"status": "ok"}
 
 
-def api_get_config():
+def api_get_config() -> Dict[str, Any]:
     load_config()
     if os.path.exists(config_path):
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             yaml_text = f.read()
     else:
         yaml_text = "# No config.yml found yet."
@@ -372,24 +378,24 @@ def api_get_config():
 def api_export(optimized: bool = False) -> str:
     clear_status_log()
     mode_label = "OPTIMIZED" if optimized else "STANDARD"
-    log_step(f"Rendering export in {mode_label} mode…")
+    log_step(f"Rendering export in {mode_label} mode...")
 
     filename = "output_tiktok_final_optimized.mp4" if optimized else "output_tiktok_final.mp4"
 
     try:
-        log_step("Rendering timeline with music, captions, and voiceover flags…")
+        log_step("Rendering timeline with music, captions, and voiceover flags...")
         edit_video(output_file=filename, optimized=optimized)
-        log_step(f"Export finished → {filename}")
+        log_step(f"Export finished -> {filename}")
     except Exception as e:
         msg = f"Export failed while calling edit_video: {e}"
-        log_step(f"❌ {msg}")
+        log_step(msg)
         logger.exception(msg)
         raise
 
     full_path = os.path.join(os.getcwd(), filename)
     if not os.path.exists(full_path):
         msg = f"Export failed: file {filename} not found after render."
-        log_step(f"❌ {msg}")
+        log_step(msg)
         logger.error(msg)
         raise FileNotFoundError(msg)
 
@@ -399,7 +405,7 @@ def api_export(optimized: bool = False) -> str:
 # ============================================
 # TTS / CTA / FG SCALE
 # ============================================
-def api_set_tts(enabled: bool, voice: str | None = None):
+def api_set_tts(enabled: bool, voice: str | None = None) -> Dict[str, Any]:
     load_config()
     render_cfg = CONFIG.setdefault("render", {})
     render_cfg["tts_enabled"] = bool(enabled)
@@ -409,7 +415,7 @@ def api_set_tts(enabled: bool, voice: str | None = None):
     return render_cfg
 
 
-def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None = None):
+def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None = None) -> Dict[str, Any]:
     load_config()
     cta_cfg = CONFIG.setdefault("cta", {})
     cta_cfg["enabled"] = bool(enabled)
@@ -421,7 +427,7 @@ def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None =
     return cta_cfg
 
 
-def api_fgscale(value: float):
+def api_fgscale(value: float) -> Dict[str, Any]:
     load_config()
     render_cfg = CONFIG.setdefault("render", {})
     render_cfg["fg_scale_default"] = float(value)
@@ -432,13 +438,13 @@ def api_fgscale(value: float):
 # ============================================
 # Overlay / Timings
 # ============================================
-def api_apply_overlay(style: str):
+def api_apply_overlay(style: str) -> Dict[str, str]:
     apply_overlay(style=style, target="all", filename=None)
     load_config()
     return {"status": "ok"}
 
 
-def api_apply_timings(smart: bool = False):
+def api_apply_timings(smart: bool = False) -> Dict[str, Any]:
     if smart:
         apply_smart_timings(pacing="cinematic")
     else:
@@ -450,7 +456,7 @@ def api_apply_timings(smart: bool = False):
 # ============================================
 # Captions
 # ============================================
-def api_get_captions():
+def api_get_captions() -> Dict[str, str]:
     load_config()
     lines: List[str] = []
 
@@ -463,12 +469,14 @@ def api_get_captions():
     if "last_clip" in CONFIG:
         lines.append(CONFIG["last_clip"].get("text", ""))
 
-    return {"captions": "\n".join(lines)}
+    return {"captions": "\n\n".join([l for l in lines if l])}
 
 
-def api_save_captions(text: str):
+def api_save_captions(text: str) -> Dict[str, Any]:
     load_config()
-    captions = [line.strip() for line in text.split("\n") if line.strip()]
+    # Split by blank lines into per-clip paragraphs
+    blocks_raw = text.split("\n\n")
+    captions = [b.strip() for b in blocks_raw if b.strip()]
 
     idx = 0
     if "first_clip" in CONFIG and idx < len(captions):
@@ -490,14 +498,14 @@ def api_save_captions(text: str):
 # ============================================
 # Chat – TikTok creative assistant
 # ============================================
-def api_chat(message: str):
+def api_chat(message: str) -> Dict[str, str]:
     if client is None:
         return {"reply": "LLM is not configured (no API key)."}
 
     prompt = (
         "You are the TikTok Creative Assistant. Use the user's video analyses to "
         "craft hooks, captions, CTAs, and storylines.\n\n"
-        f"Video Analyses:\n{video_analyses_cache}\n\n"
+        f"Video Analyses:\n{json.dumps(video_analyses_cache, indent=2)}\n\n"
         f"User Request:\n{message}"
     )
 
@@ -507,5 +515,5 @@ def api_chat(message: str):
         temperature=0.8,
     )
 
-    reply = resp.choices[0].message.content
+    reply = resp.choices[0].message.content or ""
     return {"reply": reply}

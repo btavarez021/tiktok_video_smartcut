@@ -1,3 +1,4 @@
+# app.py
 import os
 from flask import Flask, jsonify, request, send_file, render_template
 from flask_cors import CORS
@@ -21,9 +22,9 @@ from assistant_api import (
     api_chat,
     get_export_mode,
     set_export_mode,
+    load_all_analysis_results,
 )
 from tiktok_assistant import upload_raw_file
-
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)
@@ -76,9 +77,6 @@ def route_upload():
 # ---------------------------------
 # Analyses cache (disk + memory)
 # ---------------------------------
-from assistant_api import load_all_analysis_results  # after import to avoid cycles
-
-
 @app.route("/api/analyses_cache", methods=["GET"])
 def api_get_analyses_cache():
     results = load_all_analysis_results()
@@ -86,7 +84,7 @@ def api_get_analyses_cache():
 
 
 # ---------------------------------
-# Step-based ANALYZE API
+# Analyze APIs
 # ---------------------------------
 @app.route("/api/analyze_start", methods=["POST"])
 def route_analyze_start():
@@ -100,7 +98,6 @@ def route_analyze_step():
     return jsonify(result)
 
 
-# Optional: one-shot analyze (may be slower)
 @app.route("/api/analyze", methods=["POST"])
 def route_analyze():
     result = api_analyze()
@@ -159,7 +156,6 @@ def route_export():
 
 @app.route("/api/download/<path:filename>", methods=["GET"])
 def route_download(filename):
-    # Export is written to project root
     full_path = os.path.join(os.getcwd(), filename)
     if not os.path.exists(full_path):
         return jsonify({"error": f"File {filename} not found."}), 404

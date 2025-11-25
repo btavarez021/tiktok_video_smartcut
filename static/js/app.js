@@ -1,3 +1,5 @@
+// static/js/app.js
+
 // Utility: small helper for fetch with JSON
 async function jsonFetch(url, options = {}) {
     const resp = await fetch(url, {
@@ -30,7 +32,6 @@ function initStepper() {
         });
     });
 
-    // Also track scroll to update active step
     const steps = Array.from(document.querySelectorAll(".step-card"));
     const observer = new IntersectionObserver(
         (entries) => {
@@ -62,7 +63,7 @@ async function refreshStatusLog() {
         el.textContent = log.join("\n");
         el.scrollTop = el.scrollHeight;
     } catch (err) {
-        // Fail silently in UI for logs
+        // ignore log errors in UI
     }
 }
 
@@ -70,6 +71,43 @@ function startStatusLogPolling() {
     if (statusLogTimer) clearInterval(statusLogTimer);
     refreshStatusLog();
     statusLogTimer = setInterval(refreshStatusLog, 2000);
+}
+
+// Step 1: Upload to S3
+async function uploadFilesToS3() {
+    const input = document.getElementById("uploadFiles");
+    const statusEl = document.getElementById("uploadStatus");
+    if (!input || !input.files || input.files.length === 0) {
+        statusEl.textContent = "No files selected.";
+        return;
+    }
+
+    const formData = new FormData();
+    for (const file of input.files) {
+        formData.append("files", file);
+    }
+
+    statusEl.textContent = "Uploading to S3...";
+    try {
+        const resp = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+        });
+        if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text || `Upload failed: ${resp.status}`);
+        }
+        const data = await resp.json();
+        const uploaded = data.uploaded || [];
+        if (uploaded.length) {
+            statusEl.textContent = `Uploaded ${uploaded.length} file(s) to S3.`;
+        } else {
+            statusEl.textContent = "Upload completed but no files returned. Check logs.";
+        }
+    } catch (err) {
+        console.error(err);
+        statusEl.textContent = `Error uploading: ${err.message}`;
+    }
 }
 
 // Step 1: Analysis
@@ -121,7 +159,6 @@ async function refreshAnalyses() {
 }
 
 // Step 2: YAML generation & config
-
 async function generateYaml() {
     const statusEl = document.getElementById("yamlStatus");
     statusEl.textContent = "Calling LLM to build config.yml storyboard…";
@@ -167,7 +204,6 @@ async function saveYaml() {
 }
 
 // Step 3: Captions
-
 function buildCaptionsFromConfig(cfg) {
     if (!cfg || typeof cfg !== "object") return "";
     const parts = [];
@@ -212,7 +248,7 @@ async function saveCaptions() {
             method: "POST",
             body: JSON.stringify({ text }),
         });
-        statusEl.textContent = `Saved ${result.count || 0} caption block(s).`;
+        statusEl.textContent = `Saved ${result.captions_applied || 0} caption block(s).`;
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
@@ -221,7 +257,6 @@ async function saveCaptions() {
 }
 
 // Step 4: Overlay, timings, TTS, CTA, fg scale
-
 async function applyOverlay() {
     const styleSel = document.getElementById("overlayStyle");
     const statusEl = document.getElementById("overlayStatus");
@@ -322,7 +357,6 @@ function initFgScaleSlider() {
 }
 
 // Step 5: Export
-
 async function exportVideo() {
     const exportStatus = document.getElementById("exportStatus");
     const downloadArea = document.getElementById("downloadArea");
@@ -363,7 +397,6 @@ async function exportVideo() {
 }
 
 // Chat
-
 async function sendChat() {
     const input = document.getElementById("chatInput");
     const output = document.getElementById("chatOutput");
@@ -389,35 +422,26 @@ async function sendChat() {
 }
 
 // Wire everything up
-
 document.addEventListener("DOMContentLoaded", () => {
     initStepper();
     startStatusLogPolling();
     initFgScaleSlider();
 
-    document.getElementById("analyzeBtn")?.addEventListener("click", analyzeClips);
-    document
-        .getElementById("refreshAnalysesBtn")
-        ?.addEventListener("click", refreshAnalyses);
+    document.getElementById("uploadBtn")?.addEventListener("click", uploadFilesToS3);
 
-    document
-        .getElementById("generateYamlBtn")
-        ?.addEventListener("click", generateYaml);
-    document
-        .getElementById("refreshYamlBtn")
-        ?.addEventListener("click", loadConfigAndYaml);
+    document.getElementById("analyzeBtn")?.addEventListener("click", analyzeClips);
+    document.getElementById("refreshAnalysesBtn")?.addEventListener("click", refreshAnalyses);
+
+    document.getElementById("generateYamlBtn")?.addEventListener("click", generateYaml);
+    document.getElementById("refreshYamlBtn")?.addEventListener("click", loadConfigAndYaml);
     document.getElementById("saveYamlBtn")?.addEventListener("click", saveYaml);
 
     document
         .getElementById("loadCaptionsFromYamlBtn")
         ?.addEventListener("click", loadCaptionsFromYaml);
-    document
-        .getElementById("saveCaptionsBtn")
-        ?.addEventListener("click", saveCaptions);
+    document.getElementById("saveCaptionsBtn")?.addEventListener("click", saveCaptions);
 
-    document
-        .getElementById("applyOverlayBtn")
-        ?.addEventListener("click", applyOverlay);
+    document.getElementById("applyOverlayBtn")?.addEventListener("click", applyOverlay);
     document
         .getElementById("applyStandardTimingBtn")
         ?.addEventListener("click", () => applyTiming(false));
@@ -427,9 +451,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("saveTtsBtn")?.addEventListener("click", saveTtsSettings);
     document.getElementById("saveCtaBtn")?.addEventListener("click", saveCtaSettings);
-    document
-        .getElementById("saveFgScaleBtn")
-        ?.addEventListener("click", saveFgScale);
+    document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
 
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
 

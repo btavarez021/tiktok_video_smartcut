@@ -1,23 +1,6 @@
-# --- Core ---
-logging
-python-dotenv
-PyYAML
-openai
-
-# --- Video Processing ---
-moviepy==1.0.3
-Pillow
-imageio
-imageio-ffmpeg
-srt
-
-# --- Web Server ---
 flask
+flask-cors
 boto3
-flask_cors
-
-
-# --- Optional (but recommended) ---
-requests
+openai>=1.0.0
+pyyaml
 gunicorn
-gtts

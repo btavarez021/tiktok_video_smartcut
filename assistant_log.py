@@ -1,18 +1,28 @@
-import datetime
+# assistant_log.py
 
-status_log = []  # simple in-memory log
+from typing import List
+
+# In-memory rolling log for UI
+status_log: List[str] = []
 
 
-def log_step(message: str):
-    """Append a status line with timestamp."""
-    ts = datetime.datetime.utcnow().strftime("%H:%M:%S")
-    line = f"[{ts}] {message}"
-    print(line)
+def log_step(message: str) -> None:
+    """
+    Append a message to the rolling status log and also print it
+    (so it shows up in Render logs).
+    """
+    line = message.strip()
+    if not line:
+        return
+
+    print(f"[LOG] {line}")
     status_log.append(line)
-    # cap log length
+
+    # Keep log from growing unbounded
     if len(status_log) > 500:
         del status_log[: len(status_log) - 500]
 
 
-def clear_status_log():
+def clear_status_log() -> None:
+    """Clear the status log (used at the start of long operations)."""
     status_log.clear()
