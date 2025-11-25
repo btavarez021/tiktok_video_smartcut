@@ -189,15 +189,6 @@ def api_analyze():
             logger.exception(err_msg)
             continue
 
-        # 4. Analyze with LLM (file path mainly used for logging context)
-        log_step(f"Analyzing {base} with LLM…")
-        desc = analyze_video(local_path)
-        log_step(f"Analysis complete for {base}.")
-
-        # 5. Save analysis result (by basename)
-        save_analysis_result(base, desc)
-        results[base.lower()] = desc
-
     log_step("All videos analyzed ✅")
     return results
 
