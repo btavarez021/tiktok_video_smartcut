@@ -346,6 +346,18 @@ def api_generate_yaml() -> Dict[str, Any]:
     log_step("YAML written to config.yml (normalized lowercase .mp4 filenames)")
     return cfg
 
+def clear_analysis_cache():
+    import shutil
+    from tiktok_assistant import ANALYSIS_CACHE_DIR, video_analyses_cache
+
+    try:
+        shutil.rmtree(ANALYSIS_CACHE_DIR, ignore_errors=True)
+        os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
+        video_analyses_cache.clear()
+        log_step("Analysis cache cleared.")
+    except Exception as e:
+        log_step(f"Error clearing cache: {e}")
+
 
 def api_save_yaml(yaml_text: str) -> Dict[str, str]:
     cfg = yaml.safe_load(yaml_text) or {}
