@@ -1,5 +1,3 @@
-// static/js/app.js
-
 // Utility: small helper for fetch with JSON
 async function jsonFetch(url, options = {}) {
     const resp = await fetch(url, {
@@ -256,7 +254,10 @@ async function saveCaptions() {
     }
 }
 
-// Step 4: Overlay, timings, TTS, CTA, fg scale
+// ------------------------------
+// STEP 4: Overlay, timings, TTS, CTA, fg scale
+// ------------------------------
+
 async function applyOverlay() {
     const styleSel = document.getElementById("overlayStyle");
     const statusEl = document.getElementById("overlayStatus");
@@ -268,6 +269,7 @@ async function applyOverlay() {
             body: JSON.stringify({ style }),
         });
         statusEl.textContent = "Overlay applied. YAML updated.";
+        document.getElementById("overlayCheck").classList.add("active");
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
@@ -285,6 +287,13 @@ async function applyTiming(smart) {
             method: "POST",
             body: JSON.stringify({ smart }),
         });
+
+        if (smart) {
+            document.getElementById("timingCheckCinema").classList.add("active");
+        } else {
+            document.getElementById("timingCheckStd").classList.add("active");
+        }
+
         statusEl.textContent = "Timings updated in config.yml.";
         await loadConfigAndYaml();
     } catch (err) {
@@ -305,6 +314,7 @@ async function saveTtsSettings() {
             body: JSON.stringify({ enabled, voice }),
         });
         styleStatus.textContent = "TTS settings saved.";
+        document.getElementById("ttsCheck").classList.add("active");
     } catch (err) {
         console.error(err);
         styleStatus.textContent = `Error saving TTS: ${err.message}`;
@@ -324,6 +334,7 @@ async function saveCtaSettings() {
             body: JSON.stringify({ enabled, text, voiceover }),
         });
         styleStatus.textContent = "CTA settings saved.";
+        document.getElementById("ctaCheck").classList.add("active");
     } catch (err) {
         console.error(err);
         styleStatus.textContent = `Error saving CTA: ${err.message}`;
@@ -340,6 +351,7 @@ async function saveFgScale() {
             body: JSON.stringify({ value }),
         });
         styleStatus.textContent = "Foreground scale saved.";
+        document.getElementById("fgCheck").classList.add("active");
     } catch (err) {
         console.error(err);
         styleStatus.textContent = `Error saving scale: ${err.message}`;

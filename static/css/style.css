@@ -565,3 +565,16 @@ input[type="range"]::-moz-range-thumb {
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+.action-check {
+    min-width: 20px;
+    padding-left: 6px;
+    font-size: 18px;
+    color: #4ade80; /* green checkmark */
+    opacity: 0;
+    transition: opacity 0.25s ease-in-out;
+}
+
+.action-check.active {
+    opacity: 1;
+}
