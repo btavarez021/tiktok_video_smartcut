@@ -1,172 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>TikTok SmartCut Editor</title>
-  <link rel="stylesheet" href="/static/css/style.css" />
+  <meta charset="UTF-8">
+  <title>TikTok SmartCut Studio</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="app.js"></script>
 </head>
 
 <body>
-  <div id="app-container">
+  <div class="container">
 
-    <h1 class="title">TikTok SmartCut Editor</h1>
+    <h1 class="title">🎬 TikTok SmartCut Studio</h1>
+    <p class="subtitle">Generate hotel/travel TikToks from your S3 video uploads</p>
 
-    <div id="analyze-overlay" class="overlay hidden">
-  <div class="overlay-spinner"></div>
-  <div class="overlay-text">Analyzing videos…</div>
-</div>
-
-
-    <!-- ================= UPLOAD ================= -->
+    <!-- STEP 1 -->
     <section class="panel">
-      <h2>1. Upload Videos</h2>
-      <input type="file" id="upload-input" accept="video/*" multiple />
-      <button id="btn-upload" class="btn primary">Upload to S3</button>
-      <div id="status-upload" class="status-text"></div>
-    </section>
+      <h2>1️⃣ Analyze Your S3 Videos</h2>
+      <p class="desc">
+        This scans your <strong>raw_uploads/</strong> S3 folder, normalizes videos,
+        and uses AI to write one-sentence descriptions.
+      </p>
 
-    <!-- ================= ANALYZE ================= -->
-    <section class="panel">
-      <h2>2. Analyze Videos</h2>
-      <button id="btn-analyze" class="btn primary">
-        Analyze
-        <span id="spinner-analyze" class="spinner"></span>
-      </button>
-      <div id="status-analyze" class="status-text"></div>
-      <div id="analysis-list" class="analysis-list"></div>
-    </section>
+      <button id="btnAnalyze" class="btn primary">Start Analysis</button>
 
-    <!-- ================= YAML ================= -->
-    <section class="panel">
-      <h2>3. Build Storyboard</h2>
-
-      <button id="btn-generate-yaml" class="btn primary">
-        Generate YAML
-        <span id="spinner-yaml" class="spinner"></span>
-      </button>
-
-      <button id="btn-refresh-config" class="btn secondary">
-        Refresh YAML Preview
-      </button>
-
-      <div id="status-yaml" class="status-text"></div>
-
-      <textarea id="yaml-editor"></textarea>
-      <button id="btn-save-yaml" class="btn">Save YAML</button>
-      <div id="status-save-yaml" class="status-text"></div>
-
-      <!-- Caption Style Chips -->
-      <div id="caption-style-container">
-        <h3>Caption Styles</h3>
-        <button class="btn chip" data-style="punchy">Punchy</button>
-        <button class="btn chip" data-style="cinematic">Cinematic</button>
-        <button class="btn chip" data-style="descriptive">Descriptive</button>
-        <button class="btn chip" data-style="influencer">Influencer</button>
-        <button class="btn chip" data-style="travel_blog">Travel Blog</button>
+      <div class="status-box">
+        <div id="spinAnalyze" class="spinner"></div>
+        <pre id="statusAnalyze" class="status-text">Idle.</pre>
       </div>
 
-      <textarea id="captions-editor"></textarea>
-      <button id="btn-save-captions" class="btn">Save Captions</button>
-      <div id="status-captions" class="status-text"></div>
+      <h3>Analyzed Clips:</h3>
+      <ul id="analysisList" class="list"></ul>
     </section>
 
-    <!-- ================= TTS / CTA / FG ================= -->
+    <!-- STEP 2 -->
     <section class="panel">
-      <h2>4. Voice / CTA / Foreground</h2>
+      <h2>2️⃣ Generate YAML Storyboard</h2>
+      <p class="desc">
+        Creates a full <strong>config.yml</strong> with hook, middle clips,
+        CTA, captions, durations, and more.
+      </p>
+      <button id="btnGenerateYaml" class="btn secondary">Generate YAML</button>
+      <button id="btnLoadConfig" class="btn">Load Existing YAML</button>
+      <button id="btnSaveYaml" class="btn">Save YAML</button>
 
-      <label><input type="checkbox" id="tts-enabled" /> Enable Narration</label>
-
-      <select id="tts-voice">
-        <option value="alloy">Alloy</option>
-        <option value="verse">Verse</option>
-        <option value="nova">Nova</option>
-      </select>
-
-      <button id="btn-apply-tts" class="btn">
-        Apply Voiceover
-        <span id="spinner-tts" class="spinner"></span>
-      </button>
-      <div id="status-tts" class="status-text"></div>
-
-      <label><input type="checkbox" id="cta-enabled" /> Enable CTA</label>
-      <input type="text" id="cta-text" placeholder="CTA text..." />
-      <label><input type="checkbox" id="cta-voiceover" /> CTA Voiceover</label>
-
-      <button id="btn-apply-cta" class="btn">
-        Apply CTA
-        <span id="spinner-cta" class="spinner"></span>
-      </button>
-      <div id="status-cta" class="status-text"></div>
-
-      <label>Foreground Scale:
-        <input type="range" id="fg-scale" min="0.6" max="1.4" step="0.01" value="1.0" />
-        <span id="fg-scale-value">1.00</span>
-      </label>
-
-      <button id="btn-apply-fgscale" class="btn">
-        Apply Scale
-        <span id="spinner-fgscale" class="spinner"></span>
-      </button>
-      <div id="status-fgscale" class="status-text"></div>
+      <pre id="statusYaml" class="status-text"></pre>
+      <textarea id="yamlText" class="yaml-box" placeholder="# YAML will appear here…"></textarea>
     </section>
 
-    <!-- ================= TIMINGS ================= -->
+    <!-- STEP 3 -->
     <section class="panel">
-      <h2>5. Timings / Pacing</h2>
+      <h2>3️⃣ Captions & Styles</h2>
 
-      <button id="btn-timings-fixc" class="btn">
-        Apply FIX-C Standard
-        <span id="spinner-timings-fixc" class="spinner"></span>
-      </button>
+      <h3>✍ Edit Captions</h3>
+      <textarea id="captionsText" class="captions-box" placeholder="One block per clip…"></textarea>
+      <button id="btnSaveCaptions" class="btn">Save Captions</button>
+      <pre id="statusCaptions" class="status-text"></pre>
 
-      <button id="btn-timings-smart" class="btn">
-        Smart Cinematic Pacing
-        <span id="spinner-timings-smart" class="spinner"></span>
-      </button>
+      <h3>🎨 Caption Overlay Styles</h3>
+      <div class="inline-buttons">
+        <button onclick="applyOverlayStyle('punchy')" class="btn small">Punchy</button>
+        <button onclick="applyOverlayStyle('cinematic')" class="btn small">Cinematic</button>
+        <button onclick="applyOverlayStyle('descriptive')" class="btn small">Descriptive</button>
+        <button onclick="applyOverlayStyle('influencer')" class="btn small">Influencer</button>
+        <button onclick="applyOverlayStyle('travel_blog')" class="btn small">Travel Blogger</button>
+      </div>
+      <pre id="statusOverlay" class="status-text"></pre>
 
-      <div id="status-timings" class="status-text"></div>
+      <h3>⏱ Smart Timings</h3>
+      <div class="inline-buttons">
+        <button id="btnApplyTimingsStandard" class="btn small">Standard</button>
+        <button id="btnApplyTimingsSmart" class="btn small">Cinematic</button>
+      </div>
+      <pre id="statusTimings" class="status-text"></pre>
     </section>
 
-    <!-- ================= EXPORT ================= -->
+    <!-- STEP 4 -->
     <section class="panel">
-      <h2>6. Export Final Video</h2>
+      <h2>4️⃣ Export Final TikTok Video</h2>
+      <p class="desc">Renders final video from YAML story.</p>
 
-      <label><input type="checkbox" id="export-optimized" /> Optimized Render</label>
+      <button id="btnExportStandard" class="btn success">Export Standard</button>
+      <button id="btnExportOptimized" class="btn warn">Export Optimized</button>
 
-      <button id="btn-export" class="btn primary">
-        Export
-        <span id="spinner-export" class="spinner"></span>
-      </button>
+      <pre id="statusExport" class="status-text"></pre>
 
-      <div id="status-export" class="status-text"></div>
+      <a id="downloadLink" class="download-link" href="#" style="display:none;">Download</a>
     </section>
 
-    <!-- ================= LIVE LOG ================= -->
+    <!-- STEP 5 -->
     <section class="panel">
-      <h2>Processing Log</h2>
-      <pre id="live-log"></pre>
-    </section>
+      <h2>5️⃣ Creative Chat Assistant</h2>
+      <textarea id="chatInput" class="chat-input" placeholder="Ask for hooks, CTA ideas, pacing advice…"></textarea>
+      <button id="btnChatSend" class="btn">Send</button>
 
-    <div id="log-timestamp" class="log-timestamp"></div>
-
-
-    <!-- ================= CHAT ================= -->
-    <section class="panel">
-      <h2>Creative Assistant</h2>
-
-      <div id="chat-messages"></div>
-
-      <form id="chat-form">
-        <input id="chat-input" placeholder="Ask for hooks, captions, ideas…" />
-        <button id="chat-send-btn" class="btn">
-          Send
-          <span id="spinner-chat" class="spinner"></span>
-        </button>
-      </form>
+      <textarea id="chatOutput" class="chat-output" placeholder="Assistant output…" readonly></textarea>
     </section>
 
   </div>
-
-  <script src="/static/js/app.js"></script>
 </body>
 </html>

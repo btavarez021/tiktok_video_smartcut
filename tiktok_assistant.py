@@ -12,15 +12,11 @@ from openai import OpenAI
 from tiktok_template import normalize_video_ffmpeg, config_path, client as template_client
 from assistant_log import log_step
 
-# -------------------------------------------------
-# Logging
-# -------------------------------------------------
 logger = logging.getLogger(__name__)
 
 # -------------------------------------------------
 # OpenAI client / model
 # -------------------------------------------------
-# Re-use client from tiktok_template if available, otherwise create here.
 api_key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
 client: Optional[OpenAI] = template_client or (OpenAI(api_key=api_key) if api_key else None)
 
@@ -38,14 +34,12 @@ if not S3_BUCKET_NAME:
 
 S3_REGION = os.environ.get("S3_REGION", "us-east-2")
 
-# Public style A: https://na01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fbucket.s3.amazonaws.com%2F&data=05%7C02%7C%7C9e2e4ce5a799444768e308de2bbcd1c8%7C84df9e7fe9f640afb435aaaaaaaaaaaa%7C1%7C0%7C638996287127146455%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=odiGV31%2Fo5S6NNnLslyt%2FWUFUPTH9xw0xggPwodS6u4%3D&reserved=0...
 S3_PUBLIC_BASE = f"[https://{S3_BUCKET_NAME}.s3.amazonaws.com]https://{S3_BUCKET_NAME}.s3.amazonaws.com"
 
 RAW_PREFIX = "raw_uploads/"
 PROCESSED_PREFIX = "processed/"
 EXPORT_PREFIX = "exports/"
 
-# Create S3 client
 s3 = boto3.client("s3", region_name=S3_REGION)
 
 # -------------------------------------------------
@@ -53,20 +47,18 @@ s3 = boto3.client("s3", region_name=S3_REGION)
 # -------------------------------------------------
 video_analyses_cache: Dict[str, str] = {}
 
-# On-disk cache directory (absolute path so there's no cwd confusion)
-ANALYSIS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "video_analysis_cache")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ANALYSIS_CACHE_DIR = os.path.join(BASE_DIR, "video_analysis_cache")
+
 
 # -------------------------------------------------
 # S3 HELPERS
 # -------------------------------------------------
 def ensure_prefix_folders() -> None:
     """
-    Optionally ensure the logical S3 prefixes exist.
-    (Not strictly needed for S3, but we can put a tiny marker if desired.)
+    Placeholder – S3 has no real folders. Kept so we can extend later.
     """
-    for prefix in (RAW_PREFIX, PROCESSED_PREFIX, EXPORT_PREFIX):
-        # S3 doesn't have real folders, so we don't *need* to create them.
-        # This is a no-op placeholder in case you want to add behavior later.
+    for _prefix in (RAW_PREFIX, PROCESSED_PREFIX, EXPORT_PREFIX):
         pass
 
 
@@ -77,7 +69,9 @@ def list_videos_from_s3() -> List[str]:
     resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
     files: List[str] = []
 
-    print("S3 RAW KEYS:", [obj["Key"] for obj in resp.get("Contents", [])])
+    raw_keys = [obj["Key"] for obj in resp.get("Contents", [])]
+    print("S3 RAW KEYS:", raw_keys)
+    log_step(f"S3 RAW KEYS: {raw_keys}")
 
     for obj in resp.get("Contents", []):
         key = obj["Key"]
@@ -101,12 +95,13 @@ def download_s3_video(key: str) -> Optional[str]:
     except Exception as e:
         log_step(f"[S3 DOWNLOAD ERROR] Could not download {key}")
         log_step(f"S3 Exception: {e}")
+        logger.error("S3 download error for %s: %s", key, e)
     return None
 
 
 def normalize_video(src: str, dst: str) -> None:
     """
-    Thin wrapper around your existing normalize_video_ffmpeg helper.
+    Thin wrapper around normalize_video_ffmpeg helper.
     """
     normalize_video_ffmpeg(src, dst)
 
@@ -137,7 +132,7 @@ def move_all_raw_to_processed() -> None:
             s3.delete_object(Bucket=S3_BUCKET_NAME, Key=key)
             log_step(f"Moved {key} → {processed_key}")
         except Exception as e:
-            logger.error(f"Failed to move {key} to processed/: {e}")
+            logger.error("Failed to move %s to processed/: %s", key, e)
 
 
 def save_analysis_result(key: str, desc: str) -> None:
@@ -166,7 +161,7 @@ def save_analysis_result(key: str, desc: str) -> None:
 
         log_step(f"Cached analysis for {key_lower} (memory + file).")
     except Exception as e:
-        logger.error(f"save_analysis_result failed for {key}: {e}")
+        logger.error("save_analysis_result failed for %s: %s", key, e)
 
 
 # -------------------------------------------------
@@ -185,7 +180,6 @@ def analyze_video(path: str) -> str:
     """
     basename = os.path.basename(path)
 
-    # Fallback if client is not available
     if client is None:
         return f"Hotel / travel clip: describe views, room, or amenities in {basename}."
 
@@ -214,8 +208,7 @@ Return ONLY the sentence.
         logger.info("LLM analysis for %s: %s", basename, desc)
         return desc
     except Exception as e:
-        logger.error(f"analyze_video LLM call failed for {basename}: {e}")
-        # Fallback generic text
+        logger.error("analyze_video LLM call failed for %s: %s", basename, e)
         return f"Hotel / travel clip showcasing views or amenities in {basename}."
 
 
@@ -309,7 +302,6 @@ def _style_instructions(style: str) -> str:
             "Hotel-review travel blogger tone. Focus on room type, amenities, views, "
             "location, and why it's a great stay."
         )
-    # default
     return "Friendly, hotel-focused travel review tone with light influencer enthusiasm."
 
 
@@ -321,7 +313,7 @@ def apply_overlay(style: str, target: str = "all", filename: Optional[str] = Non
         with open(config_path, "r") as f:
             current_yaml = f.read()
     except Exception as e:
-        logger.error(f"apply_overlay: failed to read config.yml: {e}")
+        logger.error("apply_overlay: failed to read config.yml: %s", e)
         return
 
     if client is None:
@@ -373,20 +365,18 @@ Return ONLY the updated YAML. No backticks, no explanation.
         logger.info("apply_overlay: captions updated with style '%s'", style)
         log_step(f"Overlay applied with style: {style}")
     except Exception as e:
-        logger.error(f"apply_overlay LLM call failed: {e}")
+        logger.error("apply_overlay LLM call failed: %s", e)
 
 
 def apply_smart_timings(pacing: str = "standard") -> None:
     """
     Use LLM to adjust clip durations in config.yml.
-    pacing="standard": small adjustments.
-    pacing="cinematic": more aggressive hook + flow.
     """
     try:
         with open(config_path, "r") as f:
             current_yaml = f.read()
     except Exception as e:
-        logger.error(f"apply_smart_timings: failed to read config.yml: {e}")
+        logger.error("apply_smart_timings: failed to read config.yml: %s", e)
         return
 
     if client is None:
@@ -447,7 +437,7 @@ Return ONLY the updated YAML. No backticks, no explanation.
         logger.info("apply_smart_timings: timings updated (pacing=%s)", pacing)
         log_step(f"Smart timings applied (pacing={pacing}).")
     except Exception as e:
-        logger.error(f"apply_smart_timings LLM call failed: {e}")
+        logger.error("apply_smart_timings LLM call failed: %s", e)
 
 
 def save_from_raw_yaml(*args, **kwargs):

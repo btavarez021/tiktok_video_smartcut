@@ -1,16 +1,16 @@
+# assistant_api.py
 import os
 import yaml
-import shutil
-import tempfile
 import json
 import logging
 import traceback
+
 from assistant_log import log_step, status_log, clear_status_log
 
 from tiktok_template import (
     config_path,
     edit_video,
-    video_folder,  # local folder used for normalized / downloaded clips
+    video_folder,
     client,
     normalize_video_ffmpeg,
 )
@@ -38,10 +38,12 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# ======================================================
-# MODULE-LEVEL CONFIG (mirror of config.yml)
-# ======================================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ANALYSIS_STATE_FILE = os.path.join(BASE_DIR, "analysis_state.json")
 
+# ============================================
+# MODULE-LEVEL CONFIG (mirror of config.yml)
+# ============================================
 config = {}
 
 
@@ -62,11 +64,10 @@ def save_config():
         yaml.safe_dump(config, f, sort_keys=False)
 
 
-# ======================================================
-# EXPORT MODE HELPERS
-# ======================================================
-
-EXPORT_MODE_FILE = "export_mode.txt"
+# ============================================
+# EXPORT MODE HELPERS (standard / optimized)
+# ============================================
+EXPORT_MODE_FILE = os.path.join(BASE_DIR, "export_mode.txt")
 
 
 def set_export_mode(mode: str) -> dict:
@@ -83,16 +84,15 @@ def get_export_mode() -> dict:
     if not os.path.exists(EXPORT_MODE_FILE):
         return {"mode": "standard"}
     with open(EXPORT_MODE_FILE, "r") as f:
-        mode = f.read().strip() or "standard"
+        mode = (f.read().strip() or "standard")
     if mode not in ("standard", "optimized"):
         mode = "standard"
     return {"mode": mode}
 
 
-# ======================================================
+# ============================================
 # LOAD ALL ANALYSIS RESULTS FROM DISK
-# ======================================================
-
+# ============================================
 def load_all_analysis_results():
     """
     Loads all cached analysis results stored as .json files in video_analysis_cache/
@@ -116,27 +116,57 @@ def load_all_analysis_results():
             filename = data.get("filename") or name.replace(".json", "")
             desc = data.get("description") or ""
             results[filename] = desc
-
         except Exception as e:
             logger.warning(f"⚠ Failed loading cached analysis file {name}: {e}")
 
     return results
 
 
-# ======================================================
-# /api/analyze
-# ======================================================
+# ============================================
+# ANALYSIS JOB STATE HELPERS
+# ============================================
+def _write_analysis_state(state: dict) -> None:
+    os.makedirs(BASE_DIR, exist_ok=True)
+    with open(ANALYSIS_STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2)
 
-def api_analyze():
+
+def _read_analysis_state() -> dict:
+    if not os.path.exists(ANALYSIS_STATE_FILE):
+        return {
+            "status": "idle",
+            "s3_keys": [],
+            "index": 0,
+            "results": {},
+            "error": None,
+        }
+    try:
+        with open(ANALYSIS_STATE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error("Failed to read analysis_state.json: %s", e)
+        return {
+            "status": "idle",
+            "s3_keys": [],
+            "index": 0,
+            "results": {},
+            "error": f"Failed to read state: {e}",
+        }
+
+
+# ============================================
+# /api/analyze_start – START JOB (NO HEAVY WORK)
+# ============================================
+def api_analyze_start():
     """
     - Clears local tik_tok_downloads folder
-    - Downloads all S3 raw_uploads/*.mp4 into that folder
-    - Normalizes with ffmpeg (1080x1920) → video_folder
-    - Runs LLM analysis per file
-    - Caches results in video_analyses_cache + disk
-    - Returns {filename: description}
+    - Lists videos from S3
+    - Writes analysis_state.json with s3_keys
+    - Returns immediately (no heavy processing)
     """
+    clear_status_log()
     log_step("Starting analysis…")
+    log_step("Preparing local folder and listing S3 videos…")
 
     # Ensure local folder exists & is clean
     os.makedirs(video_folder, exist_ok=True)
@@ -148,75 +178,196 @@ def api_analyze():
             except OSError:
                 pass
 
-    # 1. Fetch list of videos from S3
+    # Fetch list of videos from S3
     log_step("Fetching videos from S3 (raw_uploads/)…")
     s3_keys = list_videos_from_s3()
 
     if not s3_keys:
         log_step("No videos found in raw_uploads/.")
-        return {}
+        state = {
+            "status": "idle",
+            "s3_keys": [],
+            "index": 0,
+            "results": {},
+            "error": None,
+        }
+        _write_analysis_state(state)
+        return {"status": "idle", "total": 0}
 
     log_step(f"Found {len(s3_keys)} video(s) in raw_uploads.")
 
-    results = {}
+    # Initialize state
+    state = {
+        "status": "running",
+        "s3_keys": s3_keys,
+        "index": 0,
+        "results": {},
+        "error": None,
+    }
+    _write_analysis_state(state)
 
-    for key in s3_keys:
+    return {
+        "status": "running",
+        "total": len(s3_keys),
+        "processed": 0,
+    }
+
+
+# ============================================
+# /api/analyze_step – PROCESS EXACTLY ONE VIDEO
+# ============================================
+def api_analyze_step():
+    """
+    - Loads analysis_state.json
+    - If status != running → return state
+    - Else process ONE video:
+        - download from S3
+        - normalize
+        - LLM analyze
+        - save analysis & state
+    """
+    state = _read_analysis_state()
+    status = state.get("status", "idle")
+    s3_keys = state.get("s3_keys", [])
+    index = state.get("index", 0)
+    results = state.get("results", {}) or {}
+
+    if status != "running":
+        # Nothing to do; just return current state
+        total = len(s3_keys)
+        return {
+            "status": status,
+            "total": total,
+            "processed": min(index, total),
+            "results": results,
+            "error": state.get("error"),
+        }
+
+    total = len(s3_keys)
+    if index >= total:
+        # Already done
+        state["status"] = "done"
+        _write_analysis_state(state)
+        log_step("All videos analyzed ✅")
+        return {
+            "status": "done",
+            "total": total,
+            "processed": total,
+            "results": results,
+            "error": None,
+        }
+
+    # Process one key
+    key = s3_keys[index]
+    try:
         log_step(f"Processing {key}…")
+        tmp_local_path = download_s3_video(key)
+        if not tmp_local_path:
+            log_step(f"❌ Failed to download {key}")
+            # Mark as skipped but continue
+            state["index"] = index + 1
+            _write_analysis_state(state)
+            return {
+                "status": "running",
+                "total": total,
+                "processed": index + 1,
+                "results": results,
+                "last_file": key,
+                "last_desc": None,
+                "error": f"Failed to download {key}",
+            }
+
+        base = os.path.basename(key).lower()
+        local_path = os.path.join(video_folder, base)
+        log_step(f"Normalizing {base} → {local_path} …")
+        normalize_video_ffmpeg(tmp_local_path, local_path)
 
         try:
-            # Download from S3 to temp file
-            tmp_local_path = download_s3_video(key)
-            if not tmp_local_path:
-                log_step(f"❌ Failed to download {key}")
-                continue
+            os.remove(tmp_local_path)
+        except Exception:
+            pass
 
-            # Normalize name
-            base = os.path.basename(key).lower()
-            local_path = os.path.join(video_folder, base)
+        log_step(f"Analyzing {base} with LLM…")
+        desc = analyze_video(local_path)
+        log_step(f"Analysis complete for {base}.")
 
-            log_step(f"Normalizing {base} → {local_path} …")
-            normalize_video_ffmpeg(tmp_local_path, local_path)
+        save_analysis_result(base, desc)
+        results[base] = desc
 
-            try:
-                os.remove(tmp_local_path)
-            except:
-                pass
+        # Advance index
+        index += 1
+        state["index"] = index
+        state["results"] = results
 
-            # Analyze with LLM ONCE
-            log_step(f"Analyzing {base} with LLM…")
-            desc = analyze_video(local_path)
-            log_step(f"Analysis complete for {base}.")
+        if index >= total:
+            state["status"] = "done"
+            log_step("All videos analyzed ✅")
+        else:
+            state["status"] = "running"
 
-            # Save results
-            save_analysis_result(base, desc)
-            results[base] = desc
+        _write_analysis_state(state)
 
-        except Exception as e:
-            err_msg = f"❌ ERROR processing {key}: {e}"
-            log_step(err_msg)
-            log_step(traceback.format_exc())
-            logger.exception(err_msg)
-            continue
+        return {
+            "status": state["status"],
+            "total": total,
+            "processed": index,
+            "results": results,
+            "last_file": base,
+            "last_desc": desc,
+            "error": None,
+        }
 
-    log_step("All videos analyzed ✅")
-    return results
+    except Exception as e:
+        err_msg = f"❌ ERROR processing {key}: {e}"
+        log_step(err_msg)
+        log_step(traceback.format_exc())
+        logger.exception(err_msg)
+
+        state["status"] = "error"
+        state["error"] = str(e)
+        _write_analysis_state(state)
+
+        return {
+            "status": "error",
+            "total": total,
+            "processed": index,
+            "results": results,
+            "last_file": key,
+            "last_desc": None,
+            "error": str(e),
+        }
 
 
-# ======================================================
+# ============================================
+# /api/analyze – OPTIONAL: one-shot convenience
+# ============================================
+def api_analyze():
+    """
+    Backwards-compatible: perform full analysis in one go (NOT recommended on Render).
+    Kept just in case, but frontend should use analyze_start + analyze_step.
+    """
+    api_analyze_start()
+    # Loop through all videos synchronously (for local dev only)
+    while True:
+        step = api_analyze_step()
+        if step["status"] in ("done", "error", "idle"):
+            break
+    return step.get("results", {})
+
+
+# ============================================
 # /api/generate_yaml
-# ======================================================
-
+# ============================================
 def api_generate_yaml():
     """
     Use build_yaml_prompt + LLM to generate YAML, save to config.yml, and return dict.
     Uses both in-memory and disk cache for analyses.
     """
-    # Merge disk + memory
     disk_results = load_all_analysis_results()
     merged = {**disk_results, **video_analyses_cache}
 
     if not merged:
-        log_step("No cached analyses; running analyze before YAML generation…")
+        log_step("No cached analyses; running quick analyze before YAML generation…")
         api_analyze()
         disk_results = load_all_analysis_results()
         merged = {**disk_results, **video_analyses_cache}
@@ -232,8 +383,8 @@ def api_generate_yaml():
     log_step("Calling LLM to produce YAML storyboard…")
 
     if client is None:
-        # fallback
-        log_step("No OpenAI client; using fallback YAML.")
+        # Fallback: build a simple config without LLM
+        log_step("No OpenAI client; generating simple fallback YAML.")
         simple_cfg = {
             "first_clip": {
                 "file": video_files[0],
@@ -268,7 +419,6 @@ def api_generate_yaml():
                 "position": "bottom",
             },
         }
-
         if len(video_files) > 2:
             for vf, a in zip(video_files[1:-1], analyses[1:-1]):
                 simple_cfg["middle_clips"].append(
@@ -287,7 +437,7 @@ def api_generate_yaml():
         log_step("Fallback YAML written to config.yml ✅")
         return simple_cfg
 
-    # normal LLM flow
+    # Normal LLM path
     resp = client.chat.completions.create(
         model=TEXT_MODEL,
         messages=[{"role": "user", "content": yaml_prompt}],
@@ -306,10 +456,6 @@ def api_generate_yaml():
     return cfg
 
 
-# ======================================================
-# /api/save_yaml
-# ======================================================
-
 def api_save_yaml(yaml_text: str):
     cfg = yaml.safe_load(yaml_text) or {}
     with open(config_path, "w") as f:
@@ -318,11 +464,17 @@ def api_save_yaml(yaml_text: str):
     return {"status": "ok"}
 
 
-# ======================================================
-# /api/config
-# ======================================================
-
+# ============================================
+# /api/config (for YAML + captions)
+# ============================================
 def api_get_config():
+    """
+    Returns:
+    {
+      "yaml": "<raw yaml text>",
+      "config": <parsed dict>
+    }
+    """
     load_config()
     if os.path.exists(config_path):
         with open(config_path, "r") as f:
@@ -335,11 +487,14 @@ def api_get_config():
     }
 
 
-# ======================================================
-# /api/export
-# ======================================================
-
+# ============================================
+# /api/export (render to local file)
+# ============================================
 def api_export(optimized: bool = False) -> str:
+    """
+    Calls tiktok_template.edit_video and returns the local output filename.
+    Raises on failure so the Flask route can handle it.
+    """
     clear_status_log()
     mode_label = "OPTIMIZED" if optimized else "STANDARD"
     log_step(f"Rendering export in {mode_label} mode…")
@@ -369,10 +524,9 @@ def api_export(optimized: bool = False) -> str:
     return filename
 
 
-# ======================================================
+# ============================================
 # /api/tts
-# ======================================================
-
+# ============================================
 def api_set_tts(enabled: bool, voice: str | None = None):
     load_config()
     render_cfg = config.setdefault("render", {})
@@ -383,10 +537,9 @@ def api_set_tts(enabled: bool, voice: str | None = None):
     return render_cfg
 
 
-# ======================================================
+# ============================================
 # /api/cta
-# ======================================================
-
+# ============================================
 def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None = None):
     load_config()
     cta_cfg = config.setdefault("cta", {})
@@ -399,21 +552,26 @@ def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None =
     return cta_cfg
 
 
-# ======================================================
+# ============================================
 # /api/overlay
-# ======================================================
-
+# ============================================
 def api_apply_overlay(style: str):
+    """
+    Apply overlay style (punchy / cinematic / descriptive / etc.) to all clips.
+    """
     apply_overlay(style=style, target="all", filename=None)
     load_config()
     return {"status": "ok"}
 
 
-# ======================================================
+# ============================================
 # /api/save_captions
-# ======================================================
-
+# ============================================
 def api_save_captions(text: str):
+    """
+    Overwrite captions in config.yml while keeping structure.
+    Splits textarea text into first / middle / last using blank lines.
+    """
     load_config()
 
     parts = [p.strip() for p in text.split("\n\n") if p.strip()]
@@ -438,11 +596,13 @@ def api_save_captions(text: str):
     return {"status": "ok", "count": len(parts)}
 
 
-# ======================================================
+# ============================================
 # /api/timings
-# ======================================================
-
+# ============================================
 def api_apply_timings(smart: bool = False):
+    """
+    Standard FIX-C or smart pacing (cinematic).
+    """
     if smart:
         apply_smart_timings(pacing="cinematic")
     else:
@@ -451,10 +611,9 @@ def api_apply_timings(smart: bool = False):
     return config
 
 
-# ======================================================
+# ============================================
 # /api/fgscale
-# ======================================================
-
+# ============================================
 def api_fgscale(value: float):
     load_config()
     render_cfg = config.setdefault("render", {})
@@ -463,10 +622,9 @@ def api_fgscale(value: float):
     return render_cfg
 
 
-# ======================================================
-# /api/chat
-# ======================================================
-
+# ============================================
+# /api/chat — LLM Creative Assistant
+# ============================================
 def api_chat(message: str):
     if client is None:
         return {"reply": "LLM is not configured (no API key)."}
