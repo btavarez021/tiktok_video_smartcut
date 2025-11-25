@@ -4,7 +4,8 @@ boto3
 openai>=1.0.0
 pyyaml
 gunicorn
-moviepy==1.0.3
+moviepy>=2.0.0
+imageio
 imageio-ffmpeg
 numpy
 Pillow==9.5.0
