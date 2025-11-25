@@ -96,7 +96,8 @@ def download_s3_video(key: str) -> Optional[str]:
 # Normalize video for analysis
 # -----------------------------------------
 def normalize_video(src: str, dst: str) -> None:
-    dst = dst.lower()
+    base = os.path.splitext(dst)[0]
+    dst = f"{base}.mp4".lower()
     os.makedirs(os.path.dirname(dst), exist_ok=True)
 
     cmd = [

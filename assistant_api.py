@@ -287,8 +287,11 @@ def api_generate_yaml() -> Dict[str, Any]:
         merged = load_all_analysis_results()
         normalized = {k.lower(): v for k, v in merged.items()}
 
-    video_files = list(normalized.keys())
-    analyses = [normalized[v] for v in video_files]
+    video_files = []
+    for v in merged.keys():
+        base = os.path.splitext(os.path.basename(v))[0]
+        video_files.append(f"{base}.mp4".lower())
+
 
     if not video_files:
         log_step("No videos available for YAML generation.")
