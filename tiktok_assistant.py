@@ -77,9 +77,12 @@ def list_videos_from_s3() -> List[str]:
     resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
     files: List[str] = []
 
+    print("S3 RAW KEYS:", [obj["Key"] for obj in resp.get("Contents", [])])
+
     for obj in resp.get("Contents", []):
         key = obj["Key"]
-        if key.lower().endswith((".mp4", ".mov", ".avi", ".m4v")):
+        ext = os.path.splitext(key)[1].lower()
+        if ext in [".mp4", ".mov", ".avi", ".m4v"]:
             files.append(key)
 
     return files
@@ -96,8 +99,9 @@ def download_s3_video(key: str) -> Optional[str]:
         tmp.close()
         return tmp.name
     except Exception as e:
-        logger.error(f"Failed to download {key} from S3: {e}")
-        return None
+        log_step(f"[S3 DOWNLOAD ERROR] Could not download {key}")
+        log_step(f"S3 Exception: {e}")
+    return None
 
 
 def normalize_video(src: str, dst: str) -> None:
