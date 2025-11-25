@@ -173,7 +173,11 @@ def api_analyze_step() -> Dict[str, Any]:
 
     if _ANALYZE_INDEX >= len(_ANALYZE_QUEUE):
         log_step("All videos analyzed.")
-        return {"done": True, "total": len(_ANALYZE_QUEUE), "index": _ANALYZE_INDEX}
+        return {
+            "done": True,
+            "total": len(_ANALYZE_QUEUE),
+            "index": _ANALYZE_INDEX,
+        }
 
     key = _ANALYZE_QUEUE[_ANALYZE_INDEX]
     log_step(f"Processing {key}...")
@@ -191,31 +195,40 @@ def api_analyze_step() -> Dict[str, Any]:
                 "error": "download_failed",
             }
 
-        base = os.path.basename(key).lower()
-        local_path = os.path.join(video_folder, base)
-        log_step(f"Normalizing {base} -> {local_path} ...")
-        # Force lowercase
-        local_lower = os.path.join(video_folder, os.path.basename(key).lower())
+        # --------------------------------------
+        # FORCE LOWERCASE + FORCE .MP4 EXTENSION
+        # --------------------------------------
+        base_no_ext = os.path.splitext(os.path.basename(key).lower())[0]
+        normalized_filename = base_no_ext + ".mp4"
+        dst = os.path.join(video_folder, normalized_filename)
 
-        normalize_video(tmp_local_path, local_lower)
+        log_step(f"Normalizing {key} -> {dst} ...")
+        normalize_video(tmp_local_path, dst)
 
+        # Delete temporary download
         try:
             os.remove(tmp_local_path)
         except OSError:
             pass
 
-        log_step(f"Analyzing {base} with LLM...")
-        desc = analyze_video(local_path)
-        log_step(f"Analysis complete for {base}.")
+        # --------------------------------------
+        # ANALYZE THE NORMALIZED MP4 FILE
+        # --------------------------------------
+        log_step(f"Analyzing {normalized_filename} with LLM...")
+        desc = analyze_video(dst)
+        log_step(f"Analysis complete for {normalized_filename}.")
 
-        save_analysis_result(base.lower(), desc)
+        # Save analysis using .mp4 key
+        save_analysis_result(normalized_filename, desc)
+
         result: Dict[str, Any] = {
             "done": False,
             "total": len(_ANALYZE_QUEUE),
             "index": _ANALYZE_INDEX + 1,
-            "key": base,
+            "key": normalized_filename,
             "description": desc,
         }
+
     except Exception as e:
         err_msg = f"ERROR processing {key}: {e}"
         log_step(err_msg)
