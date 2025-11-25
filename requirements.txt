@@ -7,4 +7,4 @@ gunicorn
 moviepy>=2.0.0
 imageio
 numpy
-Pillow==10.3.0
+pillow-simd
