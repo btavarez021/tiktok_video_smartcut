@@ -1,274 +1,581 @@
-async function refreshStatus() {
-    try {
-        const res = await fetch("/api/status");
-        const data = await res.json();
-        const box = document.getElementById("status-log");
-        box.textContent = (data.status_log || []).join("\n");
-    } catch (e) {
-        console.error(e);
+// static/js/app.js
+
+// Simple helper to update text in a DOM element
+function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+}
+
+// Helper to set innerHTML (for download link etc.)
+function setHtml(id, html) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+}
+
+// -----------------------------
+// On page load
+// -----------------------------
+document.addEventListener("DOMContentLoaded", () => {
+    wireEvents();
+    pollStatusLog();
+    pollAnalysesCache();
+    loadConfigAndYaml();
+    loadExportMode();
+});
+
+// -----------------------------
+// Wire all buttons / inputs
+// -----------------------------
+function wireEvents() {
+    const uploadBtn = document.getElementById("uploadBtn");
+    if (uploadBtn) uploadBtn.addEventListener("click", handleUpload);
+
+    const startAnalyzeBtn = document.getElementById("startAnalyzeBtn");
+    if (startAnalyzeBtn) startAnalyzeBtn.addEventListener("click", handleAnalyzeStartAndLoop);
+
+    const runStepBtn = document.getElementById("runStepBtn");
+    if (runStepBtn) runStepBtn.addEventListener("click", handleAnalyzeStepOnce);
+
+    const generateYamlBtn = document.getElementById("generateYamlBtn");
+    if (generateYamlBtn) generateYamlBtn.addEventListener("click", handleGenerateYaml);
+
+    const saveYamlBtn = document.getElementById("saveYamlBtn");
+    if (saveYamlBtn) saveYamlBtn.addEventListener("click", handleSaveYaml);
+
+    const saveCaptionsBtn = document.getElementById("saveCaptionsBtn");
+    if (saveCaptionsBtn) saveCaptionsBtn.addEventListener("click", handleSaveCaptions);
+
+    const saveTTSBtn = document.getElementById("saveTTSBtn");
+    if (saveTTSBtn) saveTTSBtn.addEventListener("click", handleSaveTTS);
+
+    const saveCTABtn = document.getElementById("saveCTABtn");
+    if (saveCTABtn) saveCTABtn.addEventListener("click", handleSaveCTA);
+
+    const applyOverlayBtn = document.getElementById("applyOverlayBtn");
+    if (applyOverlayBtn) applyOverlayBtn.addEventListener("click", handleApplyOverlay);
+
+    const standardTimingBtn = document.getElementById("standardTimingBtn");
+    if (standardTimingBtn) standardTimingBtn.addEventListener("click", () => handleApplyTimings(false));
+
+    const cinematicTimingBtn = document.getElementById("cinematicTimingBtn");
+    if (cinematicTimingBtn) cinematicTimingBtn.addEventListener("click", () => handleApplyTimings(true));
+
+    const saveFGScaleBtn = document.getElementById("saveFGScaleBtn");
+    if (saveFGScaleBtn) saveFGScaleBtn.addEventListener("click", handleSaveFGScale);
+
+    const exportBtn = document.getElementById("exportBtn");
+    if (exportBtn) exportBtn.addEventListener("click", handleExport);
+
+    const chatBtn = document.getElementById("chatBtn");
+    if (chatBtn) chatBtn.addEventListener("click", handleChat);
+
+    const exportModeSelect = document.getElementById("exportMode");
+    if (exportModeSelect) {
+        exportModeSelect.addEventListener("change", handleSaveExportMode);
     }
 }
 
-async function refreshAnalyses() {
-    try {
-        const res = await fetch("/api/analyses_cache");
-        const data = await res.json();
-        const list = document.getElementById("analysis-list");
-        list.innerHTML = "";
+// -----------------------------
+// Upload to S3
+// -----------------------------
+async function handleUpload() {
+    const input = document.getElementById("uploadInput");
+    const statusId = "uploadStatus";
 
-        const entries = Object.entries(data || {});
-        if (!entries.length) {
-            list.innerHTML = "<li>No analyses yet.</li>";
-            return;
-        }
-        for (const [file, desc] of entries) {
-            const li = document.createElement("li");
-            li.innerHTML = `<strong>${file}</strong>: ${desc}`;
-            list.appendChild(li);
-        }
-    } catch (e) {
-        console.error(e);
-    }
-}
-
-// ---------------------------
-// Upload
-// ---------------------------
-async function uploadToS3() {
-    const input = document.getElementById("file-upload");
-    const files = input.files;
-    if (!files || !files.length) {
-        alert("Select at least one video file.");
+    if (!input || !input.files || input.files.length === 0) {
+        setText(statusId, "No files selected.");
         return;
     }
 
     const formData = new FormData();
-    for (const f of files) {
-        formData.append("files", f);
+    for (const file of input.files) {
+        formData.append("files", file);
     }
 
-    const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData
-    });
+    setText(statusId, "Uploading to S3…");
 
-    const data = await res.json();
-    if (data.error) {
-        alert("Upload error: " + data.error);
-    } else {
-        alert("Uploaded keys:\n" + (data.uploaded || []).join("\n"));
-    }
-
-    refreshStatus();
-}
-
-// ---------------------------
-// Analyze (step-based)
-// ---------------------------
-async function analyzeStart() {
-    const res = await fetch("/api/analyze_start", { method: "POST" });
-    const data = await res.json();
-    document.getElementById("analyze-info").textContent =
-        `Found ${data.total || 0} videos in S3. Starting analysis...`;
-    refreshStatus();
-
-    if ((data.total || 0) > 0) {
-        analyzeSteps();
+    try {
+        const res = await fetch("/api/upload_s3", {
+            method: "POST",
+            body: formData,
+        });
+        if (!res.ok) {
+            const txt = await res.text();
+            setText(statusId, "Upload failed: " + txt);
+            return;
+        }
+        const data = await res.json();
+        if (data && data.uploaded) {
+            setText(statusId, `Uploaded ${data.uploaded.length} file(s) to S3.`);
+        } else {
+            setText(statusId, "Upload completed.");
+        }
+    } catch (err) {
+        console.error("Upload error", err);
+        setText(statusId, "Upload error: " + err);
     }
 }
 
-async function analyzeSteps() {
-    const res = await fetch("/api/analyze_step", { method: "POST" });
-    const data = await res.json();
-    refreshStatus();
+// -----------------------------
+// Analyze: Start + auto loop
+// -----------------------------
+let analyzeIsRunning = false;
 
-    if (data.key) {
-        document.getElementById("analyze-info").textContent =
-            `Processed: ${data.index}/${data.total} - ${data.key}`;
+async function handleAnalyzeStartAndLoop() {
+    const statusId = "analyzeStatus";
+    setText(statusId, "Starting analysis…");
+    analyzeIsRunning = true;
+
+    try {
+        // Kick off
+        const res = await fetch("/api/analyze_start", { method: "POST" });
+        if (!res.ok) {
+            const txt = await res.text();
+            setText(statusId, "Analyze start failed: " + txt);
+            analyzeIsRunning = false;
+            return;
+        }
+        const data = await res.json();
+        if (data && data.message) {
+            setText(statusId, data.message);
+        }
+
+        // Now auto-run steps until done
+        await runAnalyzeStepsLoop();
+    } catch (err) {
+        console.error("Analyze start error", err);
+        setText(statusId, "Analyze start error: " + err);
+        analyzeIsRunning = false;
     }
+}
 
-    if (!data.done) {
-        setTimeout(analyzeSteps, 800);
-    } else {
-        document.getElementById("analyze-info").textContent =
-            "Analysis complete.";
-        refreshAnalyses();
+async function runAnalyzeStepsLoop() {
+    const statusId = "analyzeStatus";
+    while (analyzeIsRunning) {
+        try {
+            const res = await fetch("/api/analyze_step", { method: "POST" });
+            if (!res.ok) {
+                const txt = await res.text();
+                setText(statusId, "Analyze step failed: " + txt);
+                analyzeIsRunning = false;
+                break;
+            }
+            const data = await res.json();
+
+            if (data.message) {
+                setText(statusId, data.message);
+            }
+
+            // If backend signals that we are done
+            if (data.done) {
+                analyzeIsRunning = false;
+                setText(statusId, data.message || "Analysis complete.");
+                // Refresh analyses cache display
+                await fetchAnalysesCache();
+                break;
+            }
+
+            // Avoid hammering the server too fast
+            await new Promise((r) => setTimeout(r, 500));
+        } catch (err) {
+            console.error("Analyze loop error", err);
+            setText(statusId, "Analyze loop error: " + err);
+            analyzeIsRunning = false;
+            break;
+        }
     }
 }
 
-// ---------------------------
-// YAML
-// ---------------------------
-async function generateYaml() {
-    const res = await fetch("/api/generate_yaml", { method: "POST" });
-    const data = await res.json();
-    const yamlText = document.getElementById("yaml-editor");
-    yamlText.value = YAML.stringify(data); // requires js-yaml in HTML
-    refreshStatus();
+// Manual step for debugging
+async function handleAnalyzeStepOnce() {
+    const statusId = "analyzeStatus";
+    try {
+        const res = await fetch("/api/analyze_step", { method: "POST" });
+        if (!res.ok) {
+            const txt = await res.text();
+            setText(statusId, "Analyze step failed: " + txt);
+            return;
+        }
+        const data = await res.json();
+        if (data.message) {
+            setText(statusId, data.message);
+        }
+        if (data.done) {
+            setText(statusId, data.message || "Analysis complete (manual step).");
+        }
+        await fetchAnalysesCache();
+    } catch (err) {
+        console.error("Analyze step error", err);
+        setText(statusId, "Analyze step error: " + err);
+    }
 }
 
-async function loadYaml() {
-    const res = await fetch("/api/config");
-    const data = await res.json();
-    document.getElementById("yaml-editor").value = data.yaml || "";
+// -----------------------------
+// YAML & Config
+// -----------------------------
+async function loadConfigAndYaml() {
+    try {
+        const res = await fetch("/api/config");
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const yamlTextArea = document.getElementById("yamlText");
+        if (yamlTextArea) {
+            if (data.yaml) {
+                yamlTextArea.value = data.yaml;
+            } else if (data.config) {
+                yamlTextArea.value = JSON.stringify(data.config, null, 2);
+            }
+        }
+
+        // Also pre-fill captions area if possible
+        if (data.config) {
+            populateCaptionsFromConfig(data.config);
+        }
+    } catch (err) {
+        console.error("loadConfigAndYaml error", err);
+    }
 }
 
-async function saveYaml() {
-    const yamlText = document.getElementById("yaml-editor").value;
-    const res = await fetch("/api/save_yaml", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ yaml: yamlText })
-    });
-    const data = await res.json();
-    alert("YAML saved: " + data.status);
+function populateCaptionsFromConfig(cfg) {
+    try {
+        const parts = [];
+        if (cfg.first_clip && cfg.first_clip.text) {
+            parts.push(cfg.first_clip.text);
+        }
+        if (Array.isArray(cfg.middle_clips)) {
+            for (const c of cfg.middle_clips) {
+                if (c && c.text) parts.push(c.text);
+            }
+        }
+        if (cfg.last_clip && cfg.last_clip.text) {
+            parts.push(cfg.last_clip.text);
+        }
+        const captionsArea = document.getElementById("captionsInput");
+        if (captionsArea && parts.length > 0) {
+            captionsArea.value = parts.join("\n\n");
+        }
+    } catch (err) {
+        console.error("populateCaptionsFromConfig error", err);
+    }
 }
 
-// ---------------------------
+async function handleGenerateYaml() {
+    const statusId = "analyzeStatus";
+    setText(statusId, "Generating YAML from analyses…");
+
+    try {
+        const res = await fetch("/api/generate_yaml", { method: "POST" });
+        if (!res.ok) {
+            const txt = await res.text();
+            setText(statusId, "YAML generation failed: " + txt);
+            return;
+        }
+        const cfg = await res.json();
+
+        // Refresh config + yaml to show what backend wrote
+        await loadConfigAndYaml();
+        setText(statusId, "YAML generated and saved.");
+    } catch (err) {
+        console.error("generateYaml error", err);
+        setText(statusId, "YAML generation error: " + err);
+    }
+}
+
+async function handleSaveYaml() {
+    const yamlTextArea = document.getElementById("yamlText");
+    if (!yamlTextArea) return;
+
+    const yamlText = yamlTextArea.value;
+    try {
+        const res = await fetch("/api/save_yaml", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ yaml: yamlText }),
+        });
+        const data = await res.json();
+        setText("analyzeStatus", "YAML saved. Status: " + (data.status || "ok"));
+
+        // Reload config so captions view gets updated as well
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error("saveYaml error", err);
+        setText("analyzeStatus", "Save YAML error: " + err);
+    }
+}
+
+// -----------------------------
 // Captions
-// ---------------------------
-async function loadCaptions() {
-    const res = await fetch("/api/get_captions");
-    const data = await res.json();
-    document.getElementById("caption-editor").value = data.captions || "";
-}
+// -----------------------------
+async function handleSaveCaptions() {
+    const captionsArea = document.getElementById("captionsInput");
+    if (!captionsArea) return;
 
-async function saveCaptions() {
-    const text = document.getElementById("caption-editor").value;
-    const res = await fetch("/api/save_captions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
-    });
-    const data = await res.json();
-    alert("Saved " + data.captions_applied + " captions.");
-}
-
-// ---------------------------
-// Overlay & timings
-// ---------------------------
-async function applyOverlay(style) {
-    await fetch("/api/overlay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ style })
-    });
-    alert("Overlay applied: " + style);
-    refreshStatus();
-}
-
-async function applyTimings(smart) {
-    await fetch("/api/timings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ smart })
-    });
-    alert("Timings updated (" + (smart ? "cinematic" : "standard") + ").");
-    refreshStatus();
-}
-
-// ---------------------------
-// TTS, CTA, FG Scale
-// ---------------------------
-async function toggleTTS() {
-    const enabled = document.getElementById("tts-enabled").checked;
-    const voice = document.getElementById("tts-voice").value || null;
-    await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled, voice })
-    });
-    refreshStatus();
-}
-
-async function saveCTA() {
-    const enabled = document.getElementById("cta-enabled").checked;
-    const text = document.getElementById("cta-text").value;
-    const voiceover = document.getElementById("cta-voiceover").checked;
-    await fetch("/api/cta", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled, text, voiceover })
-    });
-    refreshStatus();
-}
-
-async function updateFgScale(value) {
-    document.getElementById("fgscale-value").textContent = value;
-    await fetch("/api/fgscale", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value: parseFloat(value) })
-    });
-}
-
-// ---------------------------
-// Export
-// ---------------------------
-async function exportVideo(optimized) {
-    const res = await fetch("/api/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ optimized })
-    });
-    const data = await res.json();
-    if (data.error) {
-        alert("Export error: " + data.error);
-        return;
+    const text = captionsArea.value || "";
+    try {
+        const res = await fetch("/api/save_captions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+        });
+        const data = await res.json();
+        setText("analyzeStatus", "Captions saved. Status: " + (data.status || "ok"));
+        // Reload config + YAML to reflect the new captions
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error("saveCaptions error", err);
+        setText("analyzeStatus", "Save captions error: " + err);
     }
-    const link = document.getElementById("download-link");
-    link.innerHTML = `<a href="/api/download/${data.filename}" target="_blank">Download ${data.filename}</a>`;
-    refreshStatus();
 }
 
-// ---------------------------
-// Export mode toggle (UI-level flag)
-// ---------------------------
+// -----------------------------
+// Settings: TTS, CTA, Overlay, Timings, FG Scale, Export Mode
+// -----------------------------
+async function handleSaveTTS() {
+    const enabled = document.getElementById("ttsEnabled")?.checked || false;
+    const voice = document.getElementById("ttsVoice")?.value || "alloy";
+
+    try {
+        const res = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled, voice }),
+        });
+        const data = await res.json();
+        setText("analyzeStatus", "TTS updated: " + JSON.stringify(data));
+    } catch (err) {
+        console.error("saveTTS error", err);
+        setText("analyzeStatus", "TTS error: " + err);
+    }
+}
+
+async function handleSaveCTA() {
+    const enabled = document.getElementById("ctaEnabled")?.checked || false;
+    const text = document.getElementById("ctaText")?.value || "";
+    const voiceover = document.getElementById("ctaVoiceover")?.checked || false;
+
+    try {
+        const res = await fetch("/api/cta", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled, text, voiceover }),
+        });
+        const data = await res.json();
+        setText("analyzeStatus", "CTA updated: " + JSON.stringify(data));
+    } catch (err) {
+        console.error("saveCTA error", err);
+        setText("analyzeStatus", "CTA error: " + err);
+    }
+}
+
+async function handleApplyOverlay() {
+    const style = document.getElementById("overlayStyle")?.value || "travel_blog";
+
+    try {
+        const res = await fetch("/api/overlay", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ style }),
+        });
+        const data = await res.json();
+        setText("analyzeStatus", "Overlay applied: " + JSON.stringify(data));
+
+        // Reload config + yaml to see new captions
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error("applyOverlay error", err);
+        setText("analyzeStatus", "Overlay error: " + err);
+    }
+}
+
+async function handleApplyTimings(smart) {
+    try {
+        const res = await fetch("/api/timings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ smart: !!smart }),
+        });
+        const data = await res.json();
+        setText(
+            "analyzeStatus",
+            "Timings updated (" + (smart ? "cinematic" : "standard") + "): " + JSON.stringify(data)
+        );
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error("applyTimings error", err);
+        setText("analyzeStatus", "Timings error: " + err);
+    }
+}
+
+async function handleSaveFGScale() {
+    const scaleInput = document.getElementById("fgScale");
+    if (!scaleInput) return;
+
+    const value = parseFloat(scaleInput.value || "1.0") || 1.0;
+
+    try {
+        const res = await fetch("/api/fgscale", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value }),
+        });
+        const data = await res.json();
+        setText("analyzeStatus", "FG scale updated: " + JSON.stringify(data));
+    } catch (err) {
+        console.error("fgScale error", err);
+        setText("analyzeStatus", "FG scale error: " + err);
+    }
+}
+
 async function loadExportMode() {
-    const res = await fetch("/api/export_mode");
-    const data = await res.json();
-    const mode = data.mode || "standard";
-    document.getElementById("mode-standard").checked = mode === "standard";
-    document.getElementById("mode-optimized").checked = mode === "optimized";
+    try {
+        const res = await fetch("/api/export_mode");
+        if (!res.ok) return;
+        const data = await res.json();
+        const select = document.getElementById("exportMode");
+        if (select && data && data.mode) {
+            select.value = data.mode;
+        }
+    } catch (err) {
+        console.error("loadExportMode error", err);
+    }
 }
 
-async function setExportMode(mode) {
-    await fetch("/api/export_mode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode })
-    });
+async function handleSaveExportMode() {
+    const select = document.getElementById("exportMode");
+    if (!select) return;
+
+    const mode = select.value || "standard";
+    try {
+        const res = await fetch("/api/export_mode", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode }),
+        });
+        const data = await res.json();
+        setText("analyzeStatus", "Export mode set: " + JSON.stringify(data));
+    } catch (err) {
+        console.error("saveExportMode error", err);
+        setText("analyzeStatus", "Export mode error: " + err);
+    }
 }
 
-// ---------------------------
-// Chat assistant
-// ---------------------------
-async function sendChat() {
-    const input = document.getElementById("chat-input");
-    const text = input.value.trim();
-    if (!text) return;
+// -----------------------------
+// Export
+// -----------------------------
+async function handleExport() {
+    const exportStatusId = "exportStatus";
+    setText(exportStatusId, "Starting export…");
+    setHtml("downloadLink", "");
 
-    const history = document.getElementById("chat-history");
-    history.value += "You: " + text + "\n";
+    const modeSelect = document.getElementById("exportMode");
+    const mode = modeSelect ? modeSelect.value : "standard";
+    const optimized = mode === "optimized";
 
-    const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
-    });
-    const data = await res.json();
-    history.value += "Assistant: " + (data.reply || "") + "\n\n";
-    history.scrollTop = history.scrollHeight;
-    input.value = "";
+    try {
+        const res = await fetch("/api/export", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ optimized }),
+        });
+
+        if (!res.ok) {
+            const txt = await res.text();
+            setText(exportStatusId, "Export failed: " + txt);
+            return;
+        }
+
+        const data = await res.json();
+        const filename = data.filename;
+        setText(exportStatusId, "Export finished: " + filename);
+
+        if (filename) {
+            const url = "/api/download/" + encodeURIComponent(filename);
+            setHtml(
+                "downloadLink",
+                `<a href="${url}" target="_blank">⬇ Download Final Video</a>`
+            );
+        }
+    } catch (err) {
+        console.error("export error", err);
+        setText(exportStatusId, "Export error: " + err);
+    }
 }
 
-// ---------------------------
-// Init
-// ---------------------------
-window.addEventListener("load", () => {
-    refreshStatus();
-    refreshAnalyses();
-    loadYaml();
-    loadExportMode();
-    setInterval(refreshStatus, 3000);
-});
+// -----------------------------
+// Chat
+// -----------------------------
+async function handleChat() {
+    const input = document.getElementById("chatInput");
+    const replyEl = document.getElementById("chatReply");
+    if (!input || !replyEl) return;
+
+    const message = input.value.trim();
+    if (!message) return;
+
+    replyEl.textContent = "Thinking…";
+
+    try {
+        const res = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message }),
+        });
+
+        if (!res.ok) {
+            const txt = await res.text();
+            replyEl.textContent = "Chat error: " + txt;
+            return;
+        }
+
+        const data = await res.json();
+        replyEl.textContent = data.reply || "(no reply)";
+    } catch (err) {
+        console.error("chat error", err);
+        replyEl.textContent = "Chat error: " + err;
+    }
+}
+
+// -----------------------------
+// Live status log & analyses cache polling
+// -----------------------------
+function pollStatusLog() {
+    async function fetchStatus() {
+        try {
+            const res = await fetch("/api/status");
+            if (!res.ok) return;
+            const data = await res.json();
+            const log = data.status_log || [];
+            const text = Array.isArray(log) ? log.join("\n") : String(log);
+            setText("liveLog", text);
+        } catch (err) {
+            console.error("status poll error", err);
+        }
+    }
+
+    fetchStatus();
+    setInterval(fetchStatus, 3000);
+}
+
+function pollAnalysesCache() {
+    fetchAnalysesCache();
+    setInterval(fetchAnalysesCache, 5000);
+}
+
+async function fetchAnalysesCache() {
+    try {
+        const res = await fetch("/api/analyses_cache");
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const lines = [];
+        for (const [file, desc] of Object.entries(data || {})) {
+            lines.push(`${file}: ${desc}`);
+        }
+
+        const text = lines.join("\n");
+        setText("analysisCache", text);
+    } catch (err) {
+        console.error("analyses_cache error", err);
+    }
+}
