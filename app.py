@@ -51,7 +51,7 @@ def healthz():
 # ---------------------------------
 @app.route("/api/status", methods=["GET"])
 def api_status():
-    return jsonify({"status_log": status_log})
+    return jsonify({"status_log": status_log[-100:]})
 
 
 # ---------------------------------
