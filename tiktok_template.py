@@ -13,7 +13,7 @@ if not hasattr(Image, "ANTIALIAS"):
 
 import yaml
 
-from tiktok_assistant import enforce_mp4
+from utils_video import enforce_mp4
 
 from moviepy.editor import (
     VideoFileClip,
