@@ -368,7 +368,7 @@ def api_get_config() -> Dict[str, Any]:
 # ============================================
 # Export (render video)
 # ============================================
-def api_export(optimized: bool = False) -> dict:
+def api_export(optimized: bool = False) -> str:
     clear_status_log()
     mode_label = "OPTIMIZED" if optimized else "STANDARD"
     log_step(f"Rendering export in {mode_label} mode...")
@@ -376,7 +376,6 @@ def api_export(optimized: bool = False) -> dict:
     filename = "output_tiktok_final_optimized.mp4" if optimized else "output_tiktok_final.mp4"
     local_path = os.path.join(os.getcwd(), filename)
 
-    # ---- Render video ----
     try:
         log_step("Rendering timeline with music, captions, and voiceover flags...")
         edit_video(output_file=filename, optimized=optimized)
@@ -384,29 +383,34 @@ def api_export(optimized: bool = False) -> dict:
     except Exception as e:
         msg = f"Export failed while calling edit_video: {e}"
         log_step(msg)
+        logger.exception(msg)
         raise
 
-    # ---- Check render ----
+    # Verify the file exists locally
     if not os.path.exists(local_path):
-        raise FileNotFoundError(f"Render failed: {filename} missing")
+        msg = f"Export failed: file {filename} not found after render."
+        log_step(msg)
+        logger.error(msg)
+        raise FileNotFoundError(msg)
 
-    # ---- Upload to S3 ----
+    # -----------------------------------------
+    # 🚀 NEW: upload to S3 under exports/
+    # -----------------------------------------
     s3_key = f"{EXPORT_PREFIX}{filename}"
-    s3_url = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{s3_key}"
-
     try:
         log_step(f"Uploading export to s3://{S3_BUCKET_NAME}/{s3_key}...")
         s3.upload_file(local_path, S3_BUCKET_NAME, s3_key)
         log_step("Upload to S3 complete.")
     except Exception as e:
         log_step(f"[S3 UPLOAD ERROR] {e}")
+        raise
 
-    # ---- ⭐ Return exactly what JS needs + optional s3_url ----
+    # Return BOTH paths: local + s3
     return {
-        "filename": filename,  # <-- JS uses this
-        "s3_url": s3_url       # <-- optional
+        "local_filename": filename,
+        "s3_key": s3_key,
+        "s3_url": f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{s3_key}"
     }
-
 
 
 

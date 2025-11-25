@@ -368,7 +368,6 @@ async function exportVideo() {
     exportStatus.textContent = optimized
         ? "Rendering in optimized mode…"
         : "Rendering in standard mode…";
-
     downloadArea.innerHTML = "";
     btn.disabled = true;
 
@@ -377,33 +376,18 @@ async function exportVideo() {
             method: "POST",
             body: JSON.stringify({ optimized }),
         });
-
-        exportStatus.textContent = "Export complete.";
-
         const filename = data.filename;
-        const s3_url = data.s3_url;   // ⬅ NEW
-
-        if (s3_url) {
-            // Prefer S3 download
-            downloadArea.innerHTML = `
-                <div>✅ Video ready:</div>
-                <a href="${s3_url}" target="_blank" download>
-                    Download (S3) – ${filename}
-                </a>
-            `;
-        } else if (filename) {
-            // Fallback to Flask local download
+        exportStatus.textContent = "Export complete.";
+        if (filename) {
             const url = `/api/download/${encodeURIComponent(filename)}`;
             downloadArea.innerHTML = `
-                <div>✅ Video ready (local):</div>
-                <a href="${url}" download>
-                    Download ${filename}
-                </a>
+                <div>✅ Ready to download:</div>
+                <a href="${url}" download>Download ${filename}</a>
             `;
         } else {
-            downloadArea.textContent = "Export finished but no filename returned.";
+            downloadArea.textContent =
+                "Export finished but no filename returned. Check server logs.";
         }
-
     } catch (err) {
         console.error(err);
         exportStatus.textContent = `Error during export: ${err.message}`;
@@ -411,7 +395,6 @@ async function exportVideo() {
         btn.disabled = false;
     }
 }
-
 
 // Chat
 async function sendChat() {

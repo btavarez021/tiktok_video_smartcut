@@ -150,8 +150,8 @@ def route_save_captions():
 def route_export():
     data = request.get_json() or {}
     optimized = bool(data.get("optimized", False))
-    result = api_export(optimized=optimized)
-    return jsonify(result)
+    filename = api_export(optimized=optimized)
+    return jsonify({"filename": filename})
 
 
 @app.route("/api/download/<path:filename>", methods=["GET"])
