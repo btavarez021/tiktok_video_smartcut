@@ -3,7 +3,7 @@ import os
 from flask import Flask, jsonify, request, send_file, render_template
 from flask_cors import CORS
 
-# Internal application modules
+# Backend logic modules
 from assistant_log import status_log
 from assistant_api import (
     api_analyze_start,
@@ -23,94 +23,120 @@ from assistant_api import (
     load_all_analysis_results,
     get_export_mode,
     set_export_mode,
+    api_s3_upload,
+    api_list_s3_raw,
 )
 
-# --------------------------------------
-# Flask App Config
-# --------------------------------------
+# -------------------------------------------------------
+# Flask App
+# -------------------------------------------------------
 app = Flask(
     __name__,
     static_folder="static",
     template_folder="templates"
 )
+
 CORS(app)
 
 
-# ----------------------------------------------------
-# Frontend Route (loads templates/index.html)
-# ----------------------------------------------------
+# -------------------------------------------------------
+# Frontend Index Route
+# -------------------------------------------------------
 @app.route("/")
 def index():
-    """Serve the main frontend UI."""
     return render_template("index.html")
 
 
-# ----------------------------------------------------
-# Health Check (Render uses this)
-# ----------------------------------------------------
-@app.route("/api/health", methods=["GET"])
-def api_health():
-    return jsonify({"status": "ok"})
+# -------------------------------------------------------
+# Upload to S3
+# -------------------------------------------------------
+@app.route("/api/upload_s3", methods=["POST"])
+def route_upload_s3():
+    """
+    Upload a file to S3 -> raw_uploads/
+    """
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files["file"]
+    result = api_s3_upload(file)
+    return jsonify(result)
 
 
-# ----------------------------------------------------
-# Status log viewer
-# ----------------------------------------------------
+@app.route("/api/list_uploads", methods=["GET"])
+def route_list_s3_raw():
+    """
+    List S3 files in raw_uploads/
+    """
+    files = api_list_s3_raw()
+    return jsonify({"files": files})
+
+
+# -------------------------------------------------------
+# Status Log
+# -------------------------------------------------------
 @app.route("/api/status", methods=["GET"])
 def api_status():
     return jsonify({"status_log": status_log})
 
 
-# ----------------------------------------------------
-# Analysis Cache: read disk + memory
-# ----------------------------------------------------
+# -------------------------------------------------------
+# Analyses Cache
+# -------------------------------------------------------
 @app.route("/api/analyses_cache", methods=["GET"])
 def api_get_analyses_cache():
     results = load_all_analysis_results()
     return jsonify(results)
 
 
-# ----------------------------------------------------
-# ANALYZE — Step-Based & Legacy One-Shot
-# ----------------------------------------------------
+# -------------------------------------------------------
+# ANALYZE — Step-based (recommended)
+# -------------------------------------------------------
 @app.route("/api/analyze_start", methods=["POST"])
 def route_analyze_start():
-    return jsonify(api_analyze_start())
+    result = api_analyze_start()
+    return jsonify(result)
 
 
 @app.route("/api/analyze_step", methods=["POST"])
 def route_analyze_step():
-    return jsonify(api_analyze_step())
+    result = api_analyze_step()
+    return jsonify(result)
 
 
+# Optional one-shot analyze (not recommended on Render)
 @app.route("/api/analyze", methods=["POST"])
 def route_analyze():
-    return jsonify(api_analyze())
+    result = api_analyze()
+    return jsonify(result)
 
 
-# ----------------------------------------------------
-# YAML & CONFIG
-# ----------------------------------------------------
+# -------------------------------------------------------
+# YAML / Config APIs
+# -------------------------------------------------------
 @app.route("/api/generate_yaml", methods=["POST"])
 def route_generate_yaml():
-    return jsonify(api_generate_yaml())
+    cfg = api_generate_yaml()
+    return jsonify(cfg)
 
 
 @app.route("/api/config", methods=["GET"])
 def route_get_config():
-    return jsonify(api_get_config())
+    cfg = api_get_config()
+    return jsonify(cfg)
 
 
 @app.route("/api/save_yaml", methods=["POST"])
 def route_save_yaml():
     data = request.get_json() or {}
     yaml_text = data.get("yaml", "")
-    return jsonify(api_save_yaml(yaml_text))
+    result = api_save_yaml(yaml_text)
+    return jsonify(result)
 
 
-# ----------------------------------------------------
-# EXPORT RENDERING
-# ----------------------------------------------------
+# -------------------------------------------------------
+# Export API
+# -------------------------------------------------------
 @app.route("/api/export", methods=["POST"])
 def route_export():
     data = request.get_json() or {}
@@ -122,85 +148,98 @@ def route_export():
 @app.route("/api/download/<path:filename>", methods=["GET"])
 def route_download(filename):
     if not os.path.exists(filename):
-        return jsonify({"error": f"File {filename} not found."}), 404
+        return jsonify({"error": f"File '{filename}' not found."}), 404
     return send_file(filename, as_attachment=True)
 
 
-# ----------------------------------------------------
-# TTS + CTA
-# ----------------------------------------------------
+# -------------------------------------------------------
+# TTS & CTA
+# -------------------------------------------------------
 @app.route("/api/tts", methods=["POST"])
 def route_tts():
     data = request.get_json() or {}
-    return jsonify(api_set_tts(
-        enabled=bool(data.get("enabled", False)),
-        voice=data.get("voice")
-    ))
+    enabled = bool(data.get("enabled", False))
+    voice = data.get("voice")
+    result = api_set_tts(enabled, voice)
+    return jsonify(result)
 
 
 @app.route("/api/cta", methods=["POST"])
 def route_cta():
     data = request.get_json() or {}
-    return jsonify(api_set_cta(
-        enabled=bool(data.get("enabled", False)),
-        text=data.get("text"),
-        voiceover=data.get("voiceover")
-    ))
+    enabled = bool(data.get("enabled", False))
+    text = data.get("text")
+    voiceover = bool(data.get("voiceover", False))
+    result = api_set_cta(enabled, text, voiceover)
+    return jsonify(result)
 
 
-# ----------------------------------------------------
-# Overlay / Timings / FG Scale
-# ----------------------------------------------------
+# -------------------------------------------------------
+# Overlay, Timings, FG Scale
+# -------------------------------------------------------
 @app.route("/api/overlay", methods=["POST"])
 def route_overlay():
     data = request.get_json() or {}
-    return jsonify(api_apply_overlay(data.get("style", "travel_blog")))
+    style = data.get("style", "travel_blog")
+    result = api_apply_overlay(style)
+    return jsonify(result)
 
 
 @app.route("/api/save_captions", methods=["POST"])
 def route_save_captions():
     data = request.get_json() or {}
-    return jsonify(api_save_captions(data.get("text", "")))
+    text = data.get("text", "")
+    result = api_save_captions(text)
+    return jsonify(result)
 
 
 @app.route("/api/timings", methods=["POST"])
 def route_timings():
     data = request.get_json() or {}
-    return jsonify(api_apply_timings(smart=bool(data.get("smart", False))))
+    smart = bool(data.get("smart", False))
+    result = api_apply_timings(smart=smart)
+    return jsonify(result)
 
 
 @app.route("/api/fgscale", methods=["POST"])
 def route_fgscale():
     data = request.get_json() or {}
-    return jsonify(api_fgscale(float(data.get("value", 1.0))))
+    value = float(data.get("value", 1.0))
+    result = api_fgscale(value)
+    return jsonify(result)
 
 
-# ----------------------------------------------------
-# Chatbot / Creative Assistant
-# ----------------------------------------------------
+# -------------------------------------------------------
+# Chat (LLM helper)
+# -------------------------------------------------------
 @app.route("/api/chat", methods=["POST"])
 def route_chat():
     data = request.get_json() or {}
-    return jsonify(api_chat(data.get("message", "")))
+    message = data.get("message", "")
+    result = api_chat(message)
+    return jsonify(result)
 
 
-# ----------------------------------------------------
-# Export Mode (Standard / Optimized)
-# ----------------------------------------------------
+# -------------------------------------------------------
+# Export Mode Toggle
+# -------------------------------------------------------
 @app.route("/api/export_mode", methods=["GET"])
 def route_export_mode_get():
-    return jsonify(get_export_mode())
+    mode = get_export_mode()
+    return jsonify(mode)
 
 
 @app.route("/api/export_mode", methods=["POST"])
 def route_export_mode_set():
     data = request.get_json() or {}
-    return jsonify(set_export_mode(data.get("mode", "standard")))
+    mode = data.get("mode", "standard")
+    result = set_export_mode(mode)
+    return jsonify(result)
 
 
-# ----------------------------------------------------
-# Local Development Server
-# ----------------------------------------------------
+# -------------------------------------------------------
+# LOCAL DEV ENTRYPOINT (Render uses Gunicorn)
+# -------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=True)

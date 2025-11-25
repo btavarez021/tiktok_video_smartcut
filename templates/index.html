@@ -1,101 +1,155 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>TikTok SmartCut Studio</title>
-  <link rel="stylesheet" href="static/css/style.css">
-  <script defer src="static/js/app.js"></script>
+    <meta charset="UTF-8">
+    <title>TikTok SmartCut Editor</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
-
 <body>
-  <div class="container">
 
-    <h1 class="title">🎬 TikTok SmartCut Studio</h1>
-    <p class="subtitle">Generate hotel/travel TikToks from your S3 video uploads</p>
+<div class="container">
 
-    <!-- STEP 1 -->
-    <section class="panel">
-      <h2>1️⃣ Analyze Your S3 Videos</h2>
-      <p class="desc">
-        This scans your <strong>raw_uploads/</strong> S3 folder, normalizes videos,
-        and uses AI to write one-sentence descriptions.
-      </p>
+    <header>
+        <h1>TikTok SmartCut Studio</h1>
+        <p class="subtitle">AI-powered hotel/travel TikTok editor • S3 + LLM + FFmpeg</p>
+    </header>
 
-      <button id="btnAnalyze" class="btn primary">Start Analysis</button>
 
-      <div class="status-box">
-        <div id="spinAnalyze" class="spinner"></div>
-        <pre id="statusAnalyze" class="status-text">Idle.</pre>
-      </div>
+    <!-- UPLOAD SECTION -->
+    <div class="card">
+        <h2>1. Upload Raw Clips (to S3)</h2>
+        <input id="uploadInput" type="file" multiple accept="video/*">
+        <button class="btn" onclick="uploadFiles()">Upload to S3</button>
+        <div id="uploadStatus" class="status"></div>
+    </div>
 
-      <h3>Analyzed Clips:</h3>
-      <ul id="analysisList" class="list"></ul>
-    </section>
 
-    <!-- STEP 2 -->
-    <section class="panel">
-      <h2>2️⃣ Generate YAML Storyboard</h2>
-      <p class="desc">
-        Creates a full <strong>config.yml</strong> with hook, middle clips,
-        CTA, captions, durations, and more.
-      </p>
-      <button id="btnGenerateYaml" class="btn secondary">Generate YAML</button>
-      <button id="btnLoadConfig" class="btn">Load Existing YAML</button>
-      <button id="btnSaveYaml" class="btn">Save YAML</button>
+    <!-- ANALYZE -->
+    <div class="card">
+        <h2>2. Analyze Clips</h2>
+        <button class="btn" onclick="startAnalysis()">Start Analysis</button>
+        <button class="btn small" onclick="stepAnalysis()">▶ Step</button>
+        <div id="analyzeStatus" class="status"></div>
 
-      <pre id="statusYaml" class="status-text"></pre>
-      <textarea id="yamlText" class="yaml-box" placeholder="# YAML will appear here…"></textarea>
-    </section>
+        <h3>Analysis Cache:</h3>
+        <div id="analysisCache" class="list-box"></div>
+    </div>
 
-    <!-- STEP 3 -->
-    <section class="panel">
-      <h2>3️⃣ Captions & Styles</h2>
 
-      <h3>✍ Edit Captions</h3>
-      <textarea id="captionsText" class="captions-box" placeholder="One block per clip…"></textarea>
-      <button id="btnSaveCaptions" class="btn">Save Captions</button>
-      <pre id="statusCaptions" class="status-text"></pre>
+    <!-- YAML GENERATION -->
+    <div class="card">
+        <h2>3. Generate YAML Storyboard</h2>
+        <button class="btn" onclick="generateYaml()">Generate YAML</button>
+        <button class="btn small" onclick="reloadConfig()">Reload Current Config</button>
+        <textarea id="yamlBox" class="yaml-editor"></textarea>
+        <button class="btn green" onclick="saveYaml()">Save YAML</button>
+        <div id="yamlStatus" class="status"></div>
+    </div>
 
-      <h3>🎨 Caption Overlay Styles</h3>
-      <div class="inline-buttons">
-        <button onclick="applyOverlayStyle('punchy')" class="btn small">Punchy</button>
-        <button onclick="applyOverlayStyle('cinematic')" class="btn small">Cinematic</button>
-        <button onclick="applyOverlayStyle('descriptive')" class="btn small">Descriptive</button>
-        <button onclick="applyOverlayStyle('influencer')" class="btn small">Influencer</button>
-        <button onclick="applyOverlayStyle('travel_blog')" class="btn small">Travel Blogger</button>
-      </div>
-      <pre id="statusOverlay" class="status-text"></pre>
 
-      <h3>⏱ Smart Timings</h3>
-      <div class="inline-buttons">
-        <button id="btnApplyTimingsStandard" class="btn small">Standard</button>
-        <button id="btnApplyTimingsSmart" class="btn small">Cinematic</button>
-      </div>
-      <pre id="statusTimings" class="status-text"></pre>
-    </section>
+    <!-- CAPTION EDITOR -->
+    <div class="card">
+        <h2>4. Edit Captions (Manual or AI)</h2>
+        <textarea id="captionInput" class="yaml-editor" style="height:130px;" placeholder="Paste comma-separated captions or a block of text..."></textarea>
+        <button class="btn" onclick="saveCaptions()">Apply Captions</button>
 
-    <!-- STEP 4 -->
-    <section class="panel">
-      <h2>4️⃣ Export Final TikTok Video</h2>
-      <p class="desc">Renders final video from YAML story.</p>
+        <h3>Overlay Styles:</h3>
+        <div>
+            <button class="btn small" onclick="applyOverlay('travel_blog')">Travel Blog</button>
+            <button class="btn small" onclick="applyOverlay('cinematic')">Cinematic</button>
+            <button class="btn small" onclick="applyOverlay('punchy')">Punchy</button>
+            <button class="btn small" onclick="applyOverlay('influencer')">Influencer</button>
+            <button class="btn small" onclick="applyOverlay('descriptive')">Descriptive</button>
+        </div>
+        <div id="captionStatus" class="status"></div>
+    </div>
 
-      <button id="btnExportStandard" class="btn success">Export Standard</button>
-      <button id="btnExportOptimized" class="btn warn">Export Optimized</button>
 
-      <pre id="statusExport" class="status-text"></pre>
+    <!-- TIMINGS -->
+    <div class="card">
+        <h2>5. Smart Timings</h2>
+        <button class="btn" onclick="applyTimings(false)">Standard</button>
+        <button class="btn small" onclick="applyTimings(true)">Cinematic</button>
+        <div id="timingStatus" class="status"></div>
+    </div>
 
-      <a id="downloadLink" class="download-link" href="#" style="display:none;">Download</a>
-    </section>
 
-    <!-- STEP 5 -->
-    <section class="panel">
-      <h2>5️⃣ Creative Chat Assistant</h2>
-      <textarea id="chatInput" class="chat-input" placeholder="Ask for hooks, CTA ideas, pacing advice…"></textarea>
-      <button id="btnChatSend" class="btn">Send</button>
+    <!-- TTS & CTA -->
+    <div class="card">
+        <h2>6. TTS / CTA Settings</h2>
 
-      <textarea id="chatOutput" class="chat-output" placeholder="Assistant output…" readonly></textarea>
-    </section>
+        <div class="toggle">
+            <input id="ttsToggle" type="checkbox">
+            <label for="ttsToggle">Enable TTS</label>
+        </div>
 
-  </div>
+        <select id="ttsVoice" class="btn small">
+            <option value="alloy">Alloy</option>
+            <option value="verse">Verse</option>
+            <option value="nova">Nova</option>
+            <option value="aria">Aria</option>
+        </select>
+        <button class="btn small" onclick="setTTS()">Save TTS</button>
+
+        <hr/>
+
+        <div class="toggle">
+            <input id="ctaToggle" type="checkbox">
+            <label for="ctaToggle">Enable CTA</label>
+        </div>
+
+        <input id="ctaText" class="chat-input" placeholder="CTA text...">
+        <div class="toggle">
+            <input id="ctaVoiceToggle" type="checkbox">
+            <label for="ctaVoiceToggle">CTA Voiceover</label>
+        </div>
+        <button class="btn small" onclick="setCTA()">Save CTA</button>
+
+        <div id="ctaStatus" class="status"></div>
+    </div>
+
+
+    <!-- FG SCALE -->
+    <div class="card">
+        <h2>7. Clip FG Scale</h2>
+        <input type="range" id="fgScale" min="0.5" max="2.0" step="0.1" value="1.0">
+        <button class="btn small" onclick="updateFGScale()">Apply Scale</button>
+        <div id="fgStatus" class="status"></div>
+    </div>
+
+
+    <!-- EXPORT -->
+    <div class="card">
+        <h2>8. Export Final Video</h2>
+
+        <div class="toggle">
+            <input id="optimizedExport" type="checkbox">
+            <label for="optimizedExport">Optimized Export</label>
+        </div>
+
+        <button class="btn green big" onclick="exportVideo()">Export</button>
+        <div id="exportStatus" class="status"></div>
+    </div>
+
+
+    <!-- CHAT ASSISTANT -->
+    <div class="card">
+        <h2>9. AI Chat Assistant</h2>
+        <input id="chatMessage" class="chat-input" placeholder="Ask anything...">
+        <button class="btn small" onclick="sendChat()">Send</button>
+        <div id="chatResponse" class="mini-output"></div>
+    </div>
+
+
+    <!-- LIVE LOG -->
+    <div class="card">
+        <h2>Live Status Log</h2>
+        <div id="liveLog" class="log-box"></div>
+    </div>
+
+</div>
+
+<script src="/static/js/app.js"></script>
+
 </body>
 </html>

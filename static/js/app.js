@@ -1,442 +1,350 @@
-// static/app.js
+// =========================================================
+// TikTok Smart Cut — Frontend Controller (Full File)
+// =========================================================
 
-// Simple DOM helpers
-function $(id) {
-  return document.getElementById(id);
+// -----------------------------
+// Cached DOM references
+// -----------------------------
+
+const statusBox = document.getElementById("status");
+const logBox = document.getElementById("log");
+const cacheBox = document.getElementById("cache");
+const yamlEditor = document.getElementById("yamlEditor");
+const captionEditor = document.getElementById("captionEditor");
+const chatInput = document.getElementById("chatInput");
+const chatOutput = document.getElementById("chatOutput");
+
+// -----------------------------
+// Helpers
+// -----------------------------
+
+function log(msg) {
+    if (!logBox) return;
+    logBox.textContent += msg + "\n";
+    logBox.scrollTop = logBox.scrollHeight;
 }
 
-const spinAnalyze = $("spinAnalyze");
-const statusAnalyze = $("statusAnalyze");
-const analysisList = $("analysisList");
-
-// Polling control
-let analyzeStepTimer = null;
-let isStepping = false;
-
-async function callJson(url, options = {}) {
-  const resp = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-    },
-    ...options,
-  });
-  if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status}`);
-  }
-  return resp.json();
+function setStatus(msg) {
+    if (!statusBox) return;
+    statusBox.textContent = msg;
 }
 
-// ----------------------
-// STATUS POLLING
-// ----------------------
-async function refreshStatusLog() {
-  try {
-    const data = await callJson("/api/status");
-    if (statusAnalyze) {
-      const log = (data.status_log || []).join("\n");
-      statusAnalyze.textContent = log || "Idle.";
-    }
-  } catch (err) {
-    console.error("Status error:", err);
-  }
+async function jsonPost(url, data = {}) {
+    const res = await fetch(url, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data),
+    });
+    return res.json();
 }
 
-setInterval(refreshStatusLog, 2000);
-
-// ----------------------
-// ANALYSIS
-// ----------------------
-async function refreshAnalysesList() {
-  if (!analysisList) return;
-  try {
-    const data = await callJson("/api/analyses_cache");
-    const entries = Object.entries(data || {});
-    if (entries.length === 0) {
-      analysisList.innerHTML = "<li>No analyses yet.</li>";
-      return;
+// Refresh status log every 1 sec
+setInterval(async () => {
+    const res = await fetch("/api/status");
+    const json = await res.json();
+    if (json.status_log) {
+        logBox.textContent = json.status_log.join("\n");
+        logBox.scrollTop = logBox.scrollHeight;
     }
-    analysisList.innerHTML = entries
-      .map(
-        ([file, desc]) =>
-          `<li><strong>${file}</strong>: ${desc ? desc : "(no description)"} </li>`
-      )
-      .join("");
-  } catch (err) {
-    console.error("analyses_cache error:", err);
-  }
+}, 1000);
+
+// Refresh  analyses cache every 2 sec
+setInterval(refreshCache, 2000);
+
+async function refreshCache() {
+    const res = await fetch("/api/analyses_cache");
+    const data = await res.json();
+
+    if (!cacheBox) return;
+    cacheBox.innerHTML = "";
+
+    const keys = Object.keys(data);
+    if (keys.length === 0) {
+        cacheBox.textContent = "No analyses yet.";
+        return;
+    }
+
+    keys.forEach(k => {
+        const div = document.createElement("div");
+        div.style.marginBottom = "8px";
+        div.innerHTML = `<strong>${k}</strong><br>${data[k]}`;
+        cacheBox.appendChild(div);
+    });
 }
 
-async function startAnalysis() {
-  if (spinAnalyze) spinAnalyze.classList.add("active");
-  if (statusAnalyze) {
-    statusAnalyze.textContent = "Starting analysis…";
-    statusAnalyze.classList.add("working");
-  }
+// =========================================================
+// 1. S3 Upload
+// =========================================================
 
-  try {
-    const res = await callJson("/api/analyze_start", { method: "POST" });
-    console.log("analyze_start:", res);
+const uploadInput = document.getElementById("uploadInput");
+const uploadBtn = document.getElementById("uploadBtn");
 
-    if (res.total === 0) {
-      if (statusAnalyze) {
-        statusAnalyze.textContent = "No videos found in S3 raw_uploads/.";
-        statusAnalyze.classList.remove("working");
-      }
-      if (spinAnalyze) spinAnalyze.classList.remove("active");
-      return;
-    }
+if (uploadBtn) {
+    uploadBtn.onclick = async () => {
+        const files = uploadInput.files;
+        if (!files.length) {
+            alert("Select files first.");
+            return;
+        }
 
-    if (statusAnalyze) {
-      statusAnalyze.textContent = `Running analysis… (0 / ${res.total})`;
-      statusAnalyze.classList.add("working");
-    }
+        setStatus("Uploading to S3…");
 
-    // Begin step-based polling
-    if (analyzeStepTimer) clearInterval(analyzeStepTimer);
-    analyzeStepTimer = setInterval(runAnalysisStep, 2500);
-  } catch (err) {
-    console.error("startAnalysis error:", err);
-    if (statusAnalyze) {
-      statusAnalyze.textContent = "Error starting analysis.";
-      statusAnalyze.classList.remove("working");
-      statusAnalyze.classList.add("error");
-    }
-    if (spinAnalyze) spinAnalyze.classList.remove("active");
-  }
+        for (const f of files) {
+            const formData = new FormData();
+            formData.append("file", f);
+
+            await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+            });
+
+            log(`Uploaded: ${f.name}`);
+        }
+
+        setStatus("Upload complete.");
+        refreshCache();
+    };
 }
 
-async function runAnalysisStep() {
-  if (isStepping) return;
-  isStepping = true;
 
-  try {
-    const res = await callJson("/api/analyze_step", { method: "POST" });
-    console.log("analyze_step:", res);
+// =========================================================
+// 2. Step-Based Analyze
+// =========================================================
 
-    const total = res.total || 0;
-    const processed = res.processed || 0;
+const analyzeBtn = document.getElementById("analyzeBtn");
 
-    if (statusAnalyze) {
-      let msg = `Analyzing… (${processed} / ${total})`;
-      if (res.last_file) {
-        msg += ` | Last: ${res.last_file}`;
-      }
-      statusAnalyze.textContent = msg;
-      statusAnalyze.classList.add("working");
-    }
+if (analyzeBtn) {
+    analyzeBtn.onclick = async () => {
+        setStatus("Starting multi-step analysis…");
+        logBox.textContent = "";
 
-    if (res.status === "done" || res.status === "idle") {
-      if (analyzeStepTimer) clearInterval(analyzeStepTimer);
-      analyzeStepTimer = null;
+        const start = await jsonPost("/api/analyze_start");
+        log("Analysis session created.");
 
-      if (statusAnalyze) {
-        statusAnalyze.textContent = `✅ Analysis complete (${processed} / ${total})`;
-        statusAnalyze.classList.remove("working");
-        statusAnalyze.classList.add("success");
-      }
-      if (spinAnalyze) spinAnalyze.classList.remove("active");
+        async function runStep() {
+            const step = await jsonPost("/api/analyze_step");
 
-      await refreshAnalysesList();
-    } else if (res.status === "error") {
-      if (analyzeStepTimer) clearInterval(analyzeStepTimer);
-      analyzeStepTimer = null;
+            if (step.done) {
+                setStatus("Analysis complete!");
+                refreshCache();
+                return;
+            }
 
-      if (statusAnalyze) {
-        statusAnalyze.textContent = `❌ Error during analysis: ${res.error || "Unknown error"}`;
-        statusAnalyze.classList.remove("working");
-        statusAnalyze.classList.add("error");
-      }
-      if (spinAnalyze) spinAnalyze.classList.remove("active");
-    }
-  } catch (err) {
-    console.error("runAnalysisStep error:", err);
-    if (analyzeStepTimer) clearInterval(analyzeStepTimer);
-    analyzeStepTimer = null;
+            setStatus(`Analyzing ${step.current || ""}`);
+            setTimeout(runStep, 500);
+        }
 
-    if (statusAnalyze) {
-      statusAnalyze.textContent = "❌ Error calling /api/analyze_step";
-      statusAnalyze.classList.remove("working");
-      statusAnalyze.classList.add("error");
-    }
-    if (spinAnalyze) spinAnalyze.classList.remove("active");
-  } finally {
-    isStepping = false;
-  }
+        runStep();
+    };
 }
 
-// ----------------------
-// YAML CONFIG
-// ----------------------
-async function generateYaml() {
-  const status = $("statusYaml");
-  if (status) {
-    status.textContent = "Generating YAML from analyses…";
-    status.classList.add("working");
-  }
 
-  try {
-    const cfg = await callJson("/api/generate_yaml", { method: "POST" });
-    const yamlTextArea = $("yamlText");
-    if (yamlTextArea) {
-      yamlTextArea.value = (cfg && Object.keys(cfg).length)
-        ? JSON.stringify(cfg, null, 2)
-        : "# YAML generated (see config.yml on server)";
-    }
-    if (status) {
-      status.textContent = "YAML generated and saved to config.yml ✅";
-      status.classList.remove("working");
-      status.classList.add("success");
-    }
-  } catch (err) {
-    console.error("generateYaml error:", err);
-    if (status) {
-      status.textContent = "Error generating YAML.";
-      status.classList.remove("working");
-      status.classList.add("error");
-    }
-  }
+// =========================================================
+// 3. Generate YAML
+// =========================================================
+
+const genYamlBtn = document.getElementById("genYamlBtn");
+
+if (genYamlBtn) {
+    genYamlBtn.onclick = async () => {
+        setStatus("Generating YAML…");
+
+        const res = await jsonPost("/api/generate_yaml");
+        yamlEditor.value = JSON.stringify(res, null, 2);
+
+        setStatus("YAML generated.");
+    };
 }
+
+
+// =========================================================
+// 4. Load YAML / Config
+// =========================================================
 
 async function loadConfig() {
-  try {
-    const data = await callJson("/api/config");
-    const yamlTextArea = $("yamlText");
-    if (yamlTextArea) {
-      yamlTextArea.value = data.yaml || "# No config.yml found yet.";
+    const res = await fetch("/api/config");
+    const json = await res.json();
+
+    if (yamlEditor) {
+        yamlEditor.value = json.yaml || "";
     }
-  } catch (err) {
-    console.error("loadConfig error:", err);
-  }
 }
 
-async function saveYaml() {
-  const yamlTextArea = $("yamlText");
-  const status = $("statusYaml");
-  if (!yamlTextArea) return;
+document.addEventListener("DOMContentLoaded", loadConfig);
 
-  const text = yamlTextArea.value || "";
-  try {
-    await callJson("/api/save_yaml", {
-      method: "POST",
-      body: JSON.stringify({ yaml: text }),
+
+// =========================================================
+// 5. Save YAML
+// =========================================================
+
+const saveYamlBtn = document.getElementById("saveYamlBtn");
+
+if (saveYamlBtn) {
+    saveYamlBtn.onclick = async () => {
+        const yamlText = yamlEditor.value;
+        const res = await jsonPost("/api/save_yaml", { yaml: yamlText });
+
+        setStatus("YAML saved.");
+    };
+}
+
+
+// =========================================================
+// 6. Export video
+// =========================================================
+
+const exportStdBtn = document.getElementById("exportStdBtn");
+const exportOptBtn = document.getElementById("exportOptBtn");
+const downloadLink = document.getElementById("downloadLink");
+
+async function runExport(optimized) {
+    setStatus("Exporting video…");
+    log("Export started.");
+
+    const data = await jsonPost("/api/export", { optimized });
+    const filename = data.filename;
+
+    if (downloadLink) {
+        downloadLink.href = "/api/download/" + filename;
+        downloadLink.textContent = "Download " + filename;
+        downloadLink.style.display = "block";
+    }
+
+    setStatus("Export complete.");
+    log("Export complete → " + filename);
+}
+
+if (exportStdBtn) exportStdBtn.onclick = () => runExport(false);
+if (exportOptBtn) exportOptBtn.onclick = () => runExport(true);
+
+
+// =========================================================
+// 7. TTS Toggle
+// =========================================================
+
+const ttsToggle = document.getElementById("ttsToggle");
+const ttsVoice = document.getElementById("ttsVoice");
+
+if (ttsToggle) {
+    ttsToggle.onchange = async () => {
+        await jsonPost("/api/tts", {
+            enabled: ttsToggle.checked,
+            voice: ttsVoice.value,
+        });
+        setStatus("Updated TTS settings.");
+    };
+}
+
+
+// =========================================================
+// 8. CTA Toggle
+// =========================================================
+
+const ctaToggle = document.getElementById("ctaToggle");
+const ctaText = document.getElementById("ctaText");
+const ctaVoiceToggle = document.getElementById("ctaVoiceToggle");
+
+if (ctaToggle) {
+    ctaToggle.onchange = saveCTA;
+}
+if (ctaText) {
+    ctaText.oninput = saveCTA;
+}
+if (ctaVoiceToggle) {
+    ctaVoiceToggle.onchange = saveCTA;
+}
+
+async function saveCTA() {
+    await jsonPost("/api/cta", {
+        enabled: ctaToggle.checked,
+        text: ctaText.value,
+        voiceover: ctaVoiceToggle.checked,
     });
-    if (status) {
-      status.textContent = "YAML saved ✅";
-      status.classList.add("success");
-      status.classList.remove("working");
-    }
-  } catch (err) {
-    console.error("saveYaml error:", err);
-    if (status) {
-      status.textContent = "Error saving YAML.";
-      status.classList.add("error");
-      status.classList.remove("working");
-    }
-  }
+    setStatus("Updated CTA settings.");
 }
 
-// ----------------------
-// Export
-// ----------------------
-async function exportVideo(optimized) {
-  const status = $("statusExport");
-  if (status) {
-    status.textContent = optimized
-      ? "Exporting optimized video…"
-      : "Exporting standard video…";
-    status.classList.add("working");
-  }
 
-  try {
-    const res = await callJson("/api/export", {
-      method: "POST",
-      body: JSON.stringify({ optimized: !!optimized }),
-    });
-    const filename = res.filename;
-    if (status) {
-      status.textContent = `Export finished: ${filename}`;
-      status.classList.remove("working");
-      status.classList.add("success");
-    }
+// =========================================================
+// 9. Overlay style
+// =========================================================
 
-    const link = $("downloadLink");
-    if (link && filename) {
-      link.href = `/api/download/${encodeURIComponent(filename)}`;
-      link.textContent = "Download video";
-      link.style.display = "inline-block";
-    }
-  } catch (err) {
-    console.error("exportVideo error:", err);
-    if (status) {
-      status.textContent = "Error exporting video.";
-      status.classList.add("error");
-      status.classList.remove("working");
-    }
-  }
+const overlaySelect = document.getElementById("overlaySelect");
+const overlayBtn = document.getElementById("overlayBtn");
+
+if (overlayBtn) {
+    overlayBtn.onclick = async () => {
+        const style = overlaySelect.value;
+        await jsonPost("/api/overlay", { style });
+        setStatus("Overlay applied.");
+    };
 }
 
-// ----------------------
-// TTS / CTA / Captions / Timings / FG Scale
-// ----------------------
-async function setTts(enabled, voice) {
-  try {
-    await callJson("/api/tts", {
-      method: "POST",
-      body: JSON.stringify({ enabled, voice }),
-    });
-  } catch (err) {
-    console.error("setTts error:", err);
-  }
+
+// =========================================================
+// 10. Apply Timings
+// =========================================================
+
+const timingStdBtn = document.getElementById("timingStdBtn");
+const timingSmartBtn = document.getElementById("timingSmartBtn");
+
+if (timingStdBtn) {
+    timingStdBtn.onclick = async () => {
+        await jsonPost("/api/timings", { smart: false });
+        setStatus("Applied standard timings.");
+        loadConfig();
+    };
 }
 
-async function setCta(enabled, text, voiceover) {
-  try {
-    await callJson("/api/cta", {
-      method: "POST",
-      body: JSON.stringify({ enabled, text, voiceover }),
-    });
-  } catch (err) {
-    console.error("setCta error:", err);
-  }
+if (timingSmartBtn) {
+    timingSmartBtn.onclick = async () => {
+        await jsonPost("/api/timings", { smart: true });
+        setStatus("Applied cinematic timings.");
+        loadConfig();
+    };
 }
 
-async function applyOverlayStyle(style) {
-  const status = $("statusOverlay");
-  if (status) {
-    status.textContent = `Applying overlay style: ${style}…`;
-    status.classList.add("working");
-  }
-  try {
-    await callJson("/api/overlay", {
-      method: "POST",
-      body: JSON.stringify({ style }),
-    });
-    if (status) {
-      status.textContent = "Overlay updated ✅";
-      status.classList.remove("working");
-      status.classList.add("success");
-    }
-  } catch (err) {
-    console.error("applyOverlayStyle error:", err);
-    if (status) {
-      status.textContent = "Error applying overlay.";
-      status.classList.remove("working");
-      status.classList.add("error");
-    }
-  }
+
+// =========================================================
+// 11. FG Scale
+// =========================================================
+
+const fgScaleInput = document.getElementById("fgScaleInput");
+const fgScaleBtn = document.getElementById("fgScaleBtn");
+
+if (fgScaleBtn) {
+    fgScaleBtn.onclick = async () => {
+        const value = parseFloat(fgScaleInput.value);
+        await jsonPost("/api/fgscale", { value });
+        setStatus("Foreground scale updated.");
+    };
 }
 
-async function saveCaptionsFromTextarea() {
-  const captionsArea = $("captionsText");
-  const status = $("statusCaptions");
-  if (!captionsArea) return;
 
-  const text = captionsArea.value || "";
-  try {
-    const res = await callJson("/api/save_captions", {
-      method: "POST",
-      body: JSON.stringify({ text }),
-    });
-    if (status) {
-      status.textContent = `Captions saved (${res.count || 0} blocks) ✅`;
-      status.classList.add("success");
-      status.classList.remove("working");
-    }
-  } catch (err) {
-    console.error("saveCaptionsFromTextarea error:", err);
-    if (status) {
-      status.textContent = "Error saving captions.";
-      status.classList.add("error");
-      status.classList.remove("working");
-    }
-  }
+// =========================================================
+// 12. Caption Save
+// =========================================================
+
+const saveCaptionsBtn = document.getElementById("saveCaptionsBtn");
+
+if (saveCaptionsBtn) {
+    saveCaptionsBtn.onclick = async () => {
+        const text = captionEditor.value;
+        await jsonPost("/api/save_captions", { text });
+        setStatus("Captions saved.");
+    };
 }
 
-async function applyTimings(smart) {
-  const status = $("statusTimings");
-  if (status) {
-    status.textContent = smart
-      ? "Applying cinematic smart timings…"
-      : "Applying standard timings…";
-    status.classList.add("working");
-  }
 
-  try {
-    await callJson("/api/timings", {
-      method: "POST",
-      body: JSON.stringify({ smart: !!smart }),
-    });
-    if (status) {
-      status.textContent = "Timings updated ✅";
-      status.classList.remove("working");
-      status.classList.add("success");
-    }
-  } catch (err) {
-    console.error("applyTimings error:", err);
-    if (status) {
-      status.textContent = "Error applying timings.";
-      status.classList.add("error");
-      status.classList.remove("working");
-    }
-  }
+// =========================================================
+// 13. Chat Assistant
+// =========================================================
+
+const chatBtn = document.getElementById("chatBtn");
+
+if (chatBtn) {
+    chatBtn.onclick = async () => {
+        const message = chatInput.value;
+        const res = await jsonPost("/api/chat", { message });
+        chatOutput.textContent = res.reply;
+    };
 }
-
-async function setFgScale(value) {
-  try {
-    await callJson("/api/fgscale", {
-      method: "POST",
-      body: JSON.stringify({ value }),
-    });
-  } catch (err) {
-    console.error("setFgScale error:", err);
-  }
-}
-
-// ----------------------
-// Chat
-// ----------------------
-async function sendChat() {
-  const input = $("chatInput");
-  const output = $("chatOutput");
-  if (!input || !output) return;
-
-  const message = input.value.trim();
-  if (!message) return;
-
-  output.value += `You: ${message}\n`;
-  input.value = "";
-
-  try {
-    const res = await callJson("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({ message }),
-    });
-    output.value += `Assistant: ${res.reply}\n\n`;
-    output.scrollTop = output.scrollHeight;
-  } catch (err) {
-    console.error("sendChat error:", err);
-    output.value += "Assistant: [Error]\n\n";
-  }
-}
-
-// ----------------------
-// Hook up buttons
-// ----------------------
-document.addEventListener("DOMContentLoaded", () => {
-  if ($("btnAnalyze")) $("btnAnalyze").onclick = startAnalysis;
-  if ($("btnGenerateYaml")) $("btnGenerateYaml").onclick = generateYaml;
-  if ($("btnLoadConfig")) $("btnLoadConfig").onclick = loadConfig;
-  if ($("btnSaveYaml")) $("btnSaveYaml").onclick = saveYaml;
-  if ($("btnExportStandard")) $("btnExportStandard").onclick = () => exportVideo(false);
-  if ($("btnExportOptimized")) $("btnExportOptimized").onclick = () => exportVideo(true);
-  if ($("btnSaveCaptions")) $("btnSaveCaptions").onclick = saveCaptionsFromTextarea;
-  if ($("btnApplyTimingsStandard"))
-    $("btnApplyTimingsStandard").onclick = () => applyTimings(false);
-  if ($("btnApplyTimingsSmart"))
-    $("btnApplyTimingsSmart").onclick = () => applyTimings(true);
-  if ($("btnChatSend")) $("btnChatSend").onclick = sendChat;
-
-  // Initial loads
-  refreshAnalysesList();
-  loadConfig();
-});

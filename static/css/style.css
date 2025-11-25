@@ -1,211 +1,229 @@
-/* -------------------- */
-/* GENERAL LAYOUT       */
-/* -------------------- */
+/* ---------------------------------------------------------
+   GENERAL LAYOUT
+--------------------------------------------------------- */
 
 body {
-  background: #0f1115;
-  color: #e5e7eb;
-  font-family: "Inter", sans-serif;
-  margin: 0;
-  padding: 0;
+    margin: 0;
+    padding: 0;
+    background: #f4f6f9;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #222;
 }
 
 .container {
-  max-width: 920px;
-  margin: 0 auto;
-  padding: 30px;
+    width: 96%;
+    max-width: 1100px;
+    margin: 30px auto;
 }
 
-.title {
-  font-size: 2.5rem;
-  text-align: center;
-  margin-bottom: 0;
+
+/* ---------------------------------------------------------
+   HEADER
+--------------------------------------------------------- */
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 800;
+    color: #222;
 }
 
 .subtitle {
-  text-align: center;
-  color: #9ca3af;
-  margin-bottom: 40px;
+    margin: 5px 0 0;
+    color: #666;
+    font-size: 15px;
 }
 
-/* -------------------- */
-/* PANELS               */
-/* -------------------- */
 
-.panel {
-  background: #1b1e24;
-  border-radius: 12px;
-  padding: 25px;
-  margin-bottom: 35px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.25);
+/* ---------------------------------------------------------
+   CARD SECTIONS
+--------------------------------------------------------- */
+
+.card {
+    background: white;
+    padding: 20px 22px;
+    margin-bottom: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-.panel h2 {
-  margin-top: 0;
+.card h2 {
+    margin-top: 0;
+    font-size: 22px;
+    color: #222;
 }
 
-.desc {
-  color: #9ca3af;
-}
 
-/* -------------------- */
-/* BUTTONS              */
-/* -------------------- */
+/* ---------------------------------------------------------
+   BUTTONS
+--------------------------------------------------------- */
 
 .btn {
-  background: #374151;
-  padding: 10px 18px;
-  border: none;
-  color: #fff;
-  border-radius: 6px;
-  margin-right: 10px;
-  margin-bottom: 10px;
-  cursor: pointer;
-  font-size: 0.95rem;
+    padding: 12px 18px;
+    background: #3a7afe;
+    color: white;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin: 5px 0;
+    transition: 0.2s;
 }
 
 .btn:hover {
-  background: #4b5563;
-}
-
-.btn.primary {
-  background: #3b82f6;
-}
-.btn.primary:hover {
-  background: #2563eb;
-}
-
-.btn.secondary {
-  background: #6366f1;
-}
-.btn.secondary:hover {
-  background: #4f46e5;
-}
-
-.btn.success {
-  background: #16a34a;
-}
-.btn.warn {
-  background: #eab308;
+    background: #2c63d9;
 }
 
 .btn.small {
-  font-size: 0.8rem;
-  padding: 6px 10px;
+    padding: 8px 12px;
+    font-size: 13px;
 }
 
-/* -------------------- */
-/* INLINE BUTTON GROUP  */
-/* -------------------- */
-
-.inline-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.btn.big {
+    width: 100%;
+    padding: 15px;
+    font-size: 17px;
 }
 
-/* -------------------- */
-/* TEXT AREAS / BOXES   */
-/* -------------------- */
-
-.yaml-box,
-.captions-box {
-  width: 100%;
-  min-height: 200px;
-  background: #111317;
-  color: #ccc;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #222;
-  margin-top: 10px;
-  font-family: monospace;
-  font-size: 0.9rem;
+.btn.green {
+    background: #2ecc71;
 }
+
+.btn.green:hover {
+    background: #27ae60;
+}
+
+.btn.red {
+    background: #e74c3c;
+}
+
+.btn.red:hover {
+    background: #c0392b;
+}
+
+
+/* ---------------------------------------------------------
+   TOGGLES
+--------------------------------------------------------- */
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.toggle input {
+    transform: scale(1.2);
+}
+
+
+/* ---------------------------------------------------------
+   YAML + CAPTION AREAS
+--------------------------------------------------------- */
+
+.yaml-editor {
+    width: 100%;
+    height: 240px;
+    margin-top: 10px;
+    padding: 12px;
+    border: 1px solid #ccd2d8;
+    border-radius: 6px;
+    background: #fafbfc;
+    font-family: monospace;
+    resize: vertical;
+    font-size: 14px;
+}
+
+.mini-output {
+    white-space: pre-wrap;
+    background: #fafbfc;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #d0d7de;
+    font-size: 14px;
+    overflow-x: auto;
+}
+
+
+/* ---------------------------------------------------------
+   LIST / CACHE BOX
+--------------------------------------------------------- */
+
+.list-box {
+    padding: 10px;
+    border: 1px solid #ccd2d8;
+    background: #fafbfc;
+    border-radius: 6px;
+    font-size: 14px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+
+/* ---------------------------------------------------------
+   CHAT
+--------------------------------------------------------- */
 
 .chat-input {
-  width: 100%;
-  min-height: 60px;
-  background: #111317;
-  color: #ccc;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #222;
-  margin-bottom: 10px;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccd2d8;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 14px;
 }
 
-.chat-output {
-  width: 100%;
-  min-height: 150px;
-  background: #0d0f12;
-  color: #ccc;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #222;
-  margin-top: 10px;
-  font-family: monospace;
-  font-size: 0.9rem;
+
+/* ---------------------------------------------------------
+   LIVE STATUS LOG
+--------------------------------------------------------- */
+
+.log-box {
+    height: 260px;
+    overflow-y: scroll;
+    white-space: pre-wrap;
+    background: #000;
+    color: #00ff65;
+    padding: 12px;
+    border-radius: 6px;
+    font-family: "Consolas", monospace;
+    font-size: 13px;
+    border: 1px solid #2a2a2a;
 }
 
-/* -------------------- */
-/* STATUS + SPINNER     */
-/* -------------------- */
 
-.status-box {
-  display: flex;
-  align-items: center;
-  margin-top: 10px;
+/* ---------------------------------------------------------
+   STATUS TEXT
+--------------------------------------------------------- */
+
+.status {
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 6px;
+    background: #eef2f6;
+    border: 1px solid #d8e1eb;
+    font-size: 14px;
 }
 
-.status-text {
-  flex: 1;
-  margin-left: 10px;
-  white-space: pre-wrap;
-  font-family: monospace;
-  font-size: 0.9rem;
-}
 
-.spinner {
-  width: 18px;
-  height: 18px;
-  border: 3px solid #444;
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  display: none;
-}
+/* ---------------------------------------------------------
+   MOBILE RESPONSIVE
+--------------------------------------------------------- */
 
-.spinner.active {
-  display: inline-block;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* -------------------- */
-/* LISTS                */
-/* -------------------- */
-
-.list {
-  background: #111317;
-  padding: 15px;
-  border-radius: 8px;
-  border: 1px solid #222;
-}
-
-.list li {
-  margin-bottom: 8px;
-}
-
-/* -------------------- */
-/* DOWNLOAD LINK        */
-/* -------------------- */
-
-.download-link {
-  display: inline-block;
-  margin-top: 12px;
-  color: #3b82f6;
-  font-size: 1rem;
+@media (max-width: 768px) {
+    .yaml-editor {
+        height: 180px;
+    }
+    .log-box {
+        height: 200px;
+    }
+    header h1 {
+        font-size: 26px;
+    }
 }
