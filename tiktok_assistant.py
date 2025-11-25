@@ -160,64 +160,63 @@ No hashtags. No quotes. Return only the sentence.
 # -----------------------------------------
 def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
     """
-    Build a prompt asking the LLM to output a config.yml in the EXACT schema
-    that edit_video() requires (first_clip, middle_clips, last_clip).
+    Build a prompt asking the LLM to output a valid config.yml
+    using the EXACT schema required by tiktok_template.py.
     """
 
-    return f"""
-You are generating a valid config.yml for a vertical travel/hotel TikTok.
+    lines = [
+        "You are generating a config.yml for a vertical TikTok HOTEL / TRAVEL video.",
+        "",
+        "IMPORTANT — You MUST use this exact YAML structure:",
+        "",
+        "first_clip:",
+        "  file: <filename>",
+        "  start_time: 0",
+        "  duration: <seconds>",
+        "  text: <one-sentence caption>",
+        "  scale: 1.0",
+        "",
+        "middle_clips:",
+        "  - file: <filename>",
+        "    start_time: 0",
+        "    duration: <seconds>",
+        "    text: <one-sentence caption>",
+        "    scale: 1.0",
+        "",
+        "last_clip:",
+        "  file: <filename>",
+        "  start_time: 0",
+        "  duration: <seconds>",
+        "  text: <one-sentence caption>",
+        "  scale: 1.0",
+        "",
+        "render:",
+        "  tts_enabled: false",
+        "  tts_voice: \"alloy\"",
+        "  fg_scale_default: 1.0",
+        "  blur_background: false",
+        "",
+        "cta:",
+        "  enabled: false",
+        "  text: \"\"",
+        "  voiceover: false",
+        "  duration: 3.0",
+        "  position: \"bottom\"",
+        "",
+        "",
+        "Here are your clips and their meanings:",
+    ]
 
-You MUST output YAML in this EXACT schema (do NOT include a `clips:` root key):
+    for vf, a in zip(video_files, analyses):
+        lines.append(f"- file: {vf}")
+        lines.append(f"  analysis: {a}")
 
-first_clip:
-  file: <filename>
-  start_time: 0
-  duration: <seconds>
-  text: <caption>
-  scale: 1.0
+    lines.append("")
+    lines.append("Return ONLY valid YAML. No backticks, no explanation.")
+    lines.append("Ensure you output first_clip, middle_clips, and last_clip fields exactly.")
+    
+    return "\n".join(lines)
 
-middle_clips:
-  - file: <filename>
-    start_time: 0
-    duration: <seconds>
-    text: <caption>
-    scale: 1.0
-
-last_clip:
-  file: <filename>
-  start_time: 0
-  duration: <seconds>
-  text: <caption>
-  scale: 1.0
-
-render:
-  tts_enabled: false
-  tts_voice: alloy
-  fg_scale_default: 1.0
-  blur_background: true
-
-cta:
-  enabled: false
-  text: ""
-  voiceover: false
-  duration: 3.0
-  position: bottom
-
-RULES:
-- Use EXACT filenames I give you.
-- First clip = hook (short, strong).
-- Middle clips = flow / value.
-- Last clip = recap / soft CTA.
-- Each caption MUST be ONE sentence, under 150 chars.
-- Do NOT create any new keys.
-- Do NOT wrap YAML in backticks.
-- All filenames must remain lowercase.
-
-Here are the clips and their analyses:
-{json.dumps([{"file": vf, "analysis": a} for vf, a in zip(video_files, analyses)], indent=2)}
-
-Return ONLY the YAML, nothing else.
-""".strip()
 
 
 # -----------------------------------------
