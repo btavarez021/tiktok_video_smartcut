@@ -44,10 +44,43 @@ def save_config():
     with open(config_path, "w") as f:
         yaml.safe_dump(config, f, sort_keys=False)
 
+# ==========================================================
+# EXPORT MODE HELPERS — required for UI toggle
+# ==========================================================
+EXPORT_MODE_FILE = "export_mode.txt"
 
+def set_export_mode(mode: str) -> dict:
+    """
+    Persist export mode to a tiny local file.
+    Valid modes: 'standard' or 'optimized'.
+    """
+    if mode not in ("standard", "optimized"):
+        mode = "standard"
+    with open(EXPORT_MODE_FILE, "w") as f:
+        f.write(mode)
+    return {"mode": mode}
+
+
+def get_export_mode() -> dict:
+    """
+    Read the stored export mode from file.
+    Defaults to standard.
+    """
+    if not os.path.exists(EXPORT_MODE_FILE):
+        return {"mode": "standard"}
+    try:
+        with open(EXPORT_MODE_FILE, "r") as f:
+            mode = f.read().strip()
+        if mode not in ("standard", "optimized"):
+            mode = "standard"
+        return {"mode": mode}
+    except Exception:
+        return {"mode": "standard"}
+    
 # ==========================================================
 # STEP-BASED ANALYSIS ENGINE
 # ==========================================================
+
 analysis_queue = []   # filenames pending
 analysis_results = {} # track results for single session
 
