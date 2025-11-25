@@ -1,43 +1,34 @@
-# assistant_api.py
 import os
-import yaml
 import json
-import logging
+import yaml
 import traceback
-import tempfile
-import shutil
+import logging
 
 from assistant_log import log_step, status_log, clear_status_log
-from tiktok_template import (
-    edit_video,
-    normalize_video_ffmpeg,
-    video_folder,
-    config_path,
-    client,
-)
 from tiktok_assistant import (
+    list_videos_from_s3,
+    download_s3_video,
     analyze_video,
-    build_yaml_prompt,
+    save_analysis_result,
+    load_all_analysis_results,
     apply_overlay,
     apply_smart_timings,
     video_analyses_cache,
-    save_analysis_result,
-    list_videos_from_s3,
-    download_s3_video,
-    RAW_PREFIX,
-    s3,
-    S3_BUCKET_NAME,
-    ANALYSIS_CACHE_DIR,
 )
+from tiktok_renderer import render_final_video
+from tiktok_template import config_path
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
-# ============================================================================
-# CONFIG HELPERS
-# ============================================================================
+# ==========================================================
+# LOAD / SAVE CONFIG
+# ==========================================================
 config = {}
-
 
 def load_config():
     global config
@@ -54,341 +45,306 @@ def save_config():
         yaml.safe_dump(config, f, sort_keys=False)
 
 
-# ============================================================================
-# EXPORT MODE
-# ============================================================================
-EXPORT_MODE_FILE = "export_mode.txt"
-
-
-def set_export_mode(mode: str):
-    if mode not in ("standard", "optimized"):
-        mode = "standard"
-    with open(EXPORT_MODE_FILE, "w") as f:
-        f.write(mode)
-    return {"mode": mode}
-
-
-def get_export_mode():
-    if not os.path.exists(EXPORT_MODE_FILE):
-        return {"mode": "standard"}
-    with open(EXPORT_MODE_FILE, "r") as f:
-        m = f.read().strip() or "standard"
-    if m not in ("standard", "optimized"):
-        m = "standard"
-    return {"mode": m}
-
-
-# ============================================================================
-# LOAD ANALYSIS RESULTS FROM DISK
-# ============================================================================
-def load_all_analysis_results():
-    results = {}
-    if not os.path.exists(ANALYSIS_CACHE_DIR):
-        return results
-
-    for filename in os.listdir(ANALYSIS_CACHE_DIR):
-        if not filename.endswith(".json"):
-            continue
-
-        path = os.path.join(ANALYSIS_CACHE_DIR, filename)
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                obj = json.load(f)
-            key = obj.get("filename") or filename.replace(".json", "")
-            desc = obj.get("description", "")
-            results[key] = desc
-        except Exception as e:
-            logger.warning(f"⚠ Failed to load {filename}: {e}")
-    return results
-
-
-# ============================================================================
-# STEP-BASED ANALYZE (Render Safe)
-# ============================================================================
-_current_analyze_batch = []  # S3 keys remaining
+# ==========================================================
+# STEP-BASED ANALYSIS ENGINE
+# ==========================================================
+analysis_queue = []   # filenames pending
+analysis_results = {} # track results for single session
 
 
 def api_analyze_start():
     """
-    Initialize analyzing one-by-one — safe for Render.
+    Step 1: Build queue from S3
     """
-    global _current_analyze_batch
-    clear_status_log()
+    global analysis_queue, analysis_results
 
-    log_step("Scanning S3 raw_uploads/...")
+    analysis_queue = []
+    analysis_results = {}
 
-    s3_keys = list_videos_from_s3()
-    if not s3_keys:
-        log_step("No videos found.")
-        _current_analyze_batch = []
-        return {"remaining": 0}
+    s3_list = list_videos_from_s3()
 
-    _current_analyze_batch = list(s3_keys)
-    log_step(f"Prepared {len(_current_analyze_batch)} videos.")
-    return {"remaining": len(_current_analyze_batch)}
+    if not s3_list:
+        return {"queue": [], "message": "No videos in s3://raw_uploads"}
+
+    # Example: raw_uploads/IMG_3753.mov → IMG_3753.mov
+    cleaned = [os.path.basename(k) for k in s3_list]
+    analysis_queue.extend(cleaned)
+
+    log_step(f"Step-based analyze started: {len(cleaned)} clips")
+
+    return {
+        "queue": cleaned,
+        "message": "Ready for step analysis"
+    }
 
 
 def api_analyze_step():
     """
-    Processes ONE video per call.
+    Step 2: Process ONE clip each call
     """
-    global _current_analyze_batch
+    global analysis_queue, analysis_results
 
-    if not _current_analyze_batch:
-        log_step("Analysis complete.")
-        return {"remaining": 0}
+    if not analysis_queue:
+        return {
+            "done": True,
+            "results": analysis_results,
+            "message": "Analysis complete"
+        }
 
-    key = _current_analyze_batch.pop(0)
-    base = os.path.basename(key).lower()
-    log_step(f"Analyzing: {base}")
+    next_file = analysis_queue.pop(0)
+    log_step(f"Analyzing (step): {next_file}")
 
     try:
-        # Download temporary file
-        tmp = download_s3_video(key)
-        if not tmp:
-            log_step(f"ERROR: Could not download {key}")
-            return {"remaining": len(_current_analyze_batch)}
-
-        # Normalize → video_folder
-        local_path = os.path.join(video_folder, base)
-        log_step(f"Normalizing → {local_path}")
-        normalize_video_ffmpeg(tmp, local_path)
-
-        # Cleanup temp
-        try:
-            os.remove(tmp)
-        except:
-            pass
-
-        # Analyze with LLM
-        log_step(f"LLM analyzing {base} ...")
-        desc = analyze_video(local_path)
-
-        # Save to cache (disk + memory)
-        save_analysis_result(base, desc)
-        log_step(f"Analysis complete for {base}")
-
+        tmp_path = download_s3_video(next_file)
+        desc = analyze_video(tmp_path)
+        save_analysis_result(next_file, desc)
+        analysis_results[next_file] = desc
     except Exception as e:
-        log_step(f"❌ Error: {e}")
-        log_step(traceback.format_exc())
+        logger.error(f"Analyze step failed: {e}")
+        log_step(f"ERROR: {str(e)}")
 
-    return {"remaining": len(_current_analyze_batch)}
+    return {
+        "done": len(analysis_queue) == 0,
+        "current": next_file,
+        "remaining": len(analysis_queue),
+        "results": analysis_results,
+    }
 
 
-# ============================================================================
-# ONE-SHOT ANALYZE (not recommended on Render)
-# ============================================================================
+# ==========================================================
+# OLD ONE-SHOT ANALYZE (optional)
+# ==========================================================
 def api_analyze():
-    """
-    Legacy one-shot analyze. Render timeouts possible.
-    """
-    clear_status_log()
-    log_step("Running one-shot analyze...")
+    log_step("One-shot analyzer requested")
 
-    results = {}
-    s3_keys = list_videos_from_s3()
-    if not s3_keys:
+    s3_list = list_videos_from_s3()
+    if not s3_list:
         return {}
 
-    for key in s3_keys:
-        base = os.path.basename(key).lower()
-        log_step(f"Processing {base}")
+    results = {}
+    for key in s3_list:
+        file = os.path.basename(key)
+        log_step(f"Analyzing {file}…")
 
         try:
-            tmp = download_s3_video(key)
-            local_path = os.path.join(video_folder, base)
-            normalize_video_ffmpeg(tmp, local_path)
-
-            try:
-                os.remove(tmp)
-            except:
-                pass
-
-            desc = analyze_video(local_path)
-            save_analysis_result(base, desc)
-            results[base] = desc
-
+            tmp = download_s3_video(file)
+            desc = analyze_video(tmp)
+            save_analysis_result(file, desc)
+            results[file] = desc
         except Exception as e:
-            log_step(f"❌ {e}")
-            log_step(traceback.format_exc())
+            log_step(f"Analyze FAILED: {file} → {e}")
+            logger.error(traceback.format_exc())
 
     return results
 
 
-# ============================================================================
+# ==========================================================
 # YAML GENERATION
-# ============================================================================
+# ==========================================================
 def api_generate_yaml():
+    """
+    Uses both disk + memory analyses to build config.yml
+    """
     disk = load_all_analysis_results()
     merged = {**disk, **video_analyses_cache}
 
     if not merged:
-        log_step("No analyses — running quick analyze()...")
-        api_analyze()
-        disk = load_all_analysis_results()
-        merged = {**disk, **video_analyses_cache}
+        return {"error": "No analyses found. Run analyze first."}
 
     video_files = list(merged.keys())
-    analyses = [merged[f] for f in video_files]
+    analyses = [merged[k] for k in video_files]
 
-    if not video_files:
-        return {}
+    # Build simple YAML template
+    cfg = {
+        "first_clip": {
+            "file": video_files[0],
+            "start_time": 0,
+            "duration": 4,
+            "text": analyses[0],
+            "scale": 1.0,
+        },
+        "middle_clips": [],
+        "last_clip": {
+            "file": video_files[-1],
+            "start_time": 0,
+            "duration": 4,
+            "text": analyses[-1],
+            "scale": 1.0,
+        },
+        "music": {
+            "style": "chill travel",
+            "mood": "uplifting",
+            "volume": 0.25,
+        },
+        "render": {
+            "tts_enabled": False,
+            "tts_voice": "alloy",
+            "fg_scale_default": 1.0
+        },
+        "cta": {
+            "enabled": False,
+            "text": "",
+            "voiceover": False,
+            "duration": 3.0,
+            "position": "bottom"
+        }
+    }
 
-    prompt = build_yaml_prompt(video_files, analyses)
-    log_step("Calling LLM for YAML...")
-
-    resp = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2,
-    )
-
-    yaml_text = (resp.choices[0].message.content or "").strip()
-    yaml_text = yaml_text.replace("```yaml", "").replace("```", "")
-
-    cfg = yaml.safe_load(yaml_text) or {}
+    # Add middle clips if > 2
+    if len(video_files) > 2:
+        for vf, a in zip(video_files[1:-1], analyses[1:-1]):
+            cfg["middle_clips"].append({
+                "file": vf,
+                "start_time": 0,
+                "duration": 4,
+                "text": a,
+                "scale": 1.0
+            })
 
     with open(config_path, "w") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
 
-    load_config()
     return cfg
 
 
-def api_save_yaml(yaml_text: str):
-    cfg = yaml.safe_load(yaml_text) or {}
-    with open(config_path, "w") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
-    load_config()
-    return {"status": "ok"}
-
-
+# ==========================================================
+# YAML SAVE/GET
+# ==========================================================
 def api_get_config():
     load_config()
     if os.path.exists(config_path):
         with open(config_path, "r") as f:
             yaml_text = f.read()
     else:
-        yaml_text = "# No config yet"
+        yaml_text = "# No config.yml found."
 
-    return {"yaml": yaml_text, "config": config}
+    return {
+        "yaml": yaml_text,
+        "config": config
+    }
 
 
-# ============================================================================
-# EXPORT VIDEO
-# ============================================================================
+def api_save_yaml(yaml_text: str):
+    try:
+        cfg = yaml.safe_load(yaml_text) or {}
+        with open(config_path, "w") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
+        load_config()
+        return {"status": "ok"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ==========================================================
+# EXPORT (Rendering)
+# ==========================================================
 def api_export(optimized=False):
     clear_status_log()
-
-    filename = (
-        "output_tiktok_optimized.mp4"
-        if optimized else
-        "output_tiktok_standard.mp4"
-    )
-
-    log_step(f"Rendering export: {filename}")
+    log_step("Starting EXPORT…")
 
     try:
-        edit_video(output_file=filename, optimized=optimized)
+        path = render_final_video(optimized=optimized)
+        return {"filename": path}
     except Exception as e:
-        log_step(f"❌ Export error: {e}")
-        raise
-
-    if not os.path.exists(filename):
-        raise FileNotFoundError(f"Export failed: no file {filename}")
-
-    return filename
+        log_step(f"Export FAILED: {str(e)}")
+        logger.error(traceback.format_exc())
+        return {"error": str(e)}
 
 
-# ============================================================================
-# TTS / CTA / OVERLAY / TIMINGS / FG SCALE
-# ============================================================================
-def api_set_tts(enabled: bool, voice: str | None):
-    load_config()
-    cfg = config.setdefault("render", {})
-    cfg["tts_enabled"] = bool(enabled)
-    if voice:
-        cfg["tts_voice"] = voice
-    save_config()
-    return cfg
-
-
-def api_set_cta(enabled: bool, text: str | None, voiceover: bool):
+# ==========================================================
+# CTA
+# ==========================================================
+def api_set_cta(enabled: bool, text: str = None, voiceover: bool = None):
     load_config()
     cfg = config.setdefault("cta", {})
+
     cfg["enabled"] = bool(enabled)
     if text is not None:
         cfg["text"] = text
-    cfg["voiceover"] = bool(voiceover)
+    if voiceover is not None:
+        cfg["voiceover"] = bool(voiceover)
+
     save_config()
     return cfg
 
 
+# ==========================================================
+# TTS
+# ==========================================================
+def api_set_tts(enabled: bool, voice: str = None):
+    load_config()
+    r = config.setdefault("render", {})
+    r["tts_enabled"] = bool(enabled)
+    if voice:
+        r["tts_voice"] = voice
+    save_config()
+    return r
+
+
+# ==========================================================
+# Overlay Styles
+# ==========================================================
 def api_apply_overlay(style: str):
-    apply_overlay(style, target="all", filename=None)
+    apply_overlay(style)
     load_config()
     return {"status": "ok"}
 
 
-def api_apply_timings(smart=False):
-    if smart:
-        apply_smart_timings(pacing="cinematic")
-    else:
-        apply_smart_timings()
+# ==========================================================
+# Caption Editing
+# ==========================================================
+def api_save_captions(text: str):
+    """
+    Replace captions in YAML: separated by blank lines
+    """
+    load_config()
+
+    parts = [p.strip() for p in text.split("\n\n") if p.strip()]
+    idx = 0
+
+    if "first_clip" in config and idx < len(parts):
+        config["first_clip"]["text"] = parts[idx]
+        idx += 1
+
+    for mc in config.get("middle_clips", []):
+        if idx < len(parts):
+            mc["text"] = parts[idx]
+            idx += 1
+
+    if "last_clip" in config and idx < len(parts):
+        config["last_clip"]["text"] = parts[idx]
+
+    save_config()
+    return {"status": "ok"}
+
+
+# ==========================================================
+# Smart Timings
+# ==========================================================
+def api_apply_timings(smart: bool = False):
+    apply_smart_timings("cinematic" if smart else "standard")
     load_config()
     return config
 
 
+# ==========================================================
+# FG Scale
+# ==========================================================
 def api_fgscale(value: float):
     load_config()
-    cfg = config.setdefault("render", {})
-    cfg["fg_scale_default"] = float(value)
+    r = config.setdefault("render", {})
+    r["fg_scale_default"] = float(value)
     save_config()
-    return cfg
+    return r
 
 
-# ============================================================================
-# CHAT
-# ============================================================================
+# ==========================================================
+# Creative Chat
+# ==========================================================
 def api_chat(message: str):
-    prompt = f"""
-You are the TikTok travel creative assistant.
-User message:
-{message}
-"""
-    resp = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.8,
-    )
-    return {"reply": resp.choices[0].message.content}
-
-
-# ============================================================================
-# S3 UPLOAD
-# ============================================================================
-def api_s3_upload(file):
-    """
-    Upload uploaded file → S3 raw_uploads/
-    """
-    filename = file.filename.lower()
-
-    key = RAW_PREFIX + filename
-    temp = tempfile.NamedTemporaryFile(delete=False)
-    file.save(temp.name)
-
-    try:
-        s3.upload_file(temp.name, S3_BUCKET_NAME, key)
-        return {"uploaded": filename, "s3_key": key}
-    except Exception as e:
-        return {"error": str(e)}, 500
-    finally:
-        try:
-            os.remove(temp.name)
-        except:
-            pass
-
-
-def api_list_s3_raw():
-    items = list_videos_from_s3()
-    return items
+    return {
+        "reply": (
+            "Creative chat temporarily disabled during renderer migration.\n"
+            "You can ask me to re-enable OpenAI chat when ready."
+        )
+    }

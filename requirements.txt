@@ -20,3 +20,4 @@ flask_cors
 # --- Optional (but recommended) ---
 requests
 gunicorn
+gtts

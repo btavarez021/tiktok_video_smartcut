@@ -1,155 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>TikTok SmartCut Editor</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <meta charset="UTF-8" />
+    <title>TikTok Smart Cut</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
 
-<div class="container">
+<div class="layout">
 
-    <header>
-        <h1>TikTok SmartCut Studio</h1>
-        <p class="subtitle">AI-powered hotel/travel TikTok editor • S3 + LLM + FFmpeg</p>
-    </header>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <h2>🎬 TikTok Smart Cut</h2>
+        <nav>
+            <button class="nav-btn" data-target="panel-upload">1️⃣ Upload</button>
+            <button class="nav-btn" data-target="panel-analyze">2️⃣ Analyze</button>
+            <button class="nav-btn" data-target="panel-yaml">3️⃣ Storyboard</button>
+            <button class="nav-btn" data-target="panel-export">4️⃣ Export</button>
+        </nav>
 
-
-    <!-- UPLOAD SECTION -->
-    <div class="card">
-        <h2>1. Upload Raw Clips (to S3)</h2>
-        <input id="uploadInput" type="file" multiple accept="video/*">
-        <button class="btn" onclick="uploadFiles()">Upload to S3</button>
-        <div id="uploadStatus" class="status"></div>
-    </div>
-
-
-    <!-- ANALYZE -->
-    <div class="card">
-        <h2>2. Analyze Clips</h2>
-        <button class="btn" onclick="startAnalysis()">Start Analysis</button>
-        <button class="btn small" onclick="stepAnalysis()">▶ Step</button>
-        <div id="analyzeStatus" class="status"></div>
-
-        <h3>Analysis Cache:</h3>
-        <div id="analysisCache" class="list-box"></div>
-    </div>
-
-
-    <!-- YAML GENERATION -->
-    <div class="card">
-        <h2>3. Generate YAML Storyboard</h2>
-        <button class="btn" onclick="generateYaml()">Generate YAML</button>
-        <button class="btn small" onclick="reloadConfig()">Reload Current Config</button>
-        <textarea id="yamlBox" class="yaml-editor"></textarea>
-        <button class="btn green" onclick="saveYaml()">Save YAML</button>
-        <div id="yamlStatus" class="status"></div>
-    </div>
-
-
-    <!-- CAPTION EDITOR -->
-    <div class="card">
-        <h2>4. Edit Captions (Manual or AI)</h2>
-        <textarea id="captionInput" class="yaml-editor" style="height:130px;" placeholder="Paste comma-separated captions or a block of text..."></textarea>
-        <button class="btn" onclick="saveCaptions()">Apply Captions</button>
-
-        <h3>Overlay Styles:</h3>
-        <div>
-            <button class="btn small" onclick="applyOverlay('travel_blog')">Travel Blog</button>
-            <button class="btn small" onclick="applyOverlay('cinematic')">Cinematic</button>
-            <button class="btn small" onclick="applyOverlay('punchy')">Punchy</button>
-            <button class="btn small" onclick="applyOverlay('influencer')">Influencer</button>
-            <button class="btn small" onclick="applyOverlay('descriptive')">Descriptive</button>
+        <div class="status-box">
+            <h3>📡 Status Log</h3>
+            <div id="statusBox" class="status-scroll"></div>
         </div>
-        <div id="captionStatus" class="status"></div>
-    </div>
+    </aside>
 
+    <!-- MAIN CONTENT -->
+    <main class="main">
 
-    <!-- TIMINGS -->
-    <div class="card">
-        <h2>5. Smart Timings</h2>
-        <button class="btn" onclick="applyTimings(false)">Standard</button>
-        <button class="btn small" onclick="applyTimings(true)">Cinematic</button>
-        <div id="timingStatus" class="status"></div>
-    </div>
+        <!-- UPLOAD PANEL -->
+        <section id="panel-upload" class="panel active">
+            <h1>1️⃣ Upload Your Videos</h1>
+            <p>Select one or more vertical videos to upload into S3.</p>
 
+            <form id="uploadForm">
+                <input type="file" id="fileInput" name="files" accept="video/*" multiple />
+                <button type="submit" class="btn-primary">Upload to S3</button>
+            </form>
+        </section>
 
-    <!-- TTS & CTA -->
-    <div class="card">
-        <h2>6. TTS / CTA Settings</h2>
+        <!-- ANALYZE PANEL -->
+        <section id="panel-analyze" class="panel">
+            <h1>2️⃣ Analyze Videos With AI</h1>
+            <p>The AI will generate 1-sentence descriptions for each clip.</p>
 
-        <div class="toggle">
-            <input id="ttsToggle" type="checkbox">
-            <label for="ttsToggle">Enable TTS</label>
-        </div>
+            <button id="btnAnalyze" class="btn-primary">Start Analysis</button>
 
-        <select id="ttsVoice" class="btn small">
-            <option value="alloy">Alloy</option>
-            <option value="verse">Verse</option>
-            <option value="nova">Nova</option>
-            <option value="aria">Aria</option>
-        </select>
-        <button class="btn small" onclick="setTTS()">Save TTS</button>
+            <h3>Video Analyses</h3>
+            <ul id="analysisList" class="analysis-list"></ul>
+        </section>
 
-        <hr/>
+        <!-- YAML STORYBOARD -->
+        <section id="panel-yaml" class="panel">
+            <h1>3️⃣ Build the YAML Storyboard</h1>
+            <p>The AI creates a 1-minute TikTok flow. You can edit captions too.</p>
 
-        <div class="toggle">
-            <input id="ctaToggle" type="checkbox">
-            <label for="ctaToggle">Enable CTA</label>
-        </div>
+            <button id="btnGenerateYaml" class="btn-primary">Generate YAML</button>
+            <button id="btnSaveYaml" class="btn-secondary">Save YAML</button>
 
-        <input id="ctaText" class="chat-input" placeholder="CTA text...">
-        <div class="toggle">
-            <input id="ctaVoiceToggle" type="checkbox">
-            <label for="ctaVoiceToggle">CTA Voiceover</label>
-        </div>
-        <button class="btn small" onclick="setCTA()">Save CTA</button>
+            <h3>YAML Config</h3>
+            <textarea id="yamlEditor" class="yaml-editor"></textarea>
 
-        <div id="ctaStatus" class="status"></div>
-    </div>
+            <h3>Captions</h3>
+            <textarea id="captionsEditor" class="captions-editor" placeholder="Edit captions here…"></textarea>
+            <button id="btnSaveCaptions" class="btn-secondary">Save Captions</button>
 
+            <h3>Style & Timing</h3>
+            <label>Overlay Style</label>
+            <select id="overlayStyle">
+                <option value="travel_blog">Travel Blog</option>
+                <option value="punchy">Punchy</option>
+                <option value="cinematic">Cinematic</option>
+                <option value="descriptive">Descriptive</option>
+                <option value="influencer">Influencer</option>
+            </select>
+            <br /><br />
 
-    <!-- FG SCALE -->
-    <div class="card">
-        <h2>7. Clip FG Scale</h2>
-        <input type="range" id="fgScale" min="0.5" max="2.0" step="0.1" value="1.0">
-        <button class="btn small" onclick="updateFGScale()">Apply Scale</button>
-        <div id="fgStatus" class="status"></div>
-    </div>
+            <button id="btnTimingsStandard" class="btn-secondary">Standard Timings</button>
+            <button id="btnTimingsCinematic" class="btn-secondary">Cinematic Timings</button>
 
+            <h3>Voice & CTA</h3>
+            <div class="form-row">
+                <label>
+                    <input type="checkbox" id="chkTtsEnabled" /> Enable TTS
+                </label>
+                <select id="ttsVoice">
+                    <option value="alloy">Alloy</option>
+                    <option value="verse">Verse</option>
+                    <option value="nova">Nova</option>
+                </select>
+            </div>
 
-    <!-- EXPORT -->
-    <div class="card">
-        <h2>8. Export Final Video</h2>
+            <div class="form-row">
+                <label>
+                    <input type="checkbox" id="chkCtaEnabled" /> Enable CTA
+                </label>
+                <input type="text" id="ctaText" placeholder="Book now and save 10%" />
+                <label>
+                    <input type="checkbox" id="chkCtaVoiceover" /> Voiceover CTA
+                </label>
+            </div>
 
-        <div class="toggle">
-            <input id="optimizedExport" type="checkbox">
-            <label for="optimizedExport">Optimized Export</label>
-        </div>
+            <h3>Foreground Scale</h3>
+            <input type="range" min="0.5" max="1.5" step="0.01" id="fgScaleRange" />
+            <span id="fgScaleValue">1.00</span>
 
-        <button class="btn green big" onclick="exportVideo()">Export</button>
-        <div id="exportStatus" class="status"></div>
-    </div>
+        </section>
 
+        <!-- EXPORT PANEL -->
+        <section id="panel-export" class="panel">
+            <h1>4️⃣ Export Final TikTok</h1>
+            <p>Choose standard or optimized render mode.</p>
 
-    <!-- CHAT ASSISTANT -->
-    <div class="card">
-        <h2>9. AI Chat Assistant</h2>
-        <input id="chatMessage" class="chat-input" placeholder="Ask anything...">
-        <button class="btn small" onclick="sendChat()">Send</button>
-        <div id="chatResponse" class="mini-output"></div>
-    </div>
+            <button id="btnExportStandard" class="btn-primary">Export (Standard)</button>
+            <button id="btnExportOptimized" class="btn-secondary">Export (Optimized)</button>
 
+            <a id="downloadLink" href="#" style="display:none;" class="btn-download">Download MP4</a>
+        </section>
 
-    <!-- LIVE LOG -->
-    <div class="card">
-        <h2>Live Status Log</h2>
-        <div id="liveLog" class="log-box"></div>
-    </div>
-
+    </main>
 </div>
 
 <script src="/static/js/app.js"></script>
-
 </body>
 </html>
