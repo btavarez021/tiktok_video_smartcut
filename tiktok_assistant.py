@@ -37,8 +37,12 @@ if not S3_BUCKET_NAME:
 
 S3_REGION = os.environ.get("S3_REGION", "us-east-2")
 RAW_PREFIX = "raw_uploads/"
-
+EXPORT_PREFIX = os.environ.get("S3_EXPORT", "exports/").lstrip("/")
+if not EXPORT_PREFIX.endswith("/"):
+    EXPORT_PREFIX += "/"
+    
 s3 = boto3.client("s3", region_name=S3_REGION)
+
 
 # -----------------------------------------
 # Analysis Cache

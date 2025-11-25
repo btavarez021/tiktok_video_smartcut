@@ -5,12 +5,15 @@ import json
 import logging
 import traceback
 from typing import Dict, Any, List
-
+import boto3
 from openai import OpenAI
 from utils_video import enforce_mp4
 from assistant_log import log_step, clear_status_log
 from tiktok_template import config_path, edit_video, video_folder
 from tiktok_assistant import (
+    s3,
+    EXPORT_PREFIX,
+    S3_BUCKET_NAME,
     sanitize_yaml_filenames,
     analyze_video,
     build_yaml_prompt,
@@ -32,6 +35,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
+
 
 # Reuse client from tiktok_assistant (or create fallback)
 client: OpenAI | None = shared_client
@@ -370,6 +374,7 @@ def api_export(optimized: bool = False) -> str:
     log_step(f"Rendering export in {mode_label} mode...")
 
     filename = "output_tiktok_final_optimized.mp4" if optimized else "output_tiktok_final.mp4"
+    local_path = os.path.join(os.getcwd(), filename)
 
     try:
         log_step("Rendering timeline with music, captions, and voiceover flags...")
@@ -381,14 +386,32 @@ def api_export(optimized: bool = False) -> str:
         logger.exception(msg)
         raise
 
-    full_path = os.path.join(os.getcwd(), filename)
-    if not os.path.exists(full_path):
+    # Verify the file exists locally
+    if not os.path.exists(local_path):
         msg = f"Export failed: file {filename} not found after render."
         log_step(msg)
         logger.error(msg)
         raise FileNotFoundError(msg)
 
-    return filename
+    # -----------------------------------------
+    # 🚀 NEW: upload to S3 under exports/
+    # -----------------------------------------
+    s3_key = f"{EXPORT_PREFIX}{filename}"
+    try:
+        log_step(f"Uploading export to s3://{S3_BUCKET_NAME}/{s3_key}...")
+        s3.upload_file(local_path, S3_BUCKET_NAME, s3_key)
+        log_step("Upload to S3 complete.")
+    except Exception as e:
+        log_step(f"[S3 UPLOAD ERROR] {e}")
+        raise
+
+    # Return BOTH paths: local + s3
+    return {
+        "local_filename": filename,
+        "s3_key": s3_key,
+        "s3_url": f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{s3_key}"
+    }
+
 
 
 # ============================================
