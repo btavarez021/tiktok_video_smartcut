@@ -194,7 +194,10 @@ def api_analyze_step() -> Dict[str, Any]:
         base = os.path.basename(key).lower()
         local_path = os.path.join(video_folder, base)
         log_step(f"Normalizing {base} -> {local_path} ...")
-        normalize_video(tmp_local_path, local_path)
+        # Force lowercase
+        local_lower = os.path.join(video_folder, os.path.basename(key).lower())
+
+        normalize_video(tmp_local_path, local_lower)
 
         try:
             os.remove(tmp_local_path)
@@ -205,7 +208,7 @@ def api_analyze_step() -> Dict[str, Any]:
         desc = analyze_video(local_path)
         log_step(f"Analysis complete for {base}.")
 
-        save_analysis_result(base, desc)
+        save_analysis_result(base.lower(), desc)
         result: Dict[str, Any] = {
             "done": False,
             "total": len(_ANALYZE_QUEUE),
@@ -268,6 +271,11 @@ def api_generate_yaml() -> Dict[str, Any]:
         merged = load_all_analysis_results()
 
     video_files = list(merged.keys())
+    video_files = list(merged.keys())
+
+    # ✅ FORCE LOWERCASE FILENAMES
+    video_files = [v.lower() for v in video_files]
+
     analyses = [merged.get(v, "") for v in video_files]
 
     if not video_files:
