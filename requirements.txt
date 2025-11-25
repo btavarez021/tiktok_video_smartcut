@@ -6,6 +6,5 @@ pyyaml
 gunicorn
 moviepy>=2.0.0
 imageio
-imageio-ffmpeg
 numpy
 Pillow==9.5.0
