@@ -160,31 +160,64 @@ No hashtags. No quotes. Return only the sentence.
 # -----------------------------------------
 def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
     """
-    video_files must already be LOWERCASE BASENAMES
+    Build a prompt asking the LLM to output a config.yml in the EXACT schema
+    that edit_video() requires (first_clip, middle_clips, last_clip).
     """
 
-    lines = [
-        "You will generate a config.yml for a vertical TikTok hotel review.",
-        "",
-        "Rules:",
-        "- Use EXACT filenames provided.",
-        "- first_clip → hook",
-        "- middle_clips → flow",
-        "- last_clip → recap",
-        "- captions must be ONE sentence each (<150 chars)",
-        "- DO NOT add new fields.",
-        "",
-        "clips:",
-    ]
+    return f"""
+You are generating a valid config.yml for a vertical travel/hotel TikTok.
 
-    for vf, a in zip(video_files, analyses):
-        lines.append(f"- file: {vf}")
-        lines.append(f"  analysis: {a}")
+You MUST output YAML in this EXACT schema (do NOT include a `clips:` root key):
 
-    lines.append("")
-    lines.append("Return ONLY valid YAML. No backticks.")
+first_clip:
+  file: <filename>
+  start_time: 0
+  duration: <seconds>
+  text: <caption>
+  scale: 1.0
 
-    return "\n".join(lines)
+middle_clips:
+  - file: <filename>
+    start_time: 0
+    duration: <seconds>
+    text: <caption>
+    scale: 1.0
+
+last_clip:
+  file: <filename>
+  start_time: 0
+  duration: <seconds>
+  text: <caption>
+  scale: 1.0
+
+render:
+  tts_enabled: false
+  tts_voice: alloy
+  fg_scale_default: 1.0
+  blur_background: true
+
+cta:
+  enabled: false
+  text: ""
+  voiceover: false
+  duration: 3.0
+  position: bottom
+
+RULES:
+- Use EXACT filenames I give you.
+- First clip = hook (short, strong).
+- Middle clips = flow / value.
+- Last clip = recap / soft CTA.
+- Each caption MUST be ONE sentence, under 150 chars.
+- Do NOT create any new keys.
+- Do NOT wrap YAML in backticks.
+- All filenames must remain lowercase.
+
+Here are the clips and their analyses:
+{json.dumps([{"file": vf, "analysis": a} for vf, a in zip(video_files, analyses)], indent=2)}
+
+Return ONLY the YAML, nothing else.
+""".strip()
 
 
 # -----------------------------------------
