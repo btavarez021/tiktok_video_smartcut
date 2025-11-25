@@ -5,6 +5,7 @@ import difflib
 import logging
 import tempfile
 import subprocess
+from assistant_log import log_step
 from typing import Dict, Any
 # --- Pillow ANTIALIAS compatibility patch ---
 from PIL import Image
@@ -87,24 +88,55 @@ os.makedirs(tempfile.tempdir, exist_ok=True)
 # =============================================================
 # FFmpeg helper
 # =============================================================
-def normalize_video_ffmpeg(input_path: str, output_path: str) -> str:
+def normalize_video_ffmpeg(src: str, dst: str) -> None:
     """
-    Normalize video to 1080x1920 without stretching.
-    Keeps original aspect ratio and crops as needed.
+    Normalize video to 1080x1920 vertical using ffmpeg.
+    Logs ALL stdout/stderr so crashes are visible.
     """
+    log_step(f"[FFMPEG] Normalizing video {src} → {dst}")
+
+    # FFMPEG command
+    cmd = [
+        "ffmpeg",
+        "-y",                 # overwrite
+        "-i", src,            # input file
+        "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2",
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "23",
+        "-c:a", "copy",
+        dst
+    ]
+
     try:
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", input_path,
-            "-vf", "scale=1080:-2:force_original_aspect_ratio=increase,crop=1080:1920",
-            "-c:a", "copy",
-            output_path,
-        ]
-        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return output_path
+        # Run process and capture ALL output
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        # Log stdout/stderr
+        if result.stdout:
+            log_step(f"[FFMPEG STDOUT for {src}] {result.stdout[:500]}")
+        if result.stderr:
+            log_step(f"[FFMPEG STDERR for {src}] {result.stderr[:500]}")
+
+        # Check return code
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"ffmpeg failed (code {result.returncode}) while processing {src}"
+            )
+
+        log_step(f"[FFMPEG] Completed normalization for {src}")
+
     except Exception as e:
-        logging.warning(f"❌ FFmpeg normalization failed for {input_path}: {e}")
-        return input_path
+        # Log full traceback to live log
+        import traceback
+        log_step(f"[FFMPEG ERROR] Failed to normalize {src}: {e}")
+        log_step(traceback.format_exc())
+        raise
 
 # =============================================================
 # Video helpers (MoviePy-based)

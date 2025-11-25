@@ -94,7 +94,7 @@ def analyze_route():
 
     import threading
 
-    threading.Thread(target=api_analyze, daemon=True).start()
+    threading.Thread(target=api_analyze, daemon=False).start()
 
     return jsonify({"status": "started"})
 

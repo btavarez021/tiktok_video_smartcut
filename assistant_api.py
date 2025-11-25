@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import json
 import logging
-
+import traceback
 from assistant_log import log_step, status_log, clear_status_log
 
 from tiktok_template import (
@@ -159,26 +159,35 @@ def api_analyze():
     for key in s3_keys:
         log_step(f"Processing {key}…")
 
-        # 2. Download to temporary file
-        tmp_local_path = download_s3_video(key)
-        if not tmp_local_path:
-            log_step(f"❌ Failed to download {key}")
-            continue
-
-        # 3. Normalize directly into tik_tok_downloads/ (final render source)
-        base = os.path.basename(key)
-        local_path = os.path.join(video_folder, base)
         try:
+            tmp_local_path = download_s3_video(key)
+            if not tmp_local_path:
+                log_step(f"❌ Failed to download {key}")
+                continue
+
+            base = os.path.basename(key)
+            local_path = os.path.join(video_folder, base)
             log_step(f"Normalizing {base} → {local_path} …")
             normalize_video_ffmpeg(tmp_local_path, local_path)
-        except Exception as e:
-            log_step(f"❌ Failed to normalize {tmp_local_path} → {local_path}: {e}")
-            continue
-        finally:
+
             try:
                 os.remove(tmp_local_path)
-            except OSError:
+            except:
                 pass
+
+            log_step(f"Analyzing {base} with LLM…")
+            desc = analyze_video(local_path)
+            log_step(f"Analysis complete for {base}.")
+
+            save_analysis_result(base, desc)
+            results[base] = desc
+
+        except Exception as e:
+            err_msg = f"❌ ERROR processing {key}: {e}"
+            log_step(err_msg)
+            log_step(traceback.format_exc())
+            logger.exception(err_msg)
+            continue
 
         # 4. Analyze with LLM (file path mainly used for logging context)
         log_step(f"Analyzing {base} with LLM…")
