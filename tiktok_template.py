@@ -215,7 +215,7 @@ def _try_text_overlay(
         txt = TextClip(
             text,
             fontsize=fontsize,
-            font="Arial-Bold",
+            font="DejaVu-Sans-Bold",
             color="white",
             method="caption",
             size=(TARGET_W - 160, None),
@@ -382,7 +382,7 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
     bitrate = "6000k" if optimized else "4000k"
     preset = "slow" if optimized else "veryfast"
 
-    out = os.path.abspath(os.path.join(BASE_DIR, "..", output_file))
+    out = os.path.join(os.getcwd(), output_file)
 
     log_step(f"Writing video → {out}")
 
