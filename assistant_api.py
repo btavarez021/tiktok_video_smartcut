@@ -16,13 +16,15 @@ from tiktok_assistant import (
     apply_smart_timings,
     apply_overlay,
     video_analyses_cache,
-    TEXT_MODEL,  # for chat
+    TEXT_MODEL,
+    save_from_raw_yaml,
     list_videos_from_s3,
     download_s3_video,
     save_analysis_result,
     ANALYSIS_CACHE_DIR,
-    client,
+    normalize_video,  
 )
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -187,7 +189,7 @@ def api_analyze_step():
         base = os.path.basename(key).lower()
         local_path = os.path.join(video_folder, base)
         log_step(f"Normalizing {base} → {local_path} …")
-        normalize_video_ffmpeg(tmp_local_path, local_path)
+        normalize_video(tmp_local_path, local_path)
 
         try:
             os.remove(tmp_local_path)
