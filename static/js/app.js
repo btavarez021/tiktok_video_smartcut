@@ -308,18 +308,25 @@ async function saveTtsSettings() {
     const styleStatus = document.getElementById("styleStatus");
 
     styleStatus.textContent = "Saving TTS settings…";
+
     try {
         await jsonFetch("/api/tts", {
             method: "POST",
             body: JSON.stringify({ enabled, voice }),
         });
+
         styleStatus.textContent = "TTS settings saved.";
         document.getElementById("ttsCheck").classList.add("active");
+
+        // ⭐ NEW: instantly refresh YAML preview
+        await loadConfigAndYaml();
+
     } catch (err) {
         console.error(err);
         styleStatus.textContent = `Error saving TTS: ${err.message}`;
     }
 }
+
 
 async function saveCtaSettings() {
     const enabled = document.getElementById("ctaEnabled").checked;
@@ -328,35 +335,50 @@ async function saveCtaSettings() {
     const styleStatus = document.getElementById("styleStatus");
 
     styleStatus.textContent = "Saving CTA settings…";
+
     try {
         await jsonFetch("/api/cta", {
             method: "POST",
             body: JSON.stringify({ enabled, text, voiceover }),
         });
+
         styleStatus.textContent = "CTA settings saved.";
         document.getElementById("ctaCheck").classList.add("active");
+
+        // ⭐ NEW
+        await loadConfigAndYaml();
+
     } catch (err) {
         console.error(err);
         styleStatus.textContent = `Error saving CTA: ${err.message}`;
     }
 }
 
+
 async function saveFgScale() {
     const value = parseFloat(document.getElementById("fgScale").value || "1.0");
     const styleStatus = document.getElementById("styleStatus");
+
     styleStatus.textContent = "Saving foreground scale…";
+
     try {
         await jsonFetch("/api/fgscale", {
             method: "POST",
             body: JSON.stringify({ value }),
         });
+
         styleStatus.textContent = "Foreground scale saved.";
         document.getElementById("fgCheck").classList.add("active");
+
+        // ⭐ NEW
+        await loadConfigAndYaml();
+
     } catch (err) {
         console.error(err);
         styleStatus.textContent = `Error saving scale: ${err.message}`;
     }
 }
+
 
 function initFgScaleSlider() {
     const range = document.getElementById("fgScale");

@@ -2,6 +2,14 @@ import os
 import logging
 import subprocess
 from typing import List, Dict, Any, Optional
+# Pillow compatibility fix for MoviePy
+from PIL import Image
+if not hasattr(Image, "ANTIALIAS"):
+    from PIL import Image as _Image
+    Image.ANTIALIAS = _Image.Resampling.LANCZOS
+    Image.BILINEAR = _Image.Resampling.BILINEAR
+    Image.BICUBIC = _Image.Resampling.BICUBIC
+    Image.NEAREST = _Image.Resampling.NEAREST
 
 import yaml
 
