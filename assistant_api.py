@@ -368,7 +368,7 @@ def api_get_config() -> Dict[str, Any]:
 # ============================================
 # Export (render video)
 # ============================================
-def api_export(optimized: bool = False) -> str:
+def api_export(optimized: bool = False) -> dict:
     clear_status_log()
     mode_label = "OPTIMIZED" if optimized else "STANDARD"
     log_step(f"Rendering export in {mode_label} mode...")
@@ -386,12 +386,28 @@ def api_export(optimized: bool = False) -> str:
         logger.exception(msg)
         raise
 
-    # Verify the file exists locally
     if not os.path.exists(local_path):
         msg = f"Export failed: file {filename} not found after render."
         log_step(msg)
         logger.error(msg)
         raise FileNotFoundError(msg)
+
+    # ---- Upload to S3 ----
+    s3_key = f"{EXPORT_PREFIX}{filename}"
+    s3_url = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{s3_key}"
+
+    try:
+        log_step(f"Uploading export to s3://{S3_BUCKET_NAME}/{s3_key}...")
+        s3.upload_file(local_path, S3_BUCKET_NAME, s3_key)
+        log_step("Upload to S3 complete.")
+    except Exception as e:
+        log_step(f"[S3 UPLOAD ERROR] {e}")
+
+    # ⭐ RETURN ONLY what JS expects + optional s3_url
+    return {
+        "filename": filename,     # JS REQUIRED FIELD
+        "s3_url": s3_url          # Optional for UI
+    }
 
     # -----------------------------------------
     # 🚀 NEW: upload to S3 under exports/
