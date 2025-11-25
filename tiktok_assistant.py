@@ -4,6 +4,7 @@ import logging
 import tempfile
 from typing import Dict, List, Optional
 import json
+
 import boto3
 import yaml
 from openai import OpenAI
@@ -37,8 +38,8 @@ if not S3_BUCKET_NAME:
 
 S3_REGION = os.environ.get("S3_REGION", "us-east-2")
 
-# Public style A: https://BUCKET.s3.amazonaws.com/...
-S3_PUBLIC_BASE = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com"
+# Public style A: https://na01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fbucket.s3.amazonaws.com%2F&data=05%7C02%7C%7C9e2e4ce5a799444768e308de2bbcd1c8%7C84df9e7fe9f640afb435aaaaaaaaaaaa%7C1%7C0%7C638996287127146455%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=odiGV31%2Fo5S6NNnLslyt%2FWUFUPTH9xw0xggPwodS6u4%3D&reserved=0...
+S3_PUBLIC_BASE = f"[https://{S3_BUCKET_NAME}.s3.amazonaws.com]https://{S3_BUCKET_NAME}.s3.amazonaws.com"
 
 RAW_PREFIX = "raw_uploads/"
 PROCESSED_PREFIX = "processed/"
@@ -48,9 +49,12 @@ EXPORT_PREFIX = "exports/"
 s3 = boto3.client("s3", region_name=S3_REGION)
 
 # -------------------------------------------------
-# GLOBAL ANALYSIS CACHE
+# GLOBAL ANALYSIS CACHE (IN-MEMORY)
 # -------------------------------------------------
 video_analyses_cache: Dict[str, str] = {}
+
+# On-disk cache directory (absolute path so there's no cwd confusion)
+ANALYSIS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "video_analysis_cache")
 
 # -------------------------------------------------
 # S3 HELPERS
@@ -132,36 +136,41 @@ def move_all_raw_to_processed() -> None:
             logger.error(f"Failed to move {key} to processed/: {e}")
 
 
-ANALYSIS_CACHE_DIR = "video_analysis_cache"
-
 def save_analysis_result(key: str, desc: str) -> None:
     """
     Cache analysis results BOTH in memory and to disk so API can read them.
     """
-    # normalize key
-    key_lower = key.lower()
+    try:
+        key_lower = key.lower()
 
-    # update in-memory cache
-    video_analyses_cache[key_lower] = desc
+        # in-memory
+        video_analyses_cache[key_lower] = desc
 
-    # ensure folder exists
-    os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
+        # on disk
+        os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
+        file_path = os.path.join(ANALYSIS_CACHE_DIR, f"{key_lower}.json")
 
-    # write to file
-    file_path = os.path.join(ANALYSIS_CACHE_DIR, f"{key_lower}.json")
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump({
-            "filename": key_lower,
-            "description": desc
-        }, f, indent=2)
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "filename": key_lower,
+                    "description": desc,
+                },
+                f,
+                indent=2,
+            )
 
-    log_step(f"Cached analysis for {key_lower} (memory + file).")
+        log_step(f"Cached analysis for {key_lower} (memory + file).")
+    except Exception as e:
+        logger.error(f"save_analysis_result failed for {key}: {e}")
+
 
 # -------------------------------------------------
 # DEBUG HELPER (simple)
 # -------------------------------------------------
 def debug_video_dimensions(path: str) -> None:
     logger.info("debug_video_dimensions stub called for %s", path)
+
 
 # -------------------------------------------------
 # LLM HELPERS
@@ -252,21 +261,21 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
         "  scale: 1.0",
         "",
         "music:",
-        '  style: \"chill travel\"',
-        '  mood: \"uplifting\"',
+        '  style: "chill travel"',
+        '  mood: "uplifting"',
         "  volume: 0.25",
         "",
         "render:",
         "  tts_enabled: false",
-        '  tts_voice: \"alloy\"',
+        '  tts_voice: "alloy"',
         "  fg_scale_default: 1.0",
         "",
         "cta:",
         "  enabled: false",
-        '  text: \"\"',
+        '  text: ""',
         "  voiceover: false",
         "  duration: 3.0",
-        '  position: \"bottom\"',
+        '  position: "bottom"',
         "",
         "Now here are the clips and analyses:",
     ]
@@ -292,7 +301,10 @@ def _style_instructions(style: str) -> str:
     if style == "influencer":
         return "First-person, enthusiastic influencer tone ('I', 'you'), high energy, social-media vibe, a few emojis."
     if style == "travel_blog":
-        return ("Hotel-review travel blogger tone. Focus on room type, amenities, views, location, and why it's a great stay.")
+        return (
+            "Hotel-review travel blogger tone. Focus on room type, amenities, views, "
+            "location, and why it's a great stay."
+        )
     # default
     return "Friendly, hotel-focused travel review tone with light influencer enthusiasm."
 
@@ -315,29 +327,29 @@ def apply_overlay(style: str, target: str = "all", filename: Optional[str] = Non
     instructions = _style_instructions(style)
 
     prompt = f"""
-    You are rewriting captions for a HOTEL / TRAVEL TikTok.
+You are rewriting captions for a HOTEL / TRAVEL TikTok.
 
-    Caption style: {style}
-    Style instructions: {instructions}
+Caption style: {style}
+Style instructions: {instructions}
 
-    Rules:
-    - Work on the YAML config.yml below.
-    - KEEP THE SAME STRUCTURE and keys.
-    - Do NOT add or remove clips.
-    - Only change the values of fields named "text" in:
-    - first_clip
-    - each item in middle_clips
-    - last_clip
-    - Each caption must be ONE sentence and <= 150 characters.
-    - Assume the content is hotel-focused (property, rooms, views, pool, restaurants, location).
-    - Make captions natural, not spammy. No hashtags.
+Rules:
+- Work on the YAML config.yml below.
+- KEEP THE SAME STRUCTURE and keys.
+- Do NOT add or remove clips.
+- Only change the values of fields named "text" in:
+  - first_clip
+  - each item in middle_clips
+  - last_clip
+- Each caption must be ONE sentence and <= 150 characters.
+- Assume the content is hotel-focused (property, rooms, views, pool, restaurants, location).
+- Make captions natural, not spammy. No hashtags.
 
-    Current YAML:
-    ```yaml
-    {current_yaml}
-    Return ONLY the updated YAML. No backticks, no explanation.
-    """.strip()
-        
+Current YAML:
+```yaml
+{current_yaml}
+Return ONLY the updated YAML. No backticks, no explanation.
+""".strip()
+
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
@@ -358,7 +370,8 @@ def apply_overlay(style: str, target: str = "all", filename: Optional[str] = Non
         log_step(f"Overlay applied with style: {style}")
     except Exception as e:
         logger.error(f"apply_overlay LLM call failed: {e}")
-    
+
+
 def apply_smart_timings(pacing: str = "standard") -> None:
     """
     Use LLM to adjust clip durations in config.yml.
@@ -387,60 +400,51 @@ def apply_smart_timings(pacing: str = "standard") -> None:
             "Respect current durations but nudge them to feel more natural."
         )
 
-        prompt = f"""
-            You are adjusting clip durations for a HOTEL / TRAVEL TikTok config.yml.
+    prompt = f"""
+You are adjusting clip durations for a HOTEL / TRAVEL TikTok config.yml.
 
-            Pacing mode: {pacing}
-            Instructions: {pacing_desc}
+Pacing mode: {pacing}
+Instructions: {pacing_desc}
 
-            Rules:
+Rules:
+- Work on the YAML below.
+- KEEP THE SAME STRUCTURE and keys.
+- Only change numeric "duration" values inside:
+  - first_clip
+  - each item in middle_clips
+  - last_clip
+- If a duration is missing, add a reasonable one.
+- Durations must be positive numbers (seconds).
+- Try to keep the total video length <= 60 seconds.
+- Do NOT change text, file names, or other fields.
 
-            Work on the YAML below.
+Current YAML:
+{current_yaml}
 
-            KEEP THE SAME STRUCTURE and keys.
+Return ONLY the updated YAML. No backticks, no explanation.
+""".strip()
 
-            Only change numeric "duration" values inside:
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+        )
+        new_yaml = (resp.choices[0].message.content or "").strip()
+        new_yaml = new_yaml.replace("```yaml", "").replace("```", "").strip()
 
-            first_clip
+        cfg = yaml.safe_load(new_yaml) or {}
+        if not isinstance(cfg, dict):
+            raise ValueError("Smart timings LLM did not return a dict config.")
 
-            each item in middle_clips
+        with open(config_path, "w") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
 
-            last_clip
+        logger.info("apply_smart_timings: timings updated (pacing=%s)", pacing)
+        log_step(f"Smart timings applied (pacing={pacing}).")
+    except Exception as e:
+        logger.error(f"apply_smart_timings LLM call failed: {e}")
 
-            If a duration is missing, add a reasonable one.
-
-            Durations must be positive numbers (seconds).
-
-            Try to keep the total video length <= 60 seconds.
-
-            Do NOT change text, file names, or other fields.
-
-            Current YAML:
-            {current_yaml}
-
-            Return ONLY the updated YAML. No backticks, no explanation.
-            """.strip()
-        
-        try:
-            resp = client.chat.completions.create(
-                model=TEXT_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
-            )
-            new_yaml = (resp.choices[0].message.content or "").strip()
-            new_yaml = new_yaml.replace("```yaml", "").replace("```", "").strip()
-
-            cfg = yaml.safe_load(new_yaml) or {}
-            if not isinstance(cfg, dict):
-                raise ValueError("Smart timings LLM did not return a dict config.")
-
-            with open(config_path, "w") as f:
-                yaml.safe_dump(cfg, f, sort_keys=False)
-
-            logger.info("apply_smart_timings: timings updated (pacing=%s)", pacing)
-            log_step(f"Smart timings applied (pacing={pacing}).")
-        except Exception as e:
-            logger.error(f"apply_smart_timings LLM call failed: {e}")
 
 def save_from_raw_yaml(*args, **kwargs):
     logger.info("save_from_raw_yaml stub called (unused)")

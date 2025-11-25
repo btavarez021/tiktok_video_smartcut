@@ -2,8 +2,6 @@
 import logging
 import os
 import time
-from tiktok_assistant import list_videos_from_s3
-
 
 from flask import Flask, request, jsonify, render_template
 
@@ -14,7 +12,8 @@ from tiktok_assistant import (
     RAW_PREFIX,
     EXPORT_PREFIX,
     move_all_raw_to_processed,
-    video_analyses_cache
+    video_analyses_cache,
+    list_videos_from_s3,
 )
 
 from assistant_api import (
@@ -33,7 +32,7 @@ from assistant_api import (
     api_save_yaml,
     api_save_captions,
     load_config,
-    load_all_analysis_results
+    load_all_analysis_results,
 )
 
 from assistant_log import clear_status_log, log_step, status_log
@@ -44,7 +43,6 @@ app = Flask(__name__)
 # Configure Logging
 # =============================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-import logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,8 +51,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-
 
 
 # ============================================
@@ -81,28 +77,36 @@ def upload_route():
 
 
 # ============================================
-# CORE WORKFLOW
+# SIMPLE VIDEO COUNT (OPTIONAL)
 # ============================================
 @app.route("/api/video_count", methods=["GET"])
 def video_count_route():
     return jsonify({"count": len(list_videos_from_s3())})
 
+
+# ============================================
+# CORE WORKFLOW
+# ============================================
 @app.route("/api/analyze", methods=["POST"])
 def analyze_route():
     clear_status_log()
     log_step("🔍 Starting video analysis…")
-    
+
     import threading
+
     threading.Thread(target=api_analyze, daemon=True).start()
 
     return jsonify({"status": "started"})
 
+
 @app.route("/api/analyses_cache", methods=["GET"])
 def analyses_cache_route():
-    # merge disk + memory
+    # Merge disk + memory so UI always sees everything
     disk_results = load_all_analysis_results()
     merged = {**disk_results, **video_analyses_cache}
+    # Sort by filename for deterministic output
     return jsonify(dict(sorted(merged.items())))
+
 
 @app.route("/api/generate_yaml", methods=["POST"])
 def yaml_route():
@@ -143,7 +147,7 @@ def export_route():
     try:
         # 1. Render locally via MoviePy/ffmpeg through tiktok_template.edit_video
         load_config()
-        local_filename = api_export(optimized=optimized)  # e.g. "output_tiktok_final.mp4"
+        local_filename = api_export(optimized=optimized)
         local_path = os.path.abspath(local_filename)
 
         if not os.path.exists(local_path):
@@ -162,13 +166,14 @@ def export_route():
         move_all_raw_to_processed()
 
         log_step("✅ Export complete.")
-        return jsonify({
-            "status": "ok",
-            "file_url": url,
-        })
+        return jsonify(
+            {
+                "status": "ok",
+                "file_url": url,
+            }
+        )
 
     except Exception as e:
-        # Make sure the error shows up BOTH in your side log and as JSON
         msg = f"Export route failed: {e}"
         log_step(f"❌ {msg}")
         logger.exception(msg)
@@ -235,6 +240,7 @@ def save_captions_route():
     log_step("✅ Captions saved to config.yml")
     return jsonify(out)
 
+
 # ============================================
 # OVERLAY STYLE (caption chips)
 # ============================================
@@ -300,5 +306,4 @@ def status_route():
 
 
 if __name__ == "__main__":
-    # For local dev; Render will use gunicorn
     app.run(debug=True, port=5000, host="0.0.0.0")

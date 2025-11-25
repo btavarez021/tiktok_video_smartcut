@@ -4,6 +4,8 @@ import yaml
 import shutil
 import tempfile
 import json
+import logging
+
 from assistant_log import log_step, status_log, clear_status_log
 
 from tiktok_template import (
@@ -11,8 +13,8 @@ from tiktok_template import (
     edit_video,
     video_folder,   # local folder used for normalized / downloaded clips
     client,
-    normalize_video_ffmpeg
-    )
+    normalize_video_ffmpeg,
+)
 
 from tiktok_assistant import (
     debug_video_dimensions,
@@ -26,10 +28,8 @@ from tiktok_assistant import (
     list_videos_from_s3,
     download_s3_video,
     save_analysis_result,
-    ANALYSIS_CACHE_DIR
+    ANALYSIS_CACHE_DIR,
 )
-
-import logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,7 +38,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
 
 # ============================================
 # MODULE-LEVEL CONFIG (mirror of config.yml)
@@ -90,15 +89,47 @@ def get_export_mode() -> dict:
 
 
 # ============================================
+# LOAD ALL ANALYSIS RESULTS FROM DISK
+# ============================================
+def load_all_analysis_results():
+    """
+    Loads all cached analysis results stored as .json files in video_analysis_cache/
+    Returns { filename: description }
+    """
+    results = {}
+
+    if not os.path.exists(ANALYSIS_CACHE_DIR):
+        return results
+
+    for name in os.listdir(ANALYSIS_CACHE_DIR):
+        if not name.endswith(".json"):
+            continue
+
+        file_path = os.path.join(ANALYSIS_CACHE_DIR, name)
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            filename = data.get("filename") or name.replace(".json", "")
+            desc = data.get("description") or ""
+            results[filename] = desc
+        except Exception as e:
+            logger.warning(f"⚠ Failed loading cached analysis file {name}: {e}")
+
+    return results
+
+
+# ============================================
 # /api/analyze
 # ============================================
 def api_analyze():
     """
     - Clears local tik_tok_downloads folder
     - Downloads all S3 raw_uploads/*.mp4 into that folder
-    - **Normalizes with ffmpeg here** (1080x1920) → video_folder
+    - Normalizes with ffmpeg (1080x1920) → video_folder
     - Runs LLM analysis per file
-    - Caches results in video_analyses_cache
+    - Caches results in video_analyses_cache + disk
     - Returns {filename: description}
     """
     log_step("Starting analysis…")
@@ -134,7 +165,7 @@ def api_analyze():
             log_step(f"❌ Failed to download {key}")
             continue
 
-        # 3. **Normalize directly into tik_tok_downloads/** (final render source)
+        # 3. Normalize directly into tik_tok_downloads/ (final render source)
         base = os.path.basename(key)
         local_path = os.path.join(video_folder, base)
         try:
@@ -143,12 +174,11 @@ def api_analyze():
         except Exception as e:
             log_step(f"❌ Failed to normalize {tmp_local_path} → {local_path}: {e}")
             continue
-
-        # Optional: clean up temp file
-        try:
-            os.remove(tmp_local_path)
-        except OSError:
-            pass
+        finally:
+            try:
+                os.remove(tmp_local_path)
+            except OSError:
+                pass
 
         # 4. Analyze with LLM (file path mainly used for logging context)
         log_step(f"Analyzing {base} with LLM…")
@@ -157,40 +187,11 @@ def api_analyze():
 
         # 5. Save analysis result (by basename)
         save_analysis_result(base, desc)
-        results[base] = desc
+        results[base.lower()] = desc
 
     log_step("All videos analyzed ✅")
     return results
 
-def load_all_analysis_results():
-    """
-    Loads all cached analysis results stored as .json files in video_analyses_cache/
-    Returns { filename: description }
-    """
-    results = {}
-
-    if not os.path.exists(ANALYSIS_CACHE_DIR):
-        return results
-
-    for name in os.listdir(ANALYSIS_CACHE_DIR):
-        if not name.endswith(".json"):
-            continue
-
-        file_path = os.path.join(ANALYSIS_CACHE_DIR, name)
-
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            # Expected format: { "filename": "...", "description": "..." }
-            filename = data.get("filename") or name.replace(".json", "")
-            desc = data.get("description") or ""
-            results[filename] = desc
-
-        except Exception as e:
-            print(f"⚠ Failed loading cached analysis file {name}: {e}")
-
-    return results
 
 # ============================================
 # /api/generate_yaml
@@ -198,13 +199,20 @@ def load_all_analysis_results():
 def api_generate_yaml():
     """
     Use build_yaml_prompt + LLM to generate YAML, save to config.yml, and return dict.
+    Uses both in-memory and disk cache for analyses.
     """
-    if not video_analyses_cache:
+    # Merge disk + memory so we survive new processes
+    disk_results = load_all_analysis_results()
+    merged = {**disk_results, **video_analyses_cache}
+
+    if not merged:
         log_step("No cached analyses; running quick analyze before YAML generation…")
         api_analyze()
+        disk_results = load_all_analysis_results()
+        merged = {**disk_results, **video_analyses_cache}
 
-    video_files = list(video_analyses_cache.keys())  # basenames
-    analyses = [video_analyses_cache.get(v.lower(), "") for v in video_files]
+    video_files = list(merged.keys())
+    analyses = [merged.get(v, "") for v in video_files]
 
     if not video_files:
         log_step("No videos available for YAML generation.")
@@ -250,7 +258,6 @@ def api_generate_yaml():
                 "position": "bottom",
             },
         }
-        # Fill middle clips if more than 2
         if len(video_files) > 2:
             for vf, a in zip(video_files[1:-1], analyses[1:-1]):
                 simple_cfg["middle_clips"].append(
@@ -297,7 +304,7 @@ def api_save_yaml(yaml_text: str):
 
 
 # ============================================
-# /api/config  (for YAML + captions)
+# /api/config (for YAML + captions)
 # ============================================
 def api_get_config():
     """
@@ -345,10 +352,8 @@ def api_export(optimized: bool = False) -> str:
         msg = f"Export failed while calling edit_video: {e}"
         log_step(f"❌ {msg}")
         logger.exception(msg)
-        # Reraise so the Flask route can return a 500 JSON
         raise
 
-    # Final sanity check that the file exists
     if not os.path.exists(filename):
         msg = f"Export failed: file {filename} not found after render."
         log_step(f"❌ {msg}")
