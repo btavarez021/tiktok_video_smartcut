@@ -276,8 +276,6 @@ def api_generate_yaml() -> Dict[str, Any]:
     Use build_yaml_prompt + LLM to generate YAML and save to config.yml.
     Ensures ALL filenames are normalized to lowercase .mp4.
     """
-    cfg = _force_mp4_filenames(cfg)
-
     merged = load_all_analysis_results()
 
     if not merged:
@@ -348,18 +346,6 @@ def api_generate_yaml() -> Dict[str, Any]:
     log_step("YAML written to config.yml (normalized lowercase .mp4 filenames)")
     return cfg
 
-def clear_analysis_cache():
-    import shutil
-    from tiktok_assistant import ANALYSIS_CACHE_DIR, video_analyses_cache
-
-    try:
-        shutil.rmtree(ANALYSIS_CACHE_DIR, ignore_errors=True)
-        os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
-        video_analyses_cache.clear()
-        log_step("Analysis cache cleared.")
-    except Exception as e:
-        log_step(f"Error clearing cache: {e}")
-
 
 def api_save_yaml(yaml_text: str) -> Dict[str, str]:
     cfg = yaml.safe_load(yaml_text) or {}
@@ -380,43 +366,6 @@ def api_get_config() -> Dict[str, Any]:
         "yaml": yaml_text,
         "config": CONFIG,
     }
-
-def _force_mp4_filenames(cfg: dict) -> dict:
-    """
-    Ensures every clip filename in the YAML uses lowercase .mp4.
-    Removes any other extensions (.mov, .m4v, .avi, .MP4, etc).
-    """
-    def normalize(name: str) -> str:
-        if not isinstance(name, str):
-            return name
-        base = os.path.splitext(os.path.basename(name))[0]
-        return base.lower() + ".mp4"
-
-    if "first_clip" in cfg and "file" in cfg["first_clip"]:
-        cfg["first_clip"]["file"] = normalize(cfg["first_clip"]["file"])
-
-    if "middle_clips" in cfg:
-        for clip in cfg["middle_clips"]:
-            if "file" in clip:
-                clip["file"] = normalize(clip["file"])
-
-    if "last_clip" in cfg and "file" in cfg["last_clip"]:
-        cfg["last_clip"]["file"] = normalize(cfg["last_clip"]["file"])
-
-    return cfg
-
-
-def api_save_yaml(yaml_text: str) -> Dict[str, str]:
-    cfg = yaml.safe_load(yaml_text) or {}
-
-    # ⭐ ENFORCE .mp4
-    cfg = _force_mp4_filenames(cfg)
-
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
-
-    load_config()
-    return {"status": "ok"}
 
 
 # ============================================
@@ -454,7 +403,6 @@ def api_export(optimized: bool = False) -> str:
 # ============================================
 def api_set_tts(enabled: bool, voice: str | None = None) -> Dict[str, Any]:
     load_config()
-    CONFIG = _force_mp4_filenames(CONFIG)
     render_cfg = CONFIG.setdefault("render", {})
     render_cfg["tts_enabled"] = bool(enabled)
     if voice:
@@ -465,7 +413,6 @@ def api_set_tts(enabled: bool, voice: str | None = None) -> Dict[str, Any]:
 
 def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None = None) -> Dict[str, Any]:
     load_config()
-    CONFIG = _force_mp4_filenames(CONFIG)
     cta_cfg = CONFIG.setdefault("cta", {})
     cta_cfg["enabled"] = bool(enabled)
     if text is not None:
@@ -478,10 +425,6 @@ def api_set_cta(enabled: bool, text: str | None = None, voiceover: bool | None =
 
 def api_fgscale(value: float) -> Dict[str, Any]:
     load_config()
-    CONFIG = _force_mp4_filenames(CONFIG)
-    CONFIG = _force_mp4_filenames(CONFIG)
-    save_config()
-
     render_cfg = CONFIG.setdefault("render", {})
     render_cfg["fg_scale_default"] = float(value)
     save_config()
@@ -502,8 +445,6 @@ def api_apply_timings(smart: bool = False) -> Dict[str, Any]:
         apply_smart_timings(pacing="cinematic")
     else:
         apply_smart_timings()
-    CONFIG = _force_mp4_filenames(CONFIG)
-    save_config()
     load_config()
     return CONFIG
 

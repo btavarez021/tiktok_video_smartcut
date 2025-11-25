@@ -16,16 +16,6 @@ from tiktok_template import config_path, edit_video, video_folder
 
 logger = logging.getLogger(__name__)
 
-def enforce_mp4(name: str) -> str:
-    """
-    Force any filename to <basename>.mp4 (lowercase), removing all other extensions.
-    """
-    if not isinstance(name, str):
-        return name
-    base = os.path.splitext(os.path.basename(name))[0]
-    return base.lower() + ".mp4"
-
-
 # -----------------------------------------
 # OpenAI Setup
 # -----------------------------------------
@@ -234,7 +224,7 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
 # -----------------------------------------
 def save_analysis_result(key: str, desc: str) -> None:
     # IMPORTANT FIX: always store basename, lowercase
-    key_lower = enforce_mp4(key)
+    key_lower = os.path.basename(key).lower()
 
     video_analyses_cache[key_lower] = desc
 
@@ -306,27 +296,6 @@ Return ONLY YAML.
         if not isinstance(cfg, dict):
             raise ValueError("Overlay returned invalid YAML")
 
-        cfg = yaml.safe_load(new_yaml)
-        if not isinstance(cfg, dict):
-            raise ValueError("Invalid YAML")
-
-        # ⭐ FORCE ALL FILENAMES TO .mp4
-        def fix(cfg):
-            if "first_clip" in cfg and "file" in cfg["first_clip"]:
-                cfg["first_clip"]["file"] = enforce_mp4(cfg["first_clip"]["file"])
-
-            if "middle_clips" in cfg:
-                for m in cfg["middle_clips"]:
-                    if "file" in m:
-                        m["file"] = enforce_mp4(m["file"])
-
-            if "last_clip" in cfg and "file" in cfg["last_clip"]:
-                cfg["last_clip"]["file"] = enforce_mp4(cfg["last_clip"]["file"])
-            return cfg
-
-        cfg = fix(cfg)
-
-
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
@@ -382,27 +351,6 @@ Return ONLY YAML.
         cfg = yaml.safe_load(new_yaml)
         if not isinstance(cfg, dict):
             raise ValueError("Timings returned invalid YAML")
-        
-        cfg = yaml.safe_load(new_yaml)
-        if not isinstance(cfg, dict):
-            raise ValueError("Invalid YAML")
-
-        # ⭐ FORCE ALL FILENAMES TO .mp4
-        def fix(cfg):
-            if "first_clip" in cfg and "file" in cfg["first_clip"]:
-                cfg["first_clip"]["file"] = enforce_mp4(cfg["first_clip"]["file"])
-
-            if "middle_clips" in cfg:
-                for m in cfg["middle_clips"]:
-                    if "file" in m:
-                        m["file"] = enforce_mp4(m["file"])
-
-            if "last_clip" in cfg and "file" in cfg["last_clip"]:
-                cfg["last_clip"]["file"] = enforce_mp4(cfg["last_clip"]["file"])
-            return cfg
-
-        cfg = fix(cfg)
-
 
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)

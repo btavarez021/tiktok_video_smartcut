@@ -5,7 +5,6 @@ from flask_cors import CORS
 
 from assistant_log import status_log
 from assistant_api import (
-    clear_analysis_cache,
     api_analyze_start,
     api_analyze_step,
     api_analyze,
@@ -52,9 +51,7 @@ def healthz():
 # ---------------------------------
 @app.route("/api/status", methods=["GET"])
 def api_status():
-    # Return only last 100 entries so response is never too large
     return jsonify({"status_log": status_log[-100:]})
-
 
 
 # ---------------------------------
@@ -164,10 +161,6 @@ def route_download(filename):
         return jsonify({"error": f"File {filename} not found."}), 404
     return send_file(full_path, as_attachment=True)
 
-@app.route("/api/clear_cache", methods=["POST"])
-def route_clear_cache():
-    clear_analysis_cache()
-    return jsonify({"status": "cleared"})
 
 # ---------------------------------
 # TTS & CTA
