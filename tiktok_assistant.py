@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 import boto3
 import yaml
 from openai import OpenAI
-
+from utils_video import enforce_mp4
 from assistant_log import log_step
 from tiktok_template import config_path, edit_video, video_folder
 
@@ -51,16 +51,6 @@ os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
 # -----------------------------------------
 # S3 Helpers
 # -----------------------------------------
-def enforce_mp4(name: str) -> str:
-    """
-    Force ANY filename to lowercase basename.mp4.
-    Removes any folder, any extension, any uppercase.
-    """
-    if not isinstance(name, str) or not name.strip():
-        return name
-    base = os.path.splitext(os.path.basename(name))[0]
-    return base.lower() + ".mp4"
-
 
 def list_videos_from_s3() -> List[str]:
     resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)

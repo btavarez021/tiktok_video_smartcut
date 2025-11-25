@@ -7,12 +7,11 @@ import traceback
 from typing import Dict, Any, List
 
 from openai import OpenAI
-
+from utils_video import enforce_mp4
 from assistant_log import log_step, clear_status_log
 from tiktok_template import config_path, edit_video, video_folder
 from tiktok_assistant import (
     sanitize_yaml_filenames,
-    enforce_mp4,
     analyze_video,
     build_yaml_prompt,
     apply_smart_timings,
