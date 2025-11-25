@@ -376,6 +376,7 @@ def api_export(optimized: bool = False) -> dict:
     filename = "output_tiktok_final_optimized.mp4" if optimized else "output_tiktok_final.mp4"
     local_path = os.path.join(os.getcwd(), filename)
 
+    # ---- Render video ----
     try:
         log_step("Rendering timeline with music, captions, and voiceover flags...")
         edit_video(output_file=filename, optimized=optimized)
@@ -383,14 +384,11 @@ def api_export(optimized: bool = False) -> dict:
     except Exception as e:
         msg = f"Export failed while calling edit_video: {e}"
         log_step(msg)
-        logger.exception(msg)
         raise
 
+    # ---- Check render ----
     if not os.path.exists(local_path):
-        msg = f"Export failed: file {filename} not found after render."
-        log_step(msg)
-        logger.error(msg)
-        raise FileNotFoundError(msg)
+        raise FileNotFoundError(f"Render failed: {filename} missing")
 
     # ---- Upload to S3 ----
     s3_key = f"{EXPORT_PREFIX}{filename}"
@@ -403,30 +401,12 @@ def api_export(optimized: bool = False) -> dict:
     except Exception as e:
         log_step(f"[S3 UPLOAD ERROR] {e}")
 
-    # ⭐ RETURN ONLY what JS expects + optional s3_url
+    # ---- ⭐ Return exactly what JS needs + optional s3_url ----
     return {
-        "filename": filename,     # JS REQUIRED FIELD
-        "s3_url": s3_url          # Optional for UI
+        "filename": filename,  # <-- JS uses this
+        "s3_url": s3_url       # <-- optional
     }
 
-    # -----------------------------------------
-    # 🚀 NEW: upload to S3 under exports/
-    # -----------------------------------------
-    s3_key = f"{EXPORT_PREFIX}{filename}"
-    try:
-        log_step(f"Uploading export to s3://{S3_BUCKET_NAME}/{s3_key}...")
-        s3.upload_file(local_path, S3_BUCKET_NAME, s3_key)
-        log_step("Upload to S3 complete.")
-    except Exception as e:
-        log_step(f"[S3 UPLOAD ERROR] {e}")
-        raise
-
-    # Return BOTH paths: local + s3
-    return {
-        "local_filename": filename,
-        "s3_key": s3_key,
-        "s3_url": f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{s3_key}"
-    }
 
 
 
