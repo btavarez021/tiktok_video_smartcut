@@ -416,3 +416,119 @@ h3 .style-check {
     position: relative;
     top: 2px;
 }
+
+/* -----------------------------------------------------------
+   MOBILE UI FIXES
+   ----------------------------------------------------------- */
+@media (max-width: 900px) {
+
+    /* Whole layout stacks cleanly */
+    .layout {
+        grid-template-columns: 1fr !important;
+        gap: 20px;
+    }
+
+    /* Stepper becomes horizontal scroll (like TikTok/Instagram editors) */
+    .stepper {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto;
+        white-space: nowrap;
+        gap: 12px;
+        padding-bottom: 8px;
+    }
+
+    .step {
+        flex: 0 0 auto;
+        padding: 10px 16px;
+    }
+
+    /* Cards stretch nicely */
+    .step-card, .card {
+        padding: 18px !important;
+        margin: 0 !important;
+    }
+
+    /* Inputs and buttons full width */
+    input, textarea, select, .btn {
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    textarea {
+        min-height: 180px;
+        font-size: 15px;
+    }
+
+    /* Split panels inside YAML & Style collapse vertically */
+    .split {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .split-panel {
+        width: 100% !important;
+    }
+
+    /* Side column moves below main */
+    .side-column {
+        order: 10; /* send to bottom */
+    }
+
+    /* Reduce padding + improve readability */
+    .card-header h2 {
+        font-size: 20px;
+        line-height: 1.3;
+    }
+
+    .card-subtitle {
+        font-size: 14px;
+    }
+
+    /* Log viewer scrollable and shorter */
+    .log-view {
+        max-height: 280px !important;
+        font-size: 13px;
+    }
+
+    /* Buttons stacked instead of inline pairs */
+    .row {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+}
+
+/* -----------------------------------------------------------
+   SUPER TINY DEVICES (iPhone Mini, older Android)
+   ----------------------------------------------------------- */
+@media (max-width: 480px) {
+
+    .step-index {
+        display: none; /* save space */
+    }
+
+    .step-label {
+        font-size: 13px;
+    }
+
+    .brand h1 {
+        font-size: 18px;
+    }
+
+    .brand-logo {
+        font-size: 20px;
+        width: 36px;
+        height: 36px;
+    }
+
+    /* YAML textarea */
+    #yamlText {
+        min-height: 220px;
+    }
+
+    /* Chat textarea smaller */
+    #chatInput {
+        min-height: 120px;
+    }
+}
