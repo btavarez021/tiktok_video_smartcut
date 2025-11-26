@@ -388,11 +388,14 @@ def api_save_captions(text: str) -> Dict[str, Any]:
     with open(config_path, "r", encoding="utf-8") as f:
         yaml_text = f.read()
 
+    final_captions = "\n\n".join(blocks)
+
     return {
         "status": "ok",
         "count": len(blocks),
         "yaml": yaml_text,
         "config": cfg,
+        "text": final_captions,  # Fix for mobile UI
     }
 
 
@@ -423,6 +426,8 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
         return {
             "status": "ok",
             "output_path": out_path,
+            "local_filename": os.path.basename(out_path),
+            "s3_url": None,   # or pass actual S3 URL later
         }
     except Exception as e:
         logger.error(f"[EXPORT] Export failed: {e}")
