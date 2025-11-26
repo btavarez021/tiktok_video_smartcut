@@ -5,7 +5,7 @@ import json
 import glob
 import logging
 from typing import Dict, Any, List
-
+import shutil
 import yaml
 from openai import OpenAI
 
@@ -112,7 +112,7 @@ def _sync_s3_videos_to_local() -> List[str]:
             continue
 
         try:
-            os.replace(tmp_path, local_path)
+            shutil.move(tmp_path, local_path)
             log_step(f"[SYNC] Downloaded {key} -> {local_path}")
             local_files.append(basename)
         except Exception as e:
