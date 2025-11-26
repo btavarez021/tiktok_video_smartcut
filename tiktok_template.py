@@ -13,6 +13,7 @@ if not hasattr(Image, "ANTIALIAS"):
     Image.NEAREST = _Image.Resampling.NEAREST
 
 import yaml
+from moviepy.video.fx import blur
 
 from utils_video import enforce_mp4
 
@@ -23,7 +24,8 @@ from moviepy.editor import (
     AudioFileClip,
     CompositeAudioClip,
     concatenate_videoclips,
-    ColorClip
+    ColorClip,
+    blur
 )
 
 from assistant_log import log_step
@@ -303,13 +305,10 @@ def _try_text_overlay(
         return None
 
 
-
-
 # -----------------------------------------
 # CTA overlay
 # -----------------------------------------
 def _apply_cta_overlay(base, cfg):
-    """Return JUST CTA overlay elements for stacking later."""
     cta = cfg.get("cta", {})
     if not cta.get("enabled"):
         return []
@@ -322,17 +321,34 @@ def _apply_cta_overlay(base, cfg):
     total = base.duration
     start = max(0, total - duration)
 
+    # --- Extract last segment for blur ---
+    try:
+        outro = base.subclip(start, total)
+
+        # Apply blur using MoviePy's built-in blur effect
+        outro_blurred = outro.fx(blur, 25)  # strength 25 looks great
+        outro_blurred = outro_blurred.set_start(start)
+
+        layers = [outro_blurred]
+
+    except Exception as e:
+        logger.warning(f"CTA blur failed: {e}")
+        layers = []
+
+    # CTA overlay elements
     over = _try_text_overlay(
         base=base,
         text=text,
         duration=duration,
         start=start,
-        fontsize=52,
-        position=cta.get("position", "bottom"),
+        fontsize=60,
+        position="bottom",
     )
 
-    return over or []
+    if over:
+        layers.extend(over)
 
+    return layers
 
 # -----------------------------------------
 # TTS generation
