@@ -50,7 +50,7 @@ body {
     overflow-y: auto;
 }
 
-/* Scrollbar styling */
+/* Scrollbar */
 .layout::-webkit-scrollbar,
 textarea::-webkit-scrollbar,
 .log-view::-webkit-scrollbar {
@@ -129,7 +129,7 @@ textarea::-webkit-scrollbar-thumb,
     border-bottom: 1px solid var(--border);
 }
 
-.stepper .step {
+.step {
     background: none;
     border: none;
     color: var(--text-dim);
@@ -142,7 +142,7 @@ textarea::-webkit-scrollbar-thumb,
     transition: 0.2s;
 }
 
-.stepper .step.active {
+.step.active {
     color: var(--primary);
     font-weight: 600;
 }
@@ -154,7 +154,7 @@ textarea::-webkit-scrollbar-thumb,
     margin-bottom: 4px;
 }
 
-.stepper .step.active .step-index {
+.step.active .step-index {
     background: var(--primary);
     color: white;
 }
@@ -211,14 +211,13 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Analysis List & Log
+   Lists + Log
 ---------------------------------------- */
 .analysis-list {
     list-style: none;
     margin: 0;
     padding: 0;
 }
-
 .analysis-list li {
     border-bottom: 1px solid #2a2a2d;
     padding: 10px 0;
@@ -226,7 +225,6 @@ textarea::-webkit-scrollbar-thumb,
 
 .analysis-file {
     font-weight: 600;
-    margin-bottom: 4px;
 }
 
 .analysis-desc {
@@ -268,7 +266,6 @@ textarea::-webkit-scrollbar-thumb,
     margin-bottom: 6px;
     display: block;
     color: var(--text-dim);
-    font-size: 0.85rem;
 }
 
 /* ---------------------------------------
@@ -278,7 +275,6 @@ textarea::-webkit-scrollbar-thumb,
     display: flex;
     gap: 18px;
 }
-
 .split-panel {
     flex: 1;
 }
@@ -324,9 +320,8 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Radio + Checkbox (REWRITTEN FIXED VERSION)
+   Unified Checkbox System (FINAL)
 ---------------------------------------- */
-
 .checkbox-row {
     display: flex;
     align-items: center;
@@ -334,16 +329,13 @@ textarea::-webkit-scrollbar-thumb,
     margin: 12px 0;
 }
 
-/* Unified checkbox */
 .checkbox-row input[type="checkbox"] {
-    min-width: 22px;
-    min-height: 22px;
     width: 22px;
     height: 22px;
-
+    min-width: 22px;
     appearance: none;
-    background: var(--card-lighter);
     border: 2px solid var(--border);
+    background: var(--card-lighter);
     border-radius: 4px;
     cursor: pointer;
     position: relative;
@@ -351,34 +343,29 @@ textarea::-webkit-scrollbar-thumb,
 
 .checkbox-row input[type="checkbox"]:checked::after {
     content: "✔";
+    position: absolute;
+    top: -3px;
+    left: 4px;
     color: var(--success);
     font-size: 16px;
-    position: absolute;
-    top: -2px;
-    left: 3px;
+    font-weight: bold;
 }
 
 .checkbox-row label {
     font-size: 16px;
     cursor: pointer;
-    line-height: 1.3;
+    line-height: 1.25;
 }
 
 /* ---------------------------------------
-   Range Slider
+   Range
 ---------------------------------------- */
 input[type="range"] {
     width: 100%;
 }
 
-.range-value {
-    text-align: right;
-    color: var(--text-dim);
-    margin-top: 3px;
-}
-
 /* ---------------------------------------
-   Divider
+   Divider, Downloads, Chat
 ---------------------------------------- */
 .divider {
     border: none;
@@ -386,148 +373,80 @@ input[type="range"] {
     margin: 18px 0;
 }
 
-/* ---------------------------------------
-   Hint Text
----------------------------------------- */
-.hint-text {
-    color: var(--text-dim);
-    font-size: 0.85rem;
-    margin-top: 6px;
-}
-
-/* ---------------------------------------
-   Download Area
----------------------------------------- */
 .download-area {
     margin-top: 12px;
-    font-size: 0.9rem;
 }
 .download-area a {
     color: var(--primary);
     font-weight: 600;
 }
 
-/* ---------------------------------------
-   Chat
----------------------------------------- */
 .chat-output {
     margin-top: 12px;
     padding: 12px;
     background: var(--card-lighter);
-    border: 1px solid var(--border);
     border-radius: var(--radius);
-    min-height: 80px;
+    border: 1px solid var(--border);
     color: var(--text);
-    white-space: pre-wrap;
 }
 
 /* ---------------------------------------
    Step 4 Checkmarks
 ---------------------------------------- */
 .style-check {
-    display: inline-block;
     margin-left: 6px;
     color: var(--text-dim);
-    font-size: 1.1rem;
 }
 .style-check.active {
     color: var(--success);
 }
 
-h3 .style-check {
-    position: relative;
-    top: 2px;
-}
-
 /* -----------------------------------------------------------
-   MOBILE FIXES
+   MOBILE (max-width: 900px)
 ----------------------------------------------------------- */
 @media (max-width: 900px) {
 
     .layout {
         grid-template-columns: 1fr !important;
-        gap: 20px;
     }
 
     .stepper {
-        display: flex !important;
-        flex-direction: row !important;
         overflow-x: auto;
         white-space: nowrap;
-        gap: 12px;
-        padding-bottom: 8px;
     }
 
-    .step {
-        flex: 0 0 auto;
-        padding: 10px 16px;
-    }
-
-    .step-card, .card {
+    .card,
+    .step-card {
         padding: 18px !important;
         margin: 0 !important;
     }
 
-    input, textarea, select, .btn {
+    input,
+    textarea,
+    select,
+    .btn {
         width: 100% !important;
-        box-sizing: border-box;
-    }
-
-    textarea {
-        min-height: 180px;
-        font-size: 15px;
     }
 
     .split {
         flex-direction: column;
-        gap: 18px;
-    }
-
-    .split-panel {
-        width: 100% !important;
     }
 
     .side-column {
-        order: 10;
-    }
-
-    .card-header h2 {
-        font-size: 20px;
-        line-height: 1.3;
-    }
-
-    .card-subtitle {
-        font-size: 14px;
-    }
-
-    .log-view {
-        max-height: 280px !important;
-        font-size: 13px;
-    }
-
-    .row {
-        flex-direction: column !important;
-        gap: 10px !important;
-    }
-
-    /* Mobile checkbox fix */
-    .checkbox-row {
-        flex-wrap: nowrap;
-        align-items: center;
+        order: 20;
     }
 
     .checkbox-row input[type="checkbox"] {
         width: 26px;
         height: 26px;
     }
-
     .checkbox-row label {
         font-size: 17px;
     }
 }
 
 /* -----------------------------------------------------------
-   Super Tiny Devices
+   Super Small (max-width: 480px)
 ----------------------------------------------------------- */
 @media (max-width: 480px) {
     .step-index {
@@ -535,14 +454,6 @@ h3 .style-check {
     }
     .step-label {
         font-size: 13px;
-    }
-    .brand h1 {
-        font-size: 18px;
-    }
-    .brand-logo {
-        font-size: 20px;
-        width: 36px;
-        height: 36px;
     }
     #yamlText {
         min-height: 220px;
@@ -553,91 +464,76 @@ h3 .style-check {
 }
 
 /* -----------------------------------------------------------
-   Upload — Dark Mode Version
+   Upload Boxes
 ----------------------------------------------------------- */
 .upload-dropzone {
     border: 2px dashed var(--border);
     border-radius: 10px;
     padding: 30px;
+    background: var(--card-lighter);
     text-align: center;
     cursor: pointer;
-    background: var(--card-lighter);
-    transition: all 0.25s ease;
+    transition: 0.25s ease;
     color: var(--text);
 }
 
 .upload-dropzone.dragover {
-    border-color: var(--primary);
     background: rgba(79,139,255,0.15);
+    border-color: var(--primary);
 }
 
 .upload-preview {
-    margin-top: 14px;
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
+    margin-top: 14px;
 }
 
 .preview-item {
-    position: relative;
     width: 120px;
     height: 90px;
-    background: var(--card);
     border: 1px solid var(--border);
+    background: var(--card);
     border-radius: 8px;
-    padding: 6px;
-    font-size: 12px;
-    color: var(--text);
     display: flex;
     justify-content: center;
     align-items: center;
-    text-align: center;
-    overflow: hidden;
-}
-
-.preview-name {
     padding: 6px;
-    word-break: break-word;
     color: var(--text);
+    font-size: 12px;
+    position: relative;
 }
 
 .preview-remove {
     position: absolute;
     top: 4px;
     right: 4px;
-    background: rgba(255,0,0,0.8);
+    background: rgba(255,0,0,0.85);
     color: white;
     border: none;
     border-radius: 50%;
-    height: 22px;
     width: 22px;
+    height: 22px;
     cursor: pointer;
-    font-size: 12px;
-    font-weight: bold;
-    line-height: 22px;
-    transition: 0.15s ease;
 }
-
 .preview-remove:hover {
-    background: rgba(255,60,60,1);
+    background: red;
 }
 
 .progress-wrapper {
     width: 100%;
     height: 6px;
-    background: var(--ghost);
-    border-radius: 4px;
     margin-top: 12px;
+    border-radius: 4px;
+    background: var(--ghost);
 }
-
 .progress-wrapper.hidden {
     display: none;
 }
-
 .progress-bar {
     height: 100%;
     width: 0%;
     background: var(--success);
     border-radius: 4px;
-    transition: width 0.2s;
+    transition: width .2s;
 }
