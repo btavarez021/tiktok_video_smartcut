@@ -257,7 +257,16 @@ def _collect_all_captions(cfg: Dict[str, Any]) -> List[str]:
 # -----------------------------------------
 # Text overlay (caption or CTA)
 # -----------------------------------------
-def _try_text_overlay(base, text, duration, start, fontsize=60, position="bottom"):
+def _try_text_overlay(
+    base: VideoFileClip,
+    text: str,
+    duration: float,
+    start: float,
+    fontsize: int = 60,
+    position: str = "bottom",
+):
+    """Create ONLY the overlay elements (box + text), no timeline replacement."""
+
     text = (text or "").strip()
     if not text:
         return None
@@ -270,28 +279,27 @@ def _try_text_overlay(base, text, duration, start, fontsize=60, position="bottom
             color="white",
             method="caption",
             size=(TARGET_W - 160, None),
-        ).set_duration(duration)
+        ).set_duration(duration).set_start(start)
 
-        # SAFE box (no numpy, no experimental modules)
         box_h = txt.h + 60
-        box = ColorClip(
-            size=(TARGET_W, box_h),
-            color=(0, 0, 0)
-        ).set_opacity(0.45).set_duration(duration)
+        box = (
+            ColorClip(size=(TARGET_W, box_h), color=(0, 0, 0))
+            .set_duration(duration)
+            .set_start(start)
+            .set_opacity(0.45)
+        )
 
-        if position == "bottom":
-            y = TARGET_H * 0.80
-        else:
-            y = TARGET_H * 0.50
+        # Vertical placement
+        y = TARGET_H * (0.80 if position == "bottom" else 0.50)
 
         txt = txt.set_position(("center", y))
         box = box.set_position(("center", y))
 
-        clip = CompositeVideoClip([base, box, txt], size=(TARGET_W, TARGET_H))
-        return clip.set_start(start)
+        # Return overlay *elements*, not a timeline
+        return [box, txt]
 
     except Exception as e:
-        logger.warning(f"Text overlay failed: {e}")
+        logger.warning("Text overlay failed: %s", e)
         return None
 
 
@@ -300,28 +308,30 @@ def _try_text_overlay(base, text, duration, start, fontsize=60, position="bottom
 # -----------------------------------------
 # CTA overlay
 # -----------------------------------------
-def _apply_cta_overlay(clip: VideoFileClip, cfg: Dict[str, Any]):
+def _apply_cta_overlay(base, cfg):
+    """Return JUST CTA overlay elements for stacking later."""
     cta = cfg.get("cta", {})
     if not cta.get("enabled"):
-        return clip
+        return []
 
-    text = cta.get("text", "")
-    if not text.strip():
-        return clip
+    text = cta.get("text", "").strip()
+    if not text:
+        return []
 
     duration = float(cta.get("duration", 3.0))
-    total = clip.duration
+    total = base.duration
     start = max(0, total - duration)
 
     over = _try_text_overlay(
-        base=clip,
+        base=base,
         text=text,
         duration=duration,
         start=start,
         fontsize=52,
         position=cta.get("position", "bottom"),
     )
-    return over or clip
+
+    return over or []
 
 
 # -----------------------------------------
@@ -384,45 +394,47 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
 
     log_step("Building 1080x1920 timeline…")
 
-    timeline = _build_timeline_from_config(cfg)
-    total = timeline.duration
+    # Build base clip timeline (first/middle/last)
+    base = _build_timeline_from_config(cfg)
+    base = base.set_audio(base.audio)
+    total = base.duration
 
-    timeline = timeline.set_audio(timeline.audio)
+    overlays = []   # store text/cta overlay layers
 
-    # Captions
+    # ----- CAPTIONS (segment-aligned overlays) -----
     caps = _collect_all_captions(cfg)
     if caps:
         log_step("Applying caption overlays…")
         try:
             n = len(caps)
             seg = total / n
-            base = timeline
 
             for i, c in enumerate(caps):
                 start = i * seg
                 end = min(total, (i + 1) * seg)
-                dur = max(0.5, end - start)
+                duration = max(0.5, end - start)
 
-                over = _try_text_overlay(
+                layer = _try_text_overlay(
                     base=base,
                     text=c,
-                    duration=dur,
+                    duration=duration,
                     start=start,
                     fontsize=54,
                     position="bottom",
                 )
-                if over:
-                    base = over
 
-            timeline = base
+                if layer:
+                    overlays.extend(layer)
+
         except Exception as e:
             logger.warning("Caption overlay failed: %s", e)
 
-    # CTA
-    timeline = _apply_cta_overlay(timeline, cfg)
+    # ----- CTA overlay -----
+    cta_layers = _apply_cta_overlay(base, cfg)
+    overlays.extend(cta_layers)
 
-    # Audio / TTS
-    base_audio = timeline.audio
+    # ----- TTS Voiceover -----
+    base_audio = base.audio
     tts_audio = _build_tts_audio(cfg, total)
 
     if tts_audio:
@@ -433,24 +445,27 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
                 tts_audio.volumex(1.0),
             ])
             mix.clips = [x for x in mix.clips if x]
-            timeline = timeline.set_audio(mix)
+            base = base.set_audio(mix)
         except:
             pass
     else:
         if base_audio:
-            timeline = timeline.set_audio(base_audio)
+            base = base.set_audio(base_audio)
 
-    # Output
-    codec = "libx264"
-    audio_codec = "aac"
+    # ----- FINAL COMPOSITION -----
+    final = CompositeVideoClip(
+        [base] + overlays,
+        size=(TARGET_W, TARGET_H)
+    )
+
+    # ----- RENDER SETTINGS -----
     bitrate = "6000k" if optimized else "4000k"
     preset = "slow" if optimized else "veryfast"
 
     out = os.path.abspath(os.path.join(BASE_DIR, output_file))
-
     log_step(f"Writing video → {out}")
 
-    timeline.write_videofile(
+    final.write_videofile(
         out,
         codec="libx264",
         audio_codec="aac",
@@ -464,23 +479,11 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
         ffmpeg_params=[
             "-movflags", "+faststart",
             "-pix_fmt", "yuv420p",
-            "-profile:v", "baseline"
-    ],
-    logger=None,
+            "-profile:v", "baseline",
+        ],
+        logger=None,
     )
 
     log_step("Render complete.")
-
-    gc.collect()
-
-    try:
-        temp_audio = os.path.join(BASE_DIR, "temp-audio.m4a")
-        if os.path.exists(temp_audio):
-            os.remove(temp_audio)
-    except:
-        pass
-
-    return out
-
 
     return out
