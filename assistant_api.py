@@ -28,11 +28,12 @@ from tiktok_assistant import (
     normalize_video,
     client as shared_client,
 )
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
+# load_dotenv()
+
 import os
 
 # Load environment variables from .env file
-load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,

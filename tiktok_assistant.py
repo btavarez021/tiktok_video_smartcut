@@ -13,11 +13,12 @@ from openai import OpenAI
 from utils_video import enforce_mp4
 from assistant_log import log_step
 from tiktok_template import config_path, edit_video, video_folder
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
+# load_dotenv()
+
 import os
 
 # Load environment variables from .env file
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,8 @@ if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
         "Missing AWS credentials! You MUST set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Render."
     )
 
+
+
 # -----------------------------------------
 # Create S3 client with explicit credentials
 # -----------------------------------------
@@ -67,8 +70,6 @@ s3 = boto3.client(
     aws_access_key_id=AWS_ACCESS_KEY_ID,
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
 )
-
-
 
 # -----------------------------------------
 # Analysis Cache
