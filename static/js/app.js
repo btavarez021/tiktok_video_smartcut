@@ -111,6 +111,18 @@ async function uploadFiles() {
     }
 }
 
+// Download mobile helper
+
+function safeDownload(url, filename = "export.mp4") {
+    const a = document.createElement("a");
+    a.href = url;
+    a.style.display = "none";
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
+
 // Drag and Drop upload
 
 function initUploadUI() {
@@ -509,20 +521,29 @@ async function exportVideo() {
         const filename = data.local_filename;
 
         if (s3_url) {
-            downloadArea.innerHTML = `
-                <div>✅ Video ready:</div>
-                <a href="${s3_url}" target="_blank" download>
-                    Download ${filename} (S3)
-                </a>
-            `;
-        } else {
-            downloadArea.innerHTML = `
-                <div>⚠ Local file only (S3 upload missing):</div>
-                <a href="/api/download/${encodeURIComponent(filename)}" download>
-                    Download ${filename}
-                </a>
-            `;
-        }
+          downloadArea.innerHTML = `
+              <div>✅ Video ready:</div>
+              <button id="directDownloadBtn" class="btn primary full">
+                  ⬇ Download ${filename}
+              </button>
+          `;
+
+          document.getElementById("directDownloadBtn").onclick = () => {
+              safeDownload(s3_url, filename);
+          };
+
+      } else {
+          downloadArea.innerHTML = `
+              <div>⚠ Local file only (S3 upload missing):</div>
+              <button id="directLocalBtn" class="btn primary full">
+                  ⬇ Download ${filename}
+              </button>
+          `;
+        
+          document.getElementById("directLocalBtn").onclick = () => {
+              safeDownload(`/api/download/${encodeURIComponent(filename)}`, filename);
+          };
+      }
     } catch (err) {
         console.error(err);
         exportStatus.textContent = `Error during export: ${err.message}`;
