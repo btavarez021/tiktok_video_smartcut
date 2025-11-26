@@ -24,7 +24,7 @@ from moviepy.editor import (
     CompositeAudioClip,
     concatenate_videoclips,
     ColorClip,
-    blur
+    vfx 
 )
 
 from assistant_log import log_step
@@ -325,7 +325,7 @@ def _apply_cta_overlay(base, cfg):
         outro = base.subclip(start, total)
 
         # Apply blur using MoviePy's built-in blur effect
-        outro_blurred = outro.fx(blur, 25)  # strength 25 looks great
+        outro_blurred = outro.fx(vfx.blur, 25)  # strength 25 looks great
         outro_blurred = outro_blurred.set_start(start)
 
         layers = [outro_blurred]
