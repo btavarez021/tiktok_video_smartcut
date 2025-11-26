@@ -16,6 +16,7 @@ from tiktok_assistant import (
     S3_BUCKET_NAME,
     EXPORT_PREFIX,
     S3_REGION,
+    generate_signed_download_url,
     list_videos_from_s3,
     download_s3_video,
     analyze_video,
@@ -408,7 +409,7 @@ def api_save_captions(text: str) -> Dict[str, Any]:
 # -------------------------------
 def api_export(optimized: bool = False) -> Dict[str, Any]:
     """
-    Run edit_video(), upload to S3, and return download URL.
+    Run edit_video(), upload to S3, and return SIGNED download URL.
     """
     if not os.path.exists(config_path):
         return {"status": "error", "error": "config.yml not found"}
@@ -434,18 +435,19 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
             s3.upload_file(out_path, S3_BUCKET_NAME, export_key)
             log_step(f"[EXPORT] Uploaded final video to s3://{S3_BUCKET_NAME}/{export_key}")
 
-            s3_url = (
-                f"https://{S3_BUCKET_NAME}.s3.{S3_REGION}.amazonaws.com/{export_key}"
-            )
+            # Generate secure signed URL
+            signed_url = generate_signed_download_url(export_key)
+
         except Exception as e:
             log_step(f"[EXPORT S3 ERROR] {e}")
-            s3_url = None
+            signed_url = None
 
         return {
             "status": "ok",
             "output_path": out_path,
-            "s3_url": s3_url,
-            "local_filename": filename
+            "download_url": signed_url,   # 🔥 replaced s3_url with signed_url
+            "local_filename": filename,
+            "s3_key": export_key
         }
 
     except Exception as e:

@@ -72,7 +72,12 @@ os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
 # -----------------------------------------
 # S3 Helpers
 # -----------------------------------------
-
+def generate_signed_download_url(key: str, expires_in: int = 3600):
+    return s3.generate_presigned_url(
+        ClientMethod='get_object',
+        Params={'Bucket': S3_BUCKET_NAME, 'Key': key},
+        ExpiresIn=expires_in
+    )
 
 def list_videos_from_s3() -> List[str]:
     resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
