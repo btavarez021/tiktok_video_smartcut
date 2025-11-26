@@ -356,10 +356,44 @@ def api_get_captions() -> Dict[str, Any]:
 
 
 def api_save_captions(text: str) -> Dict[str, Any]:
-    with open(_CAPTIONS_FILE, "w", encoding="utf-8") as f:
-        f.write(text or "")
-    log_step("[CAPTIONS] Saved captions text")
-    return {"status": "ok"}
+    # Load config
+    cfg = _load_config_for_mutation()
+
+    # Convert captions text → clip.text fields
+    # Split into chunks separated by blank lines
+    blocks = [b.strip() for b in text.split("\n\n") if b.strip()]
+
+    i = 0
+    # Update first_clip
+    if "first_clip" in cfg and i < len(blocks):
+        cfg["first_clip"]["text"] = blocks[i]
+        i += 1
+
+    # Update middle_clips
+    if "middle_clips" in cfg:
+        for clip in cfg["middle_clips"]:
+            if i < len(blocks):
+                clip["text"] = blocks[i]
+                i += 1
+
+    # Update last_clip
+    if "last_clip" in cfg and i < len(blocks):
+        cfg["last_clip"]["text"] = blocks[i]
+
+    # Save config.yaml
+    _save_config(cfg)
+    log_step(f"[CAPTIONS] Saved captions into config.yml")
+
+    # Return *exact format front-end expects*
+    with open(config_path, "r", encoding="utf-8") as f:
+        yaml_text = f.read()
+
+    return {
+        "status": "ok",
+        "count": len(blocks),
+        "yaml": yaml_text,
+        "config": cfg,
+    }
 
 
 # -------------------------------
