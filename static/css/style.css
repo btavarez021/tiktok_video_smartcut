@@ -26,11 +26,44 @@
     font-family: var(--font);
 }
 
+
+
 body {
     background: var(--bg);
     color: var(--text);
     margin: 0;
     padding: 0;
+}
+
+/* Prevent background bleed behind UI */
+html, body, .app-shell {
+    background: var(--bg) !important;
+}
+
+/* ---------------------------------------
+   Checkbox Fixes for Mobile (iOS/Android)
+---------------------------------------- */
+
+/* Remove tap highlight on labels */
+.checkbox-row label {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure labels never receive pseudo-elements */
+.checkbox-row label::before,
+.checkbox-row label::after {
+    content: none !important;
+}
+
+/* Ensure checkmark only appears on checkbox */
+.checkbox-row input[type="checkbox"]::after {
+    pointer-events: none;
+}
+
+/* Normalize checkbox on mobile */
+.checkbox-row input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 /* ---------------------------------------
@@ -536,4 +569,26 @@ input[type="range"] {
     background: var(--success);
     border-radius: 4px;
     transition: width .2s;
+}
+
+/* Remove iOS tap highlight */
+.checkbox-row label {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent label from inheriting checkbox pseudo-elements */
+.checkbox-row label::after,
+.checkbox-row label::before {
+    content: none !important;
+}
+
+/* Ensure only checkbox shows the checkmark */
+.checkbox-row input[type="checkbox"]::after {
+    pointer-events: none;
+}
+
+/* Reduce mobile tap issues */
+.checkbox-row input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
 }
