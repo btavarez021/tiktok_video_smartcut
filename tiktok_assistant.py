@@ -34,25 +34,25 @@ TEXT_MODEL = "gpt-4.1-mini"
 # S3 CONFIG (REQUIRED FOR RENDER)
 # -----------------------------------------
 S3_BUCKET_NAME = (
-    os.environ.get("S3_BUCKET_NAME") or os.environ.get("AWS_BUCKET_NAME")
+    os.getenv("S3_BUCKET_NAME") or os.getenv("AWS_BUCKET_NAME")
 )
 if not S3_BUCKET_NAME:
     raise RuntimeError(
         "S3_BUCKET_NAME (or AWS_BUCKET_NAME) environment variable is required"
     )
 
-S3_REGION = os.environ.get("S3_REGION", "us-east-2")
+S3_REGION = os.getenv("S3_REGION", "us-east-2")
 RAW_PREFIX = "raw_uploads/"
 
-EXPORT_PREFIX = os.environ.get("S3_EXPORT", "exports/").lstrip("/")
+EXPORT_PREFIX = os.getenv("S3_EXPORT", "exports/").lstrip("/")
 if not EXPORT_PREFIX.endswith("/"):
     EXPORT_PREFIX += "/"
 
 # -----------------------------------------
 # Load AWS credentials (Render ENV VARS)
 # -----------------------------------------
-AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
 if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
     raise RuntimeError(
