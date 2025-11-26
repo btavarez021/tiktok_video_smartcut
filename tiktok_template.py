@@ -429,3 +429,5 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
     )
 
     log_step("Render complete.")
+
+    return out

@@ -85,38 +85,32 @@ def load_all_analysis_results() -> Dict[str, str]:
 # Helper: sync S3 videos to local folder
 # -------------------------------
 def _sync_s3_videos_to_local() -> List[str]:
-    """
-    Download all raw S3 videos into video_folder.
-    Returns a list of local basenames (lowercased) such as ['img_3780.mov', ...]
-    """
     os.makedirs(video_folder, exist_ok=True)
 
     keys = list_videos_from_s3()
     log_step(f"[SYNC] Found {len(keys)} raw S3 videos")
-
-    local_files: List[str] = []
+    local_files = []
 
     for key in keys:
-        basename = os.path.basename(key).lower()
+        base, _ = os.path.splitext(os.path.basename(key))
+        basename = f"{base.lower()}.mp4"
         local_path = os.path.join(video_folder, basename)
 
-        # If already exists locally, skip re-download
         if os.path.exists(local_path):
-            log_step(f"[SYNC] Skipping existing local file {local_path}")
             local_files.append(basename)
             continue
 
         tmp_path = download_s3_video(key)
         if not tmp_path:
-            log_step(f"[SYNC] Failed to download {key}")
             continue
 
         try:
-            shutil.move(tmp_path, local_path)
-            log_step(f"[SYNC] Downloaded {key} -> {local_path}")
+            from tiktok_template import normalize_video_ffmpeg
+            normalize_video_ffmpeg(tmp_path, local_path)
+            log_step(f"[SYNC] Normalized {key} -> {local_path}")
             local_files.append(basename)
         except Exception as e:
-            log_step(f"[SYNC] Error moving {tmp_path} -> {local_path}: {e}")
+            log_step(f"[SYNC ERROR] {e}")
 
     return local_files
 
@@ -136,13 +130,25 @@ def _analyze_all_videos() -> Dict[str, Any]:
 
     count = 0
     for key in keys:
-        basename = os.path.basename(key).lower()
+        tmp = download_s3_video(key)
+        if not tmp:
+            log_step(f"[ANALYZE] Failed to download {key}")
+            continue
+
         try:
-            desc = analyze_video(basename)
+            # analyze the REAL FILE PATH
+            desc = analyze_video(tmp)
+
+            # store using the normalized basename (lowercase)
+            basename = os.path.basename(key).lower()
             save_analysis_result(basename, desc)
+
             count += 1
+
         except Exception as e:
-            logger.error(f"[ANALYZE] Failed for {basename}: {e}")
+            logger.error(f"[ANALYZE] Failed for {key}: {e}")
+            log_step(f"[ANALYZE ERROR] {key}: {e}")
+            continue
 
     log_step(f"[ANALYZE] Completed analysis for {count} videos")
     return {"status": "ok", "count": count}
