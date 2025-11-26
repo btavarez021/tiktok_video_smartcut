@@ -22,7 +22,8 @@ from moviepy.editor import (
     CompositeVideoClip,
     AudioFileClip,
     CompositeAudioClip,
-    concatenate_videoclips
+    concatenate_videoclips,
+    ColorClip
 )
 
 from assistant_log import log_step
@@ -71,12 +72,36 @@ def normalize_video_ffmpeg(src: str, dst: str) -> None:
             text=True,
             check=True,
         )
-        if result.stderr:
-            log_step(f"[FFMPEG STDERR] {result.stderr[:600]}")
-    except subprocess.CalledProcessError as e:
-        log_step(f"[FFMPEG ERROR] {e.stderr[:600] if e.stderr else str(e)}")
-        raise
 
+        if result.stderr:
+            # Only show REAL warnings/errors
+            lines = result.stderr.split("\n")
+            important = [
+                ln for ln in lines
+                if "warning" in ln.lower() or "error" in ln.lower()
+            ]
+
+            if important:
+                for ln in important:
+                    log_step(f"[FFMPEG WARN] {ln}")
+
+    except subprocess.CalledProcessError as e:
+        # Cleanly extract only meaningful error lines
+        err = e.stderr or ""
+        lines = err.split("\n")
+        important = [
+            ln for ln in lines
+            if any(word in ln.lower() for word in ["error", "failed", "invalid"])
+        ]
+
+        if important:
+            for ln in important:
+                log_step(f"[FFMPEG ERROR] {ln}")
+        else:
+            # fallback to one clean line
+            log_step("[FFMPEG ERROR] Video normalization failed")
+
+        raise
 
 # -----------------------------------------
 # Config helpers
@@ -245,6 +270,7 @@ def _try_text_overlay(
         return None
 
     try:
+        # Text clip
         txt = TextClip(
             text,
             fontsize=fontsize,
@@ -254,18 +280,36 @@ def _try_text_overlay(
             size=(TARGET_W - 160, None),
         ).set_duration(duration)
 
+        # -----------------------------------
+        # 🔥 ADD BACKGROUND BOX (semi-transparent)
+        # -----------------------------------
+        from moviepy.video.tools.drawing import color_gradient
+        import numpy as np
+
+        box_h = txt.h + 60
+        box = (ColorClip(
+            size=(TARGET_W, box_h),
+            color=(0, 0, 0)
+        )
+        .set_opacity(0.45)
+        .set_duration(duration))
+
+        # Positioning
         if position == "bottom":
-            txt = txt.set_position(("center", TARGET_H * 0.80))
+            y = TARGET_H * 0.80
         else:
-            txt = txt.set_position(("center", "center"))
+            y = TARGET_H * 0.50
 
-        txt = txt.set_start(start)
+        txt = txt.set_position(("center", y))
+        box = box.set_position(("center", y))
 
-        return CompositeVideoClip([base, txt], size=(TARGET_W, TARGET_H))
+        clip = CompositeVideoClip([base, box, txt], size=(TARGET_W, TARGET_H))
+        return clip.set_start(start)
 
     except Exception as e:
         logger.warning("Text overlay failed: %s", e)
         return None
+
 
 
 # -----------------------------------------
