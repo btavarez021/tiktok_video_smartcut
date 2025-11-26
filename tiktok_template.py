@@ -13,7 +13,6 @@ if not hasattr(Image, "ANTIALIAS"):
     Image.NEAREST = _Image.Resampling.NEAREST
 
 import yaml
-from moviepy.video.fx import blur
 
 from utils_video import enforce_mp4
 
