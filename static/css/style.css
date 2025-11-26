@@ -326,17 +326,23 @@ textarea::-webkit-scrollbar-thumb,
 /* ---------------------------------------
    Radio + Checkbox
 ---------------------------------------- */
-.radio,
-.checkbox {
+.checkbox-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    cursor: pointer;
+    gap: 10px;
+    margin: 10px 0;
 }
 
-.radio input,
-.checkbox input {
-    transform: scale(1.2);
+.checkbox-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+}
+
+.checkbox-row label {
+    font-size: 16px;
+    cursor: pointer;
 }
 
 /* ---------------------------------------
