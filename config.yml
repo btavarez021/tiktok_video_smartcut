@@ -40,8 +40,8 @@ music:
   volume: 0.25
 render:
   fg_scale_default: 0.9
-  tts_voice: alloy
-  tts_enabled: true
+  tts_voice: ballad
+  tts_enabled: false
 cta:
   enabled: true
   text: Book now and save 10% using link in the description.
