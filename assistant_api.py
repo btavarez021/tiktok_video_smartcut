@@ -12,6 +12,10 @@ from openai import OpenAI
 from assistant_log import log_step
 from tiktok_template import config_path, edit_video, video_folder
 from tiktok_assistant import (
+    s3,
+    S3_BUCKET_NAME,
+    EXPORT_PREFIX,
+    S3_REGION,
     list_videos_from_s3,
     download_s3_video,
     analyze_video,
@@ -404,34 +408,50 @@ def api_save_captions(text: str) -> Dict[str, Any]:
 # -------------------------------
 def api_export(optimized: bool = False) -> Dict[str, Any]:
     """
-    Run edit_video(config.yml → final video), then return info
-    about the output file. If you want, this is where you'd also
-    upload the export to S3.
+    Run edit_video(), upload to S3, and return download URL.
     """
     if not os.path.exists(config_path):
         return {"status": "error", "error": "config.yml not found"}
 
     try:
-        mode = _EXPORT_MODE  # "standard" or "fast"
+        mode = _EXPORT_MODE
         log_step(f"[EXPORT] Rendering export in {mode.upper()} mode... optimized={optimized}")
 
+        # Render to local file
         out_path = edit_video(optimized=optimized)
         if not out_path:
             raise ValueError("edit_video did not return an output path")
 
         log_step(f"[EXPORT] Video rendered: {out_path}")
 
-        # If later you want S3 upload, you'd add it here.
-        # For now, we just return the filesystem path so /api/download can serve it.
+        # ---------------------------
+        # Upload to S3
+        # ---------------------------
+        filename = os.path.basename(out_path)
+        export_key = f"{EXPORT_PREFIX}{filename}"
+
+        try:
+            s3.upload_file(out_path, S3_BUCKET_NAME, export_key)
+            log_step(f"[EXPORT] Uploaded final video to s3://{S3_BUCKET_NAME}/{export_key}")
+
+            s3_url = (
+                f"https://{S3_BUCKET_NAME}.s3.{S3_REGION}.amazonaws.com/{export_key}"
+            )
+        except Exception as e:
+            log_step(f"[EXPORT S3 ERROR] {e}")
+            s3_url = None
+
         return {
             "status": "ok",
             "output_path": out_path,
-            "local_filename": os.path.basename(out_path),
-            "s3_url": None,   # or pass actual S3 URL later
+            "s3_url": s3_url,
+            "local_filename": filename
         }
+
     except Exception as e:
         logger.error(f"[EXPORT] Export failed: {e}")
         return {"status": "error", "error": str(e)}
+
 
 
 # -------------------------------

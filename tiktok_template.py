@@ -1,6 +1,7 @@
 import os
 import logging
 import subprocess
+import gc
 from typing import List, Dict, Any, Optional
 # Pillow compatibility fix for MoviePy
 from PIL import Image
@@ -25,6 +26,8 @@ from moviepy.editor import (
 )
 
 from assistant_log import log_step
+import imageio_ffmpeg
+os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
 
 # -----------------------------------------
 # Paths
@@ -355,6 +358,8 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
     timeline = _build_timeline_from_config(cfg)
     total = timeline.duration
 
+    timeline = timeline.set_audio(timeline.audio)
+
     # Captions
     caps = _collect_all_captions(cfg)
     if caps:
@@ -418,16 +423,35 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
 
     timeline.write_videofile(
         out,
-        codec=codec,
-        audio_codec=audio_codec,
+        codec="libx264",
+        audio_codec="aac",
         fps=30,
         bitrate=bitrate,
         preset=preset,
         threads=2,
-        verbose=False,
-        logger=None,
+        write_logfile=False,
+        temp_audiofile=os.path.join(BASE_DIR, "temp-audio.m4a"),
+        remove_temp=True,
+        ffmpeg_params=[
+            "-movflags", "+faststart",
+            "-pix_fmt", "yuv420p",
+            "-profile:v", "baseline"
+    ],
+    logger=None,
     )
 
     log_step("Render complete.")
+
+    gc.collect()
+
+    try:
+        temp_audio = os.path.join(BASE_DIR, "temp-audio.m4a")
+        if os.path.exists(temp_audio):
+            os.remove(temp_audio)
+    except:
+        pass
+
+    return out
+
 
     return out
