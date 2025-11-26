@@ -1,4 +1,4 @@
-# tiktok_assistant.py  — FINAL FIXED FULL FILE
+# tiktok_assistant.py — MOV/MP4 SAFE VERSION
 
 import os
 import logging
@@ -10,15 +10,9 @@ from typing import Dict, List, Optional
 import boto3
 import yaml
 from openai import OpenAI
-from utils_video import enforce_mp4
+
 from assistant_log import log_step
 from tiktok_template import config_path, edit_video, video_folder
-# from dotenv import load_dotenv
-# load_dotenv()
-
-import os
-
-# Load environment variables from .env file
 
 logger = logging.getLogger(__name__)
 
@@ -53,10 +47,9 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
 if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
     raise RuntimeError(
-        "Missing AWS credentials! You MUST set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Render."
+        "Missing AWS credentials! You MUST set AWS_ACCESS_KEY_ID and "
+        "AWS_SECRET_ACCESS_KEY in Render."
     )
-
-
 
 # -----------------------------------------
 # Create S3 client with explicit credentials
@@ -80,13 +73,14 @@ os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
 # S3 Helpers
 # -----------------------------------------
 
+
 def list_videos_from_s3() -> List[str]:
     resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
 
     keys = [obj["Key"] for obj in resp.get("Contents", [])]
     log_step(f"S3 RAW KEYS: {keys}")
 
-    files = []
+    files: List[str] = []
     for key in keys:
         ext = os.path.splitext(key)[1].lower()
         if ext in [".mp4", ".mov", ".avi", ".m4v"]:
@@ -124,10 +118,18 @@ def download_s3_video(key: str) -> Optional[str]:
 # -----------------------------------------
 # Normalize video for analysis
 # -----------------------------------------
+
+
 def normalize_video(src: str, dst: str) -> None:
+    """
+    Normalize the video for analysis/export while preserving the original extension.
+    E.g., if src is .mov, dst will also be .mov.
+    """
     base = os.path.splitext(dst)[0]
-    dst = f"{base}.mp4".lower()
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    src_ext = os.path.splitext(src)[1] or ".mp4"
+    final_dst = f"{base}{src_ext}".lower()
+
+    os.makedirs(os.path.dirname(final_dst), exist_ok=True)
 
     cmd = [
         "ffmpeg",
@@ -145,10 +147,10 @@ def normalize_video(src: str, dst: str) -> None:
         "-crf",
         "20",
         "-an",
-        dst,
+        final_dst,
     ]
 
-    log_step(f"[FFMPEG] Normalizing {src} → {dst}")
+    log_step(f"[FFMPEG] Normalizing {src} → {final_dst}")
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True)
     except Exception as e:
@@ -159,6 +161,8 @@ def normalize_video(src: str, dst: str) -> None:
 # -----------------------------------------
 # LLM Clip Analysis
 # -----------------------------------------
+
+
 def analyze_video(path: str) -> str:
     basename = os.path.basename(path)
 
@@ -187,13 +191,16 @@ No hashtags. No quotes. Return only the sentence.
 # -----------------------------------------
 # YAML Prompt Builder
 # -----------------------------------------
+
+
 def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
     """
     Build a prompt asking the LLM to output a valid config.yml
     using the EXACT schema required by tiktok_template.py.
+    Filenames are used as-is (no forced .mp4).
     """
 
-    lines = [
+    lines: List[str] = [
         "You are generating a config.yml for a vertical TikTok HOTEL / TRAVEL video.",
         "",
         "IMPORTANT — You MUST use this exact YAML structure:",
@@ -221,16 +228,16 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
         "",
         "render:",
         "  tts_enabled: false",
-        "  tts_voice: \"alloy\"",
+        '  tts_voice: "alloy"',
         "  fg_scale_default: 1.0",
         "  blur_background: false",
         "",
         "cta:",
         "  enabled: false",
-        "  text: \"\"",
+        '  text: ""',
         "  voiceover: false",
         "  duration: 3.0",
-        "  position: \"bottom\"",
+        '  position: "bottom"',
         "",
         "",
         "Here are your clips and their meanings:",
@@ -243,46 +250,70 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
     lines.append("")
     lines.append("Return ONLY valid YAML. No backticks, no explanation.")
     lines.append("Ensure you output first_clip, middle_clips, and last_clip fields exactly.")
-    
-    return "\n".join(lines)
 
+    return "\n".join(lines)
 
 
 # -----------------------------------------
 # Save analysis to memory + disk
 # -----------------------------------------
-def save_analysis_result(key: str, desc: str) -> None:
-    # IMPORTANT FIX: always store basename, lowercase
-    key_lower = enforce_mp4(key)
 
-    video_analyses_cache[key_lower] = desc
+
+def save_analysis_result(key: str, desc: str) -> None:
+    """
+    Save analysis keyed by the basename of the video (lowercased),
+    preserving the original extension (.mov, .mp4, etc.).
+    """
+    base = os.path.basename(key)
+    key_norm = base.lower()
+
+    video_analyses_cache[key_norm] = desc
 
     os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
-    file_path = os.path.join(ANALYSIS_CACHE_DIR, f"{key_lower}.json")
+    file_path = os.path.join(ANALYSIS_CACHE_DIR, f"{key_norm}.json")
 
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(
-            {"filename": key_lower, "description": desc},
+            {"filename": key_norm, "description": desc},
             f,
             indent=2,
         )
 
-    log_step(f"Cached analysis for {key_lower}")
+    log_step(f"Cached analysis for {key_norm}")
+
+
+def _normalize_yaml_filename(name: str) -> str:
+    """
+    Normalize filenames in YAML to basename + lowercase,
+    but DO NOT change the extension.
+    """
+    if not name:
+        return name
+    base = os.path.basename(name)
+    return base.lower()
+
 
 def sanitize_yaml_filenames(cfg: dict) -> dict:
+    """
+    Ensure YAML filenames are in a consistent form (basename + lowercase)
+    so they match the normalized video filenames in video_folder.
+    No extension conversion is done here.
+    """
     if not isinstance(cfg, dict):
         return cfg
 
-    if "first_clip" in cfg and "file" in cfg["first_clip"]:
-        cfg["first_clip"]["file"] = enforce_mp4(cfg["first_clip"]["file"])
+    if "first_clip" in cfg and isinstance(cfg["first_clip"], dict):
+        if "file" in cfg["first_clip"]:
+            cfg["first_clip"]["file"] = _normalize_yaml_filename(cfg["first_clip"]["file"])
 
-    if "middle_clips" in cfg:
+    if "middle_clips" in cfg and isinstance(cfg["middle_clips"], list):
         for m in cfg["middle_clips"]:
-            if "file" in m:
-                m["file"] = enforce_mp4(m["file"])
+            if isinstance(m, dict) and "file" in m:
+                m["file"] = _normalize_yaml_filename(m["file"])
 
-    if "last_clip" in cfg and "file" in cfg["last_clip"]:
-        cfg["last_clip"]["file"] = enforce_mp4(cfg["last_clip"]["file"])
+    if "last_clip" in cfg and isinstance(cfg["last_clip"], dict):
+        if "file" in cfg["last_clip"]:
+            cfg["last_clip"]["file"] = _normalize_yaml_filename(cfg["last_clip"]["file"])
 
     return cfg
 
@@ -290,6 +321,8 @@ def sanitize_yaml_filenames(cfg: dict) -> dict:
 # -----------------------------------------
 # Overlay / Style / Timings (LLM)
 # -----------------------------------------
+
+
 def _style_instructions(style: str) -> str:
     style = style.lower()
     return {
@@ -357,7 +390,7 @@ def apply_smart_timings(pacing: str = "standard") -> None:
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             yaml_text = f.read()
-    except:
+    except Exception:
         return
 
     if client is None:
