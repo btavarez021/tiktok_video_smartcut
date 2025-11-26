@@ -92,8 +92,8 @@ def _sync_s3_videos_to_local() -> List[str]:
     local_files = []
 
     for key in keys:
-        base, _ = os.path.splitext(os.path.basename(key))
-        basename = f"{base.lower()}.mp4"
+        base, ext = os.path.splitext(os.path.basename(key))
+        basename = f"{base.lower()}{ext.lower()}"
         local_path = os.path.join(video_folder, basename)
 
         if os.path.exists(local_path):
