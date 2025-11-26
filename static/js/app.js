@@ -72,6 +72,45 @@ function startStatusLogPolling() {
     statusLogTimer = setInterval(refreshStatusLog, 2000);
 }
 
+// Upload
+
+async function uploadFiles() {
+    const input = document.getElementById("uploadFiles");
+    const status = document.getElementById("uploadStatus");
+
+    if (!input.files.length) {
+        status.textContent = "❌ No files selected.";
+        return;
+    }
+
+    const formData = new FormData();
+    for (let f of input.files) {
+        formData.append("files", f);
+    }
+
+    status.textContent = "⬆ Uploading…";
+
+    try {
+        const resp = await fetch("/api/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await resp.json();
+        console.log("Uploaded:", data);
+
+        if (data.uploaded?.length) {
+            status.textContent = `✅ Uploaded ${data.uploaded.length} file(s).`;
+        } else {
+            status.textContent = `⚠ No files uploaded (check logs).`;
+        }
+
+    } catch (err) {
+        console.error(err);
+        status.textContent = `❌ Upload failed: ${err.message}`;
+    }
+}
+
 // Step 1: Analysis
 async function analyzeClips() {
     const analyzeBtn = document.getElementById("analyzeBtn");
@@ -444,6 +483,9 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
 
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
+
+    document.getElementById("uploadBtn")
+        ?.addEventListener("click", uploadFiles);  // ⬅ ADD THIS LINE
 
     // Initial loads
     refreshAnalyses();

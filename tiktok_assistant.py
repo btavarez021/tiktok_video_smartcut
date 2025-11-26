@@ -13,8 +13,8 @@ from openai import OpenAI
 from utils_video import enforce_mp4
 from assistant_log import log_step
 from tiktok_template import config_path, edit_video, video_folder
-# from dotenv import load_dotenv
-# load_dotenv()
+from dotenv import load_dotenv
+load_dotenv()
 
 import os
 
@@ -33,16 +33,14 @@ TEXT_MODEL = "gpt-4.1-mini"
 # -----------------------------------------
 # S3 CONFIG (REQUIRED FOR RENDER)
 # -----------------------------------------
-S3_BUCKET_NAME = (
-    os.getenv("S3_BUCKET_NAME") or os.getenv("AWS_BUCKET_NAME")
-)
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 if not S3_BUCKET_NAME:
     raise RuntimeError(
         "S3_BUCKET_NAME (or AWS_BUCKET_NAME) environment variable is required"
     )
 
 S3_REGION = os.getenv("S3_REGION", "us-east-2")
-RAW_PREFIX = "raw_uploads/"
+RAW_PREFIX = "raw_uploads"
 
 EXPORT_PREFIX = os.getenv("S3_EXPORT", "exports/").lstrip("/")
 if not EXPORT_PREFIX.endswith("/"):
