@@ -75,7 +75,12 @@ os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
 def generate_signed_download_url(key: str, expires_in: int = 3600):
     return s3.generate_presigned_url(
         ClientMethod='get_object',
-        Params={'Bucket': S3_BUCKET_NAME, 'Key': key},
+        Params={
+            'Bucket': S3_BUCKET_NAME,
+            'Key': key,
+            'ResponseContentDisposition': 'attachment; filename="export.mp4"',
+            'ResponseContentType': 'video/mp4'
+        },
         ExpiresIn=expires_in
     )
 
