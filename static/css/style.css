@@ -533,48 +533,83 @@ h3 .style-check {
     }
 }
 
-/* Upload */
+/* -----------------------------------------------------------
+   UPLOAD — Dark Mode Version
+----------------------------------------------------------- */
 
 .upload-dropzone {
-    border: 2px dashed #aaa;
+    border: 2px dashed var(--border);
     border-radius: 10px;
     padding: 30px;
     text-align: center;
     cursor: pointer;
-    background: #fafafa;
+    background: var(--card-lighter);
     transition: all 0.25s ease;
+    color: var(--text);
 }
 
 .upload-dropzone.dragover {
-    border-color: #007bff;
-    background: #e8f2ff;
+    border-color: var(--primary);
+    background: rgba(79,139,255,0.15);
 }
 
 .upload-preview {
-    margin-top: 10px;
+    margin-top: 14px;
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
 }
 
-.upload-preview div {
-    width: 90px;
-    height: 120px;
-    overflow: hidden;
-    background: #eee;
-    border-radius: 6px;
+.preview-item {
+    position: relative;
+    width: 120px;
+    height: 90px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px;
+    font-size: 12px;
+    color: var(--text);
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 11px;
+    text-align: center;
+    overflow: hidden;
+}
+
+.preview-name {
+    padding: 6px;
+    word-break: break-word;
+    color: var(--text);
+}
+
+.preview-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(255,0,0,0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    height: 22px;
+    width: 22px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 22px;
+    transition: 0.15s ease;
+}
+
+.preview-remove:hover {
+    background: rgba(255,60,60,1);
 }
 
 .progress-wrapper {
     width: 100%;
     height: 6px;
-    background: #ddd;
+    background: var(--ghost);
     border-radius: 4px;
-    margin-top: 10px;
+    margin-top: 12px;
 }
 
 .progress-wrapper.hidden {
@@ -584,46 +619,7 @@ h3 .style-check {
 .progress-bar {
     height: 100%;
     width: 0%;
-    background: #28a745;
+    background: var(--success);
     border-radius: 4px;
     transition: width 0.2s;
-}
-
-.preview-item {
-    position: relative;
-    width: 120px;
-    height: 90px;
-    background: #f0f0f0;
-    border-radius: 6px;
-    padding: 8px;
-    font-size: 12px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-}
-
-.preview-name {
-    text-align: center;
-    padding: 5px;
-    word-break: break-word;
-}
-
-.preview-remove {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    background: rgba(0,0,0,0.7);
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    height: 22px;
-    width: 22px;
-    cursor: pointer;
-    font-size: 12px;
-    line-height: 20px;
-}
-
-.preview-remove:hover {
-    background: red;
 }

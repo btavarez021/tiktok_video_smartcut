@@ -153,8 +153,10 @@ function initUploadUI() {
         updatePreview();
     });
 
-    // ----- UPDATE PREVIEW -----
+   // ----- UPDATE PREVIEW -----
+function updatePreview() {
     preview.innerHTML = "";
+
     selectedFiles.forEach((file, idx) => {
         const wrapper = document.createElement("div");
         wrapper.className = "preview-item";
@@ -166,15 +168,20 @@ function initUploadUI() {
         const removeBtn = document.createElement("button");
         removeBtn.className = "preview-remove";
         removeBtn.innerHTML = "✖";
+
         removeBtn.onclick = () => {
             selectedFiles.splice(idx, 1);
             updatePreview();
         };
 
-    wrapper.appendChild(name);
-    wrapper.appendChild(removeBtn);
-    preview.appendChild(wrapper);
-});
+        wrapper.appendChild(name);
+        wrapper.appendChild(removeBtn);
+        preview.appendChild(wrapper);
+    });
+
+    uploadBtn.disabled = selectedFiles.length === 0;
+}
+
 
     // ----- UPLOAD -----
     uploadBtn.addEventListener("click", async () => {
