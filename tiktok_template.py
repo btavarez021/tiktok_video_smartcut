@@ -307,47 +307,66 @@ def _try_text_overlay(
 # -----------------------------------------
 # CTA overlay
 # -----------------------------------------
-def _apply_cta_overlay(base, cfg):
+
+def apply_cta_outro(timeline, cfg):
+    """
+    Produces a proper OUTRO segment:
+    - Cuts last X seconds from main video
+    - Blurs that last segment
+    - Adds CTA text
+    - Returns: concatenated full video + outro
+    """
+
     cta = cfg.get("cta", {})
     if not cta.get("enabled"):
-        return []
+        return timeline  # no CTA → return original
 
     text = cta.get("text", "").strip()
     if not text:
-        return []
+        return timeline
 
     duration = float(cta.get("duration", 3.0))
-    total = base.duration
+    total = timeline.duration
     start = max(0, total - duration)
 
-    # --- Extract last segment for blur ---
+    # --- Split timeline into (main) + outro ---
+    main = timeline.subclip(0, start)
+    outro = timeline.subclip(start, total)
+
+    # --- Blur outro ---
     try:
-        outro = base.subclip(start, total)
+        outro_blur = vfx.blur.blur(outro, 25)
+    except Exception as e:
+        logger.warning(f"[CTA] Blur failed, using plain outro: {e}")
+        outro_blur = outro
 
-        # Apply blur using MoviePy's built-in blur effect
-        outro_blurred = outro.fx(vfx.blur, 25)  # strength 25 looks great
-        outro_blurred = outro_blurred.set_start(start)
+    # --- CTA Text Overlay ---
+    try:
+        txt = TextClip(
+            text,
+            fontsize=60,
+            font="DejaVu-Sans-Bold",
+            color="white",
+            method="caption",
+            size=(TARGET_W - 160, None)
+        ).set_duration(duration)
 
-        layers = [outro_blurred]
+        # simple dark box
+        from moviepy.editor import ColorClip
+        box = ColorClip(size=(TARGET_W, txt.h + 60), color=(0, 0, 0)).set_opacity(0.45)
+        box = box.set_duration(duration)
+
+        txt = txt.set_position(("center", TARGET_H * 0.80))
+        box = box.set_position(("center", TARGET_H * 0.80))
+
+        outro_final = CompositeVideoClip([outro_blur, box, txt], size=(TARGET_W, TARGET_H))
 
     except Exception as e:
-        logger.warning(f"CTA blur failed: {e}")
-        layers = []
+        logger.warning(f"[CTA] Text overlay failed: {e}")
+        outro_final = outro_blur
 
-    # CTA overlay elements
-    over = _try_text_overlay(
-        base=base,
-        text=text,
-        duration=duration,
-        start=start,
-        fontsize=60,
-        position="bottom",
-    )
-
-    if over:
-        layers.extend(over)
-
-    return layers
+    # --- Return clean concatenation ---
+    return concatenate_videoclips([main, outro_final], method="compose")
 
 # -----------------------------------------
 # TTS generation
@@ -445,8 +464,7 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
             logger.warning("Caption overlay failed: %s", e)
 
     # ----- CTA overlay -----
-    cta_layers = _apply_cta_overlay(base, cfg)
-    overlays.extend(cta_layers)
+    base = apply_cta_outro(base, cfg)
 
     # ----- TTS Voiceover -----
     base_audio = base.audio
