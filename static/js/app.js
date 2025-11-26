@@ -427,6 +427,7 @@ async function saveTtsSettings() {
             body: JSON.stringify({ enabled, voice }),
         });
         styleStatus.textContent = "TTS settings saved.";
+        await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
         styleStatus.textContent = `Error saving TTS: ${err.message}`;
@@ -446,6 +447,7 @@ async function saveCtaSettings() {
             body: JSON.stringify({ enabled, text, voiceover }),
         });
         styleStatus.textContent = "CTA settings saved.";
+        await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
         styleStatus.textContent = `Error saving CTA: ${err.message}`;
@@ -462,6 +464,7 @@ async function saveFgScale() {
             body: JSON.stringify({ value }),
         });
         styleStatus.textContent = "Foreground scale saved.";
+        await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
         styleStatus.textContent = `Error saving scale: ${err.message}`;
