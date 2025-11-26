@@ -64,6 +64,18 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
+   FIX 1 — LOG VIEW WRAPPING (prevent overflow on mobile)
+---------------------------------------- */
+#statusLog,
+.log-view {
+    white-space: pre-wrap !important;     /* FIX: allow long lines to wrap */
+    word-break: break-word !important;    /* FIX: break super-long tokens */
+    max-width: 100% !important;           /* FIX: never overflow horizontally */
+    overflow-wrap: break-word;
+}
+
+
+/* ---------------------------------------
    Header
 ---------------------------------------- */
 .app-header {
@@ -119,7 +131,7 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Stepper (top navigation)
+   Stepper
 ---------------------------------------- */
 .stepper {
     display: flex;
@@ -195,7 +207,7 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Right Sidebar
+   Sidebar
 ---------------------------------------- */
 .side-column {
     display: flex;
@@ -211,7 +223,7 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Lists & Log View
+   Lists
 ---------------------------------------- */
 .analysis-list {
     list-style: none;
@@ -234,19 +246,8 @@ textarea::-webkit-scrollbar-thumb,
     font-size: 0.9rem;
 }
 
-.log-view {
-    background: #111;
-    color: #bfbfbf;
-    padding: 14px;
-    height: 100%;
-    overflow-y: auto;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    font-size: 0.85rem;
-}
-
 /* ---------------------------------------
-   Textareas, Inputs, Selects
+   Inputs
 ---------------------------------------- */
 .textarea,
 .input,
@@ -324,19 +325,25 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Radio + Checkbox
+   FIX 2 — Radio Buttons (Standard / Optimized)
 ---------------------------------------- */
-.radio,
-.checkbox {
-    display: flex;
+#exportModeContainer {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap;            /* FIX: allows wrapping without breaking */
+    gap: 14px !important;
     align-items: center;
-    gap: 8px;
-    cursor: pointer;
 }
 
-.radio input,
-.checkbox input {
-    transform: scale(1.2);
+#exportModeContainer label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+#exportModeContainer input[type="radio"] {
+    transform: scale(1.3);
 }
 
 /* ---------------------------------------
@@ -362,7 +369,7 @@ input[type="range"] {
 }
 
 /* ---------------------------------------
-   Hint & Status Text
+   Hints / Status
 ---------------------------------------- */
 .hint-text {
     color: var(--text-dim);
@@ -398,7 +405,7 @@ input[type="range"] {
 }
 
 /* ---------------------------------------
-   STEP 4 — Checkmark indicators
+   STEP 4 Checkmarks
 ---------------------------------------- */
 .style-check {
     display: inline-block;
@@ -411,7 +418,6 @@ input[type="range"] {
     color: var(--success);
 }
 
-/* Example checkmark container alignment */
 h3 .style-check {
     position: relative;
     top: 2px;
@@ -422,20 +428,17 @@ h3 .style-check {
    ----------------------------------------------------------- */
 @media (max-width: 900px) {
 
-    /* Whole layout stacks cleanly */
     .layout {
         grid-template-columns: 1fr !important;
         gap: 20px;
     }
 
-    /* Stepper becomes horizontal scroll (like TikTok/Instagram editors) */
     .stepper {
         display: flex !important;
         flex-direction: row !important;
-        overflow-x: auto;
+        overflow-x: auto !important;
         white-space: nowrap;
         gap: 12px;
-        padding-bottom: 8px;
     }
 
     .step {
@@ -443,16 +446,16 @@ h3 .style-check {
         padding: 10px 16px;
     }
 
-    /* Cards stretch nicely */
-    .step-card, .card {
+    /* Cards auto fit */
+    .step-card,
+    .card {
         padding: 18px !important;
         margin: 0 !important;
     }
 
-    /* Inputs and buttons full width */
+    /* Textareas + Inputs mobile-friendly */
     input, textarea, select, .btn {
         width: 100% !important;
-        box-sizing: border-box;
     }
 
     textarea {
@@ -460,118 +463,61 @@ h3 .style-check {
         font-size: 15px;
     }
 
-    /* Split panels inside YAML & Style collapse vertically */
+    /* Split panels stack */
     .split {
-        display: flex;
         flex-direction: column;
         gap: 18px;
     }
 
     .split-panel {
-        width: 100% !important;
+        width: 100%;
     }
 
-    /* Side column moves below main */
+    /* Sidebar to bottom */
     .side-column {
-        order: 10; /* send to bottom */
+        order: 10;
     }
 
-    /* Reduce padding + improve readability */
-    .card-header h2 {
-        font-size: 20px;
-        line-height: 1.3;
+    /* Radio group fix for mobile */
+    #exportModeContainer {
+        flex-wrap: wrap !important;
+        gap: 12px;
     }
 
-    .card-subtitle {
-        font-size: 14px;
+    #exportModeContainer label {
+        font-size: 15px;
     }
 
-    /* Log viewer scrollable and shorter */
+    /* Logs */
     .log-view {
-        max-height: 280px !important;
+        max-height: 260px !important;
         font-size: 13px;
     }
-
-    /* Buttons stacked instead of inline pairs */
-    .row {
-        flex-direction: column !important;
-        gap: 10px !important;
-    }
-}
-
-.upload-dropzone {
-    padding: 20px;
-    font-size: 14px;
-    background: #1a1a1b; /* match dark theme */
-    color: var(--text);
-}
-
-.upload-preview {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 12px;
-}
-
-.preview-item {
-    width: 100%;
-    height: 100px;
-    background: #2a2a2d;
-    color: var(--text-dim);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px;
-    font-size: 12px;
-}
-
-.preview-name {
-    color: var(--text);
-    font-size: 13px;
-}
-
-.preview-remove {
-    top: 6px;
-    right: 6px;
-    height: 22px;
-    width: 22px;
-    font-size: 11px;
 }
 
 /* -----------------------------------------------------------
-   SUPER TINY DEVICES (iPhone Mini, older Android)
-   ----------------------------------------------------------- */
+   SUPER TINY DEVICES
+----------------------------------------------------------- */
 @media (max-width: 480px) {
-
     .step-index {
-        display: none; /* save space */
+        display: none;
     }
 
     .step-label {
         font-size: 13px;
     }
 
-    .brand h1 {
-        font-size: 18px;
-    }
-
-    .brand-logo {
-        font-size: 20px;
-        width: 36px;
-        height: 36px;
-    }
-
-    /* YAML textarea */
     #yamlText {
         min-height: 220px;
     }
 
-    /* Chat textarea smaller */
     #chatInput {
         min-height: 120px;
     }
 }
 
 /* -----------------------------------------------------------
-   UPLOAD — Dark Mode Version
+   UPLOAD — Dark Mode
 ----------------------------------------------------------- */
 
 .upload-dropzone {
@@ -611,13 +557,6 @@ h3 .style-check {
     justify-content: center;
     align-items: center;
     text-align: center;
-    overflow: hidden;
-}
-
-.preview-name {
-    padding: 6px;
-    word-break: break-word;
-    color: var(--text);
 }
 
 .preview-remove {
@@ -631,32 +570,6 @@ h3 .style-check {
     height: 22px;
     width: 22px;
     cursor: pointer;
-    font-size: 12px;
     font-weight: bold;
     line-height: 22px;
-    transition: 0.15s ease;
-}
-
-.preview-remove:hover {
-    background: rgba(255,60,60,1);
-}
-
-.progress-wrapper {
-    width: 100%;
-    height: 6px;
-    background: var(--ghost);
-    border-radius: 4px;
-    margin-top: 12px;
-}
-
-.progress-wrapper.hidden {
-    display: none;
-}
-
-.progress-bar {
-    height: 100%;
-    width: 0%;
-    background: var(--success);
-    border-radius: 4px;
-    transition: width 0.2s;
 }
