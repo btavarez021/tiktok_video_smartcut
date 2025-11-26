@@ -296,16 +296,29 @@ def _build_simple_yaml_fallback(files: List[str], analyses: List[str]) -> Dict[s
 
 def api_get_config() -> Dict[str, Any]:
     """
-    Return the current config.yml as JSON-compatible dict.
+    Return both the raw YAML text and parsed config.
+    Frontend expects: { "yaml": "<raw>", "config": { ... } }
     """
     if not os.path.exists(config_path):
-        return {"error": "config.yml not found"}
+        return {
+            "yaml": "",
+            "config": {},
+            "error": "config.yml not found",
+        }
 
     with open(config_path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f) or {}
+        yaml_text = f.read()
 
-    return cfg
+    try:
+        cfg = yaml.safe_load(yaml_text) or {}
+    except Exception:
+        cfg = {}
 
+    # This matches what your JS uses in loadConfigAndYaml() and loadCaptionsFromYaml()
+    return {
+        "yaml": yaml_text,
+        "config": cfg,
+    }
 
 def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
     """
