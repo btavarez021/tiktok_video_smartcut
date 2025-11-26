@@ -570,25 +570,3 @@ input[type="range"] {
     border-radius: 4px;
     transition: width .2s;
 }
-
-/* Remove iOS tap highlight */
-.checkbox-row label {
-    -webkit-tap-highlight-color: transparent;
-}
-
-/* Prevent label from inheriting checkbox pseudo-elements */
-.checkbox-row label::after,
-.checkbox-row label::before {
-    content: none !important;
-}
-
-/* Ensure only checkbox shows the checkmark */
-.checkbox-row input[type="checkbox"]::after {
-    pointer-events: none;
-}
-
-/* Reduce mobile tap issues */
-.checkbox-row input[type="checkbox"] {
-    -webkit-appearance: none;
-    appearance: none;
-}
