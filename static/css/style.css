@@ -119,7 +119,7 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Stepper (top navigation)
+   Stepper
 ---------------------------------------- */
 .stepper {
     display: flex;
@@ -195,7 +195,7 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Right Sidebar
+   Sidebar
 ---------------------------------------- */
 .side-column {
     display: flex;
@@ -211,7 +211,7 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Lists & Log View
+   Analysis List & Log
 ---------------------------------------- */
 .analysis-list {
     list-style: none;
@@ -246,7 +246,7 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Textareas, Inputs, Selects
+   Inputs & Selects
 ---------------------------------------- */
 .textarea,
 .input,
@@ -324,25 +324,44 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Radio + Checkbox
+   Radio + Checkbox (REWRITTEN FIXED VERSION)
 ---------------------------------------- */
+
 .checkbox-row {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 10px 0;
+    margin: 12px 0;
 }
 
+/* Unified checkbox */
 .checkbox-row input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
-    margin: 0;
-    padding: 0;
+    min-width: 22px;
+    min-height: 22px;
+    width: 22px;
+    height: 22px;
+
+    appearance: none;
+    background: var(--card-lighter);
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+}
+
+.checkbox-row input[type="checkbox"]:checked::after {
+    content: "✔";
+    color: var(--success);
+    font-size: 16px;
+    position: absolute;
+    top: -2px;
+    left: 3px;
 }
 
 .checkbox-row label {
     font-size: 16px;
     cursor: pointer;
+    line-height: 1.3;
 }
 
 /* ---------------------------------------
@@ -368,7 +387,7 @@ input[type="range"] {
 }
 
 /* ---------------------------------------
-   Hint & Status Text
+   Hint Text
 ---------------------------------------- */
 .hint-text {
     color: var(--text-dim);
@@ -383,7 +402,6 @@ input[type="range"] {
     margin-top: 12px;
     font-size: 0.9rem;
 }
-
 .download-area a {
     color: var(--primary);
     font-weight: 600;
@@ -404,7 +422,7 @@ input[type="range"] {
 }
 
 /* ---------------------------------------
-   STEP 4 — Checkmark indicators
+   Step 4 Checkmarks
 ---------------------------------------- */
 .style-check {
     display: inline-block;
@@ -412,29 +430,25 @@ input[type="range"] {
     color: var(--text-dim);
     font-size: 1.1rem;
 }
-
 .style-check.active {
     color: var(--success);
 }
 
-/* Example checkmark container alignment */
 h3 .style-check {
     position: relative;
     top: 2px;
 }
 
 /* -----------------------------------------------------------
-   MOBILE UI FIXES
-   ----------------------------------------------------------- */
+   MOBILE FIXES
+----------------------------------------------------------- */
 @media (max-width: 900px) {
 
-    /* Whole layout stacks cleanly */
     .layout {
         grid-template-columns: 1fr !important;
         gap: 20px;
     }
 
-    /* Stepper becomes horizontal scroll (like TikTok/Instagram editors) */
     .stepper {
         display: flex !important;
         flex-direction: row !important;
@@ -449,13 +463,11 @@ h3 .style-check {
         padding: 10px 16px;
     }
 
-    /* Cards stretch nicely */
     .step-card, .card {
         padding: 18px !important;
         margin: 0 !important;
     }
 
-    /* Inputs and buttons full width */
     input, textarea, select, .btn {
         width: 100% !important;
         box-sizing: border-box;
@@ -466,9 +478,7 @@ h3 .style-check {
         font-size: 15px;
     }
 
-    /* Split panels inside YAML & Style collapse vertically */
     .split {
-        display: flex;
         flex-direction: column;
         gap: 18px;
     }
@@ -477,12 +487,10 @@ h3 .style-check {
         width: 100% !important;
     }
 
-    /* Side column moves below main */
     .side-column {
-        order: 10; /* send to bottom */
+        order: 10;
     }
 
-    /* Reduce padding + improve readability */
     .card-header h2 {
         font-size: 20px;
         line-height: 1.3;
@@ -492,120 +500,61 @@ h3 .style-check {
         font-size: 14px;
     }
 
-    /* Log viewer scrollable and shorter */
     .log-view {
         max-height: 280px !important;
         font-size: 13px;
     }
 
-    /* Buttons stacked instead of inline pairs */
     .row {
         flex-direction: column !important;
         gap: 10px !important;
     }
-}
 
-/* FIX 1 — Normalize checkbox appearance (mobile) */
-input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    margin: 0;
-    padding: 0;
-    vertical-align: middle;
-    position: relative;
-    top: 1px;
-}
+    /* Mobile checkbox fix */
+    .checkbox-row {
+        flex-wrap: nowrap;
+        align-items: center;
+    }
 
-/* FIX 2 — Ensure label aligns horizontally */
-.checkbox-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;  /* space between checkbox & label */
-    margin-bottom: 8px;
-}
+    .checkbox-row input[type="checkbox"] {
+        width: 26px;
+        height: 26px;
+    }
 
-/* FIX 3 — Increase tap area for mobile */
-.checkbox-row label {
-    font-size: 16px;
-    line-height: 1.2;
-    cursor: pointer;
-}
-
-.upload-dropzone {
-    padding: 20px;
-    font-size: 14px;
-    background: #1a1a1b; /* match dark theme */
-    color: var(--text);
-}
-
-.upload-preview {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 12px;
-}
-
-.preview-item {
-    width: 100%;
-    height: 100px;
-    background: #2a2a2d;
-    color: var(--text-dim);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px;
-    font-size: 12px;
-}
-
-.preview-name {
-    color: var(--text);
-    font-size: 13px;
-}
-
-.preview-remove {
-    top: 6px;
-    right: 6px;
-    height: 22px;
-    width: 22px;
-    font-size: 11px;
+    .checkbox-row label {
+        font-size: 17px;
+    }
 }
 
 /* -----------------------------------------------------------
-   SUPER TINY DEVICES (iPhone Mini, older Android)
-   ----------------------------------------------------------- */
+   Super Tiny Devices
+----------------------------------------------------------- */
 @media (max-width: 480px) {
-
     .step-index {
-        display: none; /* save space */
+        display: none;
     }
-
     .step-label {
         font-size: 13px;
     }
-
     .brand h1 {
         font-size: 18px;
     }
-
     .brand-logo {
         font-size: 20px;
         width: 36px;
         height: 36px;
     }
-
-    /* YAML textarea */
     #yamlText {
         min-height: 220px;
     }
-
-    /* Chat textarea smaller */
     #chatInput {
         min-height: 120px;
     }
 }
 
 /* -----------------------------------------------------------
-   UPLOAD — Dark Mode Version
+   Upload — Dark Mode Version
 ----------------------------------------------------------- */
-
 .upload-dropzone {
     border: 2px dashed var(--border);
     border-radius: 10px;
