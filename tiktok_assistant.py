@@ -40,7 +40,7 @@ if not S3_BUCKET_NAME:
     )
 
 S3_REGION = os.getenv("S3_REGION", "us-east-2")
-RAW_PREFIX = "raw_uploads"
+RAW_PREFIX = "raw_uploads/"
 
 EXPORT_PREFIX = os.getenv("S3_EXPORT", "exports/").lstrip("/")
 if not EXPORT_PREFIX.endswith("/"):

@@ -154,21 +154,27 @@ function initUploadUI() {
     });
 
     // ----- UPDATE PREVIEW -----
-    function updatePreview() {
-        preview.innerHTML = "";
-        statusEl.textContent = "";
-        uploadBtn.disabled = selectedFiles.length === 0;
+    preview.innerHTML = "";
+    selectedFiles.forEach((file, idx) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "preview-item";
 
-        selectedFiles.forEach((file) => {
-            const div = document.createElement("div");
-            if (file.type.startsWith("video/")) {
-                div.textContent = file.name;
-            } else {
-                div.textContent = "Not video";
-            }
-            preview.appendChild(div);
-        });
-    }
+        const name = document.createElement("div");
+        name.className = "preview-name";
+        name.textContent = file.name;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "preview-remove";
+        removeBtn.innerHTML = "✖";
+        removeBtn.onclick = () => {
+            selectedFiles.splice(idx, 1);
+            updatePreview();
+        };
+
+    wrapper.appendChild(name);
+    wrapper.appendChild(removeBtn);
+    preview.appendChild(wrapper);
+});
 
     // ----- UPLOAD -----
     uploadBtn.addEventListener("click", async () => {
