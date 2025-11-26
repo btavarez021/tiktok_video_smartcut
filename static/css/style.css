@@ -64,6 +64,10 @@ textarea::-webkit-scrollbar-thumb,
     border-radius: 8px;
 }
 
+.stepper {
+    flex-shrink: 0;
+}
+
 /* ---------------------------------------
    Header
 ---------------------------------------- */
@@ -617,6 +621,24 @@ h3 .style-check {
         grid-template-columns: 1fr !important;
         gap: 20px;
         padding: 16px;
+    }
+
+     .stepper {
+        position: relative;
+        z-index: 50;              /* Bring stepper ABOVE upload box */
+        margin-bottom: 12px;      /* Add spacing */
+    }
+
+    /* Lower stacking priority for upload/card containers */
+    .card {
+        position: relative;
+        z-index: 10;
+    }
+
+    /* Main container spacing on mobile to prevent stacking collisions */
+    .layout {
+        position: relative;
+        z-index: 1;
     }
 
     .stepper {

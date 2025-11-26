@@ -280,12 +280,7 @@ def _try_text_overlay(
             size=(TARGET_W - 160, None),
         ).set_duration(duration)
 
-        # -----------------------------------
-        # 🔥 ADD BACKGROUND BOX (semi-transparent)
-        # -----------------------------------
-        from moviepy.video.tools.drawing import color_gradient
-        import numpy as np
-
+        # Background box
         box_h = txt.h + 60
         box = (ColorClip(
             size=(TARGET_W, box_h),
@@ -303,12 +298,16 @@ def _try_text_overlay(
         txt = txt.set_position(("center", y))
         box = box.set_position(("center", y))
 
-        clip = CompositeVideoClip([base, box, txt], size=(TARGET_W, TARGET_H))
-        return clip.set_start(start)
+        # ✔ Only shift overlays — NOT the base video!
+        txt = txt.set_start(start)
+        box = box.set_start(start)
+
+        return CompositeVideoClip([base, box, txt], size=(TARGET_W, TARGET_H))
 
     except Exception as e:
         logger.warning("Text overlay failed: %s", e)
         return None
+
 
 
 
