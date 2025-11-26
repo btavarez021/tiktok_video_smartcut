@@ -257,20 +257,12 @@ def _collect_all_captions(cfg: Dict[str, Any]) -> List[str]:
 # -----------------------------------------
 # Text overlay (caption or CTA)
 # -----------------------------------------
-def _try_text_overlay(
-    base: VideoFileClip,
-    text: str,
-    duration: float,
-    start: float,
-    fontsize: int = 60,
-    position: str = "bottom",
-):
+def _try_text_overlay(base, text, duration, start, fontsize=60, position="bottom"):
     text = (text or "").strip()
     if not text:
         return None
 
     try:
-        # Text clip
         txt = TextClip(
             text,
             fontsize=fontsize,
@@ -280,16 +272,13 @@ def _try_text_overlay(
             size=(TARGET_W - 160, None),
         ).set_duration(duration)
 
-        # Background box
+        # SAFE box (no numpy, no experimental modules)
         box_h = txt.h + 60
-        box = (ColorClip(
+        box = ColorClip(
             size=(TARGET_W, box_h),
             color=(0, 0, 0)
-        )
-        .set_opacity(0.45)
-        .set_duration(duration))
+        ).set_opacity(0.45).set_duration(duration)
 
-        # Positioning
         if position == "bottom":
             y = TARGET_H * 0.80
         else:
@@ -298,14 +287,11 @@ def _try_text_overlay(
         txt = txt.set_position(("center", y))
         box = box.set_position(("center", y))
 
-        # ✔ Only shift overlays — NOT the base video!
-        txt = txt.set_start(start)
-        box = box.set_start(start)
-
-        return CompositeVideoClip([base, box, txt], size=(TARGET_W, TARGET_H))
+        clip = CompositeVideoClip([base, box, txt], size=(TARGET_W, TARGET_H))
+        return clip.set_start(start)
 
     except Exception as e:
-        logger.warning("Text overlay failed: %s", e)
+        logger.warning(f"Text overlay failed: {e}")
         return None
 
 
