@@ -499,6 +499,32 @@ h3 .style-check {
     }
 }
 
+/* FIX 1 — Normalize checkbox appearance (mobile) */
+input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    vertical-align: middle;
+    position: relative;
+    top: 1px;
+}
+
+/* FIX 2 — Ensure label aligns horizontally */
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;  /* space between checkbox & label */
+    margin-bottom: 8px;
+}
+
+/* FIX 3 — Increase tap area for mobile */
+.checkbox-row label {
+    font-size: 16px;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
 .upload-dropzone {
     padding: 20px;
     font-size: 14px;
