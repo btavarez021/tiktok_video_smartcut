@@ -13,6 +13,11 @@ from openai import OpenAI
 from utils_video import enforce_mp4
 from assistant_log import log_step
 from tiktok_template import config_path, edit_video, video_folder
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +30,7 @@ client: Optional[OpenAI] = OpenAI(api_key=api_key) if api_key else None
 TEXT_MODEL = "gpt-4.1-mini"
 
 # -----------------------------------------
-# S3 CONFIG
+# S3 CONFIG (REQUIRED FOR RENDER)
 # -----------------------------------------
 S3_BUCKET_NAME = (
     os.environ.get("S3_BUCKET_NAME") or os.environ.get("AWS_BUCKET_NAME")
@@ -37,11 +42,32 @@ if not S3_BUCKET_NAME:
 
 S3_REGION = os.environ.get("S3_REGION", "us-east-2")
 RAW_PREFIX = "raw_uploads/"
+
 EXPORT_PREFIX = os.environ.get("S3_EXPORT", "exports/").lstrip("/")
 if not EXPORT_PREFIX.endswith("/"):
     EXPORT_PREFIX += "/"
-    
-s3 = boto3.client("s3", region_name=S3_REGION)
+
+# -----------------------------------------
+# Load AWS credentials (Render ENV VARS)
+# -----------------------------------------
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+
+if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
+    raise RuntimeError(
+        "Missing AWS credentials! You MUST set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Render."
+    )
+
+# -----------------------------------------
+# Create S3 client with explicit credentials
+# -----------------------------------------
+s3 = boto3.client(
+    "s3",
+    region_name=S3_REGION,
+    aws_access_key_id=AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+)
+
 
 
 # -----------------------------------------
