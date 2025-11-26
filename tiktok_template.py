@@ -89,25 +89,55 @@ def _load_config() -> Dict[str, Any]:
 # Clip loading
 # -----------------------------------------
 def _load_clip_from_config(conf: Dict[str, Any]):
+    """
+    Load a clip described in the YAML config.
 
+    This is tolerant to:
+    - case differences between YAML filenames and actual files (IMG_3753.mp4 vs img_3753.mp4)
+    - different video extensions (.mov, .m4v) as long as the basename matches.
+    """
 
     filename = conf.get("file")
     if not filename:
         return None
 
+    # Ensure .mp4 extension, but keep original basename
     filename = enforce_mp4(filename)
-    path = os.path.join(video_folder, filename)
 
+    # --- helper: find a matching file in video_folder, case-insensitive ---
+    def _find_clip_path(fname: str) -> Optional[str]:
+        target_name = fname
+        target_base, _ = os.path.splitext(target_name)
 
-    if not os.path.exists(path):
-        logger.warning(f"[LOAD FAILED] File not found: {path}")
-        log_step(f"[LOAD FAILED] File not found: {path}")
+        # 1) Direct path first (exact match)
+        direct_path = os.path.join(video_folder, target_name)
+        if os.path.exists(direct_path):
+            return direct_path
+
+        # 2) Case-insensitive search in the folder
+        if not os.path.isdir(video_folder):
+            os.makedirs(video_folder, exist_ok=True)
+
+        try:
+            for f in os.listdir(video_folder):
+                base, ext = os.path.splitext(f)
+                if base.lower() == target_base.lower() and ext.lower() in (".mp4", ".mov", ".m4v"):
+                    return os.path.join(video_folder, f)
+        except FileNotFoundError:
+            # Folder doesn't exist yet; nothing to find
+            return None
+
         return None
-    
-    if not os.path.exists(path):
-        logger.warning("Clip file not found: %s", path)
+
+    path = _find_clip_path(filename)
+
+    if not path or not os.path.exists(path):
+        msg = f"[LOAD FAILED] File not found (case-insensitive search): {os.path.join(video_folder, filename)}"
+        logger.warning(msg)
+        log_step(msg)
         return None
 
+    # --- timing & scale ---
     start = float(conf.get("start_time", 0))
     dur = conf.get("duration")
     scale = float(conf.get("scale", 1.0))
