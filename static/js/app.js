@@ -342,17 +342,26 @@ async function exportVideo() {
             method: "POST",
             body: JSON.stringify({ optimized }),
         });
-        const filename = data.filename;
+
         exportStatus.textContent = "Export complete.";
-        if (filename) {
-            const url = `/api/download/${encodeURIComponent(filename)}`;
+
+        const s3_url = data.s3_url;
+        const filename = data.local_filename;
+
+        if (s3_url) {
             downloadArea.innerHTML = `
-                <div>✅ Ready to download:</div>
-                <a href="${url}" download>Download ${filename}</a>
+                <div>✅ Video ready:</div>
+                <a href="${s3_url}" target="_blank" download>
+                    Download ${filename} (S3)
+                </a>
             `;
         } else {
-            downloadArea.textContent =
-                "Export finished but no filename returned. Check server logs.";
+            downloadArea.innerHTML = `
+                <div>⚠ Local file only (S3 upload missing):</div>
+                <a href="/api/download/${encodeURIComponent(filename)}" download>
+                    Download ${filename}
+                </a>
+            `;
         }
     } catch (err) {
         console.error(err);
@@ -361,6 +370,7 @@ async function exportVideo() {
         btn.disabled = false;
     }
 }
+
 
 // Chat
 
