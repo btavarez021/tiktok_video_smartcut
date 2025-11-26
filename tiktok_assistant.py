@@ -13,8 +13,8 @@ from openai import OpenAI
 from utils_video import enforce_mp4
 from assistant_log import log_step
 from tiktok_template import config_path, edit_video, video_folder
-from dotenv import load_dotenv
-load_dotenv()
+# from dotenv import load_dotenv
+# load_dotenv()
 
 import os
 

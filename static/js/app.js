@@ -111,6 +111,111 @@ async function uploadFiles() {
     }
 }
 
+// Drag and Drop upload
+
+function initUploadUI() {
+    const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("uploadFiles");
+    const preview = document.getElementById("uploadPreview");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const progressWrapper = document.getElementById("uploadProgressWrapper");
+    const progressBar = document.getElementById("uploadProgress");
+    const statusEl = document.getElementById("uploadStatus");
+
+    let selectedFiles = [];
+
+    // ----- CLICK TO OPEN FILE PICKER -----
+    dropZone.addEventListener("click", () => fileInput.click());
+
+    // ----- FILE SELECTED -----
+    fileInput.addEventListener("change", (e) => {
+        selectedFiles = Array.from(e.target.files);
+        updatePreview();
+    });
+
+    // ----- DRAG OVER -----
+    dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("dragover");
+    });
+
+    // ----- DRAG LEAVE -----
+    dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragover");
+    });
+
+    // ----- DROP FILES -----
+    dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+
+        selectedFiles = Array.from(e.dataTransfer.files);
+        updatePreview();
+    });
+
+    // ----- UPDATE PREVIEW -----
+    function updatePreview() {
+        preview.innerHTML = "";
+        statusEl.textContent = "";
+        uploadBtn.disabled = selectedFiles.length === 0;
+
+        selectedFiles.forEach((file) => {
+            const div = document.createElement("div");
+            if (file.type.startsWith("video/")) {
+                div.textContent = file.name;
+            } else {
+                div.textContent = "Not video";
+            }
+            preview.appendChild(div);
+        });
+    }
+
+    // ----- UPLOAD -----
+    uploadBtn.addEventListener("click", async () => {
+        if (!selectedFiles.length) return;
+
+        statusEl.textContent = "Uploading…";
+        progressWrapper.classList.remove("hidden");
+        progressBar.style.width = "0%";
+
+        const formData = new FormData();
+        selectedFiles.forEach((f) => formData.append("files", f));
+
+        try {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/api/upload");
+
+            // Upload progress bar
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const pct = (e.loaded / e.total) * 100;
+                    progressBar.style.width = pct.toFixed(1) + "%";
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    const resp = JSON.parse(xhr.responseText);
+                    statusEl.textContent = `✅ Uploaded ${resp.uploaded?.length || 0} file(s).`;
+                    progressBar.style.width = "100%";
+                } else {
+                    statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
+                }
+            };
+
+            xhr.onerror = () => {
+                statusEl.textContent = "❌ Upload error.";
+            };
+
+            xhr.send(formData);
+
+        } catch (err) {
+            console.error(err);
+            statusEl.textContent = `❌ Upload failed: ${err.message}`;
+        }
+    });
+}
+
 // Step 1: Analysis
 async function analyzeClips() {
     const analyzeBtn = document.getElementById("analyzeBtn");
@@ -484,8 +589,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
 
-    document.getElementById("uploadBtn")
-        ?.addEventListener("click", uploadFiles);  // ⬅ ADD THIS LINE
+    initUploadUI();
 
     // Initial loads
     refreshAnalyses();

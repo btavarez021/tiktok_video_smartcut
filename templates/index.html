@@ -72,18 +72,26 @@
 
                         <!-- Upload -->
                         <div class="card-subsection">
-                            <h3>Upload to S3</h3>
-                            <p class="hint-text">
-                                Choose vertical-friendly clips from your phone or computer. They will be stored under <code>raw_uploads/</code>.
-                            </p>
+                        <h3>Upload to S3</h3>
+                        <p class="hint-text">
+                            Drag & drop hotel clips, or click to browse. Files will upload to <code>raw_uploads/</code>.
+                        </p>
 
-                            <div class="row">
-                                <input id="uploadFiles" type="file" multiple />
-                                <button id="uploadBtn" class="btn secondary">⬆ Upload selected clips</button>
-                            </div>
-
-                            <div id="uploadStatus" class="hint-text"></div>
+                        <div id="dropZone" class="upload-dropzone">
+                            <p>📂 Drop videos here or click to browse</p>
+                            <input id="uploadFiles" type="file" multiple hidden />
                         </div>
+
+                        <button id="uploadBtn" class="btn secondary" disabled>⬆ Upload</button>
+                        <div id="uploadPreview" class="upload-preview"></div>
+
+                        <div id="uploadProgressWrapper" class="progress-wrapper hidden">
+                            <div id="uploadProgress" class="progress-bar"></div>
+                        </div>
+
+                        <div id="uploadStatus" class="hint-text"></div>
+                    </div>
+
 
                         <hr class="divider" />
 
