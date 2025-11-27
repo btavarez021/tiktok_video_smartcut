@@ -760,3 +760,14 @@ h3 .style-check {
     margin-top: 12px !important;  /* push button away from radios */
 }
 
+/* Fix spacing between buttons save music and preview music */
+.music-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;      /* 🔥 spacing between preview + save */
+    margin-top: 10px;
+}
+
+#saveMusicBtn {
+    margin-left: 0;  /* ensures no weird default margins */
+}
