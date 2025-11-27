@@ -398,11 +398,19 @@ def _loop_audio_to_duration(audio_clip: AudioFileClip, duration: float) -> Audio
 # -----------------------------------------
 # TTS generation
 # -----------------------------------------
-def _build_tts_audio(cfg, segments):
+def _build_tts_audio(cfg, segments, total_duration):
+    """
+    Build segmented TTS:
+    - One narration segment per clip
+    - Optional CTA narration at end
+    - Each segment aligns exactly with its video duration
+    - No bleed, no overlap
+    """
     from openai import OpenAI
 
     key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
     if not key:
+        logger.warning("No API key -> no TTS.")
         return None
 
     render = cfg.get("render", {}) or {}
@@ -410,47 +418,99 @@ def _build_tts_audio(cfg, segments):
         return None
 
     voice = render.get("tts_voice", "alloy")
+
     client = OpenAI(api_key=key)
 
-    tts_clips = []
+    audio_segments = []
 
+    # ------------------------------------------------
+    # 1) CLIP-BY-CLIP TTS (first, mids, last)
+    # ------------------------------------------------
     for seg in segments:
-        text = seg.get("text", "").strip()
-        if not text:
+        text = (seg.get("text") or "").strip()
+        start = float(seg["start"])
+        duration = float(seg["end"] - seg["start"])
+        if not text or duration <= 0:
             continue
 
-        seg_start = float(seg["start"])
-        seg_dur   = float(seg["end"]) - float(seg["start"])
+        try:
+            # Output file
+            out_path = os.path.join(
+                BASE_DIR, f"tts_seg_{int(start*1000)}.mp3"
+            )
 
-        out_path = f"tts_{seg_start:.2f}.mp3"
+            # Generate per-segment TTS
+            resp = client.audio.speech.create(
+                model="gpt-4o-mini-tts",
+                voice=voice,
+                input=text,
+            )
 
-        # Generate individual clip
-        resp = client.audio.speech.create(
-            model="gpt-4o-mini-tts",
-            voice=voice,
-            input=text
-        )
+            with open(out_path, "wb") as f:
+                f.write(resp.read())
 
-        with open(out_path, "wb") as f:
-            f.write(resp.read())
+            clip_audio = AudioFileClip(out_path)
 
-        audio = AudioFileClip(out_path)
+            # Trim or loop to EXACT duration
+            if clip_audio.duration < duration:
+                clip_audio = _loop_audio_to_duration(clip_audio, duration)
+            else:
+                clip_audio = clip_audio.subclip(0, duration)
 
-        # Adjust duration (stretch/cut)
-        if audio.duration > seg_dur:
-            audio = audio.subclip(0, seg_dur)
-        elif audio.duration < seg_dur:
-            audio = concatenate_audioclips([audio] * int(seg_dur / audio.duration + 1)).subclip(0, seg_dur)
+            # Set start time to align with video segment
+            clip_audio = clip_audio.set_start(start)
 
-        # Position the TTS at the exact timeline point
-        audio = audio.set_start(seg_start)
+            audio_segments.append(clip_audio)
 
-        tts_clips.append(audio)
+        except Exception as e:
+            logger.warning(f"[TTS SEGMENT ERROR] {e}")
 
-    if not tts_clips:
+    # ------------------------------------------------
+    # 2) CTA TTS (if enabled)
+    # ------------------------------------------------
+    cta_cfg = cfg.get("cta", {}) or {}
+    if (
+        cta_cfg.get("enabled")
+        and cta_cfg.get("voiceover")
+        and cta_cfg.get("text")
+    ):
+        cta_text = cta_cfg["text"].strip()
+        cta_duration = float(cta_cfg.get("duration", 3.0))
+        cta_start = total_duration - cta_duration
+
+        try:
+            out_path = os.path.join(BASE_DIR, "tts_cta.mp3")
+
+            resp = client.audio.speech.create(
+                model="gpt-4o-mini-tts",
+                voice=voice,
+                input=cta_text,
+            )
+
+            with open(out_path, "wb") as f:
+                f.write(resp.read())
+
+            cta_audio = AudioFileClip(out_path)
+
+            if cta_audio.duration < cta_duration:
+                cta_audio = _loop_audio_to_duration(cta_audio, cta_duration)
+            else:
+                cta_audio = cta_audio.subclip(0, cta_duration)
+
+            cta_audio = cta_audio.set_start(cta_start)
+
+            audio_segments.append(cta_audio)
+
+        except Exception as e:
+            logger.warning(f"[TTS CTA ERROR] {e}")
+
+    # ------------------------------------------------
+    # 3) FINAL COMPOSITE
+    # ------------------------------------------------
+    if not audio_segments:
         return None
 
-    return CompositeAudioClip(tts_clips)
+    return CompositeAudioClip(audio_segments)
 
 
 # -----------------------------------------
@@ -597,7 +657,7 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
     base_audio = base.audio  # original audio
 
     # ----- TTS -----
-    tts_audio = _build_tts_audio(cfg, segments)
+    tts_audio = _build_tts_audio(cfg, segments, total)
 
     # ----- Background music (music: block) -----
     music_audio = _build_music_audio(cfg, total)
