@@ -508,7 +508,7 @@ async function loadMusicSettingsFromYaml() {
     }
 }
 
-document.getElementById("saveMusicBtn").addEventListener("click", () => {
+function saveMusicSettings() {
     const enabled = document.getElementById("musicEnabled").checked;
     const file = document.getElementById("musicFile").value || "";
     const volume = parseFloat(document.getElementById("musicVolume").value || "0.25");
@@ -525,7 +525,6 @@ document.getElementById("saveMusicBtn").addEventListener("click", () => {
 
             if (cfg.music) delete cfg.music;
 
-            // Convert JSON → YAML STRING
             const yamlText = jsyaml.dump(cfg);
 
             return fetch("/api/save_yaml", {
@@ -541,7 +540,8 @@ document.getElementById("saveMusicBtn").addEventListener("click", () => {
         .catch(err =>
             showStatus("Error saving music: " + err.message, "error")
         );
-});
+}
+
 
 
 
@@ -678,6 +678,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Load track list & settings
     loadMusicTracks();
     loadMusicSettingsFromYaml();
+    document.getElementById("saveMusicBtn")
+    ?.addEventListener("click", saveMusicSettings);
+
 
     document.getElementById("analyzeBtn")?.addEventListener("click", analyzeClips);
     document
