@@ -12,7 +12,7 @@ import yaml
 from openai import OpenAI
 
 from assistant_log import log_step
-from tiktok_template import config_path, edit_video, video_folder
+from tiktok_template import config_path, edit_video, video_folder, 
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +96,37 @@ def list_videos_from_s3() -> List[str]:
         if ext in [".mp4", ".mov", ".avi", ".m4v"]:
             files.append(key)
     return files
+
+# -----------------------------------------
+# Upload Order Tracking (S3 JSON)
+# -----------------------------------------
+
+UPLOAD_ORDER_KEY = RAW_PREFIX + "order.json"
+
+
+def load_upload_order() -> List[str]:
+    """Load upload order from S3. Returns [] if none exists."""
+    try:
+        obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key=UPLOAD_ORDER_KEY)
+        data = json.loads(obj["Body"].read().decode("utf-8"))
+        return data.get("order", [])
+    except Exception:
+        return []
+
+
+def save_upload_order(order: List[str]) -> None:
+    """Save upload order to S3 as a JSON file."""
+    try:
+        payload = json.dumps({"order": order}, indent=2).encode("utf-8")
+        s3.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=UPLOAD_ORDER_KEY,
+            Body=payload,
+            ContentType="application/json"
+        )
+    except Exception as e:
+        log_step(f"[UPLOAD_ORDER] Failed to save order.json: {e}")
+
 
 
 def upload_raw_file(file_storage) -> str:
