@@ -457,14 +457,12 @@ def apply_cta_outro(main: VideoFileClip,
 
     # blur video only (downscale to save memory, then back up)
     try:
-        small = outro.resize(0.75)
-        blurred_small = small.fx(vfx.blur, 18)
+        small = outro.resize(0.70)                    # downscale for speed
+        blurred_small = small.fx(vfx.gaussian_blur, sigma=12)
         outro_blur = blurred_small.resize((TARGET_W, TARGET_H))
+
         outro_blur = outro_blur.set_duration(outro.duration)
-
-        # keep base audio from cta_source (no TTS)
-        outro_blur = outro_blur.set_audio(outro.audio)
-
+        outro_blur = outro_blur.set_audio(outro.audio)  # keep last clip's audio
     except Exception as e:
         logger.warning(f"[CTA] Blur failed, using unblurred outro: {e}")
         outro_blur = outro
