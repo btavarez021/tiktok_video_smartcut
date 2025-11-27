@@ -631,6 +631,45 @@ function initMusicVolumeSlider() {
     });
 }
 
+// Preview music
+function initMusicPreview() {
+    const playBtn = document.getElementById("previewMusicBtn");
+    const player = document.getElementById("musicPreviewPlayer");
+    const status = document.getElementById("musicPreviewStatus");
+    const sel = document.getElementById("musicFile");
+
+    if (!playBtn || !player || !sel) return;
+
+    playBtn.addEventListener("click", () => {
+        const file = sel.value;
+        if (!file) {
+            status.textContent = "No music selected.";
+            return;
+        }
+
+        // Music file URL from backend
+        player.src = `/api/music_file/${encodeURIComponent(file)}`;
+        player.volume = parseFloat(document.getElementById("musicVolume").value || "0.25");
+
+        if (player.paused) {
+            player.play();
+            playBtn.textContent = "⏸ Pause Preview";
+            status.textContent = `Playing: ${file}`;
+        } else {
+            player.pause();
+            playBtn.textContent = "▶ Play Preview";
+            status.textContent = "Paused.";
+        }
+    });
+
+    // Reset button when playback ends
+    player.addEventListener("ended", () => {
+        playBtn.textContent = "▶ Play Preview";
+        status.textContent = "Preview ended.";
+    });
+}
+
+
 // Foreground scale
 async function saveFgScale() {
     const range = document.getElementById("fgScale");
@@ -768,6 +807,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Sliders
     initFgScaleSlider();
     initMusicVolumeSlider();
+
+    // Preview Music
+    initMusicPreview();
 
     // Upload UI
     initUploadUI();
