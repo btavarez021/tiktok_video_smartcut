@@ -496,17 +496,19 @@ async function loadMusicTracks() {
 async function loadMusicSettingsFromYaml() {
     try {
         const data = await jsonFetch("/api/config");
-        const cfg = data.config?.render || {};
+        const cfg = data.config || {};
+        const music = cfg.music || {};
 
-        document.getElementById("musicEnabled").checked = cfg.music_enabled || false;
-        document.getElementById("musicFile").value = cfg.music_file || "";
-        document.getElementById("musicVolume").value = cfg.music_volume || 0.25;
+        document.getElementById("musicEnabled").checked = music.enabled || false;
+        document.getElementById("musicFile").value = music.file || "";
+        document.getElementById("musicVolume").value = music.volume || 0.25;
         document.getElementById("musicVolumeLabel").textContent =
-            cfg.music_volume?.toFixed(2) || "0.25";
+            (music.volume || 0.25).toFixed(2);
     } catch (err) {
         console.error("Music settings load failed", err);
     }
 }
+
 
 function saveMusicSettings() {
     const enabled = document.getElementById("musicEnabled").checked;
@@ -517,14 +519,22 @@ function saveMusicSettings() {
         .then(res => res.json())
         .then(data => {
             const cfg = data.config || {};
-            if (!cfg.render) cfg.render = {};
 
-            cfg.render.music_enabled = enabled;
-            cfg.render.music_file = file;
-            cfg.render.music_volume = volume;
+            // Correct: save to top-level music block
+            cfg.music = {
+                enabled,
+                file,
+                volume
+            };
 
-            if (cfg.music) delete cfg.music;
+            // Ensure no leftover bad fields in render
+            if (cfg.render) {
+                delete cfg.render.music_enabled;
+                delete cfg.render.music_file;
+                delete cfg.render.music_volume;
+            }
 
+            // Convert JSON → YAML
             const yamlText = jsyaml.dump(cfg);
 
             return fetch("/api/save_yaml", {
@@ -537,13 +547,10 @@ function saveMusicSettings() {
             showStatus("Music saved!", "success");
             loadConfigAndYaml();
         })
-        .catch(err =>
-            showStatus("Error saving music: " + err.message, "error")
-        );
+        .catch(err => {
+            showStatus("Error saving music: " + err.message, "error");
+        });
 }
-
-
-
 
 
 function initMusicVolumeSlider() {
