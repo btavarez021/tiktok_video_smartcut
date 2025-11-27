@@ -29,6 +29,7 @@ from moviepy.editor import (
     concatenate_audioclips,
     ColorClip,
     vfx,
+    ImageClip
 )
 
 from assistant_log import log_step
@@ -658,6 +659,31 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
 
     # ----- TTS -----
     tts_audio = _build_tts_audio(cfg, segments, total)
+
+    # ----- EXTEND VIDEO IF TTS IS LONGER -----
+    if tts_audio:
+        tts_duration = tts_audio.duration
+        if tts_duration > total:
+            extra = tts_duration - total
+
+            log_step(f"[TTS SYNC] Extending video by {extra:.2f}s to match TTS duration")
+
+            # freeze last frame
+            last_frame = base.get_frame(total - 0.01)
+
+            freeze_clip = (
+                ImageClip(last_frame)
+                .set_duration(extra)
+                .set_fps(30)
+                .resize((TARGET_W, TARGET_H))
+            )
+
+            # extend video
+            base = concatenate_videoclips([base, freeze_clip], method="compose")
+
+            # update duration
+            total = tts_duration
+
 
     # ----- Background music (music: block) -----
     music_audio = _build_music_audio(cfg, total)
