@@ -2,8 +2,6 @@ logs/
 temp/
 normalized_cache/
 tik_tok_downloads/
-music/
-*.mp3
 *.mp4
 *.sh
 credentials.json
