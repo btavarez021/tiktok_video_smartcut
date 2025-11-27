@@ -12,7 +12,7 @@ import yaml
 from openai import OpenAI
 
 from assistant_log import log_step
-from tiktok_template import config_path, edit_video, video_folder, 
+from tiktok_template import config_path, edit_video, video_folder
 
 logger = logging.getLogger(__name__)
 
