@@ -1,13 +1,19 @@
-// Utility: small helper for fetch with JSON
+// ================================
+// Utility helpers
+// ================================
+
+// JSON fetch helper with sane defaults
 async function jsonFetch(url, options = {}) {
     const resp = await fetch(url, {
         headers: { "Content-Type": "application/json" },
         ...options,
     });
+
     if (!resp.ok) {
         const text = await resp.text();
         throw new Error(text || `Request failed: ${resp.status}`);
     }
+
     try {
         return await resp.json();
     } catch {
@@ -15,18 +21,31 @@ async function jsonFetch(url, options = {}) {
     }
 }
 
+// Status hint helper (bottom style line)
 function showStatus(msg, type = "info") {
     const el = document.getElementById("styleStatus");
     if (!el) return;
-
     el.textContent = msg;
     el.className = "hint-text " + type;
 }
 
+// Simple download helper (works on mobile/desktop)
+function safeDownload(url, filename = "export.mp4") {
+    const a = document.createElement("a");
+    a.href = url;
+    a.style.display = "none";
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
 
+// ================================
 // Stepper behavior
+// ================================
 function initStepper() {
     const stepButtons = document.querySelectorAll(".stepper .step");
+
     stepButtons.forEach((btn) => {
         btn.addEventListener("click", () => {
             const targetSel = btn.dataset.target;
@@ -39,8 +58,9 @@ function initStepper() {
         });
     });
 
-    // Also track scroll to update active step
     const steps = Array.from(document.querySelectorAll(".step-card"));
+    if (!steps.length) return;
+
     const observer = new IntersectionObserver(
         (entries) => {
             entries.forEach((entry) => {
@@ -57,10 +77,13 @@ function initStepper() {
         },
         { threshold: 0.4 }
     );
+
     steps.forEach((s) => observer.observe(s));
 }
 
+// ================================
 // Status log polling
+// ================================
 let statusLogTimer = null;
 
 async function refreshStatusLog() {
@@ -68,10 +91,11 @@ async function refreshStatusLog() {
         const data = await jsonFetch("/api/status");
         const log = data.status_log || [];
         const el = document.getElementById("statusLog");
+        if (!el) return;
         el.textContent = log.join("\n");
         el.scrollTop = el.scrollHeight;
-    } catch (err) {
-        // Fail silently in UI for logs
+    } catch {
+        // silent fail for logs
     }
 }
 
@@ -81,11 +105,14 @@ function startStatusLogPolling() {
     statusLogTimer = setInterval(refreshStatusLog, 2000);
 }
 
-// Upload
-
+// ================================
+// Upload: plain + drag & drop UI
+// ================================
 async function uploadFiles() {
+    // Used if you call uploadFiles() from HTML onclick
     const input = document.getElementById("uploadFiles");
     const status = document.getElementById("uploadStatus");
+    if (!input || !status) return;
 
     if (!input.files.length) {
         status.textContent = "❌ No files selected.";
@@ -102,37 +129,19 @@ async function uploadFiles() {
     try {
         const resp = await fetch("/api/upload", {
             method: "POST",
-            body: formData
+            body: formData,
         });
-
         const data = await resp.json();
-        console.log("Uploaded:", data);
-
         if (data.uploaded?.length) {
             status.textContent = `✅ Uploaded ${data.uploaded.length} file(s).`;
         } else {
             status.textContent = `⚠ No files uploaded (check logs).`;
         }
-
     } catch (err) {
         console.error(err);
         status.textContent = `❌ Upload failed: ${err.message}`;
     }
 }
-
-// Download mobile helper
-
-function safeDownload(url, filename = "export.mp4") {
-    const a = document.createElement("a");
-    a.href = url;
-    a.style.display = "none";
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-}
-
-// Drag and Drop upload
 
 function initUploadUI() {
     const dropZone = document.getElementById("dropZone");
@@ -143,69 +152,63 @@ function initUploadUI() {
     const progressBar = document.getElementById("uploadProgress");
     const statusEl = document.getElementById("uploadStatus");
 
+    if (!dropZone || !fileInput || !preview || !uploadBtn || !progressWrapper || !progressBar || !statusEl) {
+        return;
+    }
+
     let selectedFiles = [];
 
-    // ----- CLICK TO OPEN FILE PICKER -----
+    function updatePreview() {
+        preview.innerHTML = "";
+        selectedFiles.forEach((file, idx) => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "preview-item";
+
+            const name = document.createElement("div");
+            name.className = "preview-name";
+            name.textContent = file.name;
+
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "preview-remove";
+            removeBtn.innerHTML = "✖";
+
+            removeBtn.onclick = () => {
+                selectedFiles.splice(idx, 1);
+                updatePreview();
+            };
+
+            wrapper.appendChild(name);
+            wrapper.appendChild(removeBtn);
+            preview.appendChild(wrapper);
+        });
+
+        uploadBtn.disabled = selectedFiles.length === 0;
+    }
+
     dropZone.addEventListener("click", () => fileInput.click());
 
-    // ----- FILE SELECTED -----
     fileInput.addEventListener("change", (e) => {
         selectedFiles = Array.from(e.target.files);
         updatePreview();
     });
 
-    // ----- DRAG OVER -----
     dropZone.addEventListener("dragover", (e) => {
         e.preventDefault();
         dropZone.classList.add("dragover");
     });
 
-    // ----- DRAG LEAVE -----
     dropZone.addEventListener("dragleave", () => {
         dropZone.classList.remove("dragover");
     });
 
-    // ----- DROP FILES -----
     dropZone.addEventListener("drop", (e) => {
         e.preventDefault();
         dropZone.classList.remove("dragover");
-
         selectedFiles = Array.from(e.dataTransfer.files);
         updatePreview();
     });
 
-   // ----- UPDATE PREVIEW -----
-function updatePreview() {
-    preview.innerHTML = "";
-
-    selectedFiles.forEach((file, idx) => {
-        const wrapper = document.createElement("div");
-        wrapper.className = "preview-item";
-
-        const name = document.createElement("div");
-        name.className = "preview-name";
-        name.textContent = file.name;
-
-        const removeBtn = document.createElement("button");
-        removeBtn.className = "preview-remove";
-        removeBtn.innerHTML = "✖";
-
-        removeBtn.onclick = () => {
-            selectedFiles.splice(idx, 1);
-            updatePreview();
-        };
-
-        wrapper.appendChild(name);
-        wrapper.appendChild(removeBtn);
-        preview.appendChild(wrapper);
-    });
-
-    uploadBtn.disabled = selectedFiles.length === 0;
-}
-
-
-    // ----- UPLOAD -----
-    uploadBtn.addEventListener("click", async () => {
+    uploadBtn.addEventListener("click", () => {
         if (!selectedFiles.length) return;
 
         statusEl.textContent = "Uploading…";
@@ -215,51 +218,51 @@ function updatePreview() {
         const formData = new FormData();
         selectedFiles.forEach((f) => formData.append("files", f));
 
-        try {
-            const xhr = new XMLHttpRequest();
-            xhr.open("POST", "/api/upload");
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/upload");
 
-            // Upload progress bar
-            xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable) {
-                    const pct = (e.loaded / e.total) * 100;
-                    progressBar.style.width = pct.toFixed(1) + "%";
-                }
-            };
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const pct = (e.loaded / e.total) * 100;
+                progressBar.style.width = pct.toFixed(1) + "%";
+            }
+        };
 
-            xhr.onload = () => {
-                if (xhr.status === 200) {
-                    const resp = JSON.parse(xhr.responseText);
-                    statusEl.textContent = `✅ Uploaded ${resp.uploaded?.length || 0} file(s).`;
-                    progressBar.style.width = "100%";
-                } else {
-                    statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
-                }
-            };
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                const resp = JSON.parse(xhr.responseText);
+                statusEl.textContent = `✅ Uploaded ${resp.uploaded?.length || 0} file(s).`;
+                progressBar.style.width = "100%";
+            } else {
+                statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
+            }
+        };
 
-            xhr.onerror = () => {
-                statusEl.textContent = "❌ Upload error.";
-            };
+        xhr.onerror = () => {
+            statusEl.textContent = "❌ Upload error.";
+        };
 
-            xhr.send(formData);
-
-        } catch (err) {
-            console.error(err);
-            statusEl.textContent = `❌ Upload failed: ${err.message}`;
-        }
+        xhr.send(formData);
     });
 }
 
+// ================================
 // Step 1: Analysis
+// ================================
 async function analyzeClips() {
     const analyzeBtn = document.getElementById("analyzeBtn");
     const statusEl = document.getElementById("analyzeStatus");
+    if (!analyzeBtn || !statusEl) return;
+
     analyzeBtn.disabled = true;
     statusEl.textContent = "Analyzing clips from S3… this can take a bit depending on video length.";
 
     try {
-        const data = await jsonFetch("/api/analyze", { method: "POST", body: "{}" });
-        const count = Object.keys(data || {}).length;
+        const data = await jsonFetch("/api/analyze", {
+            method: "POST",
+            body: "{}",
+        });
+        const count = data.count ?? Object.keys(data || {}).length;
         statusEl.textContent = `Analysis complete. ${count} video(s) described.`;
         await refreshAnalyses();
     } catch (err) {
@@ -272,6 +275,8 @@ async function analyzeClips() {
 
 async function refreshAnalyses() {
     const listEl = document.getElementById("analysesList");
+    if (!listEl) return;
+
     listEl.innerHTML = "";
     try {
         const data = await jsonFetch("/api/analyses_cache");
@@ -298,13 +303,19 @@ async function refreshAnalyses() {
     }
 }
 
+// ================================
 // Step 2: YAML generation & config
-
+// ================================
 async function generateYaml() {
     const statusEl = document.getElementById("yamlStatus");
+    if (!statusEl) return;
+
     statusEl.textContent = "Calling LLM to build config.yml storyboard…";
     try {
-        const cfg = await jsonFetch("/api/generate_yaml", { method: "POST", body: "{}" });
+        await jsonFetch("/api/generate_yaml", {
+            method: "POST",
+            body: "{}",
+        });
         statusEl.textContent = "YAML generated and saved to config.yml.";
         await loadConfigAndYaml();
     } catch (err) {
@@ -316,6 +327,8 @@ async function generateYaml() {
 async function loadConfigAndYaml() {
     const yamlTextEl = document.getElementById("yamlText");
     const yamlPreviewEl = document.getElementById("yamlPreview");
+    if (!yamlTextEl || !yamlPreviewEl) return;
+
     try {
         const data = await jsonFetch("/api/config");
         yamlTextEl.value = data.yaml || "# No config.yml yet.";
@@ -329,8 +342,11 @@ async function loadConfigAndYaml() {
 async function saveYaml() {
     const yamlTextEl = document.getElementById("yamlText");
     const statusEl = document.getElementById("yamlStatus");
+    if (!yamlTextEl || !statusEl) return;
+
     const raw = yamlTextEl.value || "";
     statusEl.textContent = "Saving YAML…";
+
     try {
         await jsonFetch("/api/save_yaml", {
             method: "POST",
@@ -344,8 +360,9 @@ async function saveYaml() {
     }
 }
 
+// ================================
 // Step 3: Captions
-
+// ================================
 function buildCaptionsFromConfig(cfg) {
     if (!cfg || typeof cfg !== "object") return "";
     const parts = [];
@@ -366,6 +383,8 @@ function buildCaptionsFromConfig(cfg) {
 async function loadCaptionsFromYaml() {
     const statusEl = document.getElementById("captionsStatus");
     const captionsEl = document.getElementById("captionsText");
+    if (!statusEl || !captionsEl) return;
+
     statusEl.textContent = "Loading captions from config.yml…";
 
     try {
@@ -382,9 +401,11 @@ async function loadCaptionsFromYaml() {
 async function saveCaptions() {
     const statusEl = document.getElementById("captionsStatus");
     const captionsEl = document.getElementById("captionsText");
-    const text = captionsEl.value || "";
+    if (!statusEl || !captionsEl) return;
 
+    const text = captionsEl.value || "";
     statusEl.textContent = "Saving captions into config.yml…";
+
     try {
         const result = await jsonFetch("/api/save_captions", {
             method: "POST",
@@ -398,13 +419,19 @@ async function saveCaptions() {
     }
 }
 
+// ================================
 // Step 4: Overlay, timings, TTS, CTA, fg scale, music
+// ================================
 
+// Overlay style
 async function applyOverlay() {
     const styleSel = document.getElementById("overlayStyle");
     const statusEl = document.getElementById("overlayStatus");
+    if (!styleSel || !statusEl) return;
+
     const style = styleSel.value || "travel_blog";
     statusEl.textContent = `Applying overlay style “${style}”…`;
+
     try {
         await jsonFetch("/api/overlay", {
             method: "POST",
@@ -418,11 +445,15 @@ async function applyOverlay() {
     }
 }
 
+// Timings
 async function applyTiming(smart) {
     const statusEl = document.getElementById("timingStatus");
+    if (!statusEl) return;
+
     statusEl.textContent = smart
         ? "Applying cinematic smart timings…"
         : "Applying standard timing tweaks…";
+
     try {
         await jsonFetch("/api/timings", {
             method: "POST",
@@ -436,146 +467,188 @@ async function applyTiming(smart) {
     }
 }
 
+// TTS
 async function saveTtsSettings() {
-    const enabled = document.getElementById("ttsEnabled").checked;
-    const voice = document.getElementById("ttsVoice").value || "alloy";
-    const styleStatus = document.getElementById("styleStatus");
+    const enabledEl = document.getElementById("ttsEnabled");
+    const voiceEl = document.getElementById("ttsVoice");
+    if (!enabledEl || !voiceEl) return;
 
-    styleStatus.textContent = "Saving TTS settings…";
+    const enabled = enabledEl.checked;
+    const voice = voiceEl.value || "alloy";
+
+    showStatus("Saving TTS settings…", "info");
     try {
         await jsonFetch("/api/tts", {
             method: "POST",
             body: JSON.stringify({ enabled, voice }),
         });
-        styleStatus.textContent = "TTS settings saved.";
+        showStatus("TTS settings saved.", "success");
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        styleStatus.textContent = `Error saving TTS: ${err.message}`;
+        showStatus(`Error saving TTS: ${err.message}`, "error");
     }
 }
 
+// CTA
 async function saveCtaSettings() {
-    const enabled = document.getElementById("ctaEnabled").checked;
-    const text = document.getElementById("ctaText").value || "";
-    const voiceover = document.getElementById("ctaVoiceover").checked;
-    const styleStatus = document.getElementById("styleStatus");
+    const enabledEl = document.getElementById("ctaEnabled");
+    const textEl = document.getElementById("ctaText");
+    const voiceoverEl = document.getElementById("ctaVoiceover");
+    if (!enabledEl || !textEl || !voiceoverEl) return;
 
-    styleStatus.textContent = "Saving CTA settings…";
+    const enabled = enabledEl.checked;
+    const text = textEl.value || "";
+    const voiceover = voiceoverEl.checked;
+
+    showStatus("Saving CTA settings…", "info");
     try {
         await jsonFetch("/api/cta", {
             method: "POST",
             body: JSON.stringify({ enabled, text, voiceover }),
         });
-        styleStatus.textContent = "CTA settings saved.";
+        showStatus("CTA settings saved.", "success");
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        styleStatus.textContent = `Error saving CTA: ${err.message}`;
+        showStatus(`Error saving CTA: ${err.message}`, "error");
     }
 }
 
+// Music: load available tracks
 async function loadMusicTracks() {
     const sel = document.getElementById("musicFile");
+    if (!sel) return;
+
     sel.innerHTML = `<option value="">– No music –</option>`;
 
     try {
         const data = await jsonFetch("/api/music_list");
         const files = data.files || [];
-        files.forEach(f => {
+        files.forEach((f) => {
             const opt = document.createElement("option");
             opt.value = f;
             opt.textContent = f;
             sel.appendChild(opt);
         });
-    } catch(err) {
-        console.error(err);
+    } catch (err) {
+        console.error("Music list load failed", err);
     }
 }
 
+// Music: read settings from YAML (top-level music block; fallback to legacy render.*)
 async function loadMusicSettingsFromYaml() {
+    const enabledEl = document.getElementById("musicEnabled");
+    const fileEl = document.getElementById("musicFile");
+    const volEl = document.getElementById("musicVolume");
+    const volLbl = document.getElementById("musicVolumeLabel");
+    if (!enabledEl || !fileEl || !volEl || !volLbl) return;
+
     try {
         const data = await jsonFetch("/api/config");
         const cfg = data.config || {};
-        const music = cfg.music || {};
 
-        document.getElementById("musicEnabled").checked = music.enabled || false;
-        document.getElementById("musicFile").value = music.file || "";
-        document.getElementById("musicVolume").value = music.volume || 0.25;
-        document.getElementById("musicVolumeLabel").textContent =
-            (music.volume || 0.25).toFixed(2);
+        const music = cfg.music || {};
+        const render = cfg.render || {};
+
+        const enabled =
+            music.enabled ??
+            render.music_enabled ??
+            false;
+
+        const file =
+            music.file ??
+            render.music_file ??
+            "";
+
+        const volume =
+            music.volume ??
+            render.music_volume ??
+            0.25;
+
+        enabledEl.checked = !!enabled;
+        fileEl.value = file;
+        volEl.value = volume;
+        volLbl.textContent = Number(volume).toFixed(2);
     } catch (err) {
         console.error("Music settings load failed", err);
     }
 }
 
+// Music: save settings into YAML (top-level music block)
+async function saveMusicSettings() {
+    const enabledEl = document.getElementById("musicEnabled");
+    const fileEl = document.getElementById("musicFile");
+    const volEl = document.getElementById("musicVolume");
+    if (!enabledEl || !fileEl || !volEl) return;
 
-function saveMusicSettings() {
-    const enabled = document.getElementById("musicEnabled").checked;
-    const file = document.getElementById("musicFile").value || "";
-    const volume = parseFloat(document.getElementById("musicVolume").value || "0.25");
+    const enabled = enabledEl.checked;
+    const file = fileEl.value || "";
+    const volume = parseFloat(volEl.value || "0.25");
 
-    fetch("/api/config")
-        .then(res => res.json())
-        .then(data => {
-            const cfg = data.config || {};
+    try {
+        const data = await jsonFetch("/api/config");
+        const cfg = data.config || {};
 
-            // Correct: save to top-level music block
-            cfg.music = {
-                enabled,
-                file,
-                volume
-            };
+        // Write clean top-level music block that tiktok_template.py expects
+        cfg.music = {
+            enabled,
+            file,
+            volume,
+        };
 
-            // Ensure no leftover bad fields in render
-            if (cfg.render) {
-                delete cfg.render.music_enabled;
-                delete cfg.render.music_file;
-                delete cfg.render.music_volume;
-            }
+        // Remove legacy render.music_* if present
+        if (cfg.render) {
+            delete cfg.render.music_enabled;
+            delete cfg.render.music_file;
+            delete cfg.render.music_volume;
+        }
 
-            // Convert JSON → YAML
-            const yamlText = jsyaml.dump(cfg);
+        // Convert JSON → YAML string using js-yaml (must be loaded in HTML)
+        const yamlText = jsyaml.dump(cfg);
 
-            return fetch("/api/save_yaml", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ yaml: yamlText })
-            });
-        })
-        .then(() => {
-            showStatus("Music saved!", "success");
-            loadConfigAndYaml();
-        })
-        .catch(err => {
-            showStatus("Error saving music: " + err.message, "error");
+        await jsonFetch("/api/save_yaml", {
+            method: "POST",
+            body: JSON.stringify({ yaml: yamlText }),
         });
+
+        showStatus("Music saved!", "success");
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+        showStatus("Error saving music: " + err.message, "error");
+    }
 }
 
-
+// Music volume label live update
 function initMusicVolumeSlider() {
     const slider = document.getElementById("musicVolume");
     const lbl = document.getElementById("musicVolumeLabel");
+    if (!slider || !lbl) return;
+
     slider.addEventListener("input", () => {
-        lbl.textContent = slider.value;
+        lbl.textContent = Number(slider.value).toFixed(2);
     });
 }
 
-
+// Foreground scale
 async function saveFgScale() {
-    const value = parseFloat(document.getElementById("fgScale").value || "1.0");
-    const styleStatus = document.getElementById("styleStatus");
-    styleStatus.textContent = "Saving foreground scale…";
+    const range = document.getElementById("fgScale");
+    if (!range) return;
+
+    const value = parseFloat(range.value || "1.0");
+    showStatus("Saving foreground scale…", "info");
+
     try {
         await jsonFetch("/api/fgscale", {
             method: "POST",
             body: JSON.stringify({ value }),
         });
-        styleStatus.textContent = "Foreground scale saved.";
+        showStatus("Foreground scale saved.", "success");
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        styleStatus.textContent = `Error saving scale: ${err.message}`;
+        showStatus(`Error saving scale: ${err.message}`, "error");
     }
 }
 
@@ -583,18 +656,21 @@ function initFgScaleSlider() {
     const range = document.getElementById("fgScale");
     const label = document.getElementById("fgScaleValue");
     if (!range || !label) return;
+
     label.textContent = range.value;
     range.addEventListener("input", () => {
         label.textContent = range.value;
     });
 }
 
+// ================================
 // Step 5: Export
-
+// ================================
 async function exportVideo() {
     const exportStatus = document.getElementById("exportStatus");
     const downloadArea = document.getElementById("downloadArea");
     const btn = document.getElementById("exportBtn");
+    if (!exportStatus || !downloadArea || !btn) return;
 
     const mode = document.querySelector('input[name="exportMode"]:checked')?.value;
     const optimized = mode === "optimized";
@@ -611,35 +687,39 @@ async function exportVideo() {
             body: JSON.stringify({ optimized }),
         });
 
+        if (data.status !== "ok") {
+            throw new Error(data.error || "Unknown export error");
+        }
+
         exportStatus.textContent = "Export complete.";
 
-        const s3_url = data.s3_url;
-        const filename = data.local_filename;
+        const downloadUrl = data.download_url; // signed S3 URL from backend
+        const filename = data.local_filename || "export.mp4";
 
-        if (s3_url) {
-          downloadArea.innerHTML = `
-              <div>✅ Video ready:</div>
-              <button id="directDownloadBtn" class="btn primary full">
-                  ⬇ Download ${filename}
-              </button>
-          `;
-
-          document.getElementById("directDownloadBtn").onclick = () => {
-              safeDownload(s3_url, filename);
-          };
-
-      } else {
-          downloadArea.innerHTML = `
-              <div>⚠ Local file only (S3 upload missing):</div>
-              <button id="directLocalBtn" class="btn primary full">
-                  ⬇ Download ${filename}
-              </button>
-          `;
-        
-          document.getElementById("directLocalBtn").onclick = () => {
-              safeDownload(`/api/download/${encodeURIComponent(filename)}`, filename);
-          };
-      }
+        if (downloadUrl) {
+            downloadArea.innerHTML = `
+                <div>✅ Video ready:</div>
+                <button id="directDownloadBtn" class="btn primary full">
+                    ⬇ Download ${filename}
+                </button>
+            `;
+            const directBtn = document.getElementById("directDownloadBtn");
+            if (directBtn) {
+                directBtn.onclick = () => safeDownload(downloadUrl, filename);
+            }
+        } else {
+            downloadArea.innerHTML = `
+                <div>⚠ Local file only (S3 upload missing):</div>
+                <button id="directLocalBtn" class="btn primary full">
+                    ⬇ Download ${filename}
+                </button>
+            `;
+            const localBtn = document.getElementById("directLocalBtn");
+            if (localBtn) {
+                localBtn.onclick = () =>
+                    safeDownload(`/api/download/${encodeURIComponent(filename)}`, filename);
+            }
+        }
     } catch (err) {
         console.error(err);
         exportStatus.textContent = `Error during export: ${err.message}`;
@@ -648,13 +728,15 @@ async function exportVideo() {
     }
 }
 
-
+// ================================
 // Chat
-
+// ================================
 async function sendChat() {
     const input = document.getElementById("chatInput");
     const output = document.getElementById("chatOutput");
     const btn = document.getElementById("chatSendBtn");
+    if (!input || !output || !btn) return;
+
     const msg = (input.value || "").trim();
     if (!msg) return;
 
@@ -675,63 +757,51 @@ async function sendChat() {
     }
 }
 
-// Wire everything up
-
+// ================================
+// Init wiring
+// ================================
 document.addEventListener("DOMContentLoaded", () => {
+    // Stepper & logs
     initStepper();
     startStatusLogPolling();
+
+    // Sliders
     initFgScaleSlider();
     initMusicVolumeSlider();
-    // Load track list & settings
+
+    // Upload UI
+    initUploadUI();
+
+    // Music list + settings
     loadMusicTracks();
     loadMusicSettingsFromYaml();
-    document.getElementById("saveMusicBtn")
-    ?.addEventListener("click", saveMusicSettings);
 
+    // Initial YAML + analyses
+    refreshAnalyses();
+    loadConfigAndYaml();
 
+    // Buttons / actions (all optional-chained)
     document.getElementById("analyzeBtn")?.addEventListener("click", analyzeClips);
-    document
-        .getElementById("refreshAnalysesBtn")
-        ?.addEventListener("click", refreshAnalyses);
+    document.getElementById("refreshAnalysesBtn")?.addEventListener("click", refreshAnalyses);
 
-    document
-        .getElementById("generateYamlBtn")
-        ?.addEventListener("click", generateYaml);
-    document
-        .getElementById("refreshYamlBtn")
-        ?.addEventListener("click", loadConfigAndYaml);
+    document.getElementById("generateYamlBtn")?.addEventListener("click", generateYaml);
+    document.getElementById("refreshYamlBtn")?.addEventListener("click", loadConfigAndYaml);
     document.getElementById("saveYamlBtn")?.addEventListener("click", saveYaml);
 
-    document
-        .getElementById("loadCaptionsFromYamlBtn")
-        ?.addEventListener("click", loadCaptionsFromYaml);
-    document
-        .getElementById("saveCaptionsBtn")
-        ?.addEventListener("click", saveCaptions);
+    document.getElementById("loadCaptionsFromYamlBtn")?.addEventListener("click", loadCaptionsFromYaml);
+    document.getElementById("saveCaptionsBtn")?.addEventListener("click", saveCaptions);
 
-    document
-        .getElementById("applyOverlayBtn")
-        ?.addEventListener("click", applyOverlay);
-    document
-        .getElementById("applyStandardTimingBtn")
-        ?.addEventListener("click", () => applyTiming(false));
-    document
-        .getElementById("applyCinematicTimingBtn")
-        ?.addEventListener("click", () => applyTiming(true));
+    document.getElementById("applyOverlayBtn")?.addEventListener("click", applyOverlay);
+    document.getElementById("applyStandardTimingBtn")?.addEventListener("click", () => applyTiming(false));
+    document.getElementById("applyCinematicTimingBtn")?.addEventListener("click", () => applyTiming(true));
 
     document.getElementById("saveTtsBtn")?.addEventListener("click", saveTtsSettings);
     document.getElementById("saveCtaBtn")?.addEventListener("click", saveCtaSettings);
-    document
-        .getElementById("saveFgScaleBtn")
-        ?.addEventListener("click", saveFgScale);
+    document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
+
+    document.getElementById("saveMusicBtn")?.addEventListener("click", saveMusicSettings);
 
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
 
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
-
-    initUploadUI();
-
-    // Initial loads
-    refreshAnalyses();
-    loadConfigAndYaml();
 });
