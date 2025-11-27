@@ -1,49 +1,51 @@
 first_clip:
   file: img_3753.mov
-  text: "Trust me, you\u2019ll thank yourself later\u2014take a moment right now to\
-    \ back up your important files!"
+  start_time: 0.0
   duration: 6.74
-  start_time: 0.0
-  text_color: white
+  text: "Trust me, you’ll thank yourself later—take a moment right now to back up your important files!"
   scale: 1.0
-  voice: alloy
+
 middle_clips:
-- file: img_3780.mov
-  text: I just discovered the most amazing hotel, and you seriously need to add it
-    to your travel list!
-  duration: 5.45
-  start_time: 0.0
-  text_color: white
-  scale: 1.0
-  voice: alloy
-- file: img_3782.mov
-  text: "I seriously had to make sure this was legit because it\u2019s incredible\u2014\
-    you need to experience this yourself!"
-  duration: 7.62
-  start_time: 0.0
-  text_color: white
-  scale: 1.0
-  voice: alloy
+  - file: img_3780.mov
+    start_time: 0.0
+    duration: 5.45
+    text: "I just discovered the most amazing hotel—add it to your travel list!"
+    scale: 1.0
+
+  - file: img_3782.mov
+    start_time: 0.0
+    duration: 7.62
+    text: "I had to double-check this place was real—it’s unreal and you HAVE to see it."
+    scale: 1.0
+
 last_clip:
   file: img_3785.mov
-  text: "Trust me, you cannot miss the hotel\u2019s nightly magic show\u2014it completely\
-    \ blew me away and you\u2019ll love it!"
-  duration: 5.0
   start_time: 0.0
-  text_color: yellow
+  duration: 5.0
+  text: "Do NOT miss the nightly magic show—it blew me away!"
   scale: 1.0
-  voice: alloy
-  
+
+
+# ---------------------------
+# ✨ RENDER SETTINGS
+# ---------------------------
 render:
   tts_enabled: true
   tts_voice: alloy
   fg_scale_default: 0.95
 
+  # NEW MUSIC SYSTEM (correct)
   music_enabled: true
-  music_file: luxury-modern-hotel-aesthetic.mp3
+  music_file: "luxury-modern-hotel-aesthetic.mp3"
   music_volume: 0.25
 
+
+# ---------------------------
+# ✨ CTA SETTINGS
+# ---------------------------
 cta:
   enabled: true
-  text: Book now and save 15%
+  text: "Book now and save 15%"
+  voiceover: true
+  duration: 3.0
   position: bottom

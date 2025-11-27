@@ -15,6 +15,15 @@ async function jsonFetch(url, options = {}) {
     }
 }
 
+function showStatus(msg, type = "info") {
+    const el = document.getElementById("styleStatus");
+    if (!el) return;
+
+    el.textContent = msg;
+    el.className = "hint-text " + type;
+}
+
+
 // Stepper behavior
 function initStepper() {
     const stepButtons = document.querySelectorAll(".stepper .step");
@@ -504,19 +513,16 @@ document.getElementById("saveMusicBtn").addEventListener("click", () => {
     const file = document.getElementById("musicFile").value || "";
     const volume = parseFloat(document.getElementById("musicVolume").value || "0.25");
 
-    fetch("/api/load_yaml")
+    fetch("/api/config")
         .then(res => res.json())
-        .then(cfg => {
-
-            // Ensure render block exists
+        .then(data => {
+            const cfg = data.config || {};
             if (!cfg.render) cfg.render = {};
 
-            // NEW MUSIC SYSTEM
             cfg.render.music_enabled = enabled;
             cfg.render.music_file = file;
             cfg.render.music_volume = volume;
 
-            // Remove OLD root-level music block
             if (cfg.music) delete cfg.music;
 
             return fetch("/api/save_yaml", {
@@ -527,9 +533,11 @@ document.getElementById("saveMusicBtn").addEventListener("click", () => {
         })
         .then(() => {
             showStatus("Music saved!", "success");
+            loadConfigAndYaml();
         })
-        .catch(() => showStatus("Error saving music", "error"));
+        .catch(err => showStatus("Error saving music: " + err.message, "error"));
 });
+
 
 
 function initMusicVolumeSlider() {
