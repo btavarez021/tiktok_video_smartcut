@@ -685,12 +685,12 @@ h3 .style-check {
 ---------------------------------------------------------- */
 @media (max-width: 900px) {
 
-    /* Wrap controls + labels */
     .radio,
     .checkbox-row {
         display: flex;
         align-items: center;
         gap: 12px;
+        line-height: 1.1;
     }
 
     /* Hide native iOS appearance */
@@ -701,7 +701,7 @@ h3 .style-check {
         width: 20px;
         height: 20px;
         margin: 0;
-        border-radius: 4px; /* checkbox shape */
+        border-radius: 4px; /* checkbox default shape */
         border: 2px solid var(--primary);
         background: transparent;
         position: relative;
@@ -736,8 +736,9 @@ h3 .style-check {
         font-weight: bold;
     }
 
-    /* Labels */
-    .radio label,
+    /* Labels (your structure puts the text inside .radio directly) */
+    .radio,
+    .radio *,
     .checkbox-row label {
         color: var(--text);
         font-size: 1rem;
