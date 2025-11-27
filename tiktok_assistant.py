@@ -349,7 +349,15 @@ def _style_instructions(style: str) -> str:
         "descriptive": "Literal descriptions of what is on screen.",
         "influencer": "First-person energetic influencer tone.",
         "travel_blog": "Hotel travel blogger tone focused on amenities.",
+        "ai_recommended": (
+            "AI recommended hotel/travel captions: "
+            "for each clip, pick the best mix of punchy hook, influencer tone, "
+            "or cinematic vibe based on the existing text and clip order. "
+            "Focus on scroll-stopping hooks, clarity, and getting the viewer to keep watching."
+        ),
     }.get(style, "Friendly hotel travel tone.")
+
+
 
 
 def apply_overlay(style: str, target: str = "all", filename: Optional[str] = None) -> None:
