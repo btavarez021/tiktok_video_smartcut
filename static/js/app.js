@@ -507,13 +507,16 @@ document.getElementById("saveMusicBtn").addEventListener("click", () => {
     fetch("/api/load_yaml")
         .then(res => res.json())
         .then(cfg => {
+
+            // Ensure render block exists
             if (!cfg.render) cfg.render = {};
 
+            // NEW MUSIC SYSTEM
             cfg.render.music_enabled = enabled;
             cfg.render.music_file = file;
             cfg.render.music_volume = volume;
 
-            // ❌ Remove old music block
+            // Remove OLD root-level music block
             if (cfg.music) delete cfg.music;
 
             return fetch("/api/save_yaml", {
@@ -661,8 +664,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Load track list & settings
     loadMusicTracks();
     loadMusicSettingsFromYaml();
-
-    document.getElementById("saveMusicBtn")?.addEventListener("click", saveMusicSettings);
 
     document.getElementById("analyzeBtn")?.addEventListener("click", analyzeClips);
     document

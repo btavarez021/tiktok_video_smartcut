@@ -33,20 +33,17 @@ last_clip:
   text_color: yellow
   scale: 1.0
   voice: alloy
-music:
-  style: luxury modern hotel aesthetic
-  bpm: 70
-  mood: calm, elegant, sunset rooftop energy
-  volume: 0.25
+  
 render:
-  fg_scale_default: 0.9
-  tts_voice: ballad
-  tts_enabled: false
+  tts_enabled: true
+  tts_voice: alloy
+  fg_scale_default: 0.95
+
+  music_enabled: true
+  music_file: luxury-modern-hotel-aesthetic.mp3
+  music_volume: 0.25
+
 cta:
   enabled: true
-  text: Book now and save 10% using link in the description.
-  text_color: white
-  duration: 3.0
-  scale: 1.0
+  text: Book now and save 15%
   position: bottom
-  voiceover: true
