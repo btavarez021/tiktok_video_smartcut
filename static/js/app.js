@@ -1,3 +1,12 @@
+
+// ================================
+// Variables
+// ================================
+
+let previewAudio = null;
+let previewPlaying = false;
+
+
 // ================================
 // Utility helpers
 // ================================
@@ -20,6 +29,7 @@ async function jsonFetch(url, options = {}) {
         return {};
     }
 }
+
 
 // Status hint helper (bottom style line)
 function showStatus(msg, type = "info") {
@@ -633,64 +643,60 @@ function initMusicVolumeSlider() {
 
 // Preview music
 function initMusicPreview() {
-    const playBtn = document.getElementById("previewMusicBtn");
-    const player = document.getElementById("musicPreviewPlayer");
-    const status = document.getElementById("musicPreviewStatus");
-    const sel = document.getElementById("musicFile");
+    const btn = document.getElementById("musicPreviewBtn");
+    const select = document.getElementById("musicFile");
 
-    if (!playBtn || !player || !sel) return;
+    if (!btn || !select) return;
 
-    // Helper: reset UI to "not playing"
-    function resetPreviewUI(msg = "") {
-        player.pause();
-        player.currentTime = 0;
-        playBtn.textContent = "▶ Play Preview";
-        if (status) status.textContent = msg;
-    }
-
-    // 🚨 When user switches songs
-    sel.addEventListener("change", () => {
-        resetPreviewUI("Music changed.");
-        
-        const file = sel.value;
-        if (!file) {
-            if (status) status.textContent = "No music selected.";
-            player.removeAttribute("src");
-            return;
+    // When you change songs → stop & reset
+    select.addEventListener("change", () => {
+        if (previewAudio) {
+            previewAudio.pause();
+            previewAudio.currentTime = 0;
         }
-
-        // preload new audio source
-        player.src = `/api/music_file/${encodeURIComponent(file)}`;
-        player.load();
+        previewAudio = null;
+        previewPlaying = false;
+        btn.textContent = "▶ Preview";
     });
 
-    // 🚀 Play/pause logic
-    playBtn.addEventListener("click", () => {
-        const file = sel.value;
+    btn.addEventListener("click", () => {
+        const file = select.value;
+
         if (!file) {
-            status.textContent = "No music selected.";
+            alert("Select a music track first.");
             return;
         }
 
-        // ensure player has fresh source
-        player.src = `/api/music_file/${encodeURIComponent(file)}`;
-        player.volume = parseFloat(document.getElementById("musicVolume").value || "0.25");
+        // Create audio object on first play
+        if (!previewAudio) {
+            previewAudio = new Audio(`/music/${file}`);
+            previewAudio.volume = 0.8;
 
-        if (player.paused) {
-            player.play();
-            playBtn.textContent = "⏸ Pause Preview";
-            status.textContent = `Playing: ${file}`;
+            // TRUE event-driven state (Safari friendly)
+            previewAudio.onplay = () => {
+                previewPlaying = true;
+                btn.textContent = "⏸ Pause";
+            };
+
+            previewAudio.onpause = () => {
+                previewPlaying = false;
+                btn.textContent = "▶ Preview";
+            };
+
+            previewAudio.onended = () => {
+                previewPlaying = false;
+                btn.textContent = "▶ Preview";
+            };
+        }
+
+        // Toggle play/pause using ACTUAL audio state
+        if (previewAudio.paused) {
+            previewAudio.play();
         } else {
-            resetPreviewUI("Paused.");
+            previewAudio.pause();
         }
-    });
-
-    // Auto-reset when song ends
-    player.addEventListener("ended", () => {
-        resetPreviewUI("Preview ended.");
     });
 }
-
 
 
 // Foreground scale
