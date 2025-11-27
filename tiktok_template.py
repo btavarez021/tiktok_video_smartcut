@@ -25,9 +25,7 @@ from moviepy.editor import (
     CompositeAudioClip,
     concatenate_videoclips,
     ColorClip,
-    blur,
-    fadein,          
-    fadeout,         
+    vfx,         
 )
 from moviepy.audio.fx.all import audio_fadeout
 
@@ -274,8 +272,9 @@ def _apply_caption_to_clip(
 
         # fade in/out on overlays only
         if fade_duration > 0:
-            txt = txt.fx(fadein, fade_duration).fx(fadeout, fade_duration)
-            box = box.fx(fadein, fade_duration).fx(fadeout, fade_duration)
+            # FIX: Use vfx.fadein and vfx.fadeout
+            txt = txt.fx(vfx.fadein, fade_duration).fx(vfx.fadeout, fade_duration)
+            box = box.fx(vfx.fadein, fade_duration).fx(vfx.fadeout, fade_duration)
 
         composed = CompositeVideoClip(
             [clip, box, txt],
@@ -287,7 +286,6 @@ def _apply_caption_to_clip(
     except Exception as e:
         logger.warning(f"[CAPTION] Overlay failed: {e}")
         return clip
-
 
 # -----------------------------------------
 # Build main timeline + clean CTA source
@@ -460,7 +458,8 @@ def apply_cta_outro(main: VideoFileClip,
     # blur video only (downscale to save memory, then back up)
     try:
         small = outro.resize(0.70)                    # downscale for speed
-        blurred_small = small.fx(blur, sigma=12)
+        # FIX 1: Use vfx.blur via .fx() method
+        blurred_small = small.fx(vfx.blur, sigma=12) 
         outro_blur = blurred_small.resize((TARGET_W, TARGET_H))
 
         outro_blur = outro_blur.set_duration(outro.duration)
@@ -488,8 +487,9 @@ def apply_cta_outro(main: VideoFileClip,
         box = box.set_position(("center", y))
 
         # subtle fade on CTA overlay
-        txt = txt.fx(fadein, 0.2).fx(fadeout, 0.2)
-        box = box.fx(fadein, 0.2).fx(fadeout, 0.2)
+        # FIX 2: Use vfx.fadein and vfx.fadeout
+        txt = txt.fx(vfx.fadein, 0.2).fx(vfx.fadeout, 0.2)
+        box = box.fx(vfx.fadein, 0.2).fx(vfx.fadeout, 0.2)
 
         outro_final = CompositeVideoClip(
             [outro_blur, box, txt],
@@ -502,6 +502,7 @@ def apply_cta_outro(main: VideoFileClip,
 
     final = concatenate_videoclips([main, outro_final], method="compose")
     return final.set_duration(main.duration + outro_final.duration)
+
 
 
 # -----------------------------------------
