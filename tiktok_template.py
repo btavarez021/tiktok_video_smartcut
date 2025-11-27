@@ -29,6 +29,7 @@ from moviepy.editor import (
 from moviepy.audio.fx.all import audio_fadeout
 from moviepy.video.fx.all import blur
 
+
 from assistant_log import log_step
 import imageio_ffmpeg
 
@@ -423,6 +424,7 @@ def _build_tts_audio(cfg, _total_duration: float):
 # -----------------------------------------
 # CTA outro – blur last seconds with CTA text
 # -----------------------------------------
+
 def apply_cta_outro(timeline, cfg):
     cta = cfg.get("cta", {})
     if not cta.get("enabled"):
@@ -440,14 +442,14 @@ def apply_cta_outro(timeline, cfg):
     main = timeline.subclip(0, start)
     outro = timeline.subclip(start, total)
 
-    # BLUR OUTRO using MoviePy native blur
+    # MoviePy 1.0.3 blur
     try:
-        outro_blur = blur(outro, radius=25)
+        outro_blur = blur(outro, size=25)
     except Exception as e:
         logger.warning(f"[CTA BLUR FAILED] {e}")
         outro_blur = outro
 
-    # CTA Text
+    # CTA text + box
     try:
         txt = TextClip(
             text,
@@ -464,7 +466,10 @@ def apply_cta_outro(timeline, cfg):
         txt = txt.set_position(("center", TARGET_H * 0.80))
         box = box.set_position(("center", TARGET_H * 0.80))
 
-        outro_final = CompositeVideoClip([outro_blur, box, txt], size=(TARGET_W, TARGET_H))
+        outro_final = CompositeVideoClip(
+            [outro_blur, box, txt],
+            size=(TARGET_W, TARGET_H)
+        )
 
     except Exception as e:
         logger.warning(f"[CTA TEXT FAILED] {e}")
