@@ -389,7 +389,7 @@ async function saveCaptions() {
     }
 }
 
-// Step 4: Overlay, timings, TTS, CTA, fg scale
+// Step 4: Overlay, timings, TTS, CTA, fg scale, music
 
 async function applyOverlay() {
     const styleSel = document.getElementById("overlayStyle");
@@ -465,6 +465,68 @@ async function saveCtaSettings() {
         styleStatus.textContent = `Error saving CTA: ${err.message}`;
     }
 }
+
+async function loadMusicTracks() {
+    const sel = document.getElementById("musicFile");
+    sel.innerHTML = `<option value="">– No music –</option>`;
+
+    try {
+        const data = await jsonFetch("/api/music_list");
+        const files = data.files || [];
+        files.forEach(f => {
+            const opt = document.createElement("option");
+            opt.value = f;
+            opt.textContent = f;
+            sel.appendChild(opt);
+        });
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+async function loadMusicSettingsFromYaml() {
+    try {
+        const data = await jsonFetch("/api/config");
+        const cfg = data.config?.render || {};
+
+        document.getElementById("musicEnabled").checked = cfg.music_enabled || false;
+        document.getElementById("musicFile").value = cfg.music_file || "";
+        document.getElementById("musicVolume").value = cfg.music_volume || 0.25;
+        document.getElementById("musicVolumeLabel").textContent =
+            cfg.music_volume?.toFixed(2) || "0.25";
+    } catch (err) {
+        console.error("Music settings load failed", err);
+    }
+}
+
+async function saveMusicSettings() {
+    const enabled = document.getElementById("musicEnabled").checked;
+    const file = document.getElementById("musicFile").value;
+    const volume = parseFloat(document.getElementById("musicVolume").value);
+
+    const styleStatus = document.getElementById("styleStatus");
+    styleStatus.textContent = "Saving music settings…";
+
+    try {
+        await jsonFetch("/api/music", {
+            method: "POST",
+            body: JSON.stringify({ enabled, file, volume })
+        });
+        styleStatus.textContent = "Music settings saved.";
+        await loadConfigAndYaml();
+    } catch (err) {
+        styleStatus.textContent = `Error: ${err.message}`;
+    }
+}
+
+function initMusicVolumeSlider() {
+    const slider = document.getElementById("musicVolume");
+    const lbl = document.getElementById("musicVolumeLabel");
+    slider.addEventListener("input", () => {
+        lbl.textContent = slider.value;
+    });
+}
+
 
 async function saveFgScale() {
     const value = parseFloat(document.getElementById("fgScale").value || "1.0");
@@ -585,6 +647,12 @@ document.addEventListener("DOMContentLoaded", () => {
     initStepper();
     startStatusLogPolling();
     initFgScaleSlider();
+    initMusicVolumeSlider();
+    // Load track list & settings
+    loadMusicTracks();
+    loadMusicSettingsFromYaml();
+
+    document.getElementById("saveMusicBtn")?.addEventListener("click", saveMusicSettings);
 
     document.getElementById("analyzeBtn")?.addEventListener("click", analyzeClips);
     document

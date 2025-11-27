@@ -258,6 +258,26 @@
                                 </div>
 
                                 <button id="saveCtaBtn" class="btn ghost">💾 Save CTA</button>
+                                <h3>
+                                    Background Music
+                                    <span id="musicCheck" class="style-check">✔</span>
+                                </h3>
+
+                                <div class="checkbox-row">
+                                    <input type="checkbox" id="musicEnabled" />
+                                    <label for="musicEnabled">Enable background music</label>
+                                </div>
+
+                                <label class="field-label">Music track</label>
+                                <select id="musicFile" class="select">
+                                    <option value="">– No music –</option>
+                                </select>
+
+                                <label class="field-label" style="margin-top:8px;">Volume</label>
+                                <input id="musicVolume" type="range" min="0" max="1" step="0.05" value="0.25" />
+                                <div class="range-value"><span id="musicVolumeLabel">0.25</span></div>
+
+                                <button id="saveMusicBtn" class="btn ghost">💾 Save music</button>
 
                                 <h3>
                                     Foreground Scale

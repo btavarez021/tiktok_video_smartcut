@@ -24,7 +24,7 @@ from assistant_api import (
     set_export_mode,
     load_all_analysis_results,
 )
-from tiktok_assistant import upload_raw_file
+from tiktok_assistant import upload_raw_file, config_path, yaml
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)
@@ -183,6 +183,37 @@ def route_cta():
     voiceover = data.get("voiceover")
     result = api_set_cta(enabled, text, voiceover)
     return jsonify(result)
+
+# ---------------------------------
+# Music
+# ---------------------------------
+@app.route("/api/music_list", methods=["GET"])
+def api_music_list():
+    music_dir = os.path.join(os.path.dirname(__file__), "music")
+    files = [f for f in os.listdir(music_dir) if f.lower().endswith(".mp3")]
+    return {"files": files}
+
+@app.route("/api/music", methods=["POST"])
+def api_music():
+    data = request.get_json(force=True)
+    enabled = bool(data.get("enabled"))
+    file = data.get("file") or ""
+    volume = float(data.get("volume", 0.25))
+
+    with open(config_path, "r") as f:
+        cfg = yaml.safe_load(f)
+
+    if "render" not in cfg:
+        cfg["render"] = {}
+
+    cfg["render"]["music_enabled"] = enabled
+    cfg["render"]["music_file"] = file
+    cfg["render"]["music_volume"] = volume
+
+    with open(config_path, "w") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+
+    return {"status": "ok"}
 
 
 # ---------------------------------
