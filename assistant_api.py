@@ -16,6 +16,7 @@ from tiktok_assistant import (
     S3_BUCKET_NAME,
     EXPORT_PREFIX,
     S3_REGION,
+    RAW_PREFIX,
     generate_signed_download_url,
     list_videos_from_s3,
     download_s3_video,
@@ -85,18 +86,54 @@ def load_all_analysis_results() -> Dict[str, str]:
 
     return results
 
+# -----------------------------------------
+# Upload Order Tracking (S3 JSON)
+# -----------------------------------------
+
+UPLOAD_ORDER_KEY = RAW_PREFIX + "order.json"
+
+
+def load_upload_order() -> List[str]:
+    """Load upload order from S3. Returns [] if none exists."""
+    try:
+        obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key=UPLOAD_ORDER_KEY)
+        data = json.loads(obj["Body"].read().decode("utf-8"))
+        return data.get("order", [])
+    except Exception:
+        return []
+
+
+def save_upload_order(order: List[str]) -> None:
+    """Save upload order to S3 as a JSON file."""
+    try:
+        payload = json.dumps({"order": order}, indent=2).encode("utf-8")
+        s3.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=UPLOAD_ORDER_KEY,
+            Body=payload,
+            ContentType="application/json"
+        )
+    except Exception as e:
+        print(f"[UPLOAD_ORDER] Failed to save order.json: {e}")
 
 # -------------------------------
 # Helper: sync S3 videos to local folder
 # -------------------------------
+
 def _sync_s3_videos_to_local() -> List[str]:
     os.makedirs(video_folder, exist_ok=True)
 
-    keys = list_videos_from_s3()
-    log_step(f"[SYNC] Found {len(keys)} raw S3 videos")
+    ordered_keys = load_upload_order()
+
+    # Fallback if no order.json
+    if not ordered_keys:
+        ordered_keys = list_videos_from_s3()
+        log_step("[ORDER] No order.json found; using S3 default order")
+    else:
+        log_step(f"[ORDER] Loaded upload order.json with {len(ordered_keys)} entries")
     local_files = []
 
-    for key in keys:
+    for key in ordered_keys:
         base, ext = os.path.splitext(os.path.basename(key))
         basename = f"{base.lower()}{ext.lower()}"
         local_path = os.path.join(video_folder, basename)
@@ -201,7 +238,7 @@ def api_generate_yaml() -> Dict[str, Any]:
     files_for_prompt: List[str] = []
     analyses_for_prompt: List[str] = []
 
-    for fname in sorted(local_files):
+    for fname in local_files:  
         key_norm = fname.lower()
         desc = analyses_map.get(key_norm)
         if not desc:

@@ -110,7 +110,18 @@ def upload_raw_file(file_storage) -> str:
     s3.upload_fileobj(file_storage, S3_BUCKET_NAME, key)
     log_step(f"Uploaded to {key}")
 
+    # -------------------------
+    # Update upload order list
+    # -------------------------
+    order = load_upload_order()
+
+    if key not in order:
+        order.append(key)
+        save_upload_order(order)
+        log_step(f"[UPLOAD_ORDER] Added {key}")
+
     return key
+
 
 
 def download_s3_video(key: str) -> Optional[str]:
