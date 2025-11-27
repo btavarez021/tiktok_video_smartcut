@@ -370,19 +370,48 @@ textarea::-webkit-scrollbar-thumb,
 /* ---------------------------------------
    Radio + Checkbox
 ---------------------------------------- */
-.radio,
-.checkbox,
-.checkbox-row {
+
+/* ------------ BEAUTIFUL CUSTOM RADIO BUTTONS (MOBILE SAFE) ------------ */
+.radio {
+    position: relative;
+    padding-left: 28px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 15px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    cursor: pointer;
 }
 
-.radio input,
-.checkbox input,
-.checkbox-row input {
-    transform: scale(1.2);
+.radio input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    height: 0;
+    width: 0;
+}
+
+/* Outer circle */
+.radio:before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: transparent;
+}
+
+/* Inner dot when checked */
+.radio input[type="radio"]:checked + span:after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 7px;
+    width: 10px;
+    height: 10px;
+    background: var(--primary);
+    border-radius: 50%;
 }
 
 /* Export mode container (desktop + mobile friendly) */
