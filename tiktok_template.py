@@ -14,9 +14,7 @@ if not hasattr(Image, "ANTIALIAS"):
     Image.NEAREST = _Image.Resampling.NEAREST
 
 import yaml
-
 from utils_video import enforce_mp4
-
 from moviepy.editor import (
     VideoFileClip,
     TextClip,
