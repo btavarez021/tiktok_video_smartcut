@@ -10,7 +10,6 @@ credentials.json
 *.log
 video_downloader_tkinter.py
 *.json
-*.txt
 working_project  
 venv/
 .venv/
@@ -18,3 +17,4 @@ __pycache__/
 *.__pycache__
 .env
 /working_project_w_ui
+export_mode.txt
