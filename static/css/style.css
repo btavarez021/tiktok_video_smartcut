@@ -745,3 +745,18 @@ h3 .style-check {
         margin: 0;
     }
 }
+
+/* spacing between render mode radios, labels, and export button */
+.render-controls {
+    margin-top: 18px;          /* space above radios */
+    margin-bottom: 18px;       /* space below radios */
+}
+
+.render-controls .radio-row {
+    margin-bottom: 10px;       /* space between each radio label */
+}
+
+#exportBtn {
+    margin-top: 12px !important;  /* push button away from radios */
+}
+
