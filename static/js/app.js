@@ -645,10 +645,11 @@ function initMusicVolumeSlider() {
 function initMusicPreview() {
     const btn = document.getElementById("musicPreviewBtn");
     const select = document.getElementById("musicFile");
+    const status = document.getElementById("musicPreviewStatus");
 
-    if (!btn || !select) return;
+    if (!btn || !select || !status) return;
 
-    // When you change songs → stop & reset
+    // Reset player when switching songs
     select.addEventListener("change", () => {
         if (previewAudio) {
             previewAudio.pause();
@@ -657,6 +658,7 @@ function initMusicPreview() {
         previewAudio = null;
         previewPlaying = false;
         btn.textContent = "▶ Preview";
+        status.textContent = "";                        // 🔥 Clear status
     });
 
     btn.addEventListener("click", () => {
@@ -667,22 +669,27 @@ function initMusicPreview() {
             return;
         }
 
-        // Create audio object on first play
+        // Create new Audio instance if needed
         if (!previewAudio) {
-            previewAudio = new Audio(`/api/music_file/${file}`); // ✅ FIXED ROUTE
+            previewAudio = new Audio(`/api/music_file/${file}`);
             previewAudio.volume = 0.8;
 
             previewAudio.onplay = () => {
                 previewPlaying = true;
                 btn.textContent = "⏸ Pause";
+                status.textContent = `🎵 Now Playing: ${file}`;   // 🔥 NEW
             };
+
             previewAudio.onpause = () => {
                 previewPlaying = false;
                 btn.textContent = "▶ Preview";
+                status.textContent = `⏸ Paused: ${file}`;        // 🔥 NEW
             };
+
             previewAudio.onended = () => {
                 previewPlaying = false;
                 btn.textContent = "▶ Preview";
+                status.textContent = "";                         // 🔥 Clear when done
             };
         }
 
@@ -693,6 +700,7 @@ function initMusicPreview() {
         }
     });
 }
+
 
 
 
