@@ -499,25 +499,35 @@ async function loadMusicSettingsFromYaml() {
     }
 }
 
-async function saveMusicSettings() {
+document.getElementById("saveMusicBtn").addEventListener("click", () => {
     const enabled = document.getElementById("musicEnabled").checked;
-    const file = document.getElementById("musicFile").value;
-    const volume = parseFloat(document.getElementById("musicVolume").value);
+    const file = document.getElementById("musicFile").value || "";
+    const volume = parseFloat(document.getElementById("musicVolume").value || "0.25");
 
-    const styleStatus = document.getElementById("styleStatus");
-    styleStatus.textContent = "Saving music settings…";
+    fetch("/api/load_yaml")
+        .then(res => res.json())
+        .then(cfg => {
+            if (!cfg.render) cfg.render = {};
 
-    try {
-        await jsonFetch("/api/music", {
-            method: "POST",
-            body: JSON.stringify({ enabled, file, volume })
-        });
-        styleStatus.textContent = "Music settings saved.";
-        await loadConfigAndYaml();
-    } catch (err) {
-        styleStatus.textContent = `Error: ${err.message}`;
-    }
-}
+            cfg.render.music_enabled = enabled;
+            cfg.render.music_file = file;
+            cfg.render.music_volume = volume;
+
+            // ❌ Remove old music block
+            if (cfg.music) delete cfg.music;
+
+            return fetch("/api/save_yaml", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(cfg)
+            });
+        })
+        .then(() => {
+            showStatus("Music saved!", "success");
+        })
+        .catch(() => showStatus("Error saving music", "error"));
+});
+
 
 function initMusicVolumeSlider() {
     const slider = document.getElementById("musicVolume");
