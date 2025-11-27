@@ -3,6 +3,7 @@ import logging
 import subprocess
 import gc
 from typing import List, Dict, Any, Optional
+
 # Pillow compatibility fix for MoviePy
 from PIL import Image
 if not hasattr(Image, "ANTIALIAS"):
@@ -24,11 +25,12 @@ from moviepy.editor import (
     CompositeAudioClip,
     concatenate_videoclips,
     ColorClip,
-    vfx 
+    vfx,
 )
 
 from assistant_log import log_step
 import imageio_ffmpeg
+
 os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
 
 # -----------------------------------------
@@ -45,6 +47,7 @@ logger = logging.getLogger(__name__)
 
 TARGET_W = 1080
 TARGET_H = 1920
+
 
 # -----------------------------------------
 # FFmpeg normalization
@@ -103,6 +106,7 @@ def normalize_video_ffmpeg(src: str, dst: str) -> None:
             log_step("[FFMPEG ERROR] Video normalization failed")
 
         raise
+
 
 # -----------------------------------------
 # Config helpers
@@ -241,7 +245,7 @@ def _build_timeline_from_config(cfg: Dict[str, Any]) -> VideoFileClip:
 # Caption collection
 # -----------------------------------------
 def _collect_all_captions(cfg: Dict[str, Any]) -> List[str]:
-    caps = []
+    caps: List[str] = []
     if cfg.get("first_clip", {}).get("text"):
         caps.append(cfg["first_clip"]["text"])
 
@@ -256,7 +260,7 @@ def _collect_all_captions(cfg: Dict[str, Any]) -> List[str]:
 
 
 # -----------------------------------------
-# Text overlay (caption or CTA)
+# Text overlay (caption helper)
 # -----------------------------------------
 def _try_text_overlay(
     base: VideoFileClip,
@@ -266,7 +270,10 @@ def _try_text_overlay(
     fontsize: int = 60,
     position: str = "bottom",
 ):
-    """Create ONLY the overlay elements (box + text), no timeline replacement."""
+    """
+    Create ONLY the overlay elements (box + text) for captions, no timeline replacement.
+    Returns a list [box_clip, text_clip] or None.
+    """
 
     text = (text or "").strip()
     if not text:
@@ -296,7 +303,6 @@ def _try_text_overlay(
         txt = txt.set_position(("center", y))
         box = box.set_position(("center", y))
 
-        # Return overlay *elements*, not a timeline
         return [box, txt]
 
     except Exception as e:
@@ -305,42 +311,49 @@ def _try_text_overlay(
 
 
 # -----------------------------------------
-# CTA overlay
+# CTA outro (blurred last seconds + CTA text)
 # -----------------------------------------
-
-def apply_cta_outro(timeline, cfg):
+def apply_cta_outro(base: VideoFileClip, cfg: Dict[str, Any]) -> VideoFileClip:
     """
-    Produces a proper OUTRO segment:
-    - Cuts last X seconds from main video
-    - Blurs that last segment
-    - Adds CTA text
-    - Returns: concatenated full video + outro
+    Replaces the LAST X seconds of the video with a blurred CTA outro:
+    - Main part: 0 → (total - duration)
+    - Outro: blurred last segment + CTA text box
+
+    Duration stays the SAME overall.
     """
 
-    cta = cfg.get("cta", {})
-    if not cta.get("enabled"):
-        return timeline  # no CTA → return original
+    cta = cfg.get("cta", {}) or {}
+    enabled = bool(cta.get("enabled"))
+    text = (cta.get("text") or "").strip()
 
-    text = cta.get("text", "").strip()
-    if not text:
-        return timeline
+    if not enabled or not text:
+        return base
 
-    duration = float(cta.get("duration", 3.0))
-    total = timeline.duration
-    start = max(0, total - duration)
-
-    # --- Split timeline into (main) + outro ---
-    main = timeline.subclip(0, start)
-    outro = timeline.subclip(start, total)
-
-    # --- Blur outro ---
     try:
-        outro_blur = vfx.blur.blur(outro, 25)
+        duration = float(cta.get("duration", 3.0))
+    except Exception:
+        duration = 3.0
+
+    total = base.duration
+    if total <= 0.5:
+        return base
+
+    # Clamp CTA duration
+    duration = max(0.5, min(duration, total * 0.6))
+    start = max(0.0, total - duration)
+
+    # Split into main + outro
+    main = base.subclip(0, start)
+    outro = base.subclip(start, total)
+
+    # Blur outro
+    try:
+        outro_blur = outro.fx(vfx.blur, 25)
     except Exception as e:
         logger.warning(f"[CTA] Blur failed, using plain outro: {e}")
         outro_blur = outro
 
-    # --- CTA Text Overlay ---
+    # CTA Text overlay on blurred outro
     try:
         txt = TextClip(
             text,
@@ -348,25 +361,30 @@ def apply_cta_outro(timeline, cfg):
             font="DejaVu-Sans-Bold",
             color="white",
             method="caption",
-            size=(TARGET_W - 160, None)
-        ).set_duration(duration)
+            size=(TARGET_W - 160, None),
+        ).set_duration(outro_blur.duration)
 
-        # simple dark box
-        from moviepy.editor import ColorClip
-        box = ColorClip(size=(TARGET_W, txt.h + 60), color=(0, 0, 0)).set_opacity(0.45)
-        box = box.set_duration(duration)
+        box = ColorClip(
+            size=(TARGET_W, txt.h + 60),
+            color=(0, 0, 0),
+        ).set_duration(outro_blur.duration).set_opacity(0.45)
 
-        txt = txt.set_position(("center", TARGET_H * 0.80))
-        box = box.set_position(("center", TARGET_H * 0.80))
+        y = TARGET_H * 0.80
+        txt = txt.set_position(("center", y))
+        box = box.set_position(("center", y))
 
-        outro_final = CompositeVideoClip([outro_blur, box, txt], size=(TARGET_W, TARGET_H))
+        outro_final = CompositeVideoClip(
+            [outro_blur, box, txt],
+            size=(TARGET_W, TARGET_H),
+        )
 
     except Exception as e:
         logger.warning(f"[CTA] Text overlay failed: {e}")
         outro_final = outro_blur
 
-    # --- Return clean concatenation ---
+    # Re-stitch main + outro_final
     return concatenate_videoclips([main, outro_final], method="compose")
+
 
 # -----------------------------------------
 # TTS generation
@@ -420,7 +438,7 @@ def _build_tts_audio(cfg, total_duration):
 # -----------------------------------------
 # Main render
 # -----------------------------------------
-def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
+def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
 
     cfg = _load_config()
     if not cfg:
@@ -428,45 +446,63 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
 
     log_step("Building 1080x1920 timeline…")
 
-    # Build base clip timeline (first/middle/last)
+    # 1) Base timeline
     base = _build_timeline_from_config(cfg)
     base = base.set_audio(base.audio)
     total = base.duration
 
-    overlays = []   # store text/cta overlay layers
+    # Figure out CTA duration (for caption layout)
+    cta_cfg = cfg.get("cta", {}) or {}
+    cta_enabled = bool(cta_cfg.get("enabled") and (cta_cfg.get("text") or "").strip())
+    if cta_enabled:
+        try:
+            cta_duration = float(cta_cfg.get("duration", 3.0))
+        except Exception:
+            cta_duration = 3.0
+        cta_duration = max(0.5, min(cta_duration, total * 0.6))
+    else:
+        cta_duration = 0.0
 
-    # ----- CAPTIONS (segment-aligned overlays) -----
+    # Caption region ends BEFORE CTA outro so CTA is clean
+    if cta_enabled and total > cta_duration:
+        caption_total = total - cta_duration
+    else:
+        caption_total = total
+
+    overlays: List[VideoFileClip] = []
+
+    # 2) Captions (only over 0 → caption_total)
     caps = _collect_all_captions(cfg)
-    if caps:
+    if caps and caption_total > 0:
         log_step("Applying caption overlays…")
         try:
             n = len(caps)
-            seg = total / n
+            seg = caption_total / max(1, n)
 
-            for i, c in enumerate(caps):
+            for i, text in enumerate(caps):
                 start = i * seg
-                end = min(total, (i + 1) * seg)
+                end = min(caption_total, (i + 1) * seg)
                 duration = max(0.5, end - start)
 
                 layer = _try_text_overlay(
                     base=base,
-                    text=c,
+                    text=text,
                     duration=duration,
                     start=start,
                     fontsize=54,
                     position="bottom",
                 )
-
                 if layer:
                     overlays.extend(layer)
 
         except Exception as e:
             logger.warning("Caption overlay failed: %s", e)
 
-    # ----- CTA overlay -----
+    # 3) Apply CTA outro (visual) AFTER we've decided caption timing
     base = apply_cta_outro(base, cfg)
+    total = base.duration  # unchanged, but keep in sync
 
-    # ----- TTS Voiceover -----
+    # 4) TTS Voiceover
     base_audio = base.audio
     tts_audio = _build_tts_audio(cfg, total)
 
@@ -479,19 +515,17 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
             ])
             mix.clips = [x for x in mix.clips if x]
             base = base.set_audio(mix)
-        except:
-            pass
+        except Exception:
+            if base_audio:
+                base = base.set_audio(base_audio)
     else:
         if base_audio:
             base = base.set_audio(base_audio)
 
-    # ----- FINAL COMPOSITION -----
-    final = CompositeVideoClip(
-        [base] + overlays,
-        size=(TARGET_W, TARGET_H)
-    )
+    # 5) Final composite
+    final = CompositeVideoClip([base] + overlays, size=(TARGET_W, TARGET_H))
 
-    # ----- RENDER SETTINGS -----
+    # 6) Render settings
     bitrate = "6000k" if optimized else "4000k"
     preset = "slow" if optimized else "veryfast"
 
@@ -518,5 +552,6 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
     )
 
     log_step("Render complete.")
+    gc.collect()
 
     return out
