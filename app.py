@@ -120,22 +120,11 @@ def route_get_config():
 
 
 @app.route("/api/save_yaml", methods=["POST"])
-def save_yaml():
-    cfg = request.get_json()
-
-    # If wrapped inside {"yaml": "..."} keep supporting old format
-    if isinstance(cfg, dict) and "yaml" in cfg:
-        yaml_text = cfg["yaml"]
-        data = yaml.safe_load(yaml_text)
-    else:
-        # Now cfg *is* the actual config dict!
-        data = cfg
-
-    with open(config_path, "w") as f:
-        yaml.safe_dump(data, f)
-
-    return jsonify({"status": "ok"})
-
+def route_save_yaml():
+    data = request.get_json() or {}
+    yaml_text = data.get("yaml", "")
+    result = api_save_yaml(yaml_text)
+    return jsonify(result)
 
 
 # ---------------------------------

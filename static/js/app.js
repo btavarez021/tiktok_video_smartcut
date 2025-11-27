@@ -525,18 +525,24 @@ document.getElementById("saveMusicBtn").addEventListener("click", () => {
 
             if (cfg.music) delete cfg.music;
 
+            // Convert JSON → YAML STRING
+            const yamlText = jsyaml.dump(cfg);
+
             return fetch("/api/save_yaml", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(cfg)
+                body: JSON.stringify({ yaml: yamlText })
             });
         })
         .then(() => {
             showStatus("Music saved!", "success");
             loadConfigAndYaml();
         })
-        .catch(err => showStatus("Error saving music: " + err.message, "error"));
+        .catch(err =>
+            showStatus("Error saving music: " + err.message, "error")
+        );
 });
+
 
 
 
