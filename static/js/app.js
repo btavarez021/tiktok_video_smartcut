@@ -669,27 +669,23 @@ function initMusicPreview() {
 
         // Create audio object on first play
         if (!previewAudio) {
-            previewAudio = new Audio(`/music/${file}`);
+            previewAudio = new Audio(`/api/music_file/${file}`); // ✅ FIXED ROUTE
             previewAudio.volume = 0.8;
 
-            // TRUE event-driven state (Safari friendly)
             previewAudio.onplay = () => {
                 previewPlaying = true;
                 btn.textContent = "⏸ Pause";
             };
-
             previewAudio.onpause = () => {
                 previewPlaying = false;
                 btn.textContent = "▶ Preview";
             };
-
             previewAudio.onended = () => {
                 previewPlaying = false;
                 btn.textContent = "▶ Preview";
             };
         }
 
-        // Toggle play/pause using ACTUAL audio state
         if (previewAudio.paused) {
             previewAudio.play();
         } else {
@@ -697,6 +693,7 @@ function initMusicPreview() {
         }
     });
 }
+
 
 
 // Foreground scale
