@@ -24,10 +24,10 @@ from moviepy.editor import (
     AudioFileClip,
     CompositeAudioClip,
     concatenate_videoclips,
-    ColorClip,
-    vfx,         
+    ColorClip,   
 )
 from moviepy.audio.fx.all import audio_fadeout
+from moviepy.video.fx.all import blur
 
 from assistant_log import log_step
 import imageio_ffmpeg
@@ -423,51 +423,31 @@ def _build_tts_audio(cfg, _total_duration: float):
 # -----------------------------------------
 # CTA outro – blur last seconds with CTA text
 # -----------------------------------------
-def apply_cta_outro(main: VideoFileClip,
-                    cta_source: Optional[VideoFileClip],
-                    cfg: Dict[str, Any]) -> VideoFileClip:
-    """
-    CTA behavior (Option B + clean tail):
-    - main: all clips + captions
-    - cta_source: clean tail of last clip (no captions)
-    - CTA: last N seconds of cta_source, blurred, with CTA text on top,
-      keeping only base audio (no TTS).
-    """
-    cta_cfg = cfg.get("cta", {}) or {}
-    if not cta_cfg.get("enabled"):
-        return main
+def apply_cta_outro(timeline, cfg):
+    cta = cfg.get("cta", {})
+    if not cta.get("enabled"):
+        return timeline
 
-    if cta_source is None:
-        return main
-
-    text = (cta_cfg.get("text") or "").strip()
+    text = cta.get("text", "").strip()
     if not text:
-        return main
+        return timeline
 
-    cta_duration = float(cta_cfg.get("duration", 3.0))
-    total_cta = cta_source.duration
-    if total_cta <= 0:
-        return main
+    duration = float(cta.get("duration", 3.0))
+    total = timeline.duration
+    start = max(0, total - duration)
 
-    if cta_duration >= total_cta:
-        outro = cta_source
-    else:
-        start = total_cta - cta_duration
-        outro = cta_source.subclip(start, total_cta)
+    # Split timeline
+    main = timeline.subclip(0, start)
+    outro = timeline.subclip(start, total)
 
-    # blur video only (downscale to save memory, then back up)
+    # BLUR OUTRO using MoviePy native blur
     try:
-        small = outro.resize(0.70)                    # downscale for speed
-        # FIX 1: Use vfx.blur via .fx() method
-        blurred_small = small.fx(vfx.blur, sigma=12) 
-        outro_blur = blurred_small.resize((TARGET_W, TARGET_H))
-
-        outro_blur = outro_blur.set_duration(outro.duration)
-        outro_blur = outro_blur.set_audio(outro.audio)  # keep last clip's audio
+        outro_blur = blur(outro, radius=25)
     except Exception as e:
-        logger.warning(f"[CTA] Blur failed, using unblurred outro: {e}")
+        logger.warning(f"[CTA BLUR FAILED] {e}")
         outro_blur = outro
 
+    # CTA Text
     try:
         txt = TextClip(
             text,
@@ -476,32 +456,21 @@ def apply_cta_outro(main: VideoFileClip,
             color="white",
             method="caption",
             size=(TARGET_W - 160, None)
-        ).set_duration(outro_blur.duration)
+        ).set_duration(duration)
 
-        box = ColorClip(size=(TARGET_W, txt.h + 60), color=(0, 0, 0))\
-            .set_opacity(0.45)\
-            .set_duration(outro_blur.duration)
+        box = ColorClip(size=(TARGET_W, txt.h + 60), color=(0, 0, 0)).set_opacity(0.45)
+        box = box.set_duration(duration)
 
-        y = TARGET_H * 0.80
-        txt = txt.set_position(("center", y))
-        box = box.set_position(("center", y))
+        txt = txt.set_position(("center", TARGET_H * 0.80))
+        box = box.set_position(("center", TARGET_H * 0.80))
 
-        # subtle fade on CTA overlay
-        # FIX 2: Use vfx.fadein and vfx.fadeout
-        txt = txt.fx(vfx.fadein, 0.2).fx(vfx.fadeout, 0.2)
-        box = box.fx(vfx.fadein, 0.2).fx(vfx.fadeout, 0.2)
-
-        outro_final = CompositeVideoClip(
-            [outro_blur, box, txt],
-            size=(TARGET_W, TARGET_H),
-        ).set_duration(outro_blur.duration)
+        outro_final = CompositeVideoClip([outro_blur, box, txt], size=(TARGET_W, TARGET_H))
 
     except Exception as e:
-        logger.warning(f"[CTA] Text overlay failed: {e}")
+        logger.warning(f"[CTA TEXT FAILED] {e}")
         outro_final = outro_blur
 
-    final = concatenate_videoclips([main, outro_final], method="compose")
-    return final.set_duration(main.duration + outro_final.duration)
+    return concatenate_videoclips([main, outro_final], method="compose")
 
 
 
