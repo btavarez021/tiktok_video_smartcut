@@ -7,6 +7,7 @@ let previewAudio = null;
 let previewPlaying = false;
 
 
+
 // ================================
 // Utility helpers
 // ================================
@@ -855,6 +856,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // Initial YAML + analyses
     refreshAnalyses();
     loadConfigAndYaml();
+
+    document.querySelectorAll(".acc-header").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const sec = btn.parentElement;
+            sec.classList.toggle("open");
+        });
+    });
 
     // Buttons / actions (all optional-chained)
     document.getElementById("analyzeBtn")?.addEventListener("click", analyzeClips);

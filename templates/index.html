@@ -178,134 +178,124 @@
 
                 <!-- STEP 4 -->
                 <section class="card step-card" id="step-4">
-                    <div class="card-header">
-                        <h2>Step 4 · Style, Voice & Timing</h2>
-                        <p class="card-subtitle">Overlay style, pacing, TTS, CTA, and foreground scale.</p>
-                    </div>
+                  <div class="card-header">
+                      <h2>Step 4 · Style, Voice & Timing</h2>
+                      <p class="card-subtitle">Overlay, pacing, voice, CTA, music and scale.</p>
+                  </div>
 
-                    <div class="card-body">
-                        <div class="split">
+                  <div class="card-body accordion">
 
-                            <!-- LEFT PANEL -->
-                            <div class="split-panel">
-                                <h3>
-                                    Overlay Style
-                                    <span id="overlayCheck" class="style-check">✔</span>
-                                </h3>
+                      <!-- 4A — Overlay & Timing -->
+                      <div class="acc-section">
+                          <button class="acc-header">🎨 Overlay & Timing</button>
+                          <div class="acc-body">
 
-                                <label class="field-label">Caption tone</label>
-                                <select id="overlayStyle" class="select">
-                                    <option value="travel_blog">Travel blogger</option>
-                                    <option value="punchy">Punchy & energetic</option>
-                                    <option value="cinematic">Cinematic & moody</option>
-                                    <option value="descriptive">Literal & descriptive</option>
-                                    <option value="influencer">Influencer voice</option>
-                                </select>
+                              <h3>Overlay Style</h3>
+                              <label class="field-label">Caption tone</label>
+                              <select id="overlayStyle" class="select">
+                                  <option value="travel_blog">Travel blogger</option>
+                                  <option value="punchy">Punchy & energetic</option>
+                                  <option value="cinematic">Cinematic & moody</option>
+                                  <option value="descriptive">Literal & descriptive</option>
+                                  <option value="influencer">Influencer voice</option>
+                              </select>
 
-                                <button id="applyOverlayBtn" class="btn secondary">✨ Apply overlay</button>
-                                <div id="overlayStatus" class="hint-text"></div>
+                              <button id="applyOverlayBtn" class="btn secondary">✨ Apply overlay</button>
+                              <div id="overlayStatus" class="hint-text"></div>
 
-                                <h3>Timings</h3>
-                                <div class="row">
-                                    <button id="applyStandardTimingBtn" class="btn ghost">
-                                        ⏱ Standard
-                                        <span id="timingCheckStd" class="style-check">✔</span>
-                                    </button>
+                              <h3>Timings</h3>
+                              <div class="row">
+                                  <button id="applyStandardTimingBtn" class="btn ghost">⏱ Standard</button>
+                                  <button id="applyCinematicTimingBtn" class="btn ghost">🎬 Cinematic</button>
+                              </div>
+                              <div id="timingStatus" class="hint-text"></div>
 
-                                    <button id="applyCinematicTimingBtn" class="btn ghost">
-                                        🎬 Cinematic
-                                        <span id="timingCheckCinema" class="style-check">✔</span>
-                                    </button>
-                                </div>
-                                <div id="timingStatus" class="hint-text"></div>
-                            </div>
+                          </div>
+                      </div>
 
-                            <!-- RIGHT PANEL -->
-                            <div class="split-panel">
-                                <h3>
-                                    Voice (TTS)
-                                    <span id="ttsCheck" class="style-check">✔</span>
-                                </h3>
+                      <!-- 4B — Voice + CTA -->
+                      <div class="acc-section">
+                          <button class="acc-header">🎤 Voice (TTS) & CTA</button>
+                          <div class="acc-body">
 
-                                <div class="checkbox-row">
-                                    <input type="checkbox" id="ttsEnabled" />
-                                    <label for="ttsEnabled">Enable TTS voiceover</label>
-                                </div>
+                              <h3>Voice (TTS)</h3>
 
-                                <label class="field-label">Voice</label>
-                                <select id="ttsVoice" class="select">
-                                    <option value="alloy">Alloy</option>
-                                    <option value="verse">Verse</option>
-                                    <option value="lily">Lily</option>
-                                    <option value="ballad">Ballad</option>
-                                </select>
+                              <div class="checkbox-row">
+                                  <input type="checkbox" id="ttsEnabled" />
+                                  <label for="ttsEnabled">Enable TTS voiceover</label>
+                              </div>
 
-                                <button id="saveTtsBtn" class="btn ghost">💾 Save TTS</button>
+                              <label class="field-label">Voice</label>
+                              <select id="ttsVoice" class="select">
+                                  <option value="alloy">Alloy</option>
+                                  <option value="verse">Verse</option>
+                                  <option value="lily">Lily</option>
+                                  <option value="ballad">Ballad</option>
+                              </select>
 
-                                <h3>
-                                    CTA
-                                    <span id="ctaCheck" class="style-check">✔</span>
-                                </h3>
+                              <button id="saveTtsBtn" class="btn ghost">💾 Save TTS</button>
 
-                                <div class="checkbox-row">
-                                    <input type="checkbox" id="ctaEnabled" />
-                                    <label for="ctaEnabled">Enable CTA overlay</label>
-                                </div>
+                              <h3>CTA</h3>
 
-                                <label class="field-label">CTA text</label>
-                                <input id="ctaText" class="input" placeholder="Tap for tonight’s deals 🔗" />
+                              <div class="checkbox-row">
+                                  <input type="checkbox" id="ctaEnabled" />
+                                  <label for="ctaEnabled">Enable CTA overlay</label>
+                              </div>
 
-                                <div class="checkbox-row">
-                                    <input type="checkbox" id="ctaVoiceover" />
-                                    <label for="ctaVoiceover">Include in voiceover</label>
-                                </div>
+                              <label class="field-label">CTA text</label>
+                              <input id="ctaText" class="input" placeholder="Tap to book with today’s deals 🔗" />
 
-                                <button id="saveCtaBtn" class="btn ghost">💾 Save CTA</button>
-                                <h3>
-                                    Background Music
-                                    <span id="musicCheck" class="style-check">✔</span>
-                                </h3>
+                              <div class="checkbox-row">
+                                  <input type="checkbox" id="ctaVoiceover" />
+                                  <label for="ctaVoiceover">Include in voiceover</label>
+                              </div>
 
-                                <div class="checkbox-row">
-                                    <input type="checkbox" id="musicEnabled" />
-                                    <label for="musicEnabled">Enable background music</label>
-                                </div>
+                              <button id="saveCtaBtn" class="btn ghost">💾 Save CTA</button>
 
-                                <label class="field-label">Music track</label>
-                                <select id="musicFile" class="select">
-                                    <option value="">– No music –</option>
-                                </select>
+                          </div>
+                      </div>
 
-                                <label class="field-label" style="margin-top:8px;">Volume</label>
-                                <input id="musicVolume" type="range" min="0" max="1" step="0.05" value="0.25" />
-                                <div class="range-value"><span id="musicVolumeLabel">0.25</span></div>
+                      <!-- 4C — Music + FG Scale -->
+                      <div class="acc-section">
+                          <button class="acc-header">🎵 Music & Foreground Scale</button>
+                          <div class="acc-body">
 
-                                <div class="music-preview">
-                                    <button id="musicPreviewBtn" class="btn primary">▶ Preview</button>
-                                    <span id="musicPreviewStatus" class="hint-text"></span>
-                                </div>
+                              <h3>Background Music</h3>
 
-                                <button id="saveMusicBtn" class="btn ghost">💾 Save music</button>
+                              <div class="checkbox-row">
+                                  <input type="checkbox" id="musicEnabled" />
+                                  <label for="musicEnabled">Enable background music</label>
+                              </div>
 
-                                <h3>
-                                    Foreground Scale
-                                    <span id="fgCheck" class="style-check">✔</span>
-                                </h3>
+                              <label class="field-label">Music track</label>
+                              <select id="musicFile" class="select">
+                                  <option value="">– No music –</option>
+                              </select>
 
-                                <label class="field-label">Default zoom</label>
-                                <input id="fgScale" type="range" min="0.8" max="1.3" step="0.05" value="1.0" />
+                              <label class="field-label" style="margin-top:8px;">Volume</label>
+                              <input id="musicVolume" type="range" min="0" max="1" step="0.05" value="0.25" />
+                              <div class="range-value"><span id="musicVolumeLabel">0.25</span></div>
 
-                                <div class="range-value">
-                                    <span id="fgScaleValue">1.0</span>x
-                                </div>
+                              <div class="row">
+                                  <button id="saveMusicBtn" class="btn ghost">💾 Save music</button>
+                                  <button id="musicPreviewBtn" class="btn primary">▶ Preview</button>
+                              </div>
+                              <span id="musicPreviewStatus" class="hint-text"></span>
 
-                                <button id="saveFgScaleBtn" class="btn ghost">💾 Save scale</button>
+                              <h3>Foreground Scale</h3>
+                              <label class="field-label">Default zoom</label>
+                              <input id="fgScale" type="range" min="0.8" max="1.3" step="0.05" value="1.0" />
+                              <div class="range-value"><span id="fgScaleValue">1.0</span>x</div>
 
-                                <div id="styleStatus" class="hint-text"></div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                              <button id="saveFgScaleBtn" class="btn ghost">💾 Save scale</button>
+
+                          </div>
+                      </div>
+
+                      <div id="styleStatus" class="hint-text"></div>
+
+                  </div>
+              </section>
 
                 <!-- STEP 5 -->
                 <section class="card step-card" id="step-5">

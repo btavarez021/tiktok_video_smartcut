@@ -771,3 +771,28 @@ h3 .style-check {
 #saveMusicBtn {
     margin-left: 0;  /* ensures no weird default margins */
 }
+
+.accordion .acc-header {
+    width: 100%;
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 6px;
+}
+
+.acc-body {
+    display: none;
+    padding: 12px 4px 20px 4px;
+    border-left: 2px solid #444;
+    margin-left: 6px;
+    margin-bottom: 16px;
+}
+
+.acc-section.open .acc-body {
+    display: block;
+}
