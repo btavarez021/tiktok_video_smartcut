@@ -236,7 +236,7 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
         "  text: <one-sentence caption>",
         "  scale: 1.0",
         "",
-       "render:",
+        "render:",
         "  tts_enabled: false",
         '  tts_voice: "alloy"',
         "  fg_scale_default: 1.0",
