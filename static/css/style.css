@@ -6,6 +6,7 @@
     --card: #1a1a1b;
     --card-lighter: #222224;
     --text: #e5e5e7;
+    --text-strong: #f5f5f7;
     --text-dim: #9b9b9f;
     --primary: #4f8bff;
     --primary-hover: #6a9eff;
@@ -98,6 +99,8 @@ textarea::-webkit-scrollbar-thumb,
 .brand-text h1 {
     margin: 0;
     font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-strong);
 }
 
 .brand-text p {
@@ -184,6 +187,8 @@ textarea::-webkit-scrollbar-thumb,
 .card-header h2 {
     margin: 0;
     font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-strong);
 }
 
 .card-subtitle {
@@ -233,6 +238,7 @@ textarea::-webkit-scrollbar-thumb,
 .analysis-file {
     font-weight: 600;
     margin-bottom: 4px;
+    color: var(--text-strong);
 }
 
 .analysis-desc {
@@ -240,7 +246,7 @@ textarea::-webkit-scrollbar-thumb,
     font-size: 0.9rem;
 }
 
-/* FIX: prevent log from overflowing horizontally */
+/* Log view */
 #statusLog,
 .log-view {
     background: #111;
@@ -367,23 +373,6 @@ textarea::-webkit-scrollbar-thumb,
     background: var(--ghost-hover);
 }
 
-
-/* Export mode container (desktop + mobile friendly) */
-#exportModeContainer {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 14px;
-    align-items: center;
-}
-
-#exportModeContainer label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-}
-
 /* ---------------------------------------
    Range Slider
 ---------------------------------------- */
@@ -443,8 +432,16 @@ input[type="range"] {
 }
 
 /* ---------------------------------------
-   Step 4 Checkmarks
+   Step 4 Checkmarks & Headings
 ---------------------------------------- */
+h3 {
+    margin-top: 16px;
+    margin-bottom: 8px;
+    font-size: 1rem;
+    font-weight: 700;            /* bold headings */
+    color: var(--text-strong);   /* brighter text for contrast */
+}
+
 .style-check {
     display: inline-block;
     margin-left: 6px;
@@ -553,7 +550,9 @@ h3 .style-check {
     transition: width 0.2s;
 }
 
-/* ----- FIX: Checkbox alignment for TTS & CTA ----- */
+/* ---------------------------------------
+   Checkbox & Radio Alignment (Desktop + Mobile)
+---------------------------------------- */
 .checkbox-row {
     display: flex;
     align-items: center;
@@ -571,36 +570,145 @@ h3 .style-check {
     justify-content: flex-start;
 }
 
+/* Custom radios + checkboxes (all breakpoints) */
+.radio input[type="radio"],
+.checkbox-row input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border-radius: 4px; /* checkbox default shape */
+    border: 2px solid #666;
+    background: #161616;
+    position: relative;
+    cursor: pointer;
+}
+
+.radio input[type="radio"] {
+    border-radius: 50%;
+}
+
+/* Radio checked — bright + visible */
+.radio input[type="radio"]:checked::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+}
+
+/* Checkbox checked — bold check mark */
+.checkbox-row input[type="checkbox"]:checked::after {
+    content: "✔";
+    position: absolute;
+    top: -3px;
+    left: 2px;
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+/* Label text next to radios/checkboxes */
+.radio,
+.radio *,
+.checkbox-row label {
+    color: var(--text);
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* ---------------------------------------
+   Export mode radios + spacing
+---------------------------------------- */
+#exportModeContainer {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+    margin-top: 18px;
+    margin-bottom: 18px;
+}
+
+#exportModeContainer label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+#exportBtn {
+    margin-top: 12px !important;
+}
+
+/* ---------------------------------------
+   Music preview / Save spacing
+---------------------------------------- */
+.music-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+#saveMusicBtn {
+    margin-left: 0;
+}
+
+/* ---------------------------------------
+   Accordion (Step 4)
+---------------------------------------- */
+.accordion .acc-header {
+    width: 100%;
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 1rem;
+    font-weight: 700;                  /* bold */
+    background: linear-gradient(90deg, #252528, #1c1c1e);
+    color: var(--text-strong);         /* brighter for contrast */
+    border: 1px solid #444;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 6px;
+}
+
+.acc-body {
+    display: none;
+    padding: 12px 4px 20px 4px;
+    border-left: 2px solid #444;
+    margin-left: 6px;
+    margin-bottom: 16px;
+}
+
+.acc-section.open .acc-body {
+    display: block;
+}
+
+/* Optional subtle indicator on open */
+.acc-section.open .acc-header {
+    border-color: var(--primary);
+}
+
 /* ---------------------------------------
    Mobile UI
 ---------------------------------------- */
 @media (max-width: 900px) {
-
     .layout {
         grid-template-columns: 1fr !important;
         gap: 20px;
         padding: 16px;
-    }
-
-     .stepper {
-        position: relative;
-        z-index: 50;              /* Bring stepper ABOVE upload box */
-        margin-bottom: 12px;      /* Add spacing */
-    }
-
-    /* Lower stacking priority for upload/card containers */
-    .card {
-        position: relative;
-        z-index: 10;
-    }
-
-    /* Main container spacing on mobile to prevent stacking collisions */
-    .layout {
         position: relative;
         z-index: 1;
     }
 
     .stepper {
+        position: relative;
+        z-index: 50;
+        margin-bottom: 12px;
         display: flex !important;
         flex-direction: row !important;
         overflow-x: auto !important;
@@ -615,9 +723,11 @@ h3 .style-check {
         width: auto;
     }
 
-    .step-card,
-    .card {
+    .card,
+    .step-card {
         margin: 0 !important;
+        position: relative;
+        z-index: 10;
     }
 
     input,
@@ -662,7 +772,6 @@ h3 .style-check {
 
 /* Extra small devices */
 @media (max-width: 480px) {
-
     .step-index {
         display: none;
     }
@@ -678,121 +787,4 @@ h3 .style-check {
     #chatInput {
         min-height: 120px;
     }
-}
-
-/* ---------------------------------------------------------
-   Mobile-Friendly Custom Radios & Checkboxes (iOS Safe)
----------------------------------------------------------- */
-@media (max-width: 900px) {
-
-    .radio,
-    .checkbox-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        line-height: 1.1;
-    }
-
-    /* Hide native iOS appearance */
-    .radio input[type="radio"],
-    .checkbox-row input[type="checkbox"] {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 20px;
-        height: 20px;
-        margin: 0;
-        border-radius: 4px; /* checkbox default shape */
-        border: 2px solid var(--primary);
-        background: transparent;
-        position: relative;
-        cursor: pointer;
-    }
-
-    /* Radios are circles */
-    .radio input[type="radio"] {
-        border-radius: 50%;
-    }
-
-    /* Radio checked */
-    .radio input[type="radio"]:checked::after {
-        content: "";
-        position: absolute;
-        top: 4px;
-        left: 4px;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: var(--primary);
-    }
-
-    /* Checkbox checked */
-    .checkbox-row input[type="checkbox"]:checked::after {
-        content: "✔";
-        position: absolute;
-        top: -1px;
-        left: 3px;
-        color: var(--primary);
-        font-size: 14px;
-        font-weight: bold;
-    }
-
-    /* Labels (your structure puts the text inside .radio directly) */
-    .radio,
-    .radio *,
-    .checkbox-row label {
-        color: var(--text);
-        font-size: 1rem;
-        margin: 0;
-    }
-}
-
-/* spacing between render mode radios, labels, and export button */
-.render-controls {
-    margin-top: 18px;          /* space above radios */
-    margin-bottom: 18px;       /* space below radios */
-}
-
-.render-controls .radio-row {
-    margin-bottom: 10px;       /* space between each radio label */
-}
-
-#exportBtn {
-    margin-top: 12px !important;  /* push button away from radios */
-}
-
-/* Fix spacing between buttons save music and preview music */
-.music-preview {
-    display: flex;
-    align-items: center;
-    gap: 12px;      /* 🔥 spacing between preview + save */
-    margin-top: 10px;
-}
-
-#saveMusicBtn {
-    margin-left: 0;  /* ensures no weird default margins */
-}
-
-.accordion .acc-header {
-    width: 100%;
-    text-align: left;
-    padding: 10px 14px;
-    font-size: 1rem;
-    font-weight: 600;
-    background: #222;
-    border: 1px solid #444;
-    border-radius: 6px;
-    cursor: pointer;
-    margin-bottom: 6px;
-}
-
-.acc-body {
-    display: none;
-    padding: 12px 4px 20px 4px;
-    border-left: 2px solid #444;
-    margin-left: 6px;
-    margin-bottom: 16px;
-}
-
-.acc-section.open .acc-body {
-    display: block;
 }
