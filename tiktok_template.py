@@ -27,6 +27,7 @@ from moviepy.editor import (
     ColorClip,
     vfx,
 )
+from moviepy.audio.fx.all import audio_fadeout
 
 from assistant_log import log_step
 import imageio_ffmpeg
@@ -259,7 +260,9 @@ def _apply_caption_to_clip(
 
         # Dark box behind text
         box_h = txt.h + 60
-        box = ColorClip(size=(TARGET_W, box_h), color=(0, 0, 0)).set_duration(clip.duration).set_opacity(0.45)
+        box = ColorClip(size=(TARGET_W, box_h), color=(0, 0, 0))\
+            .set_duration(clip.duration)\
+            .set_opacity(0.45)
 
         # vertical placement
         y = TARGET_H * (0.80 if position == "bottom" else 0.50)
@@ -285,51 +288,96 @@ def _apply_caption_to_clip(
 
 
 # -----------------------------------------
-# Build timeline from config (per-clip captions)
+# Build main timeline + clean CTA source
 # -----------------------------------------
-def _build_timeline_from_config(cfg: Dict[str, Any]) -> VideoFileClip:
+def _build_timeline_and_cta_source(cfg: Dict[str, Any]):
+    """
+    Returns:
+      - main_timeline: concatenated clips with per-clip captions
+      - cta_source:    clean tail of the last clip for CTA blur
+    """
+
     render_cfg = cfg.get("render", {}) or {}
     fg_default = float(render_cfg.get("fg_scale_default", 1.0))
 
-    segments: List[VideoFileClip] = []
+    cta_cfg = cfg.get("cta", {}) or {}
+    cta_enabled = bool(cta_cfg.get("enabled"))
+    cta_duration = float(cta_cfg.get("duration", 3.0)) if cta_enabled else 0.0
 
-    def _add_section(sec: Optional[Dict[str, Any]]):
-        if not sec:
-            return
+    segments_main: List[VideoFileClip] = []
+    cta_source: Optional[VideoFileClip] = None
+
+    first = cfg.get("first_clip")
+    middles = cfg.get("middle_clips", []) or []
+    last = cfg.get("last_clip")
+
+    sections: List[Dict[str, Any]] = []
+    if first:
+        sections.append(first)
+    sections.extend(middles)
+    if last:
+        sections.append(last)
+
+    total_sections = len(sections)
+
+    for idx, sec in enumerate(sections):
         result = _load_clip_from_config(sec)
         if not result:
-            return
-        c, sc = result
-        c = _scale_and_crop_vertical(c, fg_default * sc)
+            continue
+        clip, sc = result
+        clip = _scale_and_crop_vertical(clip, fg_default * sc)
+        text = (sec.get("text") or "").strip()
 
-        # apply per-clip caption if present
-        text = sec.get("text", "") or ""
-        if text.strip():
-            c = _apply_caption_to_clip(c, text=text)
+        is_last = (idx == total_sections - 1)
 
-        segments.append(c)
+        if not is_last:
+            # Normal clip → full caption over whole clip
+            if text:
+                clip = _apply_caption_to_clip(clip, text=text)
+            segments_main.append(clip)
+        else:
+            # Last clip – special handling for CTA
+            if cta_enabled and clip.duration >= cta_duration + 0.5:
+                # Split last clip into (captioned main) + (clean tail for CTA)
+                main_end = clip.duration - cta_duration
 
-    _add_section(cfg.get("first_clip"))
+                last_main = clip.subclip(0, main_end)
+                if text:
+                    last_main = _apply_caption_to_clip(last_main, text=text)
+                segments_main.append(last_main)
 
-    for mc in cfg.get("middle_clips", []):
-        _add_section(mc)
+                cta_source = clip.subclip(main_end, clip.duration)
 
-    _add_section(cfg.get("last_clip"))
+            elif cta_enabled and clip.duration >= cta_duration:
+                # Not enough extra room; treat entire last clip as CTA source (no caption)
+                cta_source = clip
 
-    if not segments:
+            else:
+                # No CTA or clip too short → just caption whole last clip normally
+                if text:
+                    clip = _apply_caption_to_clip(clip, text=text)
+                segments_main.append(clip)
+                cta_source = None
+
+    if not segments_main:
         raise RuntimeError("No clips available from config.yml")
 
-    timeline = concatenate_videoclips(segments, method="compose")
-    return timeline.resize((TARGET_W, TARGET_H))
+    main_timeline = concatenate_videoclips(segments_main, method="compose")
+    main_timeline = main_timeline.resize((TARGET_W, TARGET_H))
+
+    if cta_source is not None:
+        cta_source = cta_source.resize((TARGET_W, TARGET_H))
+
+    return main_timeline, cta_source
 
 
 # -----------------------------------------
 # TTS generation (no looping)
 # -----------------------------------------
-def _build_tts_audio(cfg, total_duration: float):
+def _build_tts_audio(cfg, _total_duration: float):
     """
     Build a single TTS track from all captions.
-    NOTE: we DO NOT loop it anymore; it plays once.
+    NOTE: we DO NOT loop it; it plays once and will be trimmed/faded later.
     """
     from openai import OpenAI
 
@@ -365,7 +413,6 @@ def _build_tts_audio(cfg, total_duration: float):
             f.write(resp.read())
 
         vc = AudioFileClip(out)
-        # Do NOT loop; just play once.
         return vc
 
     except Exception as e:
@@ -376,41 +423,46 @@ def _build_tts_audio(cfg, total_duration: float):
 # -----------------------------------------
 # CTA outro – blur last seconds with CTA text
 # -----------------------------------------
-def apply_cta_outro(timeline: VideoFileClip, cfg: Dict[str, Any]) -> VideoFileClip:
+def apply_cta_outro(main: VideoFileClip,
+                    cta_source: Optional[VideoFileClip],
+                    cfg: Dict[str, Any]) -> VideoFileClip:
     """
-    CTA behavior (Option B):
-    - Last N seconds of video are blurred
-    - CTA text sits on top
-    - Last clip's (already mixed) audio is preserved
+    CTA behavior (Option B + clean tail):
+    - main: all clips + captions
+    - cta_source: clean tail of last clip (no captions)
+    - CTA: last N seconds of cta_source, blurred, with CTA text on top,
+      keeping only base audio (no TTS).
     """
-    cta = cfg.get("cta", {}) or {}
-    if not cta.get("enabled"):
-        return timeline
+    cta_cfg = cfg.get("cta", {}) or {}
+    if not cta_cfg.get("enabled"):
+        return main
 
-    text = (cta.get("text") or "").strip()
+    if cta_source is None:
+        return main
+
+    text = (cta_cfg.get("text") or "").strip()
     if not text:
-        return timeline
+        return main
 
-    duration = float(cta.get("duration", 3.0))
-    total = timeline.duration
-    if total <= 0:
-        return timeline
+    cta_duration = float(cta_cfg.get("duration", 3.0))
+    total_cta = cta_source.duration
+    if total_cta <= 0:
+        return main
 
-    start = max(0.0, total - duration)
-
-    # main: everything before CTA
-    main = timeline.subclip(0, start)
-    outro = timeline.subclip(start, total)
+    if cta_duration >= total_cta:
+        outro = cta_source
+    else:
+        start = total_cta - cta_duration
+        outro = cta_source.subclip(start, total_cta)
 
     # blur video only (downscale to save memory, then back up)
     try:
-        # Downscale to save memory, blur, then resize back
         small = outro.resize(0.75)
         blurred_small = small.fx(vfx.blur, 18)
         outro_blur = blurred_small.resize((TARGET_W, TARGET_H))
         outro_blur = outro_blur.set_duration(outro.duration)
 
-        # keep audio from original outro (with TTS / music mix)
+        # keep base audio from cta_source (no TTS)
         outro_blur = outro_blur.set_audio(outro.audio)
 
     except Exception as e:
@@ -427,14 +479,15 @@ def apply_cta_outro(timeline: VideoFileClip, cfg: Dict[str, Any]) -> VideoFileCl
             size=(TARGET_W - 160, None)
         ).set_duration(outro_blur.duration)
 
-        box = ColorClip(size=(TARGET_W, txt.h + 60), color=(0, 0, 0)).set_opacity(0.45)
-        box = box.set_duration(outro_blur.duration)
+        box = ColorClip(size=(TARGET_W, txt.h + 60), color=(0, 0, 0))\
+            .set_opacity(0.45)\
+            .set_duration(outro_blur.duration)
 
         y = TARGET_H * 0.80
         txt = txt.set_position(("center", y))
         box = box.set_position(("center", y))
 
-        # optional: soft fade on CTA overlay
+        # subtle fade on CTA overlay
         txt = txt.fx(vfx.fadein, 0.2).fx(vfx.fadeout, 0.2)
         box = box.fx(vfx.fadein, 0.2).fx(vfx.fadeout, 0.2)
 
@@ -448,7 +501,7 @@ def apply_cta_outro(timeline: VideoFileClip, cfg: Dict[str, Any]) -> VideoFileCl
         outro_final = outro_blur
 
     final = concatenate_videoclips([main, outro_final], method="compose")
-    return final.set_duration(total)
+    return final.set_duration(main.duration + outro_final.duration)
 
 
 # -----------------------------------------
@@ -461,38 +514,46 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
     log_step("Building 1080x1920 timeline…")
 
-    # 1) Build base clip timeline with per-clip captions
-    base = _build_timeline_from_config(cfg)
-    total = base.duration
+    # 1) Build main timeline + clean CTA source
+    main, cta_source = _build_timeline_and_cta_source(cfg)
+    main_total = main.duration
 
-    # 2) TTS + base audio mix (no looping)
-    base_audio = base.audio
-    tts_audio = _build_tts_audio(cfg, total)
+    # 2) TTS + base audio mix (TTS fades out at CTA start)
+    base_audio = main.audio
+    tts_audio = _build_tts_audio(cfg, main_total)
 
     try:
         mix_clips = []
 
         if base_audio:
-            # keep original clip audio a bit lower
             mix_clips.append(base_audio.volumex(0.4))
 
         if tts_audio:
+            # Trim TTS to main duration (no CTA)
+            if tts_audio.duration > main_total:
+                tts_audio = tts_audio.subclip(0, main_total)
+
+            # Fade out over 1s at the end of main section
+            fade_dur = min(1.0, main_total / 2.0)
+            tts_audio = audio_fadeout(tts_audio, fade_dur)
+
             mix_clips.append(tts_audio.volumex(1.0))
 
         mix_clips = [c for c in mix_clips if c]
 
         if mix_clips:
             mix = CompositeAudioClip(mix_clips)
-            base = base.set_audio(mix)
+            main = main.set_audio(mix)
+
     except Exception as e:
         logger.warning(f"Audio mix (TTS) failed, using base audio only: {e}")
         if base_audio:
-            base = base.set_audio(base_audio)
+            main = main.set_audio(base_audio)
 
-    # 3) CTA outro (blurred last seconds with CTA text)
-    final = apply_cta_outro(base, cfg)
+    # 3) CTA outro (blurred tail of last clip, with CTA text)
+    final = apply_cta_outro(main, cta_source, cfg)
 
-    # 4) Render settings (memory-friendlier)
+    # 4) Render settings (memory-friendly)
     bitrate = "4000k" if optimized else "3000k"
     preset = "slow" if optimized else "veryfast"
 
@@ -506,7 +567,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         fps=30,
         bitrate=bitrate,
         preset=preset,
-        threads=1,                    # <= memory friendly for Render
+        threads=1,                    # <= safer for Render
         write_logfile=False,
         temp_audiofile=None,          # <= avoid big temp audio
         remove_temp=True,
