@@ -52,6 +52,10 @@ logger = logging.getLogger(__name__)
 TARGET_W = 1080
 TARGET_H = 1920
 
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+MUSIC_DIR = os.path.join(PROJECT_ROOT, "music")
+
+
 
 # -----------------------------------------
 # Simple Gaussian blur via Pillow for MoviePy 1.0.3
@@ -622,6 +626,42 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized=False):
 
     out = os.path.abspath(os.path.join(BASE_DIR, output_file))
     log_step(f"Writing video -> {out}")
+
+    # -----------------------------------------
+    # Background Music Mixing (MoviePy 1.0.3 Safe)
+    # -----------------------------------------
+    music_cfg = cfg.get("music", {})
+    music_audio = None
+
+    # filename from YAML (ex: "mytrack.mp3")
+    music_file = music_cfg.get("file")
+    music_volume = float(music_cfg.get("volume", 0.25))
+
+    if music_file:
+        music_path = os.path.join(MUSIC_DIR, music_file)
+        if os.path.exists(music_path):
+            log_step(f"[MUSIC] Loaded: {music_path}")
+            try:
+                from moviepy.editor import AudioFileClip, CompositeAudioClip
+                music_audio = AudioFileClip(music_path).volumex(music_volume)
+            except Exception as e:
+                log_step(f"[MUSIC ERROR] Failed to load {music_path}: {e}")
+        else:
+            log_step(f"[MUSIC] NOT FOUND: {music_path}")
+
+    # Now mix with the base audio safely
+    base_audio = final.audio if hasattr(final, "audio") else None
+
+    if base_audio and music_audio:
+        log_step("[MUSIC] Mixing base audio + music")
+        final = final.set_audio(CompositeAudioClip([base_audio, music_audio]))
+
+    elif music_audio:
+        log_step("[MUSIC] Using music only (no base audio)")
+        final = final.set_audio(music_audio)
+
+    # else: keep base audio only
+
 
     final.write_videofile(
         out,
