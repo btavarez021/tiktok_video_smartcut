@@ -245,6 +245,7 @@ def api_generate_yaml() -> Dict[str, Any]:
 def _build_simple_yaml_fallback(files: List[str], analyses: List[str]) -> Dict[str, Any]:
     """
     Used when OpenAI is not available: simple deterministic YAML.
+    Matches the NEW schema used by tiktok_template.py
     """
     if not files:
         raise ValueError("No files to build fallback YAML")
@@ -265,6 +266,7 @@ def _build_simple_yaml_fallback(files: List[str], analyses: List[str]) -> Dict[s
             "text": _find_desc(first),
             "scale": 1.0,
         },
+
         "middle_clips": [
             {
                 "file": m.lower(),
@@ -275,6 +277,7 @@ def _build_simple_yaml_fallback(files: List[str], analyses: List[str]) -> Dict[s
             }
             for m in middle
         ],
+
         "last_clip": {
             "file": last.lower(),
             "start_time": 0,
@@ -282,12 +285,21 @@ def _build_simple_yaml_fallback(files: List[str], analyses: List[str]) -> Dict[s
             "text": _find_desc(last),
             "scale": 1.0,
         },
+
         "render": {
             "tts_enabled": False,
             "tts_voice": "alloy",
             "fg_scale_default": 1.0,
             "blur_background": False,
         },
+
+        # ✅ NEW CLEAN MUSIC BLOCK
+        "music": {
+            "enabled": False,
+            "file": "",
+            "volume": 0.25,
+        },
+
         "cta": {
             "enabled": False,
             "text": "",
@@ -296,7 +308,9 @@ def _build_simple_yaml_fallback(files: List[str], analyses: List[str]) -> Dict[s
             "position": "bottom",
         },
     }
+
     return cfg
+
 
 
 def api_get_config() -> Dict[str, Any]:
