@@ -709,14 +709,19 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
     # Per-clip TTS: align by clip durations
     for idx, clip in enumerate(clips):
-        tts_path = tts_tracks[idx] if idx < len(tts_tracks) else None
-        if tts_path:
+        tts_entry = tts_tracks[idx] if idx < len(tts_tracks) else None
+
+        if tts_entry and isinstance(tts_entry, tuple):
+            tts_path, tts_dur = tts_entry
+
             audio_inputs.append({
                 "path": tts_path,
-                "start": current_time,   # when this clip starts
+                "start": current_time,
                 "volume": 1.0,
             })
+
         current_time += clip["duration"]
+
 
     # CTA narration: align near the end (inside CTA blur window)
     if cta_tts_track and cta_enabled and cta_text:
