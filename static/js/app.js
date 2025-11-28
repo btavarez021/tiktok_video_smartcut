@@ -684,6 +684,30 @@ async function saveLayoutMode() {
       });
   }
 
+  // ================================
+  // Auto Caption Style Selector
+  // ================================
+  // Auto Caption Layout Selector (merged)
+function autoSelectCaptionStyle(selectedMode) {
+    const layoutSelect = document.getElementById("layoutMode");
+    if (!layoutSelect) return;
+
+    // Map: standard → TikTok vertical; optimized → Classic look
+    const isTikTok = selectedMode === "standard";
+
+    layoutSelect.value = isTikTok ? "tiktok" : "classic";
+
+    showStatus(
+        isTikTok
+            ? "🟣 Auto-set caption layout to TikTok Style"
+            : "🔵 Auto-set caption layout to Classic Style",
+        "info"
+    );
+}
+
+
+
+
   // Preview music
   function initMusicPreview() {
       const btn = document.getElementById("musicPreviewBtn");
@@ -905,6 +929,18 @@ async function saveLayoutMode() {
               sec.classList.toggle("open");
           });
       });
+
+      // ================================
+      // Export Mode Change Listener
+      // ================================
+      // Export Mode Change Listener (radio buttons)
+      document.querySelectorAll('input[name="exportMode"]')
+    .forEach((radio) => {
+        radio.addEventListener("change", (e) => {
+            autoSelectCaptionStyle(e.target.value);
+        });
+    });
+
 
       // Buttons / actions (all optional-chained)
       document.getElementById("analyzeBtn")?.addEventListener("click", analyzeClips);
