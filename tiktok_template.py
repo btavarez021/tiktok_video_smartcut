@@ -85,6 +85,7 @@ def _build_tts_audio(cfg):
 
     render = cfg.get("render", {}) or {}
     if not render.get("tts_enabled"):
+        log_step("[TTS] tts_enabled is False, skipping TTS.")
         return None
 
     voice = render.get("tts_voice", "alloy")
@@ -101,12 +102,14 @@ def _build_tts_audio(cfg):
     if cfg.get("last_clip", {}).get("text"):
         texts.append(cfg["last_clip"]["text"])
 
+    # Include CTA text if voiceover is enabled
     cta_cfg = cfg.get("cta", {}) or {}
     if cta_cfg.get("voiceover") and cta_cfg.get("text"):
         texts.append(cta_cfg["text"])
 
     full_text = "\n".join(texts).strip()
     if not full_text:
+        log_step("[TTS] No text content found, skipping TTS.")
         return None
 
     log_step("[TTS] Generating full narration…")
@@ -128,7 +131,7 @@ def _build_tts_audio(cfg):
 
     out_path = temp_mp3.replace(".mp3", ".m4a")
 
-    subprocess.run(
+    proc = subprocess.run(
         [
             "ffmpeg", "-y",
             "-i", temp_mp3,
@@ -138,7 +141,15 @@ def _build_tts_audio(cfg):
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        text=True,
     )
+
+    if proc.stderr:
+        log_step(f"[TTS-FFMPEG] stderr:\n{proc.stderr}")
+
+    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
+        log_step("[TTS] Output audio file invalid, skipping TTS.")
+        return None
 
     log_step(f"[TTS] OK: {out_path}")
     return out_path
@@ -156,17 +167,19 @@ def _build_music_audio(cfg, total_duration):
 
     music_cfg = cfg.get("music", {}) or {}
     if not music_cfg.get("enabled"):
+        log_step("[MUSIC] Disabled in config.")
         return None
 
     music_file = (music_cfg.get("file") or "").strip()
     if not music_file:
+        log_step("[MUSIC] No music file specified.")
         return None
 
     volume = float(music_cfg.get("volume", 0.25))
 
     music_path = os.path.join(MUSIC_DIR, music_file)
     if not os.path.exists(music_path):
-        log_step(f"[MUSIC] NOT FOUND: {music_path}")
+        log_step(f"[MUSIC] NOT FOUND in MUSIC_DIR: {music_path}")
         return None
 
     log_step(f"[MUSIC] Using file: {music_path}")
@@ -183,7 +196,15 @@ def _build_music_audio(cfg, total_duration):
         out_path,
     ]
 
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    if proc.stderr:
+        log_step(f"[MUSIC-FFMPEG] stderr:\n{proc.stderr}")
+
+    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
+        log_step("[MUSIC] Output audio invalid, disabling music.")
+        return None
+
     return out_path
 
 
@@ -191,6 +212,9 @@ def _build_base_audio(video_path, total_duration):
     """
     Extract original audio from the stitched video, memory-safe.
     Returns a .m4a file path or None.
+
+    NOTE: Currently NOT used in the final mix to keep the chain simple:
+    we mix only TTS + music to avoid corrupt/empty sources.
     """
     import tempfile
 
@@ -210,7 +234,15 @@ def _build_base_audio(video_path, total_duration):
         out_path,
     ]
 
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    if proc.stderr:
+        log_step(f"[AUDIO-BASE-FFMPEG] stderr:\n{proc.stderr}")
+
+    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
+        log_step("[AUDIO] Base audio invalid, skipping.")
+        return None
+
     return out_path
 
 
@@ -256,8 +288,8 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
        - Trim with text overlay
        - Validate output with size + ffprobe
     3. Concat all trimmed clips via demuxer
-    4. Optional CTA blur/text pass
-    5. Build audio (base + TTS + music) and mix
+    4. Optional CTA blur/text pass (safe, time-based)
+    5. Build audio (TTS + Music) and mix
     6. Mux final video + audio
     7. Validate final MP4
 
@@ -275,11 +307,11 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         cfg["render"].pop("music_file", None)
         cfg["render"].pop("music_volume", None)
 
-
     # --------------------------------------------------------
     # Helper: Safe escape for FFmpeg drawtext
     # --------------------------------------------------------
     def esc(text: str) -> str:
+        # escape % first (FFmpeg uses it in format strings)
         text = text.replace("%", "\\%")
         if not text:
             return ""
@@ -438,14 +470,14 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     final_video_source = concat_output
 
     # --------------------------------------------------------
-    # 3. CTA OUTRO BLUR (SAFE-PATCHED VERSION)
+    # 3. CTA OUTRO BLUR (SAFE, TIME-BASED)
     # --------------------------------------------------------
     cta_cfg = cfg.get("cta", {}) or {}
     cta_enabled = cta_cfg.get("enabled", False)
     cta_text = esc(cta_cfg.get("text", ""))
     cta_dur = float(cta_cfg.get("duration", 3.0))
 
-    if cta_enabled:
+    if cta_enabled and cta_text:
         try:
             total_dur = float(
                 subprocess.check_output(
@@ -461,36 +493,37 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
             log_step(f"[CTA] Probe failed, skipping CTA: {e}")
             total_dur = 0
 
-        # 🔥 SAFE FIX: clamp CTA duration
         if total_dur <= 0.3:
             log_step("[CTA] Video too short for CTA → skipping CTA step.")
             final_video_source = concat_output
         else:
-            # CTA duration cannot exceed available video
-            safe_cta = min(cta_dur, total_dur - 0.1)
+            # Clamp CTA duration to reasonable range
+            safe_cta = min(cta_dur, max(total_dur - 0.1, 0.5))
             if safe_cta < 0.2:
                 log_step("[CTA] CTA duration too small → skipping CTA step.")
                 final_video_source = concat_output
             else:
-                start_cta = total_dur - safe_cta
+                start_cta = max(total_dur - safe_cta, 0.0)
 
                 blurred = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
 
+                # Simple, robust CTA: blur + text only on last seconds via enable='gte(t,start_cta)'
                 vf = (
-                    f"[0:v]split=2[pre_raw][cta_raw];"
-                    f"[pre_raw]trim=start=0:end={start_cta},setpts=PTS-STARTPTS[pre];"
-                    f"[cta_raw]trim=start={start_cta}:end={total_dur},setpts=PTS-STARTPTS,"
-                    f"boxblur=10,"
-                    f"drawtext=text='{cta_text}':fontcolor=white:fontsize=60:"
-                    f"x=(w-text_w)/2:y=h-200[cta];"
-                    f"[pre][cta]concat=n=2:v=1:a=0[out]"
+                    f"boxblur=10:enable='gte(t,{start_cta})',"
+                    f"drawtext=text='{cta_text}':"
+                    f"fontcolor=white:fontsize=60:"
+                    f"x=(w-text_w)/2:y=h-220:"
+                    f"enable='gte(t,{start_cta})'"
                 )
 
                 blur_cmd = [
                     "ffmpeg", "-y",
                     "-i", concat_output,
                     "-vf", vf,
-                    "-map", "[out]",
+                    "-c:v", "libx264",
+                    "-preset", "veryfast",
+                    "-crf", "22",
+                    "-pix_fmt", "yuv420p",
                     blurred,
                 ]
 
@@ -506,16 +539,14 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
                 if proc.stderr:
                     log_step(f"[CTA-FFMPEG] stderr:\n{proc.stderr}")
 
-                # 🔥 SAFE OUTPUT CHECK
                 if not os.path.exists(blurred) or os.path.getsize(blurred) < 150 * 1024:
                     log_step("[CTA] CTA failed → using unmodified concat output.")
                     final_video_source = concat_output
                 else:
                     final_video_source = blurred
 
-
     # --------------------------------------------------------
-    # 4. AUDIO PIPELINE
+    # 4. AUDIO PIPELINE (TTS + MUSIC ONLY)
     # --------------------------------------------------------
     total_duration = float(
         subprocess.check_output(
@@ -528,7 +559,8 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         ).decode().strip()
     )
 
-    base_audio = _build_base_audio(final_video_source, total_duration)
+    # We intentionally DO NOT use base_audio in the mix, to avoid
+    # corrupt/empty streams. Only TTS + music.
     tts_audio = _build_tts_audio(cfg)
     music_audio = _build_music_audio(cfg, total_duration)
 
@@ -544,13 +576,14 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         mix_filters.append(f"[{idx}:a]volume={vol}[a{idx}]")
         idx += 1
 
-    add(base_audio, 0.8)
+    # Order is important, but each index is local to this ffmpeg call
     add(tts_audio, 1.0)
     add(music_audio, 0.25)
 
     audio_out = None
 
     if idx == 0:
+        log_step("[AUDIO] No TTS or music tracks → video will be silent.")
         audio_out = None
     elif idx == 1:
         # Single track optimization
@@ -559,13 +592,17 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         subprocess.run(
             [
                 "ffmpeg", "-y",
-                "-i", mix_inputs[1],
+                "-i", mix_inputs[1],  # first audio input
                 "-c:a", "aac",
                 audio_out,
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            text=True,
         )
+        if not os.path.exists(audio_out) or os.path.getsize(audio_out) < 1024:
+            log_step("[AUDIO] Single-track output invalid → disabling audio.")
+            audio_out = None
     else:
         audio_out = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
 
@@ -585,7 +622,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
             audio_out,
         ]
 
-        log_step("[AUDIO] Mixing…")
+        log_step("[AUDIO] Mixing TTS + music…")
         mix_proc = subprocess.run(
             audio_cmd,
             stdout=subprocess.PIPE,
@@ -595,9 +632,9 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         if mix_proc.stderr:
             log_step(f"[AUDIO-FFMPEG] stderr:\n{mix_proc.stderr}")
 
-    if audio_out and os.path.exists(audio_out) and os.path.getsize(audio_out) == 0:
-        log_step("[AUDIO] Empty audio file → disabling audio.")
-        audio_out = None
+        if not os.path.exists(audio_out) or os.path.getsize(audio_out) < 1024:
+            log_step("[AUDIO] Mixed audio invalid → disabling audio.")
+            audio_out = None
 
     # --------------------------------------------------------
     # 5. FINAL MUX
@@ -612,6 +649,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
                 "-i", audio_out,
                 "-c:v", "copy",
                 "-c:a", "aac",
+                "-shortest",
                 final_output,
             ]
         )

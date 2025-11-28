@@ -124,6 +124,12 @@ def _sync_s3_videos_to_local() -> List[str]:
     keys = list_videos_from_s3()
     local_files = []
 
+    order = load_upload_order()
+    if order:
+        keys = sorted(keys, key=lambda k: order.index(os.path.basename(k)) 
+                    if os.path.basename(k) in order else 9999)
+
+
     for key in keys:
         filename = os.path.basename(key)
         local_path = os.path.join(video_folder, filename)
