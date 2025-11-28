@@ -122,8 +122,7 @@ def _wrap_caption(text: str, max_chars_per_line: int = 28) -> str:
 def _build_per_clip_tts(cfg, clips, cta_cfg):
     """
     Build TTS for each clip individually.
-    Returns list of paths in the same order as clips,
-    and an optional CTA narration at the end.
+    Returns list of (path, duration) tuples, and CTA narration tuple.
     """
 
     from openai import OpenAI
@@ -138,7 +137,7 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
     tts_cfg = cfg.get("tts", {}) or {}
 
     tts_enabled = (
-        render.get("tts_enabled") 
+        render.get("tts_enabled")
         or tts_cfg.get("enabled")
     )
 
@@ -151,7 +150,6 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
         or tts_cfg.get("voice")
         or "alloy"
     )
-
 
     client = OpenAI(api_key=key)
 
@@ -192,15 +190,26 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
             text=True,
         )
 
+        # Measure duration
+        try:
+            dur = float(subprocess.check_output(
+                ["ffprobe", "-v", "error",
+                 "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1",
+                 tmp_m4a]
+            ).decode().strip())
+        except:
+            dur = None
+
         if os.path.exists(tmp_m4a):
-            tts_files.append(tmp_m4a)
+            tts_files.append((tmp_m4a, dur))
         else:
             tts_files.append(None)
 
     # -----------------------------------------
-    # CTA Narration (C1 — separate final clip)
+    # CTA Narration (C1)
     # -----------------------------------------
-    cta_narration_path = None
+    cta_tuple = None
 
     if cta_cfg.get("enabled") and cta_cfg.get("voiceover") and cta_cfg.get("text"):
         text = cta_cfg["text"]
@@ -217,7 +226,7 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
                 f.write(resp.read())
         except Exception as e:
             log_step(f"[TTS ERROR CTA] {e}")
-            cta_narration_path = None
+            cta_tuple = None
         else:
             tmp_m4a = tmp_mp3.replace(".mp3", ".m4a")
             subprocess.run(
@@ -226,12 +235,21 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
                 stderr=subprocess.PIPE,
                 text=True,
             )
+
+            try:
+                dur = float(subprocess.check_output(
+                    ["ffprobe", "-v", "error",
+                     "-show_entries", "format=duration",
+                     "-of", "default=noprint_wrappers=1:nokey=1",
+                     tmp_m4a]
+                ).decode().strip())
+            except:
+                dur = None
+
             if os.path.exists(tmp_m4a):
-                cta_narration_path = tmp_m4a
+                cta_tuple = (tmp_m4a, dur)
 
-    return tts_files, cta_narration_path
-
-
+    return tts_files, cta_tuple
 
 # -----------------------------------------
 # Background music (YAML: music: {enabled, file, volume})
@@ -655,7 +673,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     tts_tracks, cta_tts_track = _build_per_clip_tts(cfg, clips, cta_cfg)
 
     # --------------------------------------------------------
-    # A1a — Auto-extend clip duration to fit TTS narration
+    # A1a — Auto-extend clip duration to fit narration length
     # --------------------------------------------------------
     for i, clip in enumerate(clips):
         tts_entry = tts_tracks[i] if i < len(tts_tracks) else None
@@ -665,18 +683,18 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
         tts_path, tts_dur = tts_entry
 
-        if tts_path and tts_dur:
-            # Add 0.35s buffer so cutoffs never happen
-            needed = tts_dur + 0.35
+        if not tts_path or not tts_dur:
+            continue
 
-            # Only extend if narration is longer than clip duration
-            if needed > clip["duration"]:
-                log_step(
-                    f"[A1a] Extending clip {i+1} "
-                    f"duration from {clip['duration']:.2f}s → {needed:.2f}s "
-                    f"(tts={tts_dur:.2f}s)"
-                )
-                clip["duration"] = needed
+        needed = tts_dur + 0.35  # safety padding
+
+        if needed > clip["duration"]:
+            log_step(
+                f"[A1a] Extending clip {i+1} "
+                f"duration from {clip['duration']:.2f}s → {needed:.2f}s"
+            )
+            clip["duration"] = needed
+
 
 
     # --------------------------------------------------------
