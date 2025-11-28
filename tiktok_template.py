@@ -655,6 +655,31 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     tts_tracks, cta_tts_track = _build_per_clip_tts(cfg, clips, cta_cfg)
 
     # --------------------------------------------------------
+    # A1a — Auto-extend clip duration to fit TTS narration
+    # --------------------------------------------------------
+    for i, clip in enumerate(clips):
+        tts_entry = tts_tracks[i] if i < len(tts_tracks) else None
+
+        if not tts_entry or not isinstance(tts_entry, tuple):
+            continue
+
+        tts_path, tts_dur = tts_entry
+
+        if tts_path and tts_dur:
+            # Add 0.35s buffer so cutoffs never happen
+            needed = tts_dur + 0.35
+
+            # Only extend if narration is longer than clip duration
+            if needed > clip["duration"]:
+                log_step(
+                    f"[A1a] Extending clip {i+1} "
+                    f"duration from {clip['duration']:.2f}s → {needed:.2f}s "
+                    f"(tts={tts_dur:.2f}s)"
+                )
+                clip["duration"] = needed
+
+
+    # --------------------------------------------------------
     # 4. AUDIO PIPELINE — per-clip TTS + CTA + music
     # --------------------------------------------------------
     log_step("[AUDIO] Building audio timeline…")
