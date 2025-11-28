@@ -1,4 +1,8 @@
-# tiktok_assistant.py — MOV/MP4 SAFE VERSION
+# tiktok_assistant.py — MOV/MP4 SAFE VERSION (Option A)
+# - No upload_raw_file here
+# - No video_folder / edit_video imports
+# - S3 config comes from s3_config
+# - Only: analysis, YAML prompt, overlay, timings, filename sanitation
 
 import os
 import logging
@@ -7,12 +11,12 @@ import subprocess
 import json
 from typing import Dict, List, Optional
 
-import boto3
 import yaml
 from openai import OpenAI
 
 from assistant_log import log_step
-from tiktok_template import config_path, edit_video, video_folder
+from tiktok_template import config_path        # only need config_path, not edit_video/video_folder
+from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX  # shared S3 client + config
 
 logger = logging.getLogger(__name__)
 
@@ -25,43 +29,6 @@ client: Optional[OpenAI] = OpenAI(api_key=api_key) if api_key else None
 TEXT_MODEL = "gpt-4.1-mini"
 
 # -----------------------------------------
-# S3 CONFIG (REQUIRED FOR RENDER)
-# -----------------------------------------
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-if not S3_BUCKET_NAME:
-    raise RuntimeError(
-        "S3_BUCKET_NAME (or AWS_BUCKET_NAME) environment variable is required"
-    )
-
-S3_REGION = os.getenv("S3_REGION", "us-east-2")
-RAW_PREFIX = os.getenv("S3_RAW_PREFIX", "raw_uploads")
-RAW_PREFIX = RAW_PREFIX.rstrip("/") + "/"
-
-EXPORT_PREFIX = os.getenv("S3_EXPORT", "exports/")
-
-# -----------------------------------------
-# Load AWS credentials (Render ENV VARS)
-# -----------------------------------------
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-
-if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
-    raise RuntimeError(
-        "Missing AWS credentials! You MUST set AWS_ACCESS_KEY_ID and "
-        "AWS_SECRET_ACCESS_KEY in Render."
-    )
-
-# -----------------------------------------
-# Create S3 client with explicit credentials
-# -----------------------------------------
-s3 = boto3.client(
-    "s3",
-    region_name=S3_REGION,
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-)
-
-# -----------------------------------------
 # Analysis Cache
 # -----------------------------------------
 video_analyses_cache: Dict[str, str] = {}
@@ -69,25 +36,33 @@ video_analyses_cache: Dict[str, str] = {}
 ANALYSIS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "video_analysis_cache")
 os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
 
+
 # -----------------------------------------
 # S3 Helpers
 # -----------------------------------------
-def generate_signed_download_url(key: str, expires_in: int = 3600):
+def generate_signed_download_url(key: str, expires_in: int = 3600) -> str:
+    """
+    Generate a pre-signed download URL for an exported video.
+    """
     return s3.generate_presigned_url(
-        ClientMethod='get_object',
+        ClientMethod="get_object",
         Params={
-            'Bucket': S3_BUCKET_NAME,
-            'Key': key,
-            'ResponseContentDisposition': 'attachment; filename="export.mp4"',
-            'ResponseContentType': 'video/mp4'
+            "Bucket": S3_BUCKET_NAME,
+            "Key": key,
+            "ResponseContentDisposition": 'attachment; filename="export.mp4"',
+            "ResponseContentType": "video/mp4",
         },
-        ExpiresIn=expires_in
+        ExpiresIn=expires_in,
     )
 
-def list_videos_from_s3() -> List[str]:
-    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
 
-    keys = [obj["Key"] for obj in resp.get("Contents", [])]
+def list_videos_from_s3() -> List[str]:
+    """
+    List all video objects (mp4/mov/m4v/avi) under RAW_PREFIX in S3.
+    Used for analysis + YAML generation.
+    """
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
+    keys = [obj["Key"] for obj in resp.get("Contents", [])] if resp.get("Contents") else []
     log_step(f"S3 RAW KEYS: {keys}")
 
     files: List[str] = []
@@ -97,117 +72,11 @@ def list_videos_from_s3() -> List[str]:
             files.append(key)
     return files
 
-# -----------------------------------------
-# Normalize to MP4
-# -----------------------------------------
-
-def normalize_to_mp4(input_path, output_path):
-    """
-    Safely convert ANY uploaded video into clean H.264 MP4 + moov atom.
-    """
-    import subprocess
-    from assistant_log import log_step
-
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", input_path,
-        "-vf", "scale=1080:-2,setsar=1",
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-crf", "20",
-        "-c:a", "aac",
-        "-movflags", "+faststart",
-        output_path
-    ]
-
-    log_step(f"[NORMALIZE] Converting upload -> {output_path}")
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return output_path
-
-
-# -----------------------------------------
-# Upload Order Tracking (S3 JSON)
-# -----------------------------------------
-
-UPLOAD_ORDER_KEY = RAW_PREFIX + "order.json"
-
-
-def load_upload_order() -> List[str]:
-    """Load upload order from S3. Returns [] if none exists."""
-    try:
-        obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key=UPLOAD_ORDER_KEY)
-        data = json.loads(obj["Body"].read().decode("utf-8"))
-        return data.get("order", [])
-    except Exception:
-        return []
-
-
-def save_upload_order(order: List[str]) -> None:
-    """Save upload order to S3 as a JSON file."""
-    try:
-        payload = json.dumps({"order": order}, indent=2).encode("utf-8")
-        s3.put_object(
-            Bucket=S3_BUCKET_NAME,
-            Key=UPLOAD_ORDER_KEY,
-            Body=payload,
-            ContentType="application/json"
-        )
-    except Exception as e:
-        log_step(f"[UPLOAD_ORDER] Failed to save order.json: {e}")
-
-def clean_s3_key(key: str) -> str:
-    """
-    Fully sanitizes an S3 key:
-    - Removes ALL leading slashes
-    - Removes duplicate slashes anywhere
-    - Prevents S3 from creating phantom '/' directories
-    """
-    key = key.lstrip("/")         # remove leading "/"
-    key = key.replace("//", "/")  # collapse double slashes
-    return key
-
-def upload_raw_file(file):
-    """
-    Upload handler:
-    - Save temp file
-    - Normalize to safe MP4
-    - Upload normalized version to S3
-    - Store normalized copy locally (tik_tok_downloads)
-    """
-    from assistant_log import log_step
-    import tempfile, os
-
-    # 1. Save upload to temp
-    tmp = tempfile.NamedTemporaryFile(delete=False).name
-    file.save(tmp)
-    log_step(f"[UPLOAD] Saved temp upload: {tmp}")
-
-    # Ensure tik_tok_downloads exists
-    os.makedirs(video_folder, exist_ok=True)
-
-    # Clean filename (prevent accidental slashes)
-    raw_name = sanitize_yaml_filenames(file.filename.lstrip("/"))
-
-    # Normalize to mp4 ensuring moov atom exists
-    base, _ = os.path.splitext(raw_name)
-    normalized_name = f"{base}.mp4"
-    local_norm = os.path.join(video_folder, normalized_name)
-
-    normalize_to_mp4(tmp, local_norm)
-
-    # Build safe S3 key
-    prefix = RAW_PREFIX.rstrip("/")           # remove trailing slash
-    key = f"{prefix}/{normalized_name}"       # build consistent path
-    safe_key = clean_s3_key(key)              # sanitize internal slashes
-
-    log_step(f"[UPLOAD] Uploading normalized → s3://{S3_BUCKET_NAME}/{safe_key}")
-
-    # Upload to S3
-    s3.upload_file(local_norm, S3_BUCKET_NAME, safe_key)
-
-    return safe_key
 
 def download_s3_video(key: str) -> Optional[str]:
+    """
+    Download a single S3 object to a temp file and return its local path.
+    """
     ext = os.path.splitext(key)[1] or ".mp4"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
     try:
@@ -220,14 +89,14 @@ def download_s3_video(key: str) -> Optional[str]:
 
 
 # -----------------------------------------
-# Normalize video for analysis
+# Normalize video for analysis (optional helper)
 # -----------------------------------------
-
-
 def normalize_video(src: str, dst: str) -> None:
     """
     Normalize the video for analysis/export while preserving the original extension.
     E.g., if src is .mov, dst will also be .mov.
+
+    This is a helper; uploads are normalized elsewhere (on upload).
     """
     base = os.path.splitext(dst)[0]
     src_ext = os.path.splitext(src)[1] or ".mp4"
@@ -265,12 +134,15 @@ def normalize_video(src: str, dst: str) -> None:
 # -----------------------------------------
 # LLM Clip Analysis
 # -----------------------------------------
-
-
 def analyze_video(path: str) -> str:
+    """
+    Given a local video path, return a short 1-sentence description
+    suitable for a TikTok hotel/travel caption seed.
+    """
     basename = os.path.basename(path)
 
     if client is None:
+        # Fallback if no OpenAI key set
         return f"Hotel clip describing scene in {basename}"
 
     prompt = f"""
@@ -295,8 +167,6 @@ No hashtags. No quotes. Return only the sentence.
 # -----------------------------------------
 # YAML Prompt Builder
 # -----------------------------------------
-
-
 def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
     """
     Build a prompt asking the LLM to output a valid config.yml
@@ -369,8 +239,6 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
 # -----------------------------------------
 # Save analysis to memory + disk
 # -----------------------------------------
-
-
 def save_analysis_result(key: str, desc: str) -> None:
     """
     Save analysis keyed by the basename of the video (lowercased),
@@ -433,8 +301,6 @@ def sanitize_yaml_filenames(cfg: dict) -> dict:
 # -----------------------------------------
 # Overlay / Style / Timings (LLM)
 # -----------------------------------------
-
-
 def _style_instructions(style: str) -> str:
     style = style.lower()
     return {
@@ -452,9 +318,10 @@ def _style_instructions(style: str) -> str:
     }.get(style, "Friendly hotel travel tone.")
 
 
-
-
 def apply_overlay(style: str, target: str = "all", filename: Optional[str] = None) -> None:
+    """
+    Rewrite ONLY the 'text' fields in config.yml based on a caption style.
+    """
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             yaml_text = f.read()
@@ -507,6 +374,9 @@ Return ONLY YAML.
 
 
 def apply_smart_timings(pacing: str = "standard") -> None:
+    """
+    Adjust only the duration fields in config.yml via LLM.
+    """
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             yaml_text = f.read()
