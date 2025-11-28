@@ -120,42 +120,27 @@ def save_upload_order(order: List[str]) -> None:
 # Helper: sync S3 videos to local folder
 # -------------------------------
 
-def _sync_s3_videos_to_local() -> List[str]:
+def _sync_s3_videos_to_local():
     os.makedirs(video_folder, exist_ok=True)
 
-    ordered_keys = load_upload_order()
-
-    # Fallback if no order.json
-    if not ordered_keys:
-        ordered_keys = list_videos_from_s3()
-        log_step("[ORDER] No order.json found; using S3 default order")
-    else:
-        log_step(f"[ORDER] Loaded upload order.json with {len(ordered_keys)} entries")
+    keys = list_videos_from_s3()
+    log_step(f"[SYNC] Found {len(keys)} normalized S3 videos")
     local_files = []
 
-    for key in ordered_keys:
-        base, ext = os.path.splitext(os.path.basename(key))
-        basename = f"{base.lower()}{ext.lower()}"
-        local_path = os.path.join(video_folder, basename)
+    for key in keys:
+        filename = os.path.basename(key)
+        local_path = os.path.join(video_folder, filename)
 
-        if os.path.exists(local_path):
-            local_files.append(basename)
-            continue
+        if not os.path.exists(local_path):
+            tmp = download_s3_video(key)
+            if tmp:
+                # Already normalized, just move it into place
+                os.replace(tmp, local_path)
+                log_step(f"[SYNC] Downloaded {key} -> {local_path}")
 
-        tmp_path = download_s3_video(key)
-        if not tmp_path:
-            continue
-
-        try:
-            from tiktok_template import normalize_video_ffmpeg
-            normalize_video_ffmpeg(tmp_path, local_path)
-            log_step(f"[SYNC] Normalized {key} -> {local_path}")
-            local_files.append(basename)
-        except Exception as e:
-            log_step(f"[SYNC ERROR] {e}")
+        local_files.append(filename)
 
     return local_files
-
 
 # -------------------------------
 # Analyze APIs

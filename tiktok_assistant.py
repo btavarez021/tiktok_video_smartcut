@@ -98,6 +98,34 @@ def list_videos_from_s3() -> List[str]:
     return files
 
 # -----------------------------------------
+# Normalize to MP4
+# -----------------------------------------
+
+def normalize_to_mp4(input_path, output_path):
+    """
+    Safely convert ANY uploaded video into clean H.264 MP4 + moov atom.
+    """
+    import subprocess
+    from assistant_log import log_step
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", input_path,
+        "-vf", "scale=1080:-2,setsar=1",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "20",
+        "-c:a", "aac",
+        "-movflags", "+faststart",
+        output_path
+    ]
+
+    log_step(f"[NORMALIZE] Converting upload -> {output_path}")
+    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return output_path
+
+
+# -----------------------------------------
 # Upload Order Tracking (S3 JSON)
 # -----------------------------------------
 
@@ -129,29 +157,41 @@ def save_upload_order(order: List[str]) -> None:
 
 
 
-def upload_raw_file(file_storage) -> str:
-    filename = os.path.basename(file_storage.filename or "").strip()
-    if not filename:
-        raise ValueError("Empty filename")
+def upload_raw_file(file):
+    """
+    Upload handler:
+    - Save temp file
+    - Normalize to safe MP4
+    - Upload normalized version to S3
+    - Store normalized copy locally (tik_tok_downloads)
+    """
 
-    filename = filename.replace(" ", "_")
-    key = f"{RAW_PREFIX}{filename}"
+    from assistant_log import log_step
+    import tempfile, os, subprocess
 
-    log_step(f"Uploading {filename} to s3://{S3_BUCKET_NAME}/{key}")
-    s3.upload_fileobj(file_storage, S3_BUCKET_NAME, key)
-    log_step(f"Uploaded to {key}")
+    # 1. Save upload to temp
+    tmp = tempfile.NamedTemporaryFile(delete=False).name
+    file.save(tmp)
+    log_step(f"[UPLOAD] Saved temp upload: {tmp}")
 
-    # -------------------------
-    # Update upload order list
-    # -------------------------
-    order = load_upload_order()
+    # Ensure tik_tok_downloads exists
+    os.makedirs(video_folder, exist_ok=True)
 
-    if key not in order:
-        order.append(key)
-        save_upload_order(order)
-        log_step(f"[UPLOAD_ORDER] Added {key}")
+    # 2. Normalize to mp4 (guarantees moov atom)
+    filename = sanitize_yaml_filenames(file.filename)
+    base, _ = os.path.splitext(filename)
+    normalized_name = f"{base}.mp4"
+    local_norm = os.path.join(video_folder, normalized_name)
+
+    normalize_to_mp4(tmp, local_norm)
+
+    # 3. Upload normalized video to S3
+    key = f"{RAW_PREFIX}/{normalized_name}"
+    log_step(f"[UPLOAD] Uploading normalized -> {S3_BUCKET_NAME}/{key}")
+    s3.upload_file(local_norm, S3_BUCKET_NAME, key)
 
     return key
+
 
 
 
