@@ -723,28 +723,37 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         current_time += clip["duration"]
 
 
-    # CTA narration: align near the end (inside CTA blur window)
-    if cta_tts_track and cta_enabled and cta_text:
-        try:
-            total_dur = float(
-                subprocess.check_output(
-                    [
-                        "ffprobe", "-v", "error",
-                        "-show_entries", "format=duration",
-                        "-of", "default=noprint_wrappers=1:nokey=1",
-                        final_video_source,
-                    ]
-                ).decode().strip()
-            )
-        except Exception:
-            total_dur = current_time
+       # CTA narration: align near the end (inside CTA blur window)
+        if cta_tts_track and cta_enabled and cta_text:
+            try:
+                total_dur = float(
+                    subprocess.check_output(
+                        [
+                            "ffprobe", "-v", "error",
+                            "-show_entries", "format=duration",
+                            "-of", "default=noprint_wrappers=1:nokey=1",
+                            final_video_source,
+                        ]
+                    ).decode().strip()
+                )
+            except Exception:
+                total_dur = current_time
 
-        cta_start = max(total_dur - cta_dur, 0.0)
-        audio_inputs.append({
-            "path": cta_tts_track,
-            "start": cta_start,
-            "volume": 1.0,
-        })
+            cta_start = max(total_dur - cta_dur, 0.0)
+
+            # cta_tts_track is (path, duration) or a plain path
+            if isinstance(cta_tts_track, tuple):
+                cta_path, _cta_dur = cta_tts_track
+            else:
+                cta_path = cta_tts_track
+
+            if cta_path:
+                audio_inputs.append({
+                    "path": cta_path,
+                    "start": cta_start,
+                    "volume": 1.0,
+                })
+
 
     final_audio = None
 
