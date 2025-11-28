@@ -6,7 +6,6 @@ from typing import List, Dict, Any, Optional
 from assistant_log import log_step
 # Pillow compatibility fix for MoviePy
 from PIL import Image, ImageFilter
-from assistant_api import ensure_local_video
 if not hasattr(Image, "ANTIALIAS"):
     from PIL import Image as _Image
     Image.ANTIALIAS = _Image.Resampling.LANCZOS
@@ -32,6 +31,7 @@ from moviepy.editor import (
     ImageClip
 )
 import imageio_ffmpeg
+from tiktok_assistant import S3_BUCKET_NAME, RAW_PREFIX, s3
 
 os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
 
@@ -378,6 +378,29 @@ def _build_base_audio(video_path, total_duration):
     subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return out_path
 
+def ensure_local_video(filename: str) -> str:
+    """
+    Makes sure the video exists locally in tik_tok_downloads/.
+    If missing, download from S3 RAW_PREFIX folder.
+    Returns absolute local path.
+    """
+    from assistant_log import log_step
+
+    local_path = os.path.join(video_folder, filename)
+    if os.path.exists(local_path):
+        return local_path
+
+    # Video missing locally — fetch from S3
+    s3_key = f"{RAW_PREFIX}/{filename}"
+    log_step(f"[SYNC] Downloading missing clip: s3://{S3_BUCKET_NAME}/{s3_key}")
+
+    try:
+        s3.download_file(S3_BUCKET_NAME, s3_key, local_path)
+        log_step(f"[SYNC] Restored local clip → {local_path}")
+    except Exception as e:
+        raise RuntimeError(f"[SYNC ERROR] Cannot restore {filename} from S3: {e}")
+
+    return local_path
 
 
 def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):

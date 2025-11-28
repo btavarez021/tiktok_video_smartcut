@@ -86,31 +86,6 @@ def load_all_analysis_results() -> Dict[str, str]:
 
     return results
 
-def ensure_local_video(filename: str) -> str:
-    """
-    Makes sure the video exists locally in tik_tok_downloads/.
-    If missing, download from S3 RAW_PREFIX folder.
-    Returns absolute local path.
-    """
-    from assistant_log import log_step
-
-    local_path = os.path.join(video_folder, filename)
-    if os.path.exists(local_path):
-        return local_path
-
-    # Video missing locally — fetch from S3
-    s3_key = f"{RAW_PREFIX}/{filename}"
-    log_step(f"[SYNC] Downloading missing clip: s3://{S3_BUCKET_NAME}/{s3_key}")
-
-    try:
-        s3.download_file(S3_BUCKET_NAME, s3_key, local_path)
-        log_step(f"[SYNC] Restored local clip → {local_path}")
-    except Exception as e:
-        raise RuntimeError(f"[SYNC ERROR] Cannot restore {filename} from S3: {e}")
-
-    return local_path
-
-
 # -----------------------------------------
 # Upload Order Tracking (S3 JSON)
 # -----------------------------------------
