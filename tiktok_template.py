@@ -480,7 +480,7 @@ def _build_base_audio(base_video_path, total_duration):
 
 
 def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
-    import subprocess, tempfile, os, json
+    import subprocess, tempfile, os, json, shutil
     from assistant_log import log_step
     import yaml
 
@@ -490,30 +490,26 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
 
     log_step("Building low-memory FFmpeg timeline…")
 
-    # Build clip list from config
+    # ------------------------------
+    # Build clip list from YAML
+    # ------------------------------
     def collect(c, is_last=False):
-        start = float(c.get("start_time", 0))
-        dur = float(c.get("duration", 3))
-        file = os.path.join(video_folder, c["file"])
-        text = (c.get("text") or "").strip()
-
         return {
-            "file": file,
-            "start": start,
-            "duration": dur,
-            "text": text,
+            "file": os.path.join(video_folder, c["file"]),
+            "start": float(c.get("start_time", 0)),
+            "duration": float(c.get("duration", 3)),
+            "text": (c.get("text") or "").strip(),
             "is_last": is_last,
         }
 
-    clips = []
-    clips.append(collect(cfg["first_clip"]))
-    mids = cfg.get("middle_clips", [])
-    for m in mids:
+    clips = [collect(cfg["first_clip"])]
+    for m in cfg.get("middle_clips", []):
         clips.append(collect(m))
     clips.append(collect(cfg["last_clip"], is_last=True))
 
+
     # ------------------------------
-    # 1. Pre-trim each clip safely
+    # 1. Trim each clip safely
     # ------------------------------
     trimmed_files = []
     trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
@@ -523,20 +519,19 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
             trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
 
             vf = "scale=1080:-2,setsar=1"
-
-            # Low-memory text overlays
             if clip["text"]:
-                vf += f",drawtext=text='{clip['text'].replace(':','\\:')}':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=h-200"
+                txt = clip["text"].replace(":", "\\:")
+                vf += f",drawtext=text='{txt}':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=h-200"
 
             trim_cmd = [
-                "ffmpeg", "-y",
+                "ffmpeg","-y",
                 "-ss", str(clip["start"]),
                 "-i", clip["file"],
                 "-t", str(clip["duration"]),
                 "-vf", vf,
-                "-c:v", "libx264",
-                "-preset", "veryfast",
-                "-crf", "20",
+                "-c:v","libx264",
+                "-preset","veryfast",
+                "-crf","20",
                 "-an",
                 trimmed_path
             ]
@@ -547,121 +542,134 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
             trimmed_files.append(trimmed_path)
             lf.write(f"file '{trimmed_path}'\n")
 
+
     # ------------------------------
-    # 2. Concat safely via demuxer
+    # 2. Concat via demuxer
     # ------------------------------
     concat_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
 
     concat_cmd = [
-        "ffmpeg", "-y",
-        "-f", "concat",
-        "-safe", "0",
+        "ffmpeg","-y",
+        "-f","concat",
+        "-safe","0",
         "-i", trimlist,
-        "-c:v", "libx264",
-        "-preset", "superfast" if optimized else "veryfast",
-        "-crf", "22",
-        "-pix_fmt", "yuv420p",
+        "-c:v","libx264",
+        "-preset","superfast" if optimized else "veryfast",
+        "-crf","22",
+        "-pix_fmt","yuv420p",
         concat_output
     ]
 
     log_step("[CONCAT] Merging all clips…")
-    subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run(concat_cmd)
+
 
     # ------------------------------
-    # 3. CTA outro blur (only end section)
+    # 3. CTA blur
     # ------------------------------
+    final_video_source = concat_output
+
     cta_cfg = cfg.get("cta", {}) or {}
-    cta_enabled = cta_cfg.get("enabled")
-    cta_text = (cta_cfg.get("text") or "").strip()
-    cta_dur = float(cta_cfg.get("duration", 3.0))
+    if cta_cfg.get("enabled"):
+        cta_text = (cta_cfg.get("text") or "").replace(":", "\\:")
+        cta_dur = float(cta_cfg.get("duration", 3.0))
 
-    final_with_cta = concat_output
-
-    if cta_enabled:
         blurred = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
 
-        vf = f"split[v1][v2]; [v1]trim=0:({-cta_dur}),setpts=PTS-STARTPTS[pre]; [v2]trim=({-cta_dur}):,setpts=PTS-STARTPTS,boxblur=10[blur]; [blur]drawtext=text='{cta_text}':fontcolor=white:fontsize=60:x=(w-text_w)/2:y=h-200[blurtext]; [pre][blurtext]concat=n=2:v=1:a=0[out]"
+        vf = (
+            f"split[v1][v2]; "
+            f"[v1]trim=0:({-cta_dur}),setpts=PTS-STARTPTS[pre]; "
+            f"[v2]trim=({-cta_dur}):,setpts=PTS-STARTPTS,boxblur=10[blur]; "
+            f"[blur]drawtext=text='{cta_text}':fontcolor=white:fontsize=60:"
+            f"x=(w-text_w)/2:y=h-200[blurtext]; "
+            f"[pre][blurtext]concat=n=2:v=1:a=0[out]"
+        )
 
         blur_cmd = [
-            "ffmpeg", "-y",
+            "ffmpeg","-y",
             "-i", concat_output,
             "-vf", vf,
-            "-map", "[out]",
+            "-map","[out]",
             blurred
         ]
 
-        log_step("[CTA] Applying low-memory CTA blur + text…")
-        subprocess.run(blur_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        log_step("[CTA] Applying blur+text…")
+        subprocess.run(blur_cmd)
 
-        final_with_cta = blurred
+        final_video_source = blurred
+
 
     # ------------------------------
-    # 4. AUDIO mixing (TTS + music + base)
+    # 4. AUDIO (FFmpeg-only)
     # ------------------------------
-    out_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
+    total_duration = float(cfg["last_clip"]["start_time"] + cfg["last_clip"]["duration"])
 
-    mix_inputs = []
-    map_cmd = []
-    idx = 0
+    # Base Audio
+    base_audio = _build_base_audio(final_video_source, total_duration)
 
-    def add_audio(path, volume=1.0):
-        nonlocal idx
-        mix_inputs.extend(["-i", path])
-        map_cmd.append(f"[{idx}:a]volume={volume}[a{idx}];")
-        idx += 1
-
-    # Base audio
-    try:
-        base_audio = _build_base_audio(cfg)
-        if base_audio:
-            add_audio(base_audio, 0.8)
-    except:
-        pass
-
-    # TTS
-    try:
-        tts_audio = _build_tts_audio(cfg, None, None)
-        if tts_audio:
-            add_audio(tts_audio, 1.0)
-    except:
-        pass
+    # TTS Audio
+    tts_audio = _build_tts_audio(cfg)
 
     # Music
-    try:
-        music_audio = _build_music_audio(cfg, None)
-        if music_audio:
-            add_audio(music_audio, 0.25)
-    except:
-        pass
+    music_audio = _build_music_audio(cfg, total_duration)
 
-    if idx:
-        filter_complex = "".join(map_cmd) + f"{''.join(f'[a{i}]' for i in range(idx))}amix=inputs={idx}:normalize=0[outa]"
+    mix_inputs = []
+    mix_filters = []
+    idx = 0
+
+    def add(path, vol):
+        nonlocal idx
+        if not path:
+            return
+        mix_inputs.extend(["-i", path])
+        mix_filters.append(f"[{idx}:a]volume={vol}[a{idx}]")
+        idx += 1
+
+    add(base_audio, 0.8)
+    add(tts_audio, 1.0)
+    add(music_audio, 0.25)
+
+    if idx > 0:
+        audio_out = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
+
+        filter_complex = "; ".join(mix_filters) + "; " + "".join(
+            f"[a{i}]" for i in range(idx)
+        ) + f"amix=inputs={idx}:normalize=0[outa]"
+
         audio_cmd = [
-            "ffmpeg", "-y",
+            "ffmpeg","-y",
             *mix_inputs,
             "-filter_complex", filter_complex,
-            "-map", "[outa]",
-            out_audio
+            "-map","[outa]",
+            "-c:a","aac",
+            audio_out
         ]
-        log_step("[AUDIO] Mixing tracks safely…")
+
+        log_step("[AUDIO] Mixing…")
         subprocess.run(audio_cmd)
+    else:
+        audio_out = None
+
 
     # ------------------------------
-    # 5. Final mux: combine video + audio
+    # 5. Final MUX
     # ------------------------------
     final_output = os.path.abspath(os.path.join(BASE_DIR, output_file))
 
-    mux_cmd = [
-        "ffmpeg", "-y",
-        "-i", final_with_cta,
-    ]
+    mux_cmd = ["ffmpeg","-y","-i",final_video_source]
 
-    if idx:
-        mux_cmd.extend(["-i", out_audio, "-c:v", "copy", "-c:a", "aac", final_output])
+    if audio_out:
+        mux_cmd.extend(["-i", audio_out, "-c:v","copy","-c:a","aac", final_output])
     else:
-        mux_cmd.extend(["-c:v", "copy", final_output])
+        mux_cmd.extend(["-c:v","copy", final_output])
 
     log_step("[MUX] Writing final video…")
     subprocess.run(mux_cmd)
 
+
+    # Ensure file EXISTS
+    if not os.path.exists(final_output):
+        raise RuntimeError(f"Final output missing! {final_output}")
+
+    log_step(f"[EXPORT] Video rendered: {final_output}")
     return final_output
