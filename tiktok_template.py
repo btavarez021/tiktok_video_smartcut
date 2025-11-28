@@ -120,6 +120,14 @@ def _build_tts_audio(cfg):
     """
     Build a single TTS narration track using low memory.
     Returns a .m4a file path or None.
+
+    Reads TTS settings from the new top-level:
+      tts:
+        enabled: true
+        voice: lily
+
+    and falls back to legacy:
+      render.tts_enabled / render.tts_voice
     """
     import tempfile
     from openai import OpenAI
@@ -129,12 +137,21 @@ def _build_tts_audio(cfg):
         log_step("[TTS] No API key, skipping TTS.")
         return None
 
+    # NEW: prefer top-level tts, but keep legacy support
+    tts_cfg = cfg.get("tts") or {}
     render = cfg.get("render", {}) or {}
-    if not render.get("tts_enabled"):
-        log_step("[TTS] tts_enabled is False, skipping TTS.")
+
+    # enabled: tts.enabled takes priority, else legacy render.tts_enabled
+    enabled = tts_cfg.get("enabled")
+    if enabled is None:
+        enabled = render.get("tts_enabled", False)
+
+    if not enabled:
+        log_step("[TTS] TTS disabled in config (tts.enabled/render.tts_enabled is False). Skipping TTS.")
         return None
 
-    voice = render.get("tts_voice", "alloy")
+    # voice: tts.voice takes priority, else legacy render.tts_voice, else alloy
+    voice = tts_cfg.get("voice") or render.get("tts_voice") or "alloy"
 
     # Build narration from all captions
     texts = []
@@ -158,7 +175,7 @@ def _build_tts_audio(cfg):
         log_step("[TTS] No text content found, skipping TTS.")
         return None
 
-    log_step("[TTS] Generating full narration…")
+    log_step(f"[TTS] Generating full narration with voice='{voice}'…")
 
     temp_mp3 = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
 
