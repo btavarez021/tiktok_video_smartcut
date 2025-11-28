@@ -592,7 +592,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     final_video_source = concat_output
 
     # --------------------------------------------------------
-    # 3. CTA OUTRO BLUR (SAFE, TIME-BASED)
+    # 3. CTA OUTRO BLUR (SAFE, TIME-ALIGNED WITH NARRATION)
     # --------------------------------------------------------
     cta_cfg = cfg.get("cta", {}) or {}
     cta_enabled = cta_cfg.get("enabled", False)
@@ -600,71 +600,55 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     cta_dur = float(cta_cfg.get("duration", 3.0))
 
     if cta_enabled and cta_text:
-        try:
-            total_dur = float(
-                subprocess.check_output(
-                    [
-                        "ffprobe", "-v", "error",
-                        "-show_entries", "format=duration",
-                        "-of", "default=noprint_wrappers=1:nokey=1",
-                        concat_output,
-                    ]
-                ).decode().strip()
-            )
-        except Exception as e:
-            log_step(f"[CTA] Probe failed, skipping CTA: {e}")
-            total_dur = 0
 
-        if total_dur <= 0.3:
-            log_step("[CTA] Video too short for CTA → skipping CTA step.")
+        # ---------------------------------------------
+        # NEW — Use extended clip duration instead
+        # of raw concat video duration
+        # (fixes narrator overlapping CTA blur)
+        # ---------------------------------------------
+        clips_total = sum([clip["duration"] for clip in clips])  # TRUE end of narration
+        start_cta = clips_total                                # CTA begins AFTER narration
+        end_cta = start_cta + cta_dur                          # CTA ends after its duration
+
+        blurred = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+
+        vf = (
+            f"boxblur=10:enable='between(t,{start_cta},{end_cta})',"
+            f"drawtext=text='{cta_text}':"
+            f"fontcolor=white:fontsize=60:"
+            f"x=(w-text_w)/2:y=h-220:"
+            f"enable='between(t,{start_cta},{end_cta})'"
+        )
+
+        blur_cmd = [
+            "ffmpeg", "-y",
+            "-i", concat_output,
+            "-vf", vf,
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "22",
+            "-pix_fmt", "yuv420p",
+            blurred,
+        ]
+
+        log_step(f"[CTA] Applying SAFE CTA blur/text at {start_cta:.2f}s → {end_cta:.2f}s…")
+
+        proc = subprocess.run(
+            blur_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        if proc.stderr:
+            log_step(f"[CTA-FFMPEG] stderr:\n{proc.stderr}")
+
+        if not os.path.exists(blurred) or os.path.getsize(blurred) < 150 * 1024:
+            log_step("[CTA] CTA failed → using unmodified concat output.")
             final_video_source = concat_output
         else:
-            # Clamp CTA duration to reasonable range
-            safe_cta = min(cta_dur, max(total_dur - 0.1, 0.5))
-            if safe_cta < 0.2:
-                log_step("[CTA] CTA duration too small → skipping CTA step.")
-                final_video_source = concat_output
-            else:
-                start_cta = max(total_dur - safe_cta, 0.0)
+            final_video_source = blurred
 
-                blurred = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-
-                vf = (
-                    f"boxblur=10:enable='gte(t,{start_cta})',"
-                    f"drawtext=text='{cta_text}':"
-                    f"fontcolor=white:fontsize=60:"
-                    f"x=(w-text_w)/2:y=h-220:"
-                    f"enable='gte(t,{start_cta})'"
-                )
-
-                blur_cmd = [
-                    "ffmpeg", "-y",
-                    "-i", concat_output,
-                    "-vf", vf,
-                    "-c:v", "libx264",
-                    "-preset", "veryfast",
-                    "-crf", "22",
-                    "-pix_fmt", "yuv420p",
-                    blurred,
-                ]
-
-                log_step("[CTA] Applying SAFE CTA blur/text…")
-
-                proc = subprocess.run(
-                    blur_cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                )
-
-                if proc.stderr:
-                    log_step(f"[CTA-FFMPEG] stderr:\n{proc.stderr}")
-
-                if not os.path.exists(blurred) or os.path.getsize(blurred) < 150 * 1024:
-                    log_step("[CTA] CTA failed → using unmodified concat output.")
-                    final_video_source = concat_output
-                else:
-                    final_video_source = blurred
 
     # --------------------------------------------------------
     # NEW — PER-CLIP TTS (A1)
