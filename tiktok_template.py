@@ -451,6 +451,43 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
             ]
 
             log_step(f"[TRIM] {clip['file']} -> {trimmed_path}")
+
+            # --- DEBUG TRIM EXECUTION ---
+            trim_proc = subprocess.run(
+                trim_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            # Log FFmpeg stderr for this clip
+            if trim_proc.stderr:
+                log_step(f"[TRIM-FFMPEG] stderr for {clip['file']}:\n{trim_proc.stderr}")
+
+            # Verify trimmed file exists
+            if not os.path.exists(trimmed_path):
+                raise RuntimeError(f"[TRIM ERROR] Output not created for {clip['file']}")
+
+            # Verify file is not empty
+            if os.path.getsize(trimmed_path) < 50 * 1024:  # 50KB
+                raise RuntimeError(
+                    f"[TRIM ERROR] Output too small (<50KB) for {clip['file']}. "
+                    f"Likely corrupt input or failed trim."
+                )
+
+            # Verify trimmed file is a valid MP4 via ffprobe
+            try:
+                _ = subprocess.check_output([
+                    "ffprobe", "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    trimmed_path
+                ])
+            except Exception as e:
+                raise RuntimeError(
+                    f"[TRIM ERROR] Invalid MP4 produced for {clip['file']} — ffprobe error: {e}"
+                )
+            
             subprocess.run(trim_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             trimmed_files.append(trimmed_path)
