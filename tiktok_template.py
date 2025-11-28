@@ -116,106 +116,109 @@ def _wrap_caption(text: str, max_chars_per_line: int = 28) -> str:
 # -----------------------------------------
 # TTS generation
 # -----------------------------------------
-def _build_tts_audio(cfg):
+# -----------------------------------------
+# NEW: Per-clip TTS builder (A1 + C1)
+# -----------------------------------------
+def _build_per_clip_tts(cfg, clips, cta_cfg):
     """
-    Build a single TTS narration track using low memory.
-    Returns a .m4a file path or None.
-
-    Reads TTS settings from the new top-level:
-      tts:
-        enabled: true
-        voice: lily
-
-    and falls back to legacy:
-      render.tts_enabled / render.tts_voice
+    Build TTS for each clip individually.
+    Returns list of paths in the same order as clips,
+    and an optional CTA narration at the end.
     """
-    import tempfile
+
     from openai import OpenAI
+    import tempfile
 
     key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
     if not key:
-        log_step("[TTS] No API key, skipping TTS.")
-        return None
+        log_step("[TTS] No API key available — skipping all TTS.")
+        return [], None
 
-    # NEW: prefer top-level tts, but keep legacy support
-    tts_cfg = cfg.get("tts") or {}
     render = cfg.get("render", {}) or {}
+    if not render.get("tts_enabled"):
+        log_step("[TTS] tts_enabled=False → skipping TTS.")
+        return [], None
 
-    # enabled: tts.enabled takes priority, else legacy render.tts_enabled
-    enabled = tts_cfg.get("enabled")
-    if enabled is None:
-        enabled = render.get("tts_enabled", False)
+    voice = render.get("tts_voice", "alloy")
 
-    if not enabled:
-        log_step("[TTS] TTS disabled in config (tts.enabled/render.tts_enabled is False). Skipping TTS.")
-        return None
+    client = OpenAI(api_key=key)
 
-    # voice: tts.voice takes priority, else legacy render.tts_voice, else alloy
-    voice = tts_cfg.get("voice") or render.get("tts_voice") or "alloy"
+    tts_files = []
 
-    # Build narration from all captions
-    texts = []
-    if cfg.get("first_clip", {}).get("text"):
-        texts.append(cfg["first_clip"]["text"])
+    # -----------------------------------------
+    # Generate narration for each clip (A1)
+    # -----------------------------------------
+    for idx, clip in enumerate(clips):
+        text = clip.get("text", "").strip()
+        if not text:
+            tts_files.append(None)
+            continue
 
-    for m in cfg.get("middle_clips", []):
-        if m.get("text"):
-            texts.append(m["text"])
+        log_step(f"[TTS] Generating narration for clip {idx+1}: '{text}'")
 
-    if cfg.get("last_clip", {}).get("text"):
-        texts.append(cfg["last_clip"]["text"])
+        tmp_mp3 = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
 
-    # Include CTA text if voiceover is enabled
-    cta_cfg = cfg.get("cta", {}) or {}
-    if cta_cfg.get("voiceover") and cta_cfg.get("text"):
-        texts.append(cta_cfg["text"])
+        try:
+            resp = client.audio.speech.create(
+                model="gpt-4o-mini-tts",
+                voice=voice,
+                input=text,
+            )
+            with open(tmp_mp3, "wb") as f:
+                f.write(resp.read())
+        except Exception as e:
+            log_step(f"[TTS ERROR] clip {idx+1}: {e}")
+            tts_files.append(None)
+            continue
 
-    full_text = "\n".join(texts).strip()
-    if not full_text:
-        log_step("[TTS] No text content found, skipping TTS.")
-        return None
-
-    log_step(f"[TTS] Generating full narration with voice='{voice}'…")
-
-    temp_mp3 = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
-
-    try:
-        client = OpenAI(api_key=key)
-        resp = client.audio.speech.create(
-            model="gpt-4o-mini-tts",
-            voice=voice,
-            input=full_text,
+        # Convert → AAC (FFmpeg)
+        tmp_m4a = tmp_mp3.replace(".mp3", ".m4a")
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", tmp_mp3, "-c:a", "aac", "-b:a", "192k", tmp_m4a],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
-        with open(temp_mp3, "wb") as f:
-            f.write(resp.read())
-    except Exception as e:
-        log_step(f"[TTS ERROR] {e}")
-        return None
 
-    out_path = temp_mp3.replace(".mp3", ".m4a")
+        if os.path.exists(tmp_m4a):
+            tts_files.append(tmp_m4a)
+        else:
+            tts_files.append(None)
 
-    proc = subprocess.run(
-        [
-            "ffmpeg", "-y",
-            "-i", temp_mp3,
-            "-c:a", "aac",
-            "-b:a", "192k",
-            out_path,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    # -----------------------------------------
+    # CTA Narration (C1 — separate final clip)
+    # -----------------------------------------
+    cta_narration_path = None
 
-    if proc.stderr:
-        log_step(f"[TTS-FFMPEG] stderr:\n{proc.stderr}")
+    if cta_cfg.get("enabled") and cta_cfg.get("voiceover") and cta_cfg.get("text"):
+        text = cta_cfg["text"]
+        log_step(f"[TTS] Generating CTA narration: '{text}'")
 
-    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
-        log_step("[TTS] Output audio file invalid, skipping TTS.")
-        return None
+        tmp_mp3 = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
+        try:
+            resp = client.audio.speech.create(
+                model="gpt-4o-mini-tts",
+                voice=voice,
+                input=text,
+            )
+            with open(tmp_mp3, "wb") as f:
+                f.write(resp.read())
+        except Exception as e:
+            log_step(f"[TTS ERROR CTA] {e}")
+            cta_narration_path = None
+        else:
+            tmp_m4a = tmp_mp3.replace(".mp3", ".m4a")
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", tmp_mp3, "-c:a", "aac", "-b:a", "192k", tmp_m4a],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if os.path.exists(tmp_m4a):
+                cta_narration_path = tmp_m4a
 
-    log_step(f"[TTS] OK: {out_path}")
-    return out_path
+    return tts_files, cta_narration_path
+
 
 
 # -----------------------------------------
@@ -352,11 +355,9 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
        - Validate output with size + ffprobe
     3. Concat all trimmed clips via demuxer
     4. Optional CTA blur/text pass (safe, time-based)
-    5. Build audio (TTS + Music) and mix
+    5. Build audio (per-clip TTS + CTA + Music) and mix
     6. Mux final video + audio
     7. Validate final MP4
-
-    Returns absolute path to final_output.
     """
     cfg = _load_config()
     if not cfg:
@@ -418,41 +419,22 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     trimmed_files = []
     trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
 
-    # Make a 1-frame spacer to prevent text bleed
-    spacer_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-f", "lavfi",
-        "-i", "color=c=black:s=1080x1920:d=0.04",
-        "-c:v", "libx264",
-        "-pix_fmt", "yuv420p",
-        spacer_path
-    ])
-
-
-    # Layout presets
-    # ------------------------------
-    #  Layout presets (TikTok / Classic)
-    # ------------------------------
+    # Layout presets (TikTok / Classic)
     if layout_mode == "tiktok":
-        # TRUE TikTok caption style
-        max_chars = 22                      # tighter wrap like creators use
-        fontsize = 68                       # large bold readable
+        # TikTok caption style
+        max_chars = 22
+        fontsize = 68
         line_spacing = 14
-        boxborderw = 55                     # thick padding around text
+        boxborderw = 55
         fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-
-        # high-third placement (above TikTok UI)
         y_expr = "(h * 0.55)"
-
-    else:  # classic mode (legacy look)
+    else:  # classic mode
         max_chars = 38
         fontsize = 54
         line_spacing = 8
         boxborderw = 35
         fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
         y_expr = "h-(text_h*1.8)-150"
-
 
     with open(trimlist, "w") as lf:
         for clip in clips:
@@ -475,11 +457,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
                     f"y={y_expr}:"
                     f"fix_bounds=1:"
                     f"borderw=2:bordercolor=0x000000"
-                    f",trim=end={clip['duration']},setpts=PTS-STARTPTS"   # ⭐ NEW — stops bleed, no cutting
                 )
-
-
-
 
             trim_cmd = [
                 "ffmpeg", "-y",
@@ -531,11 +509,6 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
             trimmed_files.append(trimmed_path)
             lf.write(f"file '{trimmed_path}'\n")
-
-            # Add spacer unless it's the final clip
-            if not clip["is_last"]:
-                lf.write(f"file '{spacer_path}'\n")
-
 
     # --------------------------------------------------------
     # 2. CONCAT USING DEMUXER
@@ -626,7 +599,6 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
                 blurred = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
 
-                # Simple, robust CTA: blur + text only on last seconds via enable='gte(t,start_cta)'
                 vf = (
                     f"boxblur=10:enable='gte(t,{start_cta})',"
                     f"drawtext=text='{cta_text}':"
@@ -665,95 +637,139 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
                     final_video_source = blurred
 
     # --------------------------------------------------------
-    # 4. AUDIO PIPELINE (TTS + MUSIC ONLY)
+    # NEW — PER-CLIP TTS (A1)
     # --------------------------------------------------------
-    total_duration = float(
-        subprocess.check_output(
-            [
-                "ffprobe", "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
-                final_video_source,
-            ]
-        ).decode().strip()
-    )
+    cta_cfg = cfg.get("cta", {}) or {}
+    tts_tracks, cta_tts_track = _build_per_clip_tts(cfg, clips, cta_cfg)
 
-    # We intentionally DO NOT use base_audio in the mix, to avoid
-    # corrupt/empty streams. Only TTS + music.
-    tts_audio = _build_tts_audio(cfg)
+    # --------------------------------------------------------
+    # 4. AUDIO PIPELINE — per-clip TTS + CTA + music
+    # --------------------------------------------------------
+    log_step("[AUDIO] Building audio timeline…")
+
+    # Build narration timeline using adelay offsets so narration
+    # lines up with each clip in time.
+    audio_inputs = []
+    current_time = 0.0  # seconds
+
+    # Per-clip TTS: align by clip durations
+    for idx, clip in enumerate(clips):
+        tts_path = tts_tracks[idx] if idx < len(tts_tracks) else None
+        if tts_path:
+            audio_inputs.append({
+                "path": tts_path,
+                "start": current_time,   # when this clip starts
+                "volume": 1.0,
+            })
+        current_time += clip["duration"]
+
+    # CTA narration: align near the end (inside CTA blur window)
+    if cta_tts_track and cta_enabled and cta_text:
+        try:
+            total_dur = float(
+                subprocess.check_output(
+                    [
+                        "ffprobe", "-v", "error",
+                        "-show_entries", "format=duration",
+                        "-of", "default=noprint_wrappers=1:nokey=1",
+                        final_video_source,
+                    ]
+                ).decode().strip()
+            )
+        except Exception:
+            total_dur = current_time
+
+        cta_start = max(total_dur - cta_dur, 0.0)
+        audio_inputs.append({
+            "path": cta_tts_track,
+            "start": cta_start,
+            "volume": 1.0,
+        })
+
+    final_audio = None
+
+    if audio_inputs:
+        # Build ffmpeg command to mix all TTS with timing offsets
+        narration_out = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
+        cmd = ["ffmpeg", "-y"]
+
+        for inp in audio_inputs:
+            cmd += ["-i", inp["path"]]
+
+        filter_parts = []
+        labels = []
+
+        for idx, inp in enumerate(audio_inputs):
+            delay_ms = int(round(inp["start"] * 1000))
+            vol = inp["volume"]
+            # stereo-safe adelay
+            part = f"[{idx}:a]adelay={delay_ms}|{delay_ms},volume={vol}[a{idx}]"
+            filter_parts.append(part)
+            labels.append(f"[a{idx}]")
+
+        filter_complex = "; ".join(filter_parts) + "; " + "".join(labels) + f"amix=inputs={len(audio_inputs)}:normalize=0[outa]"
+
+        cmd += [
+            "-filter_complex", filter_complex,
+            "-map", "[outa]",
+            "-c:a", "aac",
+            narration_out,
+        ]
+
+        log_step("[AUDIO] Mixing per-clip TTS (and CTA)…")
+        mix_proc = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        if mix_proc.stderr:
+            log_step(f"[AUDIO-FFMPEG] stderr:\n{mix_proc.stderr}")
+
+        if os.path.exists(narration_out) and os.path.getsize(narration_out) > 1024:
+            final_audio = narration_out
+        else:
+            log_step("[AUDIO] Narration mix invalid → disabling narration.")
+            final_audio = None
+
+    # Load background music and mix with narration (if any)
+    try:
+        total_duration = float(
+            subprocess.check_output(
+                [
+                    "ffprobe", "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    final_video_source,
+                ]
+            ).decode().strip()
+        )
+    except Exception:
+        total_duration = current_time
+
     music_audio = _build_music_audio(cfg, total_duration)
 
-    mix_inputs = []
-    mix_filters = []
-    idx = 0
-
-    def add(path, vol):
-        nonlocal idx
-        if not path:
-            return
-        mix_inputs.extend(["-i", path])
-        mix_filters.append(f"[{idx}:a]volume={vol}[a{idx}]")
-        idx += 1
-
-    # Order is important, but each index is local to this ffmpeg call
-    add(tts_audio, 1.0)
-    add(music_audio, 0.25)
-
-    audio_out = None
-
-    if idx == 0:
-        log_step("[AUDIO] No TTS or music tracks → video will be silent.")
-        audio_out = None
-    elif idx == 1:
-        # Single track optimization
-        audio_out = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
-        log_step("[AUDIO] 1 track → copying directly…")
+    if final_audio and music_audio:
+        mixed = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
         subprocess.run(
             [
                 "ffmpeg", "-y",
-                "-i", mix_inputs[1],  # first audio input
+                "-i", final_audio,
+                "-i", music_audio,
+                "-filter_complex", "[0:a]volume=1.0[a0]; [1:a]volume=0.25[a1]; [a0][a1]amix=inputs=2:normalize=0[out]",
+                "-map", "[out]",
                 "-c:a", "aac",
-                audio_out,
+                mixed,
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
         )
-        if not os.path.exists(audio_out) or os.path.getsize(audio_out) < 1024:
-            log_step("[AUDIO] Single-track output invalid → disabling audio.")
-            audio_out = None
-    else:
-        audio_out = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
-
-        filter_complex = (
-            "; ".join(mix_filters)
-            + "; "
-            + "".join(f"[a{i}]" for i in range(idx))
-            + f"amix=inputs={idx}:normalize=0[outa]"
-        )
-
-        audio_cmd = [
-            "ffmpeg", "-y",
-            *mix_inputs,
-            "-filter_complex", filter_complex,
-            "-map", "[outa]",
-            "-c:a", "aac",
-            audio_out,
-        ]
-
-        log_step("[AUDIO] Mixing TTS + music…")
-        mix_proc = subprocess.run(
-            audio_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        if mix_proc.stderr:
-            log_step(f"[AUDIO-FFMPEG] stderr:\n{mix_proc.stderr}")
-
-        if not os.path.exists(audio_out) or os.path.getsize(audio_out) < 1024:
-            log_step("[AUDIO] Mixed audio invalid → disabling audio.")
-            audio_out = None
+        if os.path.exists(mixed) and os.path.getsize(mixed) > 1024:
+            final_audio = mixed
+        else:
+            log_step("[AUDIO] Music+TTS mix invalid → falling back to narration only.")
 
     # --------------------------------------------------------
     # 5. FINAL MUX
@@ -762,10 +778,10 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
     mux_cmd = ["ffmpeg", "-y", "-i", final_video_source]
 
-    if audio_out:
+    if final_audio:
         mux_cmd.extend(
             [
-                "-i", audio_out,
+                "-i", final_audio,
                 "-c:v", "copy",
                 "-c:a", "aac",
                 "-shortest",
