@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 from assistant_log import log_step
 # Pillow compatibility fix for MoviePy
 from PIL import Image, ImageFilter
-
+from assistant_api import ensure_local_video
 if not hasattr(Image, "ANTIALIAS"):
     from PIL import Image as _Image
     Image.ANTIALIAS = _Image.Resampling.LANCZOS
@@ -406,18 +406,22 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
     # Build clip list
     # ============================================================
     def collect(c, is_last=False):
+        raw_file = c["file"]
+
+        # get just filename (config stores relative name)
+        filename = os.path.basename(raw_file)
+
+        # ensure file exists locally (download if missing)
+        local_file = ensure_local_video(filename)
+
         return {
-            "file": os.path.join(video_folder, c["file"]),
+            "file": local_file,
             "start": float(c.get("start_time", 0)),
             "duration": float(c.get("duration", 3)),
-            "text": esc(c.get("text", "")),
+            "text": (c.get("text") or "").strip(),
             "is_last": is_last,
         }
 
-    clips = [collect(cfg["first_clip"])]
-    for m in cfg.get("middle_clips", []):
-        clips.append(collect(m))
-    clips.append(collect(cfg["last_clip"], is_last=True))
 
     # ============================================================
     # 1. TRIM EACH CLIP
