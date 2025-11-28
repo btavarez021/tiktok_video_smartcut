@@ -230,6 +230,15 @@ def api_generate_yaml() -> Dict[str, Any]:
 
     cfg = sanitize_yaml_filenames(cfg)
 
+    # -------------------------------------
+    # Inject default layout_mode if missing
+    # -------------------------------------
+    render = cfg.setdefault("render", {})
+    if "layout_mode" not in render:
+        # default for new configs
+        render["layout_mode"] = "tiktok"
+
+
     # Save YAML
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
