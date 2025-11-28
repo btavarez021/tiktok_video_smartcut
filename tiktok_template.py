@@ -232,21 +232,22 @@ def _scale_and_crop_vertical(clip: VideoFileClip, fg_scale: float = 1.0):
 # -----------------------------------------
 # TTS generation
 # -----------------------------------------
-def _build_tts_audio(cfg, segments, total_duration):
+def _build_tts_audio(cfg):
     """
-    MEMORY-SAFE TTS BUILDER (FFmpeg-only)
+    Build a single TTS narration track using low-memory FFmpeg.
+    We do NOT build per-clip TTS anymore. We generate one narration
+    consisting of all clip texts in sequence.
 
-    - Generates one TTS audio file per segment
-    - Creates a concat list for all narration segments
-    - FFmpeg merges audio with no RAM spikes
+    Returns:
+        path to .m4a file OR None
     """
-
+    import tempfile, os, subprocess
+    from assistant_log import log_step
     from openai import OpenAI
-    import subprocess, tempfile
 
     key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
     if not key:
-        logger.warning("No API key -> no TTS.")
+        log_step("[TTS] No API key, skipping.")
         return None
 
     render = cfg.get("render", {}) or {}
@@ -254,133 +255,58 @@ def _build_tts_audio(cfg, segments, total_duration):
         return None
 
     voice = render.get("tts_voice", "alloy")
-    client = OpenAI(api_key=key)
 
-    # --------------------------------------------
-    # TEMP concat file for FFmpeg
-    # --------------------------------------------
-    concat_list = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
-    entries = []
+    # Build narration text
+    texts = []
 
-    # Convert segments structure (from MoviePy pipeline) 
-    # into safe trimmed TTS segments for FFmpeg
-    for seg in segments or []:
-        text = (seg.get("text") or "").strip()
-        start = float(seg["start"])
-        end = float(seg["end"])
-        duration = max(0.0, end - start)
+    fc = cfg.get("first_clip", {})
+    if fc.get("text"):
+        texts.append(fc["text"])
 
-        if not text or duration <= 0:
-            continue
+    for m in cfg.get("middle_clips", []):
+        if m.get("text"):
+            texts.append(m["text"])
 
-        try:
-            # Generate raw TTS audio
-            tts_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
+    lc = cfg.get("last_clip", {})
+    if lc.get("text"):
+        texts.append(lc["text"])
 
-            resp = client.audio.speech.create(
-                model="gpt-4o-mini-tts",
-                voice=voice,
-                input=text,
-            )
-
-            with open(tts_path, "wb") as f:
-                f.write(resp.read())
-
-            # Trim/extend TTS audio to exact segment length
-            trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
-
-            trim_cmd = [
-                "ffmpeg", "-y",
-                "-i", tts_path,
-                "-t", str(duration),
-                "-af", "apad=pad_dur=10",  # avoid clicks
-                "-c:a", "aac",
-                trimmed_path
-            ]
-            subprocess.run(trim_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            # Add offset entry to concat list
-            entries.append(f"file '{trimmed_path}'\n")
-            entries.append(f"inpoint 0\n")  
-            entries.append(f"outpoint {duration}\n")
-
-        except Exception as e:
-            logger.warning(f"[TTS SEGMENT ERROR] {e}")
-
-    # --------------------------------------------
-    # CTA voiceover (optional)
-    # --------------------------------------------
-    cta_cfg = cfg.get("cta", {}) or {}
-    if (
-        cta_cfg.get("enabled")
-        and cta_cfg.get("voiceover")
-        and cta_cfg.get("text")
-    ):
-        cta_text = cta_cfg["text"].strip()
-        cta_duration = float(cta_cfg.get("duration", 3.0))
-
-        try:
-            tts_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
-
-            resp = client.audio.speech.create(
-                model="gpt-4o-mini-tts",
-                voice=voice,
-                input=cta_text,
-            )
-
-            with open(tts_path, "wb") as f:
-                f.write(resp.read())
-
-            trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
-
-            trim_cmd = [
-                "ffmpeg", "-y",
-                "-i", tts_path,
-                "-t", str(cta_duration),
-                "-af", "apad=pad_dur=10",
-                "-c:a", "aac",
-                trimmed_path
-            ]
-            subprocess.run(trim_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            entries.append(f"file '{trimmed_path}'\n")
-            entries.append(f"inpoint 0\n")
-            entries.append(f"outpoint {cta_duration}\n")
-
-        except Exception as e:
-            logger.warning(f"[TTS CTA ERROR] {e}")
-
-    # --------------------------------------------
-    # No narration? Return None
-    # --------------------------------------------
-    if not entries:
+    narration = "\n".join(texts).strip()
+    if not narration:
         return None
 
-    # --------------------------------------------
-    # Write concat list
-    # --------------------------------------------
-    with open(concat_list, "w") as f:
-        f.writelines(entries)
+    log_step("[TTS] Generating narration…")
 
-    # --------------------------------------------
-    # Final merged TTS output path
-    # --------------------------------------------
-    final_tts_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
+    # Output temp file
+    out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
 
-    concat_cmd = [
-        "ffmpeg", "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", concat_list,
-        "-c:a", "aac",
-        "-b:a", "192k",
-        final_tts_path,
-    ]
+    # Generate using OpenAI TTS
+    try:
+        client = OpenAI(api_key=key)
+        resp = client.audio.speech.create(
+            model="gpt-4o-mini-tts",
+            voice=voice,
+            input=narration,
+        )
+        with open(out_path, "wb") as f:
+            f.write(resp.read())
 
-    logger.info(f"[TTS] Merging {len(entries)//3} TTS segments…")
-    subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Convert to clean AAC for FFmpeg mixing
+        aac_path = out_path.replace(".mp3", ".m4a")
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-i", out_path,
+            "-c:a", "aac",
+            "-b:a", "192k",
+            aac_path
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    return final_tts_path
+        log_step(f"[TTS] OK: {aac_path}")
+        return aac_path
+
+    except Exception as e:
+        log_step(f"[TTS ERROR] {e}")
+        return None
 
 
 # -----------------------------------------
