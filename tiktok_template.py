@@ -714,7 +714,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         for idx, inp in enumerate(audio_inputs):
             delay_ms = int(round(inp["start"] * 1000))
             vol = inp["volume"]
-            part = f"[{idx}:a]adelay={delay_ms}:{delay_ms},volume={vol}[a{idx}]"
+            part = f"[{idx}:a]adelay={delay_ms}|{delay_ms},volume={vol}[a{idx}]"
 
             filter_parts.append(part)
             labels.append(f"[a{idx}]")
