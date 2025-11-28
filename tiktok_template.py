@@ -453,18 +453,19 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
                 vf += (
                     f",drawtext=text='{text_safe}':"
-                    f"fontfile={fontfile}:"                   # ← dynamic font
+                    f"fontfile={fontfile}:"
                     f"fontcolor=white:fontsize={fontsize}:"
                     f"line_spacing={line_spacing}:"
                     f"shadowcolor=0x000000:shadowx=3:shadowy=3:"
-                    f"text_shaping=1:"                        # ← smoother multi-line
+                    f"text_shaping=1:"
                     f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
                     f"x=(w-text_w)/2:"
                     f"y={y_expr}:"
                     f"fix_bounds=1:"
-                    f"borderw=2:bordercolor=0x000000:"
-                    f"enable='lt(t,{clip['duration'] - 0.05})'"   # 🔥 PREVENT CAPTION BLEED
+                    f"borderw=2:bordercolor=0x000000"
+                    f",trim=end={clip['duration']},setpts=PTS-STARTPTS"   # ⭐ NEW — stops bleed, no cutting
                 )
+
 
 
 
