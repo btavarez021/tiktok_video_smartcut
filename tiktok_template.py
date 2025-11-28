@@ -345,6 +345,13 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
             "is_last": is_last,
         }
 
+    # 👉 actually build the list of clips
+    clips = [collect(cfg["first_clip"])]
+    for m in cfg.get("middle_clips", []):
+        clips.append(collect(m))
+    clips.append(collect(cfg["last_clip"], is_last=True))
+
+
 
     # ============================================================
     # 1. TRIM EACH CLIP
@@ -358,11 +365,13 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
             vf = "scale=1080:-2,setsar=1"
 
             if clip["text"]:
+                text_safe = esc(clip["text"])
                 vf += (
-                    f",drawtext=text='{clip['text']}':"
+                    f",drawtext=text='{text_safe}':"
                     f"fontcolor=white:fontsize=48:"
                     f"x=(w-text_w)/2:y=h-200"
                 )
+
 
             trim_cmd = [
                 "ffmpeg", "-y",
