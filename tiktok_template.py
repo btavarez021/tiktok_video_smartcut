@@ -3,7 +3,7 @@ import logging
 import subprocess
 import gc
 from typing import List, Dict, Any, Optional
-
+from assistant_log import log_step
 # Pillow compatibility fix for MoviePy
 from PIL import Image, ImageFilter
 
@@ -31,8 +31,6 @@ from moviepy.editor import (
     vfx,
     ImageClip
 )
-
-from assistant_log import log_step
 import imageio_ffmpeg
 
 os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
@@ -232,182 +230,19 @@ def _scale_and_crop_vertical(clip: VideoFileClip, fg_scale: float = 1.0):
 
 
 # -----------------------------------------
-# Build timeline (and keep per-clip segments)
-# -----------------------------------------
-def _build_timeline_from_config(cfg: Dict[str, Any]):
-    """
-    Returns:
-      - timeline: concatenated vertical video
-      - segments: list of {start, end, text}
-    """
-    render_cfg = cfg.get("render", {}) or {}
-    fg_default = float(render_cfg.get("fg_scale_default", 1.0))
-
-    clips: List[VideoFileClip] = []
-    segments: List[Dict[str, Any]] = []
-    current_start = 0.0
-
-    def _add(sec: dict):
-        nonlocal current_start
-        if not sec:
-            return
-        result = _load_clip_from_config(sec)
-        if not result:
-            return
-        c, sc = result
-        c = _scale_and_crop_vertical(c, fg_default * sc)
-
-        dur = float(c.duration)
-        start = current_start
-        end = start + dur
-
-        segments.append(
-            {
-                "start": start,
-                "end": end,
-                "text": (sec.get("text") or "").strip(),
-            }
-        )
-        clips.append(c)
-        current_start = end
-
-    _add(cfg.get("first_clip"))
-    for mc in cfg.get("middle_clips", []):
-        _add(mc)
-    _add(cfg.get("last_clip"))
-
-    if not clips:
-        raise RuntimeError("No clips available from config.yml")
-
-    timeline = concatenate_videoclips(clips, method="compose")
-    timeline = timeline.resize((TARGET_W, TARGET_H))
-
-    total = timeline.duration
-    if segments:
-        segments[-1]["end"] = total
-
-    return timeline, segments
-
-
-# -----------------------------------------
-# Caption collection (for TTS script)
-# -----------------------------------------
-def _collect_all_captions(cfg: Dict[str, Any]) -> List[str]:
-    caps: List[str] = []
-
-    if cfg.get("first_clip", {}).get("text"):
-        caps.append(str(cfg["first_clip"]["text"]))
-
-    for mc in cfg.get("middle_clips", []):
-        if mc.get("text"):
-            caps.append(str(mc["text"]))
-
-    if cfg.get("last_clip", {}).get("text"):
-        caps.append(str(cfg["last_clip"]["text"]))
-
-    # Include CTA in voiceover if requested
-    cta_cfg = cfg.get("cta", {}) or {}
-    if (
-        cta_cfg.get("enabled")
-        and cta_cfg.get("voiceover")
-        and (cta_cfg.get("text") or "").strip()
-    ):
-        caps.append(str(cta_cfg["text"]).strip())
-
-    return caps
-
-
-# -----------------------------------------
-# Overlay builder (text + box)
-# -----------------------------------------
-def _try_text_overlay(
-    text: str,
-    duration: float,
-    start: float,
-    fontsize: int = 60,
-    position: str = "bottom",
-    fade: bool = True,
-):
-    """Create overlay elements (box + text) for a given time window."""
-    text = (text or "").strip()
-    if not text or duration <= 0:
-        return []
-
-    try:
-        txt = (
-            TextClip(
-                text,
-                fontsize=fontsize,
-                font="DejaVu-Sans-Bold",
-                color="white",
-                method="caption",
-                size=(TARGET_W - 160, None),
-            )
-            .set_duration(duration)
-            .set_start(start)
-        )
-
-        if fade and duration > 0.5:
-            txt = txt.fx(vfx.fadein, 0.25).fx(vfx.fadeout, 0.25)
-
-        box_h = txt.h + 60
-        box = (
-            ColorClip(size=(TARGET_W, box_h), color=(0, 0, 0))
-            .set_duration(duration)
-            .set_start(start)
-            .set_opacity(0.45)
-        )
-
-        y = TARGET_H * (0.80 if position == "bottom" else 0.50)
-
-        txt = txt.set_position(("center", y))
-        box = box.set_position(("center", y))
-
-        return [box, txt]
-
-    except Exception as e:
-        logger.warning("Text overlay failed: %s", e)
-        return []
-
-
-# -----------------------------------------
-# Simple audio loop helper (no audio_loop)
-# -----------------------------------------
-def _loop_audio_to_duration(audio_clip: AudioFileClip, duration: float) -> AudioFileClip:
-    if duration <= 0 or not audio_clip:
-        return audio_clip
-
-    clips = []
-    t = 0.0
-    while t < duration:
-        remaining = duration - t
-        if audio_clip.duration <= remaining + 1e-3:
-            part = audio_clip
-        else:
-            part = audio_clip.subclip(0, remaining)
-        clips.append(part)
-        t += part.duration
-        if len(clips) > 50:
-            break
-
-    if not clips:
-        return audio_clip
-
-    return concatenate_audioclips(clips)
-
-
-# -----------------------------------------
 # TTS generation
 # -----------------------------------------
 def _build_tts_audio(cfg, segments, total_duration):
     """
-    Build segmented TTS:
-    - One narration segment per clip
-    - Optional CTA narration at end
-    - Each segment aligns exactly with its video duration
-    - No bleed, no overlap
+    MEMORY-SAFE TTS BUILDER (FFmpeg-only)
+
+    - Generates one TTS audio file per segment
+    - Creates a concat list for all narration segments
+    - FFmpeg merges audio with no RAM spikes
     """
+
     from openai import OpenAI
+    import subprocess, tempfile
 
     key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
     if not key:
@@ -419,56 +254,62 @@ def _build_tts_audio(cfg, segments, total_duration):
         return None
 
     voice = render.get("tts_voice", "alloy")
-
     client = OpenAI(api_key=key)
 
-    audio_segments = []
+    # --------------------------------------------
+    # TEMP concat file for FFmpeg
+    # --------------------------------------------
+    concat_list = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
+    entries = []
 
-    # ------------------------------------------------
-    # 1) CLIP-BY-CLIP TTS (first, mids, last)
-    # ------------------------------------------------
-    for seg in segments:
+    # Convert segments structure (from MoviePy pipeline) 
+    # into safe trimmed TTS segments for FFmpeg
+    for seg in segments or []:
         text = (seg.get("text") or "").strip()
         start = float(seg["start"])
-        duration = float(seg["end"] - seg["start"])
+        end = float(seg["end"])
+        duration = max(0.0, end - start)
+
         if not text or duration <= 0:
             continue
 
         try:
-            # Output file
-            out_path = os.path.join(
-                BASE_DIR, f"tts_seg_{int(start*1000)}.mp3"
-            )
+            # Generate raw TTS audio
+            tts_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
 
-            # Generate per-segment TTS
             resp = client.audio.speech.create(
                 model="gpt-4o-mini-tts",
                 voice=voice,
                 input=text,
             )
 
-            with open(out_path, "wb") as f:
+            with open(tts_path, "wb") as f:
                 f.write(resp.read())
 
-            clip_audio = AudioFileClip(out_path)
+            # Trim/extend TTS audio to exact segment length
+            trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
 
-            # Trim or loop to EXACT duration
-            if clip_audio.duration < duration:
-                clip_audio = _loop_audio_to_duration(clip_audio, duration)
-            else:
-                clip_audio = clip_audio.subclip(0, duration)
+            trim_cmd = [
+                "ffmpeg", "-y",
+                "-i", tts_path,
+                "-t", str(duration),
+                "-af", "apad=pad_dur=10",  # avoid clicks
+                "-c:a", "aac",
+                trimmed_path
+            ]
+            subprocess.run(trim_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-            # Set start time to align with video segment
-            clip_audio = clip_audio.set_start(start)
-
-            audio_segments.append(clip_audio)
+            # Add offset entry to concat list
+            entries.append(f"file '{trimmed_path}'\n")
+            entries.append(f"inpoint 0\n")  
+            entries.append(f"outpoint {duration}\n")
 
         except Exception as e:
             logger.warning(f"[TTS SEGMENT ERROR] {e}")
 
-    # ------------------------------------------------
-    # 2) CTA TTS (if enabled)
-    # ------------------------------------------------
+    # --------------------------------------------
+    # CTA voiceover (optional)
+    # --------------------------------------------
     cta_cfg = cfg.get("cta", {}) or {}
     if (
         cta_cfg.get("enabled")
@@ -477,10 +318,9 @@ def _build_tts_audio(cfg, segments, total_duration):
     ):
         cta_text = cta_cfg["text"].strip()
         cta_duration = float(cta_cfg.get("duration", 3.0))
-        cta_start = total_duration - cta_duration
 
         try:
-            out_path = os.path.join(BASE_DIR, "tts_cta.mp3")
+            tts_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
 
             resp = client.audio.speech.create(
                 model="gpt-4o-mini-tts",
@@ -488,36 +328,75 @@ def _build_tts_audio(cfg, segments, total_duration):
                 input=cta_text,
             )
 
-            with open(out_path, "wb") as f:
+            with open(tts_path, "wb") as f:
                 f.write(resp.read())
 
-            cta_audio = AudioFileClip(out_path)
+            trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
 
-            if cta_audio.duration < cta_duration:
-                cta_audio = _loop_audio_to_duration(cta_audio, cta_duration)
-            else:
-                cta_audio = cta_audio.subclip(0, cta_duration)
+            trim_cmd = [
+                "ffmpeg", "-y",
+                "-i", tts_path,
+                "-t", str(cta_duration),
+                "-af", "apad=pad_dur=10",
+                "-c:a", "aac",
+                trimmed_path
+            ]
+            subprocess.run(trim_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-            cta_audio = cta_audio.set_start(cta_start)
-
-            audio_segments.append(cta_audio)
+            entries.append(f"file '{trimmed_path}'\n")
+            entries.append(f"inpoint 0\n")
+            entries.append(f"outpoint {cta_duration}\n")
 
         except Exception as e:
             logger.warning(f"[TTS CTA ERROR] {e}")
 
-    # ------------------------------------------------
-    # 3) FINAL COMPOSITE
-    # ------------------------------------------------
-    if not audio_segments:
+    # --------------------------------------------
+    # No narration? Return None
+    # --------------------------------------------
+    if not entries:
         return None
 
-    return CompositeAudioClip(audio_segments)
+    # --------------------------------------------
+    # Write concat list
+    # --------------------------------------------
+    with open(concat_list, "w") as f:
+        f.writelines(entries)
+
+    # --------------------------------------------
+    # Final merged TTS output path
+    # --------------------------------------------
+    final_tts_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
+
+    concat_cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", concat_list,
+        "-c:a", "aac",
+        "-b:a", "192k",
+        final_tts_path,
+    ]
+
+    logger.info(f"[TTS] Merging {len(entries)//3} TTS segments…")
+    subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    return final_tts_path
 
 
 # -----------------------------------------
 # Background music (YAML: music: {enabled, file, volume})
 # -----------------------------------------
 def _build_music_audio(cfg, total_duration):
+    """
+    MEMORY-SAFE MUSIC BUILDER (FFmpeg-only)
+
+    - Loads music file without MoviePy
+    - Loops or trims using ffmpeg
+    - Ensures exact total_duration alignment
+    - Returns a temp file path, not an in-memory audio object
+    """
+    import subprocess, tempfile
+
     music_cfg = cfg.get("music", {}) or {}
     if not music_cfg.get("enabled"):
         return None
@@ -534,220 +413,255 @@ def _build_music_audio(cfg, total_duration):
         return None
 
     try:
-        log_step(f"[MUSIC] Loaded: {music_path}")
-        music = AudioFileClip(music_path).volumex(music_volume)
-        if music.duration < total_duration:
-            music_full = _loop_audio_to_duration(music, total_duration)
-        else:
-            music_full = music.subclip(0, total_duration)
-        return music_full
+        log_step(f"[MUSIC] Using file: {music_path}")
+
+        # ----------------------------------------
+        # Output temp file
+        # ----------------------------------------
+        out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
+
+        # FFmpeg filter chain:
+        # - apad: pad the audio if too short
+        # - atrim: trim to exact total duration
+        # - volume: apply music volume
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-i", music_path,
+            "-af", f"apad=pad_dur=20,atrim=0:{total_duration},volume={music_volume}",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            out_path
+        ]
+
+        subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        return out_path
+
     except Exception as e:
-        log_step(f"[MUSIC ERROR] Failed to load or loop {music_path}: {e}")
+        log_step(f"[MUSIC ERROR] {e}")
         return None
 
 
-# -----------------------------------------
-# Main render
-# -----------------------------------------
+def _build_base_audio(base_video_path, total_duration):
+    """
+    MEMORY-SAFE BASE AUDIO EXTRACTOR
+
+    - Extracts the video's original audio using FFmpeg
+    - Never loads audio into RAM
+    - Trims or pads to total_duration (important if TTS extended the video)
+    - Returns a temp audio file path for FFmpeg mixing
+    """
+    import subprocess, tempfile
+
+    if not os.path.exists(base_video_path):
+        log_step(f"[AUDIO] Base video missing: {base_video_path}")
+        return None
+
+    # Output temp file
+    out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
+
+    # FFmpeg filter chain:
+    # - apad: extends audio if shorter than video
+    # - atrim: trims to exact duration if longer
+    ffmpeg_cmd = [
+        "ffmpeg", "-y",
+        "-i", base_video_path,
+        "-vn",  # no video, extract audio only
+        "-af", f"apad=pad_dur=20,atrim=0:{total_duration}",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        out_path
+    ]
+
+    subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    return out_path
+
+
+
 def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
+    import subprocess, tempfile, os, json
+    from assistant_log import log_step
+    import yaml
 
     cfg = _load_config()
     if not cfg:
         raise RuntimeError("config.yml missing or empty")
 
-    log_step("Building 1080x1920 timeline…")
+    log_step("Building low-memory FFmpeg timeline…")
 
-    base, segments = _build_timeline_from_config(cfg)
-    total = float(base.duration)
+    # Build clip list from config
+    def collect(c, is_last=False):
+        start = float(c.get("start_time", 0))
+        dur = float(c.get("duration", 3))
+        file = os.path.join(video_folder, c["file"])
+        text = (c.get("text") or "").strip()
 
-    # ----- CTA timing -----
+        return {
+            "file": file,
+            "start": start,
+            "duration": dur,
+            "text": text,
+            "is_last": is_last,
+        }
+
+    clips = []
+    clips.append(collect(cfg["first_clip"]))
+    mids = cfg.get("middle_clips", [])
+    for m in mids:
+        clips.append(collect(m))
+    clips.append(collect(cfg["last_clip"], is_last=True))
+
+    # ------------------------------
+    # 1. Pre-trim each clip safely
+    # ------------------------------
+    trimmed_files = []
+    trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
+
+    with open(trimlist, "w") as lf:
+        for clip in clips:
+            trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+
+            vf = "scale=1080:-2,setsar=1"
+
+            # Low-memory text overlays
+            if clip["text"]:
+                vf += f",drawtext=text='{clip['text'].replace(':','\\:')}':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=h-200"
+
+            trim_cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(clip["start"]),
+                "-i", clip["file"],
+                "-t", str(clip["duration"]),
+                "-vf", vf,
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "20",
+                "-an",
+                trimmed_path
+            ]
+
+            log_step(f"[TRIM] {clip['file']} -> {trimmed_path}")
+            subprocess.run(trim_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            trimmed_files.append(trimmed_path)
+            lf.write(f"file '{trimmed_path}'\n")
+
+    # ------------------------------
+    # 2. Concat safely via demuxer
+    # ------------------------------
+    concat_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+
+    concat_cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", trimlist,
+        "-c:v", "libx264",
+        "-preset", "superfast" if optimized else "veryfast",
+        "-crf", "22",
+        "-pix_fmt", "yuv420p",
+        concat_output
+    ]
+
+    log_step("[CONCAT] Merging all clips…")
+    subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    # ------------------------------
+    # 3. CTA outro blur (only end section)
+    # ------------------------------
     cta_cfg = cfg.get("cta", {}) or {}
-    cta_enabled = bool(cta_cfg.get("enabled"))
-    cta_duration = float(cta_cfg.get("duration", 3.0)) if cta_enabled else 0.0
-    cta_start = (
-        max(0.0, total - cta_duration)
-        if cta_enabled and cta_duration > 0
-        else None
-    )
+    cta_enabled = cta_cfg.get("enabled")
+    cta_text = (cta_cfg.get("text") or "").strip()
+    cta_dur = float(cta_cfg.get("duration", 3.0))
 
-    # ----- Apply CTA blur + dim + fade (B2) -----
-    if cta_enabled and cta_start is not None:
-        try:
-            pre = base.subclip(0, cta_start)
-            outro = base.subclip(cta_start, total)
+    final_with_cta = concat_output
 
-            # Blur the outro
-            outro_blurred = outro.fl_image(lambda f: blur_frame(f, radius=18))
+    if cta_enabled:
+        blurred = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
 
-            # Dim layer over the blurred outro
-            dim = ColorClip(size=(TARGET_W, TARGET_H), color=(0, 0, 0)).set_opacity(
-                0.20
-            )
-            dim = dim.set_duration(outro_blurred.duration)
+        vf = f"split[v1][v2]; [v1]trim=0:({-cta_dur}),setpts=PTS-STARTPTS[pre]; [v2]trim=({-cta_dur}):,setpts=PTS-STARTPTS,boxblur=10[blur]; [blur]drawtext=text='{cta_text}':fontcolor=white:fontsize=60:x=(w-text_w)/2:y=h-200[blurtext]; [pre][blurtext]concat=n=2:v=1:a=0[out]"
 
-            outro_blurred_dim = CompositeVideoClip(
-                [outro_blurred, dim], size=(TARGET_W, TARGET_H)
-            )
+        blur_cmd = [
+            "ffmpeg", "-y",
+            "-i", concat_output,
+            "-vf", vf,
+            "-map", "[out]",
+            blurred
+        ]
 
-            # Soft crossfade between pre and blurred-dim outro
-            pre = pre.fx(vfx.fadeout, 0.4)
-            outro_blurred_dim = outro_blurred_dim.fx(vfx.fadein, 0.4)
+        log_step("[CTA] Applying low-memory CTA blur + text…")
+        subprocess.run(blur_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-            base_video = concatenate_videoclips(
-                [pre, outro_blurred_dim], method="compose"
-            )
-            base_video = base_video.resize((TARGET_W, TARGET_H))
-        except Exception as e:
-            logger.warning(f"[CTA] Blur+dim failed, using unblurred outro: {e}")
-            base_video = base
-    else:
-        base_video = base
+        final_with_cta = blurred
 
-    overlays: List[Any] = []
+    # ------------------------------
+    # 4. AUDIO mixing (TTS + music + base)
+    # ------------------------------
+    out_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
 
-    # ----- CAPTIONS (per-clip, no bleed into CTA) -----
-    if segments:
-        log_step("Applying caption overlays per clip…")
-        last_idx = len(segments) - 1
-        for idx, seg in enumerate(segments):
-            text = seg.get("text") or ""
-            if not text.strip():
-                continue
+    mix_inputs = []
+    map_cmd = []
+    idx = 0
 
-            seg_start = float(seg["start"])
-            seg_end = float(seg["end"])
-            seg_dur = max(0.0, seg_end - seg_start)
-            if seg_dur <= 0:
-                continue
+    def add_audio(path, volume=1.0):
+        nonlocal idx
+        mix_inputs.extend(["-i", path])
+        map_cmd.append(f"[{idx}:a]volume={volume}[a{idx}];")
+        idx += 1
 
-            # For the last segment, stop caption a bit before CTA starts
-            if idx == last_idx and cta_enabled and cta_start is not None:
-                safe_end = min(seg_end, cta_start - 0.3)
-                if safe_end <= seg_start + 0.4:
-                    safe_end = min(seg_end, seg_start + 0.7)
-                if safe_end <= seg_start:
-                    # too tight -> skip last caption entirely
-                    continue
-                seg_dur = safe_end - seg_start
-
-            layers = _try_text_overlay(
-                text=text,
-                duration=seg_dur,
-                start=seg_start,
-                fontsize=54,
-                position="bottom",
-                fade=True,
-            )
-            overlays.extend(layers)
-
-    # ----- CTA text overlay (bottom, on blurred outro) -----
-    if cta_enabled and cta_start is not None:
-        cta_text = (cta_cfg.get("text") or "").strip()
-        if cta_text:
-            cta_layers = _try_text_overlay(
-                text=cta_text,
-                duration=cta_duration,
-                start=cta_start,
-                fontsize=60,
-                position="bottom",
-                fade=True,
-            )
-            overlays.extend(cta_layers)
-
-    # ----- AUDIO: base video audio -----
-    base_audio = base.audio  # original audio
-
-    # ----- TTS -----
-    tts_audio = _build_tts_audio(cfg, segments, total)
-
-    # ----- EXTEND VIDEO IF TTS IS LONGER -----
-    if tts_audio:
-        tts_duration = tts_audio.duration
-        if tts_duration > total:
-            extra = tts_duration - total
-
-            log_step(f"[TTS SYNC] Extending video by {extra:.2f}s to match TTS duration")
-
-            # freeze last frame
-            last_frame = base.get_frame(total - 0.01)
-
-            freeze_clip = (
-                ImageClip(last_frame)
-                .set_duration(extra)
-                .set_fps(30)
-                .resize((TARGET_W, TARGET_H))
-            )
-
-            # extend video
-            base = concatenate_videoclips([base, freeze_clip], method="compose")
-
-            # update duration
-            total = tts_duration
-
-
-    # ----- Background music (music: block) -----
-    music_audio = _build_music_audio(cfg, total)
-
-    audio_tracks = []
-    if base_audio:
-        vol = 0.4 if (tts_audio or music_audio) else 1.0
-        audio_tracks.append(base_audio.volumex(vol))
-    if tts_audio:
-        audio_tracks.append(tts_audio.volumex(1.0))
-    if music_audio:
-        audio_tracks.append(music_audio)
-
-    final_audio = None
-    if audio_tracks:
-        audio_tracks = [a for a in audio_tracks if a is not None]
-        if audio_tracks:
-            final_audio = CompositeAudioClip(audio_tracks)
-
-    # ----- FINAL COMPOSITION -----
-    final = CompositeVideoClip([base_video] + overlays, size=(TARGET_W, TARGET_H))
-
-    if final_audio:
-        final = final.set_audio(final_audio)
-
-    # ----- RENDER SETTINGS -----
-    bitrate = "6000k" if optimized else "4000k"
-    preset = "slow" if optimized else "veryfast"
-
-    out = os.path.abspath(os.path.join(BASE_DIR, output_file))
-    log_step(f"Writing video -> {out}")
-
-    final.write_videofile(
-        out,
-        codec="libx264",
-        audio_codec="aac",
-        fps=30,
-        bitrate=bitrate,
-        preset=preset,
-        threads=2,
-        write_logfile=False,
-        temp_audiofile=os.path.join(BASE_DIR, "temp-audio.m4a"),
-        remove_temp=True,
-        ffmpeg_params=[
-            "-movflags",
-            "+faststart",
-            "-pix_fmt",
-            "yuv420p",
-            "-profile:v",
-            "baseline",
-        ],
-        logger=None,
-    )
-
-    log_step("Render complete.")
-
-    # Cleanup
+    # Base audio
     try:
-        final.close()
-        if base_video is not base:
-            base_video.close()
-        base.close()
-    except Exception:
+        base_audio = _build_base_audio(cfg)
+        if base_audio:
+            add_audio(base_audio, 0.8)
+    except:
         pass
-    gc.collect()
 
-    return out
+    # TTS
+    try:
+        tts_audio = _build_tts_audio(cfg, None, None)
+        if tts_audio:
+            add_audio(tts_audio, 1.0)
+    except:
+        pass
+
+    # Music
+    try:
+        music_audio = _build_music_audio(cfg, None)
+        if music_audio:
+            add_audio(music_audio, 0.25)
+    except:
+        pass
+
+    if idx:
+        filter_complex = "".join(map_cmd) + f"{''.join(f'[a{i}]' for i in range(idx))}amix=inputs={idx}:normalize=0[outa]"
+        audio_cmd = [
+            "ffmpeg", "-y",
+            *mix_inputs,
+            "-filter_complex", filter_complex,
+            "-map", "[outa]",
+            out_audio
+        ]
+        log_step("[AUDIO] Mixing tracks safely…")
+        subprocess.run(audio_cmd)
+
+    # ------------------------------
+    # 5. Final mux: combine video + audio
+    # ------------------------------
+    final_output = os.path.abspath(os.path.join(BASE_DIR, output_file))
+
+    mux_cmd = [
+        "ffmpeg", "-y",
+        "-i", final_with_cta,
+    ]
+
+    if idx:
+        mux_cmd.extend(["-i", out_audio, "-c:v", "copy", "-c:a", "aac", final_output])
+    else:
+        mux_cmd.extend(["-c:v", "copy", final_output])
+
+    log_step("[MUX] Writing final video…")
+    subprocess.run(mux_cmd)
+
+    return final_output
