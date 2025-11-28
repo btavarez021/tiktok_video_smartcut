@@ -473,7 +473,31 @@ def edit_video(output_file="output_tiktok_final.mp4", optimized: bool = False):
     ]
 
     log_step("[CONCAT] Merging all clips…")
+    
     subprocess.run(concat_cmd)
+
+    # -----------------------------------------------------------
+    # SANITY CHECK: concat_output must be a valid MP4
+    # -----------------------------------------------------------
+    if not os.path.exists(concat_output):
+        raise RuntimeError("Concat failed: output file not created.")
+
+    if os.path.getsize(concat_output) < 150 * 1024:  # <150KB
+        raise RuntimeError("Concat failed: output file too small (corrupt).")
+
+    # Try ffprobe
+    try:
+        concat_duration = float(subprocess.check_output([
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            concat_output
+        ]).decode().strip())
+        if concat_duration <= 0:
+            raise RuntimeError("Concat failed: zero duration.")
+    except Exception as e:
+        raise RuntimeError(f"Concat failed: invalid MP4. ffprobe error: {e}")
+
 
     final_video_source = concat_output
 
