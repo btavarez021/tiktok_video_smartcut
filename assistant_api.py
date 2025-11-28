@@ -421,6 +421,12 @@ def api_apply_timings(smart: bool = False):
     apply_smart_timings(pacing)
     return {"status": "ok", "pacing": pacing}
 
+def api_set_layout(mode: str):
+    cfg = _load_config_for_mutation()
+    r = cfg.setdefault("render", {})
+    r["layout_mode"] = mode
+    _save_config(cfg)
+    return {"status": "ok", "layout_mode": mode}
 
 def api_fgscale(value: float):
     cfg = _load_config_for_mutation()

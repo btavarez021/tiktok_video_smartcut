@@ -5,6 +5,7 @@ from flask_cors import CORS
 
 from assistant_log import status_log
 from assistant_api import (
+    api_set_layout,
     api_analyze_start,
     api_analyze_step,
     api_analyze,
@@ -243,6 +244,11 @@ def route_timings():
     result = api_apply_timings(smart=smart)
     return jsonify(result)
 
+@app.route("/api/layout", methods=["POST"])
+def route_set_layout():
+    data = request.get_json(force=True)
+    mode = data.get("mode", "tiktok")
+    return jsonify(api_set_layout(mode))
 
 @app.route("/api/fgscale", methods=["POST"])
 def route_fgscale():

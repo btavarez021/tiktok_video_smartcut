@@ -402,19 +402,28 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
 
     # Layout presets
+    # ------------------------------
+    #  Layout presets (TikTok / Classic)
+    # ------------------------------
     if layout_mode == "tiktok":
-        # Smaller text, tighter box, more vertical padding
-        max_chars = 26
-        fontsize = 46
-        boxborderw = 28
-        line_spacing = 10
-        y_expr = "h-(text_h*2)-160"
-    else:  # classic
+        # TRUE TikTok caption style
+        max_chars = 22                      # tighter wrap like creators use
+        fontsize = 68                       # large bold readable
+        line_spacing = 14
+        boxborderw = 55                     # thick padding around text
+        fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
+        # high-third placement (above TikTok UI)
+        y_expr = "(h * 0.55)"
+
+    else:  # classic mode (legacy look)
         max_chars = 38
         fontsize = 54
-        boxborderw = 35
         line_spacing = 8
+        boxborderw = 35
+        fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
         y_expr = "h-(text_h*1.8)-150"
+
 
     with open(trimlist, "w") as lf:
         for clip in clips:
@@ -427,16 +436,18 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
                 vf += (
                     f",drawtext=text='{text_safe}':"
-                    f"fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
+                    f"fontfile={fontfile}:"                   # ← now dynamic
                     f"fontcolor=white:fontsize={fontsize}:"
                     f"line_spacing={line_spacing}:"
-                    f"shadowcolor=0x000000:shadowx=2:shadowy=2:"
-                    f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
+                    f"shadowcolor=0x000000:shadowx=3:shadowy=3:"
+                    f"text_shaping=1:"                        # ← smoother multi-line
+                    f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:" 
                     f"x=(w-text_w)/2:"
-                    f"y={y_expr}:"
+                    f"y={y_expr}:" 
                     f"fix_bounds=1:"
-                    f"borderw=1:bordercolor=0x000000"
+                    f"borderw=2:bordercolor=0x000000"
                 )
+
 
             trim_cmd = [
                 "ffmpeg", "-y",

@@ -497,36 +497,28 @@
       }
   }
 
-  async function saveLayoutMode() {
-      const sel = document.getElementById("layoutMode");
-      const status = document.getElementById("layoutStatus");
-      if (!sel || !status) return;
 
-      const mode = sel.value || "tiktok";
-      status.textContent = "Saving layout mode…";
+async function saveLayoutMode() {
+    const sel = document.getElementById("layoutMode");
+    const status = document.getElementById("layoutStatus");
+    if (!sel || !status) return;
 
-      try {
-          const data = await jsonFetch("/api/config");
-          const cfg = data.config || {};
+    const mode = sel.value || "tiktok";
+    status.textContent = "Saving layout mode…";
 
-          cfg.render = cfg.render || {};
-          cfg.render.layout_mode = mode;
+    try {
+        await jsonFetch("/api/layout", {
+            method: "POST",
+            body: JSON.stringify({ mode }),
+        });
 
-          const yamlText = jsyaml.dump(cfg);
-
-          await jsonFetch("/api/save_yaml", {
-              method: "POST",
-              body: JSON.stringify({ yaml: yamlText }),
-          });
-
-          status.textContent = "Layout saved!";
-          await loadConfigAndYaml();
-      } catch (err) {
-          console.error(err);
-          status.textContent = "Error saving layout: " + err.message;
-      }
-  }
-
+        status.textContent = "Layout saved!";
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+        status.textContent = "Error saving layout: " + err.message;
+    }
+}
 
   // TTS
   async function saveTtsSettings() {
