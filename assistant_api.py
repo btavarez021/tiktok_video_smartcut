@@ -439,6 +439,17 @@ def api_save_captions(text: str) -> Dict[str, Any]:
         "text": final_captions,  # Fix for mobile UI
     }
 
+def clean_s3_key(key: str) -> str:
+    """
+    Fully sanitizes an S3 key:
+    - Removes ALL leading slashes
+    - Removes duplicate internal slashes
+    - Ensures no phantom folders appear in S3
+    """
+    key = key.lstrip("/")         # remove leading slash
+    while "//" in key:
+        key = key.replace("//", "/")  # collapse duplicate slashes
+    return key
 
 # -------------------------------
 # Export
@@ -461,17 +472,27 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
 
         log_step(f"[EXPORT] Video rendered: {out_path}")
 
-        # ---------------------------
-        # Upload to S3
-        # ---------------------------
+        # -----------------------------------
+        # Build SAFE S3 key
+        # -----------------------------------
         filename = os.path.basename(out_path)
-        export_key = f"{EXPORT_PREFIX}{filename}"
 
+        # Remove trailing slash in prefix (if user config put one)
+        prefix = EXPORT_PREFIX.rstrip("/")
+
+        # Build proper S3 key
+        raw_key = f"{prefix}/{filename}"
+
+        # Sanitize: remove accidental leading slash + duplicate slashes
+        export_key = clean_s3_key(raw_key)
+
+        # -----------------------------------
+        # Upload to S3
+        # -----------------------------------
         try:
             s3.upload_file(out_path, S3_BUCKET_NAME, export_key)
             log_step(f"[EXPORT] Uploaded final video to s3://{S3_BUCKET_NAME}/{export_key}")
 
-            # Generate secure signed URL
             signed_url = generate_signed_download_url(export_key)
 
         except Exception as e:
@@ -481,7 +502,7 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
         return {
             "status": "ok",
             "output_path": out_path,
-            "download_url": signed_url,   # 🔥 replaced s3_url with signed_url
+            "download_url": signed_url,
             "local_filename": filename,
             "s3_key": export_key
         }
@@ -489,7 +510,6 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"[EXPORT] Export failed: {e}")
         return {"status": "error", "error": str(e)}
-
 
 
 # -------------------------------
