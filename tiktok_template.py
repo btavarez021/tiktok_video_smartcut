@@ -67,6 +67,52 @@ def _load_config() -> Dict[str, Any]:
         return yaml.safe_load(f) or {}
 
 
+def _get_layout_mode(cfg: Dict[str, Any]) -> str:
+    """
+    Decide how to style captions / overlay:
+      - "tiktok"  → smaller font, multi-line, TikTok friendly
+      - "classic" → closer to your original single-line style
+    """
+    render = cfg.get("render") or {}
+    mode = (render.get("layout_mode") or render.get("video_mode") or "tiktok").lower()
+    if mode not in ("tiktok", "classic"):
+        mode = "tiktok"
+    return mode
+
+
+# -----------------------------------------
+# Caption wrapping helper
+# -----------------------------------------
+def _wrap_caption(text: str, max_chars_per_line: int = 28) -> str:
+    """
+    Word-wrap caption into multiple lines so it stays inside frame width.
+    Returns a string with literal newlines, which ffmpeg drawtext will render
+    as multi-line text.
+    """
+    text = (text or "").strip()
+    if not text:
+        return ""
+
+    words = text.split()
+    lines = []
+    current = ""
+
+    for w in words:
+        # +1 for space if current is not empty
+        extra = 1 if current else 0
+        if len(current) + len(w) + extra > max_chars_per_line:
+            if current:
+                lines.append(current)
+            current = w
+        else:
+            current = f"{current} {w}".strip()
+
+    if current:
+        lines.append(current)
+
+    return "\n".join(lines)
+
+
 # -----------------------------------------
 # TTS generation
 # -----------------------------------------
@@ -121,7 +167,7 @@ def _build_tts_audio(cfg):
         resp = client.audio.speech.create(
             model="gpt-4o-mini-tts",
             voice=voice,
-            input=full_text
+            input=full_text,
         )
         with open(temp_mp3, "wb") as f:
             f.write(resp.read())
@@ -299,7 +345,8 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     if not cfg:
         raise RuntimeError("config.yml missing or empty")
 
-    log_step("[EXPORT] Building low-memory FFmpeg timeline…")
+    layout_mode = _get_layout_mode(cfg)
+    log_step(f"[EXPORT] Building low-memory FFmpeg timeline… (layout_mode={layout_mode})")
 
     # CLEAN UP legacy wrong music keys from older UI
     if "render" in cfg:
@@ -354,21 +401,39 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     trimmed_files = []
     trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
 
+    # Layout presets
+    if layout_mode == "tiktok":
+        # Smaller text, tighter box, more vertical padding
+        max_chars = 26
+        fontsize = 46
+        boxborderw = 28
+        line_spacing = 10
+        y_expr = "h-(text_h*2)-160"
+    else:  # classic
+        max_chars = 38
+        fontsize = 54
+        boxborderw = 35
+        line_spacing = 8
+        y_expr = "h-(text_h*1.8)-150"
+
     with open(trimlist, "w") as lf:
         for clip in clips:
             trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
             vf = "scale=1080:-2,setsar=1"
 
             if clip["text"]:
-                text_safe = esc(clip["text"])
+                wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
+                text_safe = esc(wrapped)
+
                 vf += (
                     f",drawtext=text='{text_safe}':"
                     f"fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
-                    f"fontcolor=white:fontsize=54:line_spacing=10:"
+                    f"fontcolor=white:fontsize={fontsize}:"
+                    f"line_spacing={line_spacing}:"
                     f"shadowcolor=0x000000:shadowx=2:shadowy=2:"
-                    f"box=1:boxcolor=0x000000AA:boxborderw=35:"
+                    f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
                     f"x=(w-text_w)/2:"
-                    f"y=h-(text_h*1.8)-150:"
+                    f"y={y_expr}:"
                     f"fix_bounds=1:"
                     f"borderw=1:bordercolor=0x000000"
                 )

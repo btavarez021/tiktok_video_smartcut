@@ -478,6 +478,56 @@
       }
   }
 
+  // ================================
+  // Layout Mode (TikTok / Classic)
+  // ================================
+  async function loadLayoutFromYaml() {
+      const sel = document.getElementById("layoutMode");
+      if (!sel) return;
+
+      try {
+          const data = await jsonFetch("/api/config");
+          const cfg = data.config || {};
+          const render = cfg.render || {};
+
+          const mode = render.layout_mode || "tiktok";
+          sel.value = mode;
+      } catch (err) {
+          console.error("Failed loading layout mode", err);
+      }
+  }
+
+  async function saveLayoutMode() {
+      const sel = document.getElementById("layoutMode");
+      const status = document.getElementById("layoutStatus");
+      if (!sel || !status) return;
+
+      const mode = sel.value || "tiktok";
+      status.textContent = "Saving layout mode…";
+
+      try {
+          const data = await jsonFetch("/api/config");
+          const cfg = data.config || {};
+
+          cfg.render = cfg.render || {};
+          cfg.render.layout_mode = mode;
+
+          const yamlText = jsyaml.dump(cfg);
+
+          await jsonFetch("/api/save_yaml", {
+              method: "POST",
+              body: JSON.stringify({ yaml: yamlText }),
+          });
+
+          status.textContent = "Layout saved!";
+          await loadConfigAndYaml();
+      } catch (err) {
+          console.error(err);
+          status.textContent = "Error saving layout: " + err.message;
+      }
+  }
+
+
   // TTS
   async function saveTtsSettings() {
       const enabledEl = document.getElementById("ttsEnabled");
@@ -882,6 +932,8 @@
       document.getElementById("saveTtsBtn")?.addEventListener("click", saveTtsSettings);
       document.getElementById("saveCtaBtn")?.addEventListener("click", saveCtaSettings);
       document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
+      document.getElementById("saveLayoutBtn")?.addEventListener("click", saveLayoutMode);
+      loadLayoutFromYaml();
 
       document.getElementById("saveMusicBtn")?.addEventListener("click", saveMusicSettings);
 
