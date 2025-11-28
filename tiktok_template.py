@@ -135,11 +135,23 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
         return [], None
 
     render = cfg.get("render", {}) or {}
-    if not render.get("tts_enabled"):
-        log_step("[TTS] tts_enabled=False → skipping TTS.")
+    tts_cfg = cfg.get("tts", {}) or {}
+
+    tts_enabled = (
+        render.get("tts_enabled") 
+        or tts_cfg.get("enabled")
+    )
+
+    if not tts_enabled:
+        log_step("[TTS] TTS disabled → skipping narration.")
         return [], None
 
-    voice = render.get("tts_voice", "alloy")
+    voice = (
+        render.get("tts_voice")
+        or tts_cfg.get("voice")
+        or "alloy"
+    )
+
 
     client = OpenAI(api_key=key)
 
