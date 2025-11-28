@@ -19,19 +19,10 @@ import yaml
 from utils_video import enforce_mp4
 
 from moviepy.editor import (
-    VideoFileClip,
-    TextClip,
-    CompositeVideoClip,
-    AudioFileClip,
-    CompositeAudioClip,
-    concatenate_videoclips,
-    concatenate_audioclips,
-    ColorClip,
-    vfx,
-    ImageClip
+    VideoFileClip
 )
 import imageio_ffmpeg
-from tiktok_assistant import S3_BUCKET_NAME, RAW_PREFIX, s3
+from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 
 os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
 
@@ -137,97 +128,6 @@ def _load_config() -> Dict[str, Any]:
         return {}
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
-
-
-# -----------------------------------------
-# Clip loading (case-insensitive, ext-tolerant)
-# -----------------------------------------
-def _load_clip_from_config(conf: Dict[str, Any]):
-    """
-    Load a clip described in the YAML config.
-
-    Tolerant to:
-    - case differences (IMG_3753.mp4 vs img_3753.mp4)
-    - different video extensions (.mov, .m4v, .mp4) as long as basename matches.
-    """
-    filename = conf.get("file")
-    if not filename:
-        return None
-
-    # Ensure .mp4 extension, but keep original basename
-    filename = enforce_mp4(filename)
-
-    def _find_clip_path(fname: str) -> Optional[str]:
-        target_name = fname
-        target_base, _ = os.path.splitext(target_name)
-
-        direct_path = os.path.join(video_folder, target_name)
-        if os.path.exists(direct_path):
-            return direct_path
-
-        if not os.path.isdir(video_folder):
-            os.makedirs(video_folder, exist_ok=True)
-
-        try:
-            for f in os.listdir(video_folder):
-                base, ext = os.path.splitext(f)
-                if base.lower() == target_base.lower() and ext.lower() in (
-                    ".mp4",
-                    ".mov",
-                    ".m4v",
-                ):
-                    return os.path.join(video_folder, f)
-        except FileNotFoundError:
-            return None
-
-        return None
-
-    path = _find_clip_path(filename)
-
-    if not path or not os.path.exists(path):
-        msg = f"[LOAD FAILED] File not found (case-insensitive search): {os.path.join(video_folder, filename)}"
-        logger.warning(msg)
-        log_step(msg)
-        return None
-
-    start = float(conf.get("start_time", 0))
-    dur = conf.get("duration")
-    scale = float(conf.get("scale", 1.0))
-
-    clip = VideoFileClip(path)
-
-    if dur is not None:
-        dur = float(dur)
-        end = min(clip.duration, start + dur)
-        if end <= start:
-            end = min(clip.duration, start + 0.5)
-        clip = clip.subclip(start, end)
-    else:
-        if 0 < start < clip.duration:
-            clip = clip.subclip(start)
-
-    return clip, scale
-
-
-# -----------------------------------------
-# Vertical resize + crop
-# -----------------------------------------
-def _scale_and_crop_vertical(clip: VideoFileClip, fg_scale: float = 1.0):
-    if fg_scale != 1.0:
-        clip = clip.resize(fg_scale)
-
-    clip = clip.resize(height=TARGET_H)
-
-    w, _ = clip.size
-    if w < TARGET_W:
-        clip = clip.resize(width=TARGET_W)
-        w, _ = clip.size
-
-    x1 = (w - TARGET_W) / 2
-    x2 = x1 + TARGET_W
-
-    return clip.crop(x1=x1, x2=x2, y1=0, y2=TARGET_H)
-
 
 # -----------------------------------------
 # TTS generation

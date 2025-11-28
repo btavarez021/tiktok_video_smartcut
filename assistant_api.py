@@ -11,12 +11,16 @@ from openai import OpenAI
 
 from assistant_log import log_step
 from tiktok_template import config_path, edit_video, video_folder
-from tiktok_assistant import (
+from s3_config import (
     s3,
     S3_BUCKET_NAME,
+    RAW_PREFIX,
     EXPORT_PREFIX,
     S3_REGION,
-    RAW_PREFIX,
+    clean_s3_key,
+)
+
+from tiktok_assistant import (
     generate_signed_download_url,
     list_videos_from_s3,
     download_s3_video,
