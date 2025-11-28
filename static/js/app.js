@@ -521,27 +521,47 @@ async function saveLayoutMode() {
 }
 
   // TTS
-  async function saveTtsSettings() {
-      const enabledEl = document.getElementById("ttsEnabled");
-      const voiceEl = document.getElementById("ttsVoice");
-      if (!enabledEl || !voiceEl) return;
+  // TTS
+async function saveTtsSettings() {
+    const enabledEl = document.getElementById("ttsEnabled");
+    const voiceEl = document.getElementById("ttsVoice");
+    if (!enabledEl || !voiceEl) return;
 
-      const enabled = enabledEl.checked;
-      const voice = voiceEl.value || "alloy";
+    const enabled = enabledEl.checked;
+    const voice = voiceEl.value || "alloy";
 
-      showStatus("Saving TTS settings…", "info");
-      try {
-          await jsonFetch("/api/tts", {
-              method: "POST",
-              body: JSON.stringify({ enabled, voice }),
-          });
-          showStatus("TTS settings saved.", "success");
-          await loadConfigAndYaml();
-      } catch (err) {
-          console.error(err);
-          showStatus(`Error saving TTS: ${err.message}`, "error");
-      }
-  }
+    showStatus("Saving TTS settings…", "info");
+
+    try {
+        const data = await jsonFetch("/api/config");
+        const cfg = data.config || {};
+
+        // Correct location
+        cfg.tts = {
+            enabled,
+            voice,
+        };
+
+        // Delete any old/bad fields
+        if (cfg.render) {
+            delete cfg.render.tts_enabled;
+            delete cfg.render.tts_voice;
+        }
+
+        const yamlText = jsyaml.dump(cfg);
+
+        await jsonFetch("/api/save_yaml", {
+            method: "POST",
+            body: JSON.stringify({ yaml: yamlText }),
+        });
+
+        showStatus("TTS settings saved.", "success");
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+        showStatus(`Error saving TTS: ${err.message}`, "error");
+    }
+}
 
   // CTA
   async function saveCtaSettings() {

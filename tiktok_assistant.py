@@ -202,9 +202,15 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
         "  scale: 1.0",
         "",
         "render:",
-        "  tts_enabled: false",
-        '  tts_voice: "alloy"',
         "  fg_scale_default: 1.0",
+        "  layout_mode: tiktok",
+        "",
+        "# ------------------------------",
+        "# TTS (Voice Narration)",
+        "# ------------------------------",
+        "tts:",
+        "  enabled: false",
+        '  voice: "alloy"',
         "",
         "# ------------------------------",
         "# Background Music System",
@@ -234,6 +240,7 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
     lines.append("Ensure you output first_clip, middle_clips, and last_clip fields exactly.")
 
     return "\n".join(lines)
+
 
 
 # -----------------------------------------
