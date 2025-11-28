@@ -131,14 +131,17 @@ def _sync_s3_videos_to_local() -> List[str]:
         if not os.path.exists(local_path):
             tmp = download_s3_video(key)
             if tmp:
-                os.replace(tmp, local_path)
+                import shutil
+                try:
+                    shutil.copy2(tmp, local_path)   # cross-device safe
+                except Exception:
+                    shutil.copy(tmp, local_path)
                 log_step(f"[SYNC] Downloaded {key} → {local_path}")
 
         local_files.append(filename)
 
     log_step(f"[SYNC] Synced {len(local_files)} videos to local folder")
     return local_files
-
 
 # -------------------------------
 # Analyze APIs
