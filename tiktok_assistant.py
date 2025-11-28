@@ -269,8 +269,7 @@ def _normalize_yaml_filename(name: str) -> str:
     """
     if not name:
         return name
-    base = os.path.basename(name)
-    return base.lower()
+    return os.path.basename(name)
 
 
 def sanitize_yaml_filenames(cfg: dict) -> dict:
