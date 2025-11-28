@@ -101,6 +101,10 @@ def _build_tts_audio(cfg):
     if cfg.get("last_clip", {}).get("text"):
         texts.append(cfg["last_clip"]["text"])
 
+    cta_cfg = cfg.get("cta", {}) or {}
+    if cta_cfg.get("voiceover") and cta_cfg.get("text"):
+        texts.append(cta_cfg["text"])
+
     full_text = "\n".join(texts).strip()
     if not full_text:
         return None
@@ -265,10 +269,18 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
     log_step("[EXPORT] Building low-memory FFmpeg timeline…")
 
+    # CLEAN UP legacy wrong music keys from older UI
+    if "render" in cfg:
+        cfg["render"].pop("music_enabled", None)
+        cfg["render"].pop("music_file", None)
+        cfg["render"].pop("music_volume", None)
+
+
     # --------------------------------------------------------
     # Helper: Safe escape for FFmpeg drawtext
     # --------------------------------------------------------
     def esc(text: str) -> str:
+        text = text.replace("%", "\\%")
         if not text:
             return ""
         return (
