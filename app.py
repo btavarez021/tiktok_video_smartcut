@@ -24,7 +24,9 @@ from assistant_api import (
     set_export_mode,
     load_all_analysis_results,
 )
-from tiktok_assistant import upload_raw_file, config_path, yaml
+from s3_config import upload_raw_file
+from tiktok_template import config_path
+import yaml
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)
