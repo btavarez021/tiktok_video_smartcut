@@ -24,7 +24,7 @@ from assistant_api import (
     set_export_mode,
     load_all_analysis_results,
 )
-from s3_config import upload_raw_file
+from upload_utils import upload_raw_file
 from tiktok_template import config_path
 import yaml
 
