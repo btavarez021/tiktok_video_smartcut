@@ -258,16 +258,31 @@
                       </div>
                       
                       <!-- Choose caption scaling. Classic vs TikTok Look -->
-                      <div class="form-row">
-                        <label>Caption Layout:</label>
-                        <select id="layoutMode">
-                            <option value="tiktok">TikTok (recommended)</option>
-                            <option value="classic">Classic</option>
-                        </select>
-                        <button id="saveLayoutBtn" class="btn small">Save layout</button>
-                    </div>
-                    <div id="layoutStatus" class="hint-text"></div>
+                      <!-- 4D — Caption Layout Mode -->
+                      <!-- 4D — Caption Layout Mode -->
+                      <div class="acc-section">
+                          <button class="acc-header">📝 Caption Layout</button>
+                          <div class="acc-body">
 
+                              <label class="field-label">Choose Caption Style</label>
+                              <div class="form-row">
+                                  <select id="layoutMode" class="select">
+                                      <option value="tiktok">TikTok (recommended)</option>
+                                      <option value="classic">Classic (bottom bar style)</option>
+                                  </select>
+
+                                  <button id="saveLayoutBtn" class="btn small ghost">💾 Save</button>
+                              </div>
+
+                              <div id="layoutStatus" class="hint-text"></div>
+
+                              <p class="hint">
+                                  • <b>TikTok</b>: large captions, centered, dynamic wrapping, shadow + box.<br>
+                                  • <b>Classic</b>: cleaner, smaller, bottom placement.<br>
+                                  • Saved directly into <code>render.layout_mode</code> in YAML.
+                              </p>
+                          </div>
+                      </div>
 
                       <!-- 4C — Music + FG Scale -->
                       <div class="acc-section">
