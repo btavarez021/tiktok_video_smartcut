@@ -772,7 +772,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
             log_step("[AUDIO] Music+TTS mix invalid → falling back to narration only.")
 
     # --------------------------------------------------------
-    # 5. FINAL MUX
+    # 5. FINAL MUX (NO -shortest, explicit mapping)
     # --------------------------------------------------------
     final_output = os.path.abspath(os.path.join(BASE_DIR, output_file))
 
@@ -782,9 +782,10 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         mux_cmd.extend(
             [
                 "-i", final_audio,
+                "-map", "0:v:0",   # video from first input
+                "-map", "1:a:0",   # audio from second input
                 "-c:v", "copy",
                 "-c:a", "aac",
-                "-shortest",
                 final_output,
             ]
         )
@@ -803,6 +804,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         stderr=subprocess.PIPE,
         text=True,
     )
+
 
     if mux_proc.stderr:
         log_step(f"[MUX-FFMPEG] stderr:\n{mux_proc.stderr}")
