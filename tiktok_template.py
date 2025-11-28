@@ -426,7 +426,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     final_video_source = concat_output
 
     # --------------------------------------------------------
-    # 3. CTA OUTRO BLUR (SAFE)
+    # 3. CTA OUTRO BLUR (SAFE-PATCHED VERSION)
     # --------------------------------------------------------
     cta_cfg = cfg.get("cta", {}) or {}
     cta_enabled = cta_cfg.get("enabled", False)
@@ -446,45 +446,61 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
                 ).decode().strip()
             )
         except Exception as e:
-            raise RuntimeError(f"[CTA] Failed to probe concat duration: {e}")
+            log_step(f"[CTA] Probe failed, skipping CTA: {e}")
+            total_dur = 0
 
-        start_cta = max(0, total_dur - cta_dur)
+        # 🔥 SAFE FIX: clamp CTA duration
+        if total_dur <= 0.3:
+            log_step("[CTA] Video too short for CTA → skipping CTA step.")
+            final_video_source = concat_output
+        else:
+            # CTA duration cannot exceed available video
+            safe_cta = min(cta_dur, total_dur - 0.1)
+            if safe_cta < 0.2:
+                log_step("[CTA] CTA duration too small → skipping CTA step.")
+                final_video_source = concat_output
+            else:
+                start_cta = total_dur - safe_cta
 
-        blurred = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+                blurred = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
 
-        vf = (
-            f"[0:v]split=2[pre_raw][cta_raw];"
-            f"[pre_raw]trim=start=0:end={start_cta},setpts=PTS-STARTPTS[pre];"
-            f"[cta_raw]trim=start={start_cta}:end={total_dur},setpts=PTS-STARTPTS,"
-            f"boxblur=10,"
-            f"drawtext=text='{cta_text}':fontcolor=white:fontsize=60:"
-            f"x=(w-text_w)/2:y=h-200[cta];"
-            f"[pre][cta]concat=n=2:v=1:a=0[out]"
-        )
+                vf = (
+                    f"[0:v]split=2[pre_raw][cta_raw];"
+                    f"[pre_raw]trim=start=0:end={start_cta},setpts=PTS-STARTPTS[pre];"
+                    f"[cta_raw]trim=start={start_cta}:end={total_dur},setpts=PTS-STARTPTS,"
+                    f"boxblur=10,"
+                    f"drawtext=text='{cta_text}':fontcolor=white:fontsize=60:"
+                    f"x=(w-text_w)/2:y=h-200[cta];"
+                    f"[pre][cta]concat=n=2:v=1:a=0[out]"
+                )
 
-        blur_cmd = [
-            "ffmpeg", "-y",
-            "-i", concat_output,
-            "-vf", vf,
-            "-map", "[out]",
-            blurred,
-        ]
+                blur_cmd = [
+                    "ffmpeg", "-y",
+                    "-i", concat_output,
+                    "-vf", vf,
+                    "-map", "[out]",
+                    blurred,
+                ]
 
-        log_step("[CTA] Applying blur+text (SAFE)…")
-        blur_proc = subprocess.run(
-            blur_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
+                log_step("[CTA] Applying SAFE CTA blur/text…")
 
-        if blur_proc.stderr:
-            log_step(f"[CTA-FFMPEG] stderr:\n{blur_proc.stderr}")
+                proc = subprocess.run(
+                    blur_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
 
-        if not os.path.exists(blurred) or os.path.getsize(blurred) < 150 * 1024:
-            raise RuntimeError("[CTA] Failed to produce valid CTA MP4")
+                if proc.stderr:
+                    log_step(f"[CTA-FFMPEG] stderr:\n{proc.stderr}")
 
-        final_video_source = blurred
+                # 🔥 SAFE OUTPUT CHECK
+                if not os.path.exists(blurred) or os.path.getsize(blurred) < 150 * 1024:
+                    log_step("[CTA] CTA failed → using unmodified concat output.")
+                    final_video_source = concat_output
+                else:
+                    final_video_source = blurred
+
 
     # --------------------------------------------------------
     # 4. AUDIO PIPELINE
