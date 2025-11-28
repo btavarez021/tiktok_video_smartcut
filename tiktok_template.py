@@ -418,6 +418,18 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     trimmed_files = []
     trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
 
+    # Make a 1-frame spacer to prevent text bleed
+    spacer_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-f", "lavfi",
+        "-i", "color=c=black:s=1080x1920:d=0.04",
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        spacer_path
+    ])
+
+
     # Layout presets
     # ------------------------------
     #  Layout presets (TikTok / Classic)
@@ -519,6 +531,11 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
             trimmed_files.append(trimmed_path)
             lf.write(f"file '{trimmed_path}'\n")
+
+            # Add spacer unless it's the final clip
+            if not clip["is_last"]:
+                lf.write(f"file '{spacer_path}'\n")
+
 
     # --------------------------------------------------------
     # 2. CONCAT USING DEMUXER
