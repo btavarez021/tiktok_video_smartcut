@@ -363,8 +363,14 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
                 text_safe = esc(clip["text"])
                 vf += (
                     f",drawtext=text='{text_safe}':"
-                    f"fontcolor=white:fontsize=48:"
-                    f"x=(w-text_w)/2:y=h-200"
+                    f"fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
+                    f"fontcolor=white:fontsize=54:line_spacing=10:"
+                    f"shadowcolor=0x000000:shadowx=2:shadowy=2:"
+                    f"box=1:boxcolor=0x000000AA:boxborderw=35:"
+                    f"x=(w-text_w)/2:"
+                    f"y=h-(text_h*1.8)-150:"
+                    f"fix_bounds=1:"
+                    f"borderw=1:bordercolor=0x000000"
                 )
 
             trim_cmd = [
