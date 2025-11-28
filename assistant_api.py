@@ -439,6 +439,8 @@ def api_save_captions(text: str) -> Dict[str, Any]:
         "text": final_captions,  # Fix for mobile UI
     }
 
+def clean_s3_key(key: str) -> str:
+    return key.lstrip("/")  # removes all leading "/" characters
 
 # -------------------------------
 # Export
@@ -465,7 +467,7 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
         # Upload to S3
         # ---------------------------
         filename = os.path.basename(out_path)
-        export_key = f"{EXPORT_PREFIX}{filename}"
+        export_key =  clean_s3_key(f"{EXPORT_PREFIX}{filename}")
 
         try:
             s3.upload_file(out_path, S3_BUCKET_NAME, export_key)
