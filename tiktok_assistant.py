@@ -156,8 +156,15 @@ def save_upload_order(order: List[str]) -> None:
         log_step(f"[UPLOAD_ORDER] Failed to save order.json: {e}")
 
 def clean_s3_key(key: str) -> str:
-    return key.lstrip("/")  # removes ALL leading slashes
-
+    """
+    Fully sanitizes an S3 key:
+    - Removes ALL leading slashes
+    - Removes duplicate slashes anywhere
+    - Prevents S3 from creating phantom '/' directories
+    """
+    key = key.lstrip("/")         # remove leading "/"
+    key = key.replace("//", "/")  # collapse double slashes
+    return key
 
 def upload_raw_file(file):
     """
@@ -167,9 +174,8 @@ def upload_raw_file(file):
     - Upload normalized version to S3
     - Store normalized copy locally (tik_tok_downloads)
     """
-
     from assistant_log import log_step
-    import tempfile, os, subprocess
+    import tempfile, os
 
     # 1. Save upload to temp
     tmp = tempfile.NamedTemporaryFile(delete=False).name
@@ -179,23 +185,24 @@ def upload_raw_file(file):
     # Ensure tik_tok_downloads exists
     os.makedirs(video_folder, exist_ok=True)
 
-    # Clean filename itself (sometimes starts with "/")
+    # Clean filename (prevent accidental slashes)
     raw_name = sanitize_yaml_filenames(file.filename.lstrip("/"))
 
-    # 2. Normalize to mp4 (guarantees valid moov atom)
+    # Normalize to mp4 ensuring moov atom exists
     base, _ = os.path.splitext(raw_name)
     normalized_name = f"{base}.mp4"
     local_norm = os.path.join(video_folder, normalized_name)
 
     normalize_to_mp4(tmp, local_norm)
 
-    # 3. Build SAFE S3 key (NO leading slash, NO double slash)
-    key = f"{RAW_PREFIX}/{normalized_name}"
-    safe_key = clean_s3_key(key)
+    # Build safe S3 key
+    prefix = RAW_PREFIX.rstrip("/")           # remove trailing slash
+    key = f"{prefix}/{normalized_name}"       # build consistent path
+    safe_key = clean_s3_key(key)              # sanitize internal slashes
 
     log_step(f"[UPLOAD] Uploading normalized → s3://{S3_BUCKET_NAME}/{safe_key}")
 
-    # Upload
+    # Upload to S3
     s3.upload_file(local_norm, S3_BUCKET_NAME, safe_key)
 
     return safe_key
