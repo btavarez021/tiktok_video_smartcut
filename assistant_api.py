@@ -439,11 +439,14 @@ def api_save_captions(text: str) -> Dict[str, Any]:
         "text": final_captions,  # Fix for mobile UI
     }
 
-def clean_s3_key(key: str) -> str:
-    return key.lstrip("/")  # removes all leading "/"
 
-
+# -------------------------------
+# Export
+# -------------------------------
 def api_export(optimized: bool = False) -> Dict[str, Any]:
+    """
+    Run edit_video(), upload to S3, and return SIGNED download URL.
+    """
     if not os.path.exists(config_path):
         return {"status": "error", "error": "config.yml not found"}
 
@@ -451,21 +454,24 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
         mode = _EXPORT_MODE
         log_step(f"[EXPORT] Rendering export in {mode.upper()} mode... optimized={optimized}")
 
+        # Render to local file
         out_path = edit_video(optimized=optimized)
         if not out_path:
             raise ValueError("edit_video did not return an output path")
 
         log_step(f"[EXPORT] Video rendered: {out_path}")
 
+        # ---------------------------
+        # Upload to S3
+        # ---------------------------
         filename = os.path.basename(out_path)
-
-        # ✅ SAFEST: always include slash manually
-        export_key = clean_s3_key(f"{EXPORT_PREFIX}/{filename}")
+        export_key = f"{EXPORT_PREFIX}{filename}"
 
         try:
             s3.upload_file(out_path, S3_BUCKET_NAME, export_key)
             log_step(f"[EXPORT] Uploaded final video to s3://{S3_BUCKET_NAME}/{export_key}")
 
+            # Generate secure signed URL
             signed_url = generate_signed_download_url(export_key)
 
         except Exception as e:
@@ -475,7 +481,7 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
         return {
             "status": "ok",
             "output_path": out_path,
-            "download_url": signed_url,
+            "download_url": signed_url,   # 🔥 replaced s3_url with signed_url
             "local_filename": filename,
             "s3_key": export_key
         }
@@ -483,6 +489,7 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"[EXPORT] Export failed: {e}")
         return {"status": "error", "error": str(e)}
+
 
 
 # -------------------------------

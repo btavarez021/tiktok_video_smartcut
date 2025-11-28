@@ -155,6 +155,8 @@ def save_upload_order(order: List[str]) -> None:
     except Exception as e:
         log_step(f"[UPLOAD_ORDER] Failed to save order.json: {e}")
 
+def clean_s3_key(key: str) -> str:
+    return key.lstrip("/")  # removes ALL leading slashes
 
 
 def upload_raw_file(file):
@@ -177,23 +179,26 @@ def upload_raw_file(file):
     # Ensure tik_tok_downloads exists
     os.makedirs(video_folder, exist_ok=True)
 
-    # 2. Normalize to mp4 (guarantees moov atom)
-    filename = sanitize_yaml_filenames(file.filename)
-    base, _ = os.path.splitext(filename)
+    # Clean filename itself (sometimes starts with "/")
+    raw_name = sanitize_yaml_filenames(file.filename.lstrip("/"))
+
+    # 2. Normalize to mp4 (guarantees valid moov atom)
+    base, _ = os.path.splitext(raw_name)
     normalized_name = f"{base}.mp4"
     local_norm = os.path.join(video_folder, normalized_name)
 
     normalize_to_mp4(tmp, local_norm)
 
-    # 3. Upload normalized video to S3
+    # 3. Build SAFE S3 key (NO leading slash, NO double slash)
     key = f"{RAW_PREFIX}/{normalized_name}"
-    log_step(f"[UPLOAD] Uploading normalized -> {S3_BUCKET_NAME}/{key}")
-    s3.upload_file(local_norm, S3_BUCKET_NAME, key)
+    safe_key = clean_s3_key(key)
 
-    return key
+    log_step(f"[UPLOAD] Uploading normalized → s3://{S3_BUCKET_NAME}/{safe_key}")
 
+    # Upload
+    s3.upload_file(local_norm, S3_BUCKET_NAME, safe_key)
 
-
+    return safe_key
 
 def download_s3_video(key: str) -> Optional[str]:
     ext = os.path.splitext(key)[1] or ".mp4"
