@@ -120,8 +120,8 @@ def save_upload_order(order: List[str]) -> None:
 
 def list_uploads():
     """Return S3 raw and processed objects."""
-    raw = list_videos_from_s3(prefix="raw_uploads/")
-    processed = list_videos_from_s3(prefix="processed/")
+    raw = list_videos_from_s3("raw_uploads/")
+    processed = list_videos_from_s3("processed/")
     return {"raw": raw, "processed": processed}
 
 
