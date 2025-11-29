@@ -1052,6 +1052,9 @@ function autoSelectCaptionStyle(selectedMode) {
       // Upload UI
       initUploadUI();
 
+      // Upload Manager (list raw + processed files)
+      loadUploadManager();
+
       // Music list + settings
       loadMusicTracks();
       loadMusicSettingsFromYaml();
