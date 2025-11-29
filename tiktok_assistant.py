@@ -56,21 +56,38 @@ def generate_signed_download_url(key: str, expires_in: int = 3600) -> str:
     )
 
 
-def list_videos_from_s3() -> List[str]:
+def list_videos_from_s3(prefix: str, return_full_keys: bool = False) -> List[str]:
     """
-    List all video objects (mp4/mov/m4v/avi) under RAW_PREFIX in S3.
-    Used for analysis + YAML generation.
+    List all video objects under a given prefix.
+    - return_full_keys=False → only filenames (Upload Manager)
+    - return_full_keys=True  → full S3 keys (Analysis, Export, etc.)
     """
-    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
-    keys = [obj["Key"] for obj in resp.get("Contents", [])] if resp.get("Contents") else []
-    log_step(f"S3 RAW KEYS: {keys}")
+    resp = s3.list_objects_v2(
+        Bucket=S3_BUCKET_NAME,
+        Prefix=prefix
+    )
+
+    contents = resp.get("Contents", []) or []
+    keys = [obj["Key"] for obj in contents]
 
     files: List[str] = []
+
     for key in keys:
         ext = os.path.splitext(key)[1].lower()
-        if ext in [".mp4", ".mov", ".avi", ".m4v"]:
+        if ext not in [".mp4", ".mov", ".avi", ".m4v"]:
+            continue
+
+        if return_full_keys:
+            # old behavior → analysis/export still works
             files.append(key)
+        else:
+            # cleaned name for the Upload Manager UI
+            short = key[len(prefix):]
+            if short and "/" not in short:
+                files.append(short)
+
     return files
+
 
 
 def download_s3_video(key: str) -> Optional[str]:
