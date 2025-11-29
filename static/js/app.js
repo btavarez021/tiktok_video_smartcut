@@ -1013,7 +1013,7 @@ function autoSelectCaptionStyle(selectedMode) {
           }
       } catch (err) {
           console.error(err);
-          setStatus("exportStatus", `Error during export: ${err.message}`, "error");
+          setStatus("exportStatus", `Error during export: ${err.message}`, "error", false);
       } finally {
           btn.disabled = false;
       }
