@@ -1109,7 +1109,3 @@ function autoSelectCaptionStyle(selectedMode) {
 
       document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
   });
-
-  window.addEventListener("DOMContentLoaded", () => {
-    loadUploadManager();
-});
