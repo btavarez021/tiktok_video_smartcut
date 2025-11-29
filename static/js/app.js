@@ -12,6 +12,31 @@
   // Utility helpers
   // ================================
 
+ // EXPORT URL helper
+  async function probeUrl(url) {
+    try {
+        const res = await fetch(url, { method: "HEAD" });
+        return res.ok;
+    } catch {
+        return false;
+    }
+}
+
+
+  function toggleUploadManager() {
+    const content = document.getElementById("uploadManagerContent");
+    const icon = document.getElementById("uploadManagerToggle");
+
+    content.classList.toggle("collapsed");
+
+    if (content.classList.contains("collapsed")) {
+        icon.textContent = "▲";
+    } else {
+        icon.textContent = "▼";
+    }
+}
+
+
   // Universal colored status helper
   // Auto-fading status helper (5 seconds)
   let _statusTimers = {};
@@ -289,6 +314,75 @@
       });
   }
 
+    // ================================
+    // Manage uploads already in S3
+    // ================================
+
+  async function loadUploadManager() {
+    try {
+        const res = await fetch("/api/uploads");
+        const data = await res.json();
+
+        renderUploadList("rawUploads", data.raw, "raw_uploads/");
+        renderUploadList("processedUploads", data.processed, "processed/");
+    } catch (e) {
+        console.error("UploadManager error:", e);
+    }
+}
+
+  function renderUploadList(elementId, items, prefix) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    if (!items || items.length === 0) {
+        el.innerHTML = `<div class="empty">No videos</div>`;
+        return;
+    }
+
+    el.innerHTML = items
+        .map(
+            (file) => `
+        <div class="upload-item">
+            <div class="file-info">
+                <strong>${file}</strong>
+            </div>
+
+            <div class="buttons">
+                ${
+                    prefix === "raw_uploads/"
+                        ? `<button class="btn-move" onclick="moveUpload('${prefix + file}', 'processed/${file}')">Move →</button>`
+                        : `<button class="btn-move" onclick="moveUpload('${prefix + file}', 'raw_uploads/${file}')">← Move</button>`
+                }
+                <button class="btn-delete" onclick="deleteUpload('${prefix + file}')">Delete</button>
+            </div>
+        </div>
+    `
+        )
+        .join("");
+  }
+
+  async function moveUpload(src, dest) {
+    await fetch("/api/uploads/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ src, dest }),
+    });
+
+    loadUploadManager();
+  }
+
+  async function deleteUpload(key) {
+    if (!confirm("Delete this file?")) return;
+
+    await fetch("/api/uploads/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+    });
+
+    loadUploadManager();
+  }
+
   // ================================
   // Step 1: Analysis
   // ================================
@@ -439,6 +533,7 @@
           setStatus("captionsStatus", `Error loading captions: ${err.message}`, "error");
       }
   }
+  
 
   async function saveCaptions() {
     const captionsEl = document.getElementById("captionsText");
@@ -872,7 +967,7 @@ function autoSelectCaptionStyle(selectedMode) {
   }
 
   // ================================
-  // Step 5: Export
+  // Step 5: Export (PATCHED)
   // ================================
   async function exportVideo() {
       const exportStatus = document.getElementById("exportStatus");
@@ -883,8 +978,8 @@ function autoSelectCaptionStyle(selectedMode) {
       const mode = document.querySelector('input[name="exportMode"]:checked')?.value;
       const optimized = mode === "optimized";
 
+      // Reset UI
       setStatus("exportStatus", optimized ? "Rendering (HQ)..." : "Rendering…", "info", false);
-
       downloadArea.innerHTML = "";
       btn.disabled = true;
 
@@ -898,10 +993,24 @@ function autoSelectCaptionStyle(selectedMode) {
               throw new Error(data.error || "Unknown export error");
           }
 
-          setStatus("exportStatus", "Export complete!", "success");
-
-          const downloadUrl = data.download_url; // signed S3 URL from backend
+          const downloadUrl = data.download_url;
           const filename = data.local_filename || "export.mp4";
+
+          await new Promise(res => setTimeout(res, 500));
+
+          if (downloadUrl) {
+              const ok = await probeUrl(downloadUrl);
+
+              if (!ok) {
+                  // Retry 3 times with short spacing
+                  for (let i = 0; i < 3; i++) {
+                      await new Promise(res => setTimeout(res, 400));
+                      if (await probeUrl(downloadUrl)) break;
+                  }
+              }
+          }
+
+          setStatus("exportStatus", "Export complete!", "success");
 
           if (downloadUrl) {
               downloadArea.innerHTML = `
@@ -910,6 +1019,7 @@ function autoSelectCaptionStyle(selectedMode) {
                       ⬇ Download ${filename}
                   </button>
               `;
+
               const directBtn = document.getElementById("directDownloadBtn");
               if (directBtn) {
                   directBtn.onclick = () => safeDownload(downloadUrl, filename);
@@ -929,11 +1039,12 @@ function autoSelectCaptionStyle(selectedMode) {
           }
       } catch (err) {
           console.error(err);
-          setStatus("exportStatus", `Error during export: ${err.message}`, "error");
+          setStatus("exportStatus", `Error during export: ${err.message}`, "error", false);
       } finally {
           btn.disabled = false;
       }
   }
+
 
   // ================================
   // Chat
@@ -981,6 +1092,9 @@ function autoSelectCaptionStyle(selectedMode) {
 
       // Upload UI
       initUploadUI();
+
+      // Upload Manager (list raw + processed files)
+      loadUploadManager();
 
       // Music list + settings
       loadMusicTracks();

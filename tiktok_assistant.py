@@ -56,21 +56,38 @@ def generate_signed_download_url(key: str, expires_in: int = 3600) -> str:
     )
 
 
-def list_videos_from_s3() -> List[str]:
+def list_videos_from_s3(prefix: str, return_full_keys: bool = False) -> List[str]:
     """
-    List all video objects (mp4/mov/m4v/avi) under RAW_PREFIX in S3.
-    Used for analysis + YAML generation.
+    List all video objects under a given prefix.
+    - return_full_keys=False → only filenames (Upload Manager)
+    - return_full_keys=True  → full S3 keys (Analysis, Export, etc.)
     """
-    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX)
-    keys = [obj["Key"] for obj in resp.get("Contents", [])] if resp.get("Contents") else []
-    log_step(f"S3 RAW KEYS: {keys}")
+    resp = s3.list_objects_v2(
+        Bucket=S3_BUCKET_NAME,
+        Prefix=prefix
+    )
+
+    contents = resp.get("Contents", []) or []
+    keys = [obj["Key"] for obj in contents]
 
     files: List[str] = []
+
     for key in keys:
         ext = os.path.splitext(key)[1].lower()
-        if ext in [".mp4", ".mov", ".avi", ".m4v"]:
+        if ext not in [".mp4", ".mov", ".avi", ".m4v"]:
+            continue
+
+        if return_full_keys:
+            # old behavior → analysis/export still works
             files.append(key)
+        else:
+            # cleaned name for the Upload Manager UI
+            short = key[len(prefix):]
+            if short and "/" not in short:
+                files.append(short)
+
     return files
+
 
 
 def download_s3_video(key: str) -> Optional[str]:
@@ -93,42 +110,52 @@ def download_s3_video(key: str) -> Optional[str]:
 # -----------------------------------------
 def normalize_video(src: str, dst: str) -> None:
     """
-    Normalize the video for analysis/export while preserving the original extension.
-    E.g., if src is .mov, dst will also be .mov.
+    Normalize the uploaded video to a safe .mp4 file using ffmpeg.
+    Ensures correct pixel format, no rotation metadata, and stable
+    output for analysis/export.
 
-    This is a helper; uploads are normalized elsewhere (on upload).
+    This version:
+    - ALWAYS outputs .mp4 (fixes .upload extension bug)
+    - Logs full ffmpeg stderr on failure
+    - Logs success cleanly
     """
-    base = os.path.splitext(dst)[0]
-    src_ext = os.path.splitext(src)[1] or ".mp4"
-    final_dst = f"{base}{src_ext}".lower()
 
+    import subprocess
+    import os
+
+    # Always force output to .mp4 (fix for incorrect .upload output)
+    base = os.path.splitext(dst)[0]
+    final_dst = f"{base}.mp4"
+
+    # Ensure directory exists
     os.makedirs(os.path.dirname(final_dst), exist_ok=True)
 
+    # Build ffmpeg normalization command
     cmd = [
         "ffmpeg",
         "-y",
-        "-i",
-        src,
-        "-vf",
-        "scale=1080:-2,setsar=1,format=yuv420p",
-        "-metadata:s:v:0",
-        "rotate=0",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "20",
+        "-i", src,
+        "-vf", "scale=1080:-2,setsar=1,format=yuv420p",
+        "-metadata:s:v:0", "rotate=0",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "20",
         "-an",
         final_dst,
     ]
 
     log_step(f"[FFMPEG] Normalizing {src} → {final_dst}")
-    try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
-    except Exception as e:
-        log_step(f"[FFMPEG ERROR] {e}")
-        raise
+
+    # Execute ffmpeg and capture output
+    process = subprocess.run(cmd, capture_output=True, text=True)
+
+    # Failure path
+    if process.returncode != 0:
+        log_step(f"[FFMPEG ERROR] {process.stderr.strip()}")
+        raise RuntimeError(f"FFmpeg failed: {process.stderr}")
+
+    # Success
+    log_step(f"[FFMPEG] Success → {final_dst}")
 
 
 # -----------------------------------------

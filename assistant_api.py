@@ -8,7 +8,7 @@ from typing import Dict, Any, List
 import yaml
 from openai import OpenAI
 
-from assistant_log import log_step
+from assistant_log import log_step, log_error, log_success
 from tiktok_template import config_path, edit_video, video_folder
 from s3_config import (
     s3,
@@ -17,6 +17,7 @@ from s3_config import (
     EXPORT_PREFIX,
     S3_REGION,
     clean_s3_key,
+    PROCESSED_PREFIX
 )
 
 # Import ONLY non-circular functions from tiktok_assistant
@@ -114,6 +115,32 @@ def save_upload_order(order: List[str]) -> None:
     except Exception as e:
         logger.error(f"[UPLOAD_ORDER] Failed to save order.json: {e}")
 
+# ================================
+# UPLOAD MANAGER HELPERS
+# ================================
+
+def list_uploads():
+    """Return S3 raw and processed objects."""
+    raw = list_videos_from_s3(RAW_PREFIX)
+    processed = list_videos_from_s3(prefix=PROCESSED_PREFIX)
+    return {"raw": raw, "processed": processed}
+
+
+def move_upload_s3(src: str, dest: str):
+    """Move a file in S3 by copying then deleting."""
+    s3.copy_object(
+        Bucket=S3_BUCKET_NAME,
+        CopySource=f"{S3_BUCKET_NAME}/{src}",
+        Key=dest,
+    )
+    s3.delete_object(Bucket=S3_BUCKET_NAME, Key=src)
+    return {"ok": True}
+
+
+def delete_upload_s3(key: str):
+    """Delete a file from S3."""
+    s3.delete_object(Bucket=S3_BUCKET_NAME, Key=key)
+    return {"ok": True}
 
 # -------------------------------
 # Sync S3 → local tik_tok_downloads/
@@ -121,39 +148,59 @@ def save_upload_order(order: List[str]) -> None:
 def _sync_s3_videos_to_local() -> List[str]:
     os.makedirs(video_folder, exist_ok=True)
 
-    keys = list_videos_from_s3()
+    keys = list_videos_from_s3(prefix=RAW_PREFIX, return_full_keys=True)
     local_files = []
+
+    if not keys:
+        log_step("[SYNC] No videos found in S3")
+        return []
+
+    log_step(f"[SYNC] Found {len(keys)} video(s) in S3")
 
     order = load_upload_order()
     if order:
-        keys = sorted(keys, key=lambda k: order.index(os.path.basename(k)) 
-                    if os.path.basename(k) in order else 9999)
-
+        log_step("[SYNC] Applying upload order sorting")
+        keys = sorted(
+            keys,
+            key=lambda k: order.index(os.path.basename(k)) if os.path.basename(k) in order else 9999
+        )
 
     for key in keys:
         filename = os.path.basename(key)
         local_path = os.path.join(video_folder, filename)
 
+        # Log each file we attempt to sync
+        log_step(f"[SYNC] Checking local cache for {filename}")
+
         if not os.path.exists(local_path):
+            log_step(f"[SYNC] Download required for {key}")
+
             tmp = download_s3_video(key)
+
             if tmp:
-                import shutil
                 try:
-                    shutil.copy2(tmp, local_path)   # cross-device safe
-                except Exception:
-                    shutil.copy(tmp, local_path)
-                log_step(f"[SYNC] Downloaded {key} → {local_path}")
+                    import shutil
+                    shutil.copy2(tmp, local_path)
+                    log_step(f"[SYNC] Downloaded {key} → {local_path}")
+                except Exception as e:
+                    log_step(f"[SYNC ERROR] Failed copying {tmp} → {local_path}: {e}")
+            else:
+                log_step(f"[SYNC ERROR] download_s3_video() returned None for {key}")
+                continue  # skip invalid file
+
+        else:
+            log_step(f"[SYNC] Local copy exists: {local_path}")
 
         local_files.append(filename)
 
-    log_step(f"[SYNC] Synced {len(local_files)} videos to local folder")
+    log_step(f"[SYNC] Synced {len(local_files)} video(s) to local folder")
     return local_files
 
 # -------------------------------
 # Analyze APIs
 # -------------------------------
 def _analyze_all_videos() -> Dict[str, Any]:
-    keys = list_videos_from_s3()
+    keys = list_videos_from_s3(prefix=RAW_PREFIX, return_full_keys=True)
     if not keys:
         return {"status": "no_videos", "count": 0}
 
@@ -191,60 +238,61 @@ def api_analyze_step():
 # YAML generation
 # -------------------------------
 def api_generate_yaml() -> Dict[str, Any]:
+    try:
+        log_step("[YAML] Starting YAML generation…")
 
-    local_files = _sync_s3_videos_to_local()
-    if not local_files:
-        return {"error": "No videos found. Upload videos first."}
+        local_files = _sync_s3_videos_to_local()
+        if not local_files:
+            msg = "No videos found. Upload videos first."
+            log_error("[YAML]", Exception(msg))
+            return {"error": msg}
 
-    analyses_map = load_all_analysis_results()
+        analyses_map = load_all_analysis_results()
 
-    files_for_prompt = []
-    analyses_for_prompt = []
+        files_for_prompt = []
+        analyses_for_prompt = []
 
-    for fname in local_files:
-        key_norm = fname.lower()
-        desc = analyses_map.get(key_norm, f"Hotel/travel clip: {fname}")
-        files_for_prompt.append(fname)
-        analyses_for_prompt.append(desc)
+        for fname in local_files:
+            key_norm = fname.lower()
+            desc = analyses_map.get(key_norm, f"Hotel/travel clip: {fname}")
+            files_for_prompt.append(fname)
+            analyses_for_prompt.append(desc)
 
-    prompt = build_yaml_prompt(files_for_prompt, analyses_for_prompt)
+        prompt = build_yaml_prompt(files_for_prompt, analyses_for_prompt)
 
-    # --------------------------
-    # LLM call
-    # --------------------------
-    if client:
-        log_step("[YAML] Calling LLM for config.yml")
-        resp = client.chat.completions.create(
-            model=TEXT_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.4,
-        )
-        yaml_text = (resp.choices[0].message.content or "").strip()
-        yaml_text = yaml_text.replace("```yaml", "").replace("```", "").strip()
-        cfg = yaml.safe_load(yaml_text)
-    else:
-        return {"error": "OpenAI key missing"}
+        if client:
+            log_step("[YAML] Calling LLM for config.yml")
+            resp = client.chat.completions.create(
+                model=TEXT_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.4,
+            )
+            yaml_text = (resp.choices[0].message.content or "").strip()
+            yaml_text = yaml_text.replace("```yaml", "").replace("```", "").strip()
+            cfg = yaml.safe_load(yaml_text)
+        else:
+            msg = "OpenAI key missing"
+            log_error("[YAML]", Exception(msg))
+            return {"error": msg}
 
-    if not isinstance(cfg, dict):
-        raise ValueError("LLM did not return valid YAML")
+        if not isinstance(cfg, dict):
+            raise ValueError("LLM did not return valid YAML")
 
-    cfg = sanitize_yaml_filenames(cfg)
+        cfg = sanitize_yaml_filenames(cfg)
 
-    # -------------------------------------
-    # Inject default layout_mode if missing
-    # -------------------------------------
-    render = cfg.setdefault("render", {})
-    if "layout_mode" not in render:
-        # default for new configs
-        render["layout_mode"] = "tiktok"
+        render = cfg.setdefault("render", {})
+        if "layout_mode" not in render:
+            render["layout_mode"] = "tiktok"
 
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
 
-    # Save YAML
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+        log_success("[YAML]", "Generated and saved config.yml")
+        return cfg
 
-    log_step("[YAML] Saved config.yml")
-    return cfg
+    except Exception as e:
+        log_error("[YAML]", e)
+        return {"error": str(e)}
 
 
 # -------------------------------
@@ -273,9 +321,13 @@ def api_save_yaml(yaml_text: str):
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
+        log_success("[SAVE_YAML]", "config.yml saved successfully")
         return {"status": "ok"}
+
     except Exception as e:
+        log_error("[SAVE_YAML]", e)
         return {"status": "error", "error": str(e)}
+
 
 
 # -------------------------------
@@ -292,48 +344,48 @@ def api_get_captions():
 
 
 def api_save_captions(text: str):
+    try:
+        blocks = [b.strip() for b in text.split("\n\n") if b.strip()]
 
-    blocks = [b.strip() for b in text.split("\n\n") if b.strip()]
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
 
-    # load config
-    with open(config_path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f) or {}
+        idx = 0
+        if "first_clip" in cfg and idx < len(blocks):
+            cfg["first_clip"]["text"] = blocks[idx]; idx += 1
 
-    idx = 0
-    if "first_clip" in cfg and idx < len(blocks):
-        cfg["first_clip"]["text"] = blocks[idx]; idx += 1
+        if "middle_clips" in cfg:
+            for clip in cfg["middle_clips"]:
+                if idx < len(blocks):
+                    clip["text"] = blocks[idx]; idx += 1
 
-    if "middle_clips" in cfg:
-        for clip in cfg["middle_clips"]:
-            if idx < len(blocks):
-                clip["text"] = blocks[idx]; idx += 1
+        if "last_clip" in cfg and idx < len(blocks):
+            cfg["last_clip"]["text"] = blocks[idx]
 
-    if "last_clip" in cfg and idx < len(blocks):
-        cfg["last_clip"]["text"] = blocks[idx]
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
 
-    # Save config
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+        with open(_CAPTIONS_FILE, "w", encoding="utf-8") as f:
+            f.write(text)
 
-    # Save captions file
-    with open(_CAPTIONS_FILE, "w", encoding="utf-8") as f:
-        f.write(text)
+        log_success("[CAPTIONS]", "Captions updated")
+        return {"status": "ok", "text": text, "config": cfg}
 
-    return {"status": "ok", "text": text, "config": cfg}
+    except Exception as e:
+        log_error("[CAPTIONS]", e)
+        return {"status": "error", "error": str(e)}
+
 
 
 # -------------------------------
 # EXPORT
 # -------------------------------
 def api_export(optimized: bool = False) -> Dict[str, Any]:
-    """
-    1. Render final video with edit_video()
-    2. Upload to S3
-    3. Return signed download link
-    """
 
     if not os.path.exists(config_path):
-        return {"status": "error", "error": "config.yml not found"}
+        msg = "config.yml not found"
+        log_error("[EXPORT]", Exception(msg))
+        return {"status": "error", "error": msg}
 
     try:
         mode = _EXPORT_MODE
@@ -350,12 +402,12 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
         raw_key = f"{prefix}/{filename}"
         export_key = clean_s3_key(raw_key)
 
-        # upload
         s3.upload_file(out_path, S3_BUCKET_NAME, export_key)
         log_step(f"[EXPORT] Uploaded to s3://{S3_BUCKET_NAME}/{export_key}")
 
         url = generate_signed_download_url(export_key)
 
+        log_success("[EXPORT]", f"Completed and uploaded {filename}")
         return {
             "status": "ok",
             "output_path": out_path,
@@ -365,8 +417,9 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"[EXPORT ERROR] {e}")
+        log_error("[EXPORT]", e)
         return {"status": "error", "error": str(e)}
+
 
 
 # -------------------------------
@@ -410,38 +463,55 @@ def api_set_cta(enabled: bool, text: str | None, voiceover: bool | None):
 # Overlay + Timings + fg_scale
 # -------------------------------
 def api_apply_overlay(style: str):
-    from tiktok_assistant import apply_overlay
-    apply_overlay(style)
-    return {"status": "ok", "style": style}
-
+    try:
+        from tiktok_assistant import apply_overlay
+        apply_overlay(style)
+        log_success("[OVERLAY]", f"Applied overlay style '{style}'")
+        return {"status": "ok", "style": style}
+    except Exception as e:
+        log_error("[OVERLAY]", e)
+        return {"status": "error", "error": str(e)}
 
 def api_apply_timings(smart: bool = False):
     from tiktok_assistant import apply_smart_timings
-    pacing = "cinematic" if smart else "standard"
-    apply_smart_timings(pacing)
-    return {"status": "ok", "pacing": pacing}
+    try:
+        pacing = "cinematic" if smart else "standard"
+        apply_smart_timings(pacing)
+        log_success("[TIMINGS]", f"Applied '{smart}'")
+        return {"status": "ok", "pacing": pacing}
+    except Exception as e:
+        log_error("[TIMINGS]", e)
+        return {"status": "error", "error": str(e)}
 
 def api_set_layout(mode: str):
-    cfg = _load_config_for_mutation()
-    r = cfg.setdefault("render", {})
-    r["layout_mode"] = mode
-    _save_config(cfg)
-    return {"status": "ok", "layout_mode": mode}
-
+    try:
+        cfg = _load_config_for_mutation()
+        r = cfg.setdefault("render", {})
+        r["layout_mode"] = mode
+        _save_config(cfg)
+        return {"status": "ok", "layout_mode": mode}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+     
 def api_fgscale(value: float):
-    cfg = _load_config_for_mutation()
-    r = cfg.setdefault("render", {})
-    r["fg_scale_default"] = float(value)
-    _save_config(cfg)
-    return {"status": "ok", "render": r}
-
+    try:
+        cfg = _load_config_for_mutation()
+        r = cfg.setdefault("render", {})
+        r["fg_scale_default"] = float(value)
+        _save_config(cfg)
+        log_success("[FGSCALE]", f"Applied {value}")
+        return {"status": "ok", "render": r}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 # -------------------------------
 # Chat
 # -------------------------------
 def api_chat(message: str):
     if not client:
-        return {"reply": f"(no OpenAI key) You said: {message}"}
+        reply = f"(no OpenAI key) You said: {message}"
+        log_error("[CHAT]", Exception("No OpenAI key"))
+        return {"reply": reply}
 
     prompt = f"You are a friendly TikTok travel assistant. User says:\n\n{message}"
 
@@ -452,6 +522,8 @@ def api_chat(message: str):
             temperature=0.7,
         )
         reply = (resp.choices[0].message.content or "").strip()
+        log_success("[CHAT]", "Replied successfully")
         return {"reply": reply}
     except Exception as e:
+        log_error("[CHAT]", e)
         return {"reply": f"Error: {e}"}

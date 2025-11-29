@@ -19,3 +19,15 @@ def log_step(message: str) -> None:
 
 def clear_status_log() -> None:
     status_log.clear()
+
+# -------------------------------
+# Live log helpers
+# -------------------------------
+def log_success(step: str, message: str):
+    log_step(f"{step} [SUCCESS] {message}")
+
+def log_error(step: str, err: Exception):
+    import traceback
+    tb = traceback.format_exc()
+    log_step(f"{step} [ERROR] {str(err)}")
+    log_step(tb)

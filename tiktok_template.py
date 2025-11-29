@@ -483,107 +483,52 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
             trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
             vf = "scale=1080:-2,setsar=1"
 
+            # foreground scaling (read from YAML)
+            fg_scale = float(cfg.get("render", {}).get("fgscale", 1.0))
+            if fg_scale < 0.5 or fg_scale > 2.0:
+                fg_scale = 1.0   # safety limit
+
+            # ===== 1. BASE FG + BG chain (required for filter_complex) =====
+            vf = (
+                f"[0:v]scale=1080:-2,setsar=1,boxblur=30:1[bg];"
+                f"[0:v]scale=iw*{fg_scale}:ih*{fg_scale},setsar=1[fg];"
+                f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[v1]"
+            )
+
+            # ===== 2. CAPTIONS (attach to v1 → outv) =====
             if clip["text"]:
                 wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
                 text_safe = esc(wrapped)
 
                 vf += (
-                    f",drawtext=text='{text_safe}':"
+                    f";[v1]drawtext=text='{text_safe}':"
                     f"fontfile={fontfile}:"
                     f"fontcolor=white:fontsize={fontsize}:"
                     f"line_spacing={line_spacing}:"
                     f"shadowcolor=0x000000:shadowx=3:shadowy=3:"
                     f"text_shaping=1:"
                     f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
-                    f"x=(w-text_w)/2:"
-                    f"y={y_expr}:"
-                    f"fix_bounds=1:"
-                    f"borderw=2:bordercolor=0x000000"
+                    f"x=(w-text_w)/2:y={y_expr}:"
+                    f"fix_bounds=1:borderw=2:bordercolor=0x000000[outv]"
                 )
-
-            # -------------------------------
-            # Option A: Automatic Slow-Mo Stretch (no freeze)
-            # -------------------------------
-
-            # Measure real clip duration (input file length)
-            try:
-                real_dur = float(subprocess.check_output(
-                    [
-                        "ffprobe", "-v", "error",
-                        "-show_entries", "format=duration",
-                        "-of", "default=noprint_wrappers=1:nokey=1",
-                        clip["file"],
-                    ]
-                ).decode().strip())
-            except:
-                real_dur = clip["duration"]
-
-            requested = clip["duration"]
-
-            # If narration runs longer than actual video → slow the end instead of freezing
-            needs_stretch = requested > real_dur + 0.15
-
-            if needs_stretch:
-                # Slow-mo the last 1s of real footage
-                slow_end = min(1.25, real_dur * 0.33)  # max 1.25s, safe cutoff
-                normal_part = real_dur - slow_end
-
-                temp_out = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-
-                # Slow-mo factor (0.75 = 75% speed)
-                slow_factor = 0.75
-
-                vf_slow = (
-                    "scale=1080:-2,setsar=1,"
-                    f"trim=start=0:end={normal_part},setpts=PTS-STARTPTS[main];"
-                    f"trim=start={normal_part}:end={real_dur},setpts=(PTS-STARTPTS)/{slow_factor}[slow];"
-                    "[main][slow]concat=n=2:v=1:a=0"
-                )
-
-                # Add captions if needed
-                if clip["text"]:
-                    wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
-                    text_safe = esc(wrapped)
-                    vf_slow += (
-                        f",drawtext=text='{text_safe}':"
-                        f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
-                        f"line_spacing={line_spacing}:shadowcolor=0x000000:shadowx=3:shadowy=3:"
-                        f"text_shaping=1:box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
-                        f"x=(w-text_w)/2:y={y_expr}:fix_bounds=1:borderw=2:bordercolor=0x000000"
-                    )
-
-                slow_cmd = [
-                    "ffmpeg", "-y",
-                    "-i", clip["file"],
-                    "-vf", vf_slow,
-                    "-t", str(requested),
-                    "-c:v", "libx264",
-                    "-preset", "veryfast",
-                    "-crf", "20",
-                    "-an",
-                    temp_out,
-                ]
-
-                log_step(f"[SLOW-MO] Applying smooth stretch for clip '{clip['file']}'")
-                subprocess.run(slow_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                trimmed_path = temp_out
-
             else:
-                # Normal trim (no stretch)
-                trim_cmd = [
-                    "ffmpeg", "-y",
-                    "-ss", str(clip["start"]),
-                    "-i", clip["file"],
-                    "-t", str(clip["duration"]),
-                    "-vf", vf,
-                    "-c:v", "libx264",
-                    "-preset", "veryfast",
-                    "-crf", "20",
-                    "-an",
-                    trimmed_path,
-                ]
-                subprocess.run(trim_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                # No captions → just forward video
+                vf += ";[v1]copy[outv]"
 
+            # ===== 3. CORRECT FFmpeg invocation =====
+            trim_cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(clip["start"]),
+                "-i", clip["file"],
+                "-t", str(clip["duration"]),
+                "-filter_complex", vf,   # IMPORTANT
+                "-map", "[outv]",        # IMPORTANT
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "20",
+                "-an",
+                trimmed_path,
+            ]
 
             log_step(f"[TRIM] {clip['file']} -> {trimmed_path}")
 

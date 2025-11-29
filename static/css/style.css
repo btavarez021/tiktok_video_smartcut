@@ -553,6 +553,64 @@ h3 .style-check {
 /* ---------------------------------------
    Checkbox & Radio Alignment (Desktop + Mobile)
 ---------------------------------------- */
+
+/* Mobile optimization for Upload Manager */
+@media (max-width: 768px) {
+
+    /* Collapse logic (working) */
+    #uploadManagerContent {
+        max-height: 2000px;
+        opacity: 1;
+        overflow: hidden;
+        transition: max-height 0.35s ease, opacity 0.25s ease;
+    }
+
+    #uploadManagerContent.collapsed {
+        max-height: 0 !important;
+        opacity: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Stack Raw + Processed vertically */
+    .upload-columns {
+        display: flex;
+        flex-direction: column !important;
+        gap: 22px;
+    }
+
+    /* Make each column look like its own card */
+    .upload-column {
+        width: 100%;
+        background: #2a2a2d;
+        padding: 18px;
+        border-radius: 10px;
+    }
+
+    .upload-column h3 {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+
+    /* Better spacing for each upload item */
+    .upload-item {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start !important;
+    }
+
+    .upload-item .buttons {
+        width: 100%;
+        justify-content: flex-end;
+        display: flex;
+        gap: 10px;
+    }
+}
+
+
 .checkbox-row {
     display: flex;
     align-items: center;
@@ -929,3 +987,133 @@ h3 .style-check {
     margin-top: 6px;
     font-size: 0.85rem;
 }
+
+/* Upload Manager container */
+.upload-manager {
+    margin-top: 40px;
+    padding: 20px;
+    background: #1b1b1d;
+    border-radius: 12px;
+    border: 1px solid #262629;
+}
+
+/* Header row (title + refresh button) */
+.upload-manager .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.upload-manager h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 22px;
+}
+
+/* Columns */
+.upload-columns {
+    display: flex;
+    gap: 25px;
+    margin-top: 15px;
+}
+
+.upload-column {
+    flex: 1;
+    background: #242426;
+    padding: 18px;
+    border-radius: 10px;
+    border: 1px solid #303033;
+}
+
+/* Sub-headings */
+.upload-column h3 {
+    color: #e0e0e0;
+    font-size: 18px;
+    margin-bottom: 14px;
+}
+
+/* Upload item card */
+.upload-list .upload-item {
+    background: #2d2d31;
+    border: 1px solid #3a3a40;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.upload-list .upload-item:hover {
+    background: #343438;
+    border-color: #4a4a55;
+}
+
+/* File name */
+.upload-item .file-info {
+    color: #fafafa;
+    font-size: 14px;
+    font-weight: 500;
+    word-break: break-word;
+}
+
+/* Buttons */
+.upload-item .buttons button {
+    margin-left: 8px;
+}
+
+/* Move button */
+.btn-move {
+    background: #4a8dfc;
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.2s ease;
+}
+
+.btn-move:hover {
+    background: #6da3ff;
+}
+
+/* Delete button */
+.btn-delete {
+    background: #b33a3a;
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.2s ease;
+}
+
+.btn-delete:hover {
+    background: #cc4747;
+}
+
+/* Empty state */
+.empty {
+    padding: 14px;
+    text-align: center;
+    color: #777;
+    font-style: italic;
+}
+
+/* Collapsible behavior */
+#uploadManagerContent.collapsed {
+    display: none;
+}
+
+.collapse-icon {
+    font-size: 20px;
+    cursor: pointer;
+    user-select: none;
+}
+
