@@ -728,7 +728,8 @@ function autoSelectCaptionStyle(selectedMode) {
 
     layoutSelect.value = isTikTok ? "tiktok" : "classic";
 
-    showStatus(
+    setStatus(
+        "captionStyleStatus",
         isTikTok
             ? "🟣 Auto-set caption layout to TikTok Style"
             : "🔵 Auto-set caption layout to Classic Style",
