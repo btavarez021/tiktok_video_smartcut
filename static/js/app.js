@@ -532,72 +532,72 @@ async function saveLayoutMode() {
 }
 
   // TTS
-  // TTS
-async function saveTtsSettings() {
-    const enabledEl = document.getElementById("ttsEnabled");
-    const voiceEl = document.getElementById("ttsVoice");
-    if (!enabledEl || !voiceEl) return;
+  async function saveTtsSettings() {
+      const enabledEl = document.getElementById("ttsEnabled");
+      const voiceEl = document.getElementById("ttsVoice");
+      const statusEl = document.getElementById("ttsStatus");
+      if (!enabledEl || !voiceEl || !statusEl) return;
 
-    const enabled = enabledEl.checked;
-    const voice = voiceEl.value || "alloy";
+      setStatus("ttsStatus", "Saving TTS settings…", "info");
 
-    showStatus("Saving TTS settings…", "info");
-
-    try {
-        const data = await jsonFetch("/api/config");
-        const cfg = data.config || {};
-
-        // Correct location
-        cfg.tts = {
-            enabled,
-            voice,
-        };
-
-        // Delete any old/bad fields
-        if (cfg.render) {
-            delete cfg.render.tts_enabled;
-            delete cfg.render.tts_voice;
-        }
-
-        const yamlText = jsyaml.dump(cfg);
-
-        await jsonFetch("/api/save_yaml", {
-            method: "POST",
-            body: JSON.stringify({ yaml: yamlText }),
-        });
-
-        showStatus("TTS settings saved.", "success");
-        await loadConfigAndYaml();
-    } catch (err) {
-        console.error(err);
-        showStatus(`Error saving TTS: ${err.message}`, "error");
-    }
-}
-
-  // CTA
-  async function saveCtaSettings() {
-      const enabledEl = document.getElementById("ctaEnabled");
-      const textEl = document.getElementById("ctaText");
-      const voiceoverEl = document.getElementById("ctaVoiceover");
-      if (!enabledEl || !textEl || !voiceoverEl) return;
-
-      const enabled = enabledEl.checked;
-      const text = textEl.value || "";
-      const voiceover = voiceoverEl.checked;
-
-      showStatus("Saving CTA settings…", "info");
       try {
-          await jsonFetch("/api/cta", {
+          const data = await jsonFetch("/api/config");
+          const cfg = data.config || {};
+
+          cfg.tts = {
+              enabled: enabledEl.checked,
+              voice: voiceEl.value || "alloy",
+          };
+
+          if (cfg.render) {
+              delete cfg.render.tts_enabled;
+              delete cfg.render.tts_voice;
+          }
+
+          const yamlText = jsyaml.dump(cfg);
+
+          await jsonFetch("/api/save_yaml", {
               method: "POST",
-              body: JSON.stringify({ enabled, text, voiceover }),
+              body: JSON.stringify({ yaml: yamlText }),
           });
-          showStatus("CTA settings saved.", "success");
+
+          setStatus("ttsStatus", "TTS settings saved.", "success");
           await loadConfigAndYaml();
       } catch (err) {
           console.error(err);
-          showStatus(`Error saving CTA: ${err.message}`, "error");
+          setStatus("ttsStatus", `Error saving TTS: ${err.message}`, "error");
       }
   }
+
+
+  // CTA
+  async function saveCtaSettings() {
+    const enabledEl = document.getElementById("ctaEnabled");
+    const textEl = document.getElementById("ctaText");
+    const voiceoverEl = document.getElementById("ctaVoiceover");
+    const statusEl = document.getElementById("ctaStatus");
+    if (!enabledEl || !textEl || !voiceoverEl || !statusEl) return;
+
+    setStatus("ctaStatus", "Saving CTA settings…", "info");
+
+    try {
+        await jsonFetch("/api/cta", {
+            method: "POST",
+            body: JSON.stringify({
+                enabled: enabledEl.checked,
+                text: textEl.value || "",
+                voiceover: voiceoverEl.checked,
+            }),
+        });
+
+        setStatus("ctaStatus", "CTA settings saved.", "success");
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+        setStatus("ctaStatus", `Error saving CTA: ${err.message}`, "error");
+    }
+}
+
 
   // Music: load available tracks
   async function loadMusicTracks() {
