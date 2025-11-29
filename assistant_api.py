@@ -17,6 +17,7 @@ from s3_config import (
     EXPORT_PREFIX,
     S3_REGION,
     clean_s3_key,
+    PROCESSED_PREFIX
 )
 
 # Import ONLY non-circular functions from tiktok_assistant
@@ -120,8 +121,8 @@ def save_upload_order(order: List[str]) -> None:
 
 def list_uploads():
     """Return S3 raw and processed objects."""
-    raw = list_videos_from_s3("raw_uploads/")
-    processed = list_videos_from_s3("processed/")
+    raw = list_videos_from_s3(RAW_PREFIX)
+    processed = list_videos_from_s3(prefix=PROCESSED_PREFIX)
     return {"raw": raw, "processed": processed}
 
 
@@ -147,7 +148,7 @@ def delete_upload_s3(key: str):
 def _sync_s3_videos_to_local() -> List[str]:
     os.makedirs(video_folder, exist_ok=True)
 
-    keys = list_videos_from_s3("raw_uploads/")
+    keys = list_videos_from_s3(prefix=RAW_PREFIX)
     local_files = []
 
     if not keys:
@@ -199,7 +200,7 @@ def _sync_s3_videos_to_local() -> List[str]:
 # Analyze APIs
 # -------------------------------
 def _analyze_all_videos() -> Dict[str, Any]:
-    keys = list_videos_from_s3("raw_uploads/")
+    keys = list_videos_from_s3(prefix=RAW_PREFIX)
     if not keys:
         return {"status": "no_videos", "count": 0}
 

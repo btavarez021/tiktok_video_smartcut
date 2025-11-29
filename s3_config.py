@@ -12,11 +12,10 @@ if not S3_BUCKET_NAME:
 
 S3_REGION = os.getenv("S3_REGION", "us-east-2")
 
-RAW_PREFIX = os.getenv("S3_RAW_PREFIX", "raw_uploads")
-RAW_PREFIX = RAW_PREFIX.strip("/")
+RAW_PREFIX = os.getenv("S3_RAW_PREFIX", "raw_uploads").strip("/") + "/"
+EXPORT_PREFIX = os.getenv("S3_EXPORT", "exports").strip("/") + "/"
+PROCESSED_PREFIX = os.getenv("S3_PROCESSED_PREFIX", "processed").strip("/") + "/"
 
-EXPORT_PREFIX = os.getenv("S3_EXPORT", "exports")
-EXPORT_PREFIX = EXPORT_PREFIX.strip("/") + "/"
 
 # ------------------------------
 # AWS Credentials
