@@ -554,21 +554,27 @@ h3 .style-check {
    Checkbox & Radio Alignment (Desktop + Mobile)
 ---------------------------------------- */
 
-/* Mobile optimization for Upload Manager */
+//* Mobile optimization for Upload Manager */
 @media (max-width: 768px) {
+
+    /* Start collapsed on mobile by default */
+    #uploadManagerContent.collapsed {
+        max-height: 0 !important;
+        opacity: 0 !important;
+    }
+
+    /* Ensure content expands when NOT collapsed */
+    #uploadManagerContent {
+        max-height: 2000px;
+        opacity: 1;
+        transition: max-height 0.35s ease, opacity 0.25s ease;
+        overflow: hidden;
+    }
+
     .upload-columns {
         flex-direction: column;
         gap: 15px;
     }
-
-    @media (max-width: 768px) {
-    #uploadManagerContent {
-        display: none;
-    }
-    #uploadManagerToggle {
-        transform: rotate(180deg);
-    }
-}
 
     .upload-column {
         padding: 14px;
@@ -586,24 +592,6 @@ h3 .style-check {
 
     .upload-manager h2 {
         font-size: 20px;
-    }
-
-    .btn.small {
-        width: 100%;
-        text-align: center;
-    }
-
-    .upload-item {
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 10px;
-    }
-
-    .upload-item .buttons {
-        width: 100%;
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
     }
 }
 
