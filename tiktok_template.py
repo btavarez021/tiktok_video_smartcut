@@ -370,7 +370,6 @@ def ensure_local_video(filename: str) -> str:
 
     return local_path
 
-
 # -----------------------------------------
 # Core export function: edit_video
 # -----------------------------------------
@@ -431,8 +430,32 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     if not clips:
         raise RuntimeError("No clips defined in config.yml")
 
+    # ------------------------------------------------------------------
+    # 0. TTS + CLIP DURATION EXTENSION (A1 + A1a)  *** MOVE UPSTREAM ***
+    # ------------------------------------------------------------------
+    cta_cfg = cfg.get("cta", {}) or {}
+    tts_tracks, cta_tts_track = _build_per_clip_tts(cfg, clips, cta_cfg)
+
+    # Auto-extend clip durations based on TTS (so trim uses extended durations)
+    for i, clip in enumerate(clips):
+        tts_entry = tts_tracks[i] if i < len(tts_tracks) else None
+        if not tts_entry or not isinstance(tts_entry, tuple):
+            continue
+
+        tts_path, tts_dur = tts_entry
+        if not tts_path or not tts_dur:
+            continue
+
+        needed = tts_dur + 0.35  # small safety padding
+        if needed > clip["duration"]:
+            log_step(
+                f"[A1a] Extending clip {i+1} "
+                f"duration from {clip['duration']:.2f}s → {needed:.2f}s"
+            )
+            clip["duration"] = needed
+
     # -------------------------------
-    # 1. TRIM EACH CLIP
+    # 1. TRIM EACH CLIP (uses extended durations now)
     # -------------------------------
     trimmed_files = []
     trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
@@ -479,7 +502,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
                 "ffmpeg", "-y",
                 "-ss", str(clip["start"]),
                 "-i", clip["file"],
-                "-t", str(clip["duration"]),
+                "-t", str(clip["duration"]),  # <-- now extended if needed
                 "-vf", vf,
                 "-c:v", "libx264",
                 "-preset", "veryfast",
@@ -521,30 +544,6 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     final_video_source = concat_output
 
     # ------------------------------------------------------------------
-    # 2.5 TTS + CLIP DURATION EXTENSION (A1 + A1a)
-    # ------------------------------------------------------------------
-    cta_cfg = cfg.get("cta", {}) or {}
-    tts_tracks, cta_tts_track = _build_per_clip_tts(cfg, clips, cta_cfg)
-
-    # Auto-extend clip durations based on TTS
-    for i, clip in enumerate(clips):
-        tts_entry = tts_tracks[i] if i < len(tts_tracks) else None
-        if not tts_entry or not isinstance(tts_entry, tuple):
-            continue
-
-        tts_path, tts_dur = tts_entry
-        if not tts_path or not tts_dur:
-            continue
-
-        needed = tts_dur + 0.35  # small safety padding
-        if needed > clip["duration"]:
-            log_step(
-                f"[A1a] Extending clip {i+1} "
-                f"duration from {clip['duration']:.2f}s → {needed:.2f}s"
-            )
-            clip["duration"] = needed
-
-    # ------------------------------------------------------------------
     # 3. CTA VIDEO EXTENSION + CTA BLUR/TEXT (aligned to CTA audio)
     # ------------------------------------------------------------------
     cta_enabled = cta_cfg.get("enabled", False)
@@ -569,7 +568,7 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     # Full timeline should include CTA segment after clips (if enabled)
     timeline_total = expected_total + cta_segment_len
 
-    # Actual current video length (only clips)
+    # Actual current video length (concatenated extended clips)
     try:
         actual_total = float(
             subprocess.check_output(
