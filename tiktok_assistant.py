@@ -93,66 +93,52 @@ def download_s3_video(key: str) -> Optional[str]:
 # -----------------------------------------
 def normalize_video(src: str, dst: str) -> None:
     """
-    Normalize the video to H.264 yuv420p for reliable analysis/export.
-    Adds full logging to Live Log / console.
+    Normalize the uploaded video to a safe .mp4 file using ffmpeg.
+    Ensures correct pixel format, no rotation metadata, and stable
+    output for analysis/export.
+
+    This version:
+    - ALWAYS outputs .mp4 (fixes .upload extension bug)
+    - Logs full ffmpeg stderr on failure
+    - Logs success cleanly
     """
+
     import subprocess
-    import shutil
+    import os
 
+    # Always force output to .mp4 (fix for incorrect .upload output)
     base = os.path.splitext(dst)[0]
-    src_ext = os.path.splitext(src)[1] or ".mp4"
-    final_dst = f"{base}{src_ext}".lower()
+    final_dst = f"{base}.mp4"
 
+    # Ensure directory exists
     os.makedirs(os.path.dirname(final_dst), exist_ok=True)
 
+    # Build ffmpeg normalization command
     cmd = [
         "ffmpeg",
         "-y",
-        "-i",
-        src,
-        "-vf",
-        "scale=1080:-2,setsar=1,format=yuv420p",
-        "-metadata:s:v:0",
-        "rotate=0",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "20",
+        "-i", src,
+        "-vf", "scale=1080:-2,setsar=1,format=yuv420p",
+        "-metadata:s:v:0", "rotate=0",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "20",
         "-an",
         final_dst,
     ]
 
     log_step(f"[FFMPEG] Normalizing {src} → {final_dst}")
 
-    try:
-        # STREAMING OUTPUT – so Live Log shows ffmpeg messages
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1
-        )
+    # Execute ffmpeg and capture output
+    process = subprocess.run(cmd, capture_output=True, text=True)
 
-        # Stream logs line by line
-        for line in process.stderr:
-            line = line.strip()
-            if line:
-                log_step(f"[FFMPEG] {line}")
+    # Failure path
+    if process.returncode != 0:
+        log_step(f"[FFMPEG ERROR] {process.stderr.strip()}")
+        raise RuntimeError(f"FFmpeg failed: {process.stderr}")
 
-        process.wait()
-
-        if process.returncode != 0:
-            raise RuntimeError(f"ffmpeg failed with exit code {process.returncode}")
-
-        log_step(f"[FFMPEG] Success → {final_dst}")
-
-    except Exception as e:
-        log_step(f"[FFMPEG ERROR] {e}")
-        raise
-
+    # Success
+    log_step(f"[FFMPEG] Success → {final_dst}")
 
 
 # -----------------------------------------
