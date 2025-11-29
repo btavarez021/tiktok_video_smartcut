@@ -441,25 +441,42 @@
   }
 
   async function saveCaptions() {
-      const statusEl = document.getElementById("captionsStatus");
-      const captionsEl = document.getElementById("captionsText");
-      if (!statusEl || !captionsEl) return;
+    const captionsEl = document.getElementById("captionsText");
+    if (!captionsEl) return;
 
-      const text = captionsEl.value || "";
-      statusEl.textContent = "Saving captions into config.yml…";
+    const text = captionsEl.value || "";
 
-      try {
-          const result = await jsonFetch("/api/save_captions", {
-              method: "POST",
-              body: JSON.stringify({ text }),
-          });
-          statusEl.textContent = `Saved ${result.count || 0} caption block(s).`;
-          await loadConfigAndYaml();
-      } catch (err) {
-          console.error(err);
-          statusEl.textContent = `Error saving captions: ${err.message}`;
-      }
-  }
+    // 🔵 Show "working…" message that DOES NOT auto-hide
+    setStatus("captionsStatus", "Saving captions into config.yml…", "working", false);
+
+    try {
+        const result = await jsonFetch("/api/save_captions", {
+            method: "POST",
+            body: JSON.stringify({ text }),
+        });
+
+        // 🟢 Success message that auto-hides (optional: true)
+        setStatus(
+            "captionsStatus",
+            `Saved ${result.count || 0} caption block(s).`,
+            "success",
+            true
+        );
+
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+
+        // 🔴 Error message that does NOT auto-hide
+        setStatus(
+            "captionsStatus",
+            `Error saving captions: ${err.message}`,
+            "error",
+            false
+        );
+    }
+}
+
 
   // ================================
   // Step 4: Overlay, timings, TTS, CTA, fg scale, music
