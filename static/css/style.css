@@ -930,57 +930,85 @@ h3 .style-check {
     font-size: 0.85rem;
 }
 
-/* Style section that manages uploads already in S3 */
+/* Upload Manager container */
 .upload-manager {
     margin-top: 40px;
     padding: 20px;
     background: #1b1b1d;
-    border-radius: 10px;
+    border-radius: 12px;
+    border: 1px solid #262629;
+}
+
+/* Header row (title + refresh button) */
+.upload-manager .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
 }
 
 .upload-manager h2 {
-    margin-bottom: 20px;
+    margin: 0;
     color: #fff;
-    font-size: 24px;
+    font-size: 22px;
 }
 
+/* Columns */
 .upload-columns {
     display: flex;
     gap: 25px;
+    margin-top: 15px;
 }
 
 .upload-column {
     flex: 1;
     background: #242426;
-    padding: 15px;
-    border-radius: 8px;
+    padding: 18px;
+    border-radius: 10px;
+    border: 1px solid #303033;
 }
 
+/* Sub-headings */
 .upload-column h3 {
-    color: #ddd;
-    margin-bottom: 12px;
+    color: #e0e0e0;
+    font-size: 18px;
+    margin-bottom: 14px;
 }
 
+/* Upload item card */
 .upload-list .upload-item {
-    background: #2c2c30;
+    background: #2d2d31;
     border: 1px solid #3a3a40;
-    padding: 12px;
+    padding: 12px 14px;
     margin-bottom: 10px;
-    border-radius: 6px;
+    border-radius: 8px;
+
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+    transition: background 0.2s ease, border-color 0.2s ease;
 }
 
+.upload-list .upload-item:hover {
+    background: #343438;
+    border-color: #4a4a55;
+}
+
+/* File name */
 .upload-item .file-info {
-    color: #fff;
+    color: #fafafa;
     font-size: 14px;
+    font-weight: 500;
+    word-break: break-word;
 }
 
+/* Buttons */
 .upload-item .buttons button {
     margin-left: 8px;
 }
 
+/* Move button */
 .btn-move {
     background: #4a8dfc;
     color: #fff;
@@ -988,8 +1016,15 @@ h3 .style-check {
     padding: 6px 10px;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 12px;
+    transition: background 0.2s ease;
 }
 
+.btn-move:hover {
+    background: #6da3ff;
+}
+
+/* Delete button */
 .btn-delete {
     background: #b33a3a;
     color: #fff;
@@ -997,10 +1032,19 @@ h3 .style-check {
     padding: 6px 10px;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 12px;
+    transition: background 0.2s ease;
 }
 
-.empty {
-    padding: 10px;
-    text-align: center;
-    color: #888;
+.btn-delete:hover {
+    background: #cc4747;
 }
+
+/* Empty state */
+.empty {
+    padding: 14px;
+    text-align: center;
+    color: #777;
+    font-style: italic;
+}
+
