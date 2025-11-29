@@ -554,46 +554,62 @@ h3 .style-check {
    Checkbox & Radio Alignment (Desktop + Mobile)
 ---------------------------------------- */
 
-//* Mobile optimization for Upload Manager */
+/* Mobile optimization for Upload Manager */
 @media (max-width: 768px) {
 
-    /* Start collapsed on mobile by default */
-    #uploadManagerContent.collapsed {
-        max-height: 0 !important;
-        opacity: 0 !important;
-    }
-
-    /* Ensure content expands when NOT collapsed */
+    /* Collapse logic (working) */
     #uploadManagerContent {
         max-height: 2000px;
         opacity: 1;
-        transition: max-height 0.35s ease, opacity 0.25s ease;
         overflow: hidden;
+        transition: max-height 0.35s ease, opacity 0.25s ease;
     }
 
+    #uploadManagerContent.collapsed {
+        max-height: 0 !important;
+        opacity: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Stack Raw + Processed vertically */
     .upload-columns {
-        flex-direction: column;
-        gap: 15px;
+        display: flex;
+        flex-direction: column !important;
+        gap: 22px;
     }
 
+    /* Make each column look like its own card */
     .upload-column {
-        padding: 14px;
+        width: 100%;
+        background: #2a2a2d;
+        padding: 18px;
+        border-radius: 10px;
     }
 
-    .upload-manager {
-        padding: 15px;
+    .upload-column h3 {
+        font-size: 18px;
+        margin-bottom: 10px;
     }
 
-    .upload-manager .header-row {
+    /* Better spacing for each upload item */
+    .upload-item {
         flex-direction: column;
-        align-items: flex-start;
+        gap: 12px;
+        align-items: flex-start !important;
+    }
+
+    .upload-item .buttons {
+        width: 100%;
+        justify-content: flex-end;
+        display: flex;
         gap: 10px;
     }
-
-    .upload-manager h2 {
-        font-size: 20px;
-    }
 }
+
 
 .checkbox-row {
     display: flex;
