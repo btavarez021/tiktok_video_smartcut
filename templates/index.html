@@ -220,6 +220,9 @@
                           <button class="acc-header">🎤 Voice (TTS) & CTA</button>
                           <div class="acc-body">
 
+                              <!-- ========================= -->
+                              <!-- TTS SETTINGS -->
+                              <!-- ========================= -->
                               <h3>Voice (TTS)</h3>
 
                               <div class="checkbox-row">
@@ -246,6 +249,13 @@
 
                               <button id="saveTtsBtn" class="btn ghost">💾 Save TTS</button>
 
+                              <!-- 🔥 REQUIRED for JS setStatus("ttsStatus", ...) -->
+                              <div id="ttsStatus" class="status-text status-info"></div>
+
+
+                              <!-- ========================= -->
+                              <!-- CTA SETTINGS -->
+                              <!-- ========================= -->
                               <h3>CTA</h3>
 
                               <div class="checkbox-row">
@@ -263,8 +273,12 @@
 
                               <button id="saveCtaBtn" class="btn ghost">💾 Save CTA</button>
 
+                              <!-- 🔥 REQUIRED for JS setStatus("ctaStatus", ...) -->
+                              <div id="ctaStatus" class="status-text status-info"></div>
+
                           </div>
                       </div>
+
                       
                       <!-- Choose caption scaling. Classic vs TikTok Look -->
                       <!-- 4D — Caption Layout Mode -->
