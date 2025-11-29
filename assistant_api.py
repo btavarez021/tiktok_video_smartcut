@@ -147,7 +147,7 @@ def delete_upload_s3(key: str):
 def _sync_s3_videos_to_local() -> List[str]:
     os.makedirs(video_folder, exist_ok=True)
 
-    keys = list_videos_from_s3()
+    keys = list_videos_from_s3("raw_uploads/")
     local_files = []
 
     if not keys:
@@ -199,7 +199,7 @@ def _sync_s3_videos_to_local() -> List[str]:
 # Analyze APIs
 # -------------------------------
 def _analyze_all_videos() -> Dict[str, Any]:
-    keys = list_videos_from_s3()
+    keys = list_videos_from_s3("raw_uploads/")
     if not keys:
         return {"status": "no_videos", "count": 0}
 
