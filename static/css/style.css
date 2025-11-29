@@ -867,3 +867,49 @@ h3 .style-check {
 .log-view::-webkit-scrollbar-thumb:hover {
     background: #4a4a4f;
 }
+
+/* ========================================================
+   Log Line Highlighting (Error / Warning / Info / Success)
+======================================================== */
+
+/* Make each log line stylable */
+.log-view span {
+    display: block;
+    padding: 2px 0;
+    white-space: pre-wrap;
+}
+
+/* ERROR lines */
+.log-view span.error,
+.log-view span.ERROR,
+.log-view span.err,
+.log-view span.ERR {
+    color: #ff6b6b !important;
+    font-weight: 600;
+}
+
+/* WARNING lines */
+.log-view span.warn,
+.log-view span.warning,
+.log-view span.WARN,
+.log-view span.WARNING {
+    color: #ffd86b !important;
+    font-weight: 600;
+}
+
+/* SUCCESS lines */
+.log-view span.success,
+.log-view span.SUCCESS,
+.log-view span.ok,
+.log-view span.OK {
+    color: #6bff9c !important;
+    font-weight: 600;
+}
+
+/* INFO lines */
+.log-view span.info,
+.log-view span.INFO {
+    color: #6bb6ff !important;
+    font-weight: 500;
+}
+
