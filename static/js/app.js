@@ -13,17 +13,31 @@
   // ================================
 
   // Universal colored status helper
-  function setStatus(id, msg, type = "info") {
-      const el = document.getElementById(id);
-      if (!el) return;
+  // Auto-fading status helper (5 seconds)
+let _statusTimers = {};
 
-      el.textContent = msg;
-      el.classList.remove("status-info", "status-success", "status-error");
+function setStatus(id, msg, type = "info") {
+    const el = document.getElementById(id);
+    if (!el) return;
 
-      if (type === "success") el.classList.add("status-success");
-      else if (type === "error") el.classList.add("status-error");
-      else el.classList.add("status-info");
-  }
+    // Reset classes
+    el.className = "status-text";
+    el.classList.add("status-" + type);
+
+    el.textContent = msg;
+
+    // Clear previous timer for this element
+    if (_statusTimers[id]) {
+        clearTimeout(_statusTimers[id]);
+    }
+
+    // Auto-hide after 5 seconds
+    _statusTimers[id] = setTimeout(() => {
+        el.textContent = "";
+        el.className = "status-text status-info"; // Reset default look
+    }, 5000);
+}
+
 
 
   // JSON fetch helper with sane defaults
