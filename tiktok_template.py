@@ -488,38 +488,41 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
             if fg_scale < 0.5 or fg_scale > 2.0:
                 fg_scale = 1.0   # safety limit
 
-            # ----- background + foreground composite -----
+            # ===== 1. BASE FG + BG chain (required for filter_complex) =====
             vf = (
                 f"[0:v]scale=1080:-2,setsar=1,boxblur=30:1[bg];"
                 f"[0:v]scale=iw*{fg_scale}:ih*{fg_scale},setsar=1[fg];"
-                f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2"
+                f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[v1]"
             )
 
-            # ----- CAPTIONS (your existing code) -----    
+            # ===== 2. CAPTIONS (attach to v1 → outv) =====
             if clip["text"]:
                 wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
                 text_safe = esc(wrapped)
 
                 vf += (
-                    f",drawtext=text='{text_safe}':"
+                    f";[v1]drawtext=text='{text_safe}':"
                     f"fontfile={fontfile}:"
                     f"fontcolor=white:fontsize={fontsize}:"
                     f"line_spacing={line_spacing}:"
                     f"shadowcolor=0x000000:shadowx=3:shadowy=3:"
                     f"text_shaping=1:"
                     f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
-                    f"x=(w-text_w)/2:"
-                    f"y={y_expr}:"
-                    f"fix_bounds=1:"
-                    f"borderw=2:bordercolor=0x000000"
+                    f"x=(w-text_w)/2:y={y_expr}:"
+                    f"fix_bounds=1:borderw=2:bordercolor=0x000000[outv]"
                 )
+            else:
+                # No captions → just forward video
+                vf += ";[v1]copy[outv]"
 
+            # ===== 3. CORRECT FFmpeg invocation =====
             trim_cmd = [
                 "ffmpeg", "-y",
                 "-ss", str(clip["start"]),
                 "-i", clip["file"],
-                "-t", str(clip["duration"]),  # extended if needed
-                "-vf", vf,
+                "-t", str(clip["duration"]),
+                "-filter_complex", vf,   # IMPORTANT
+                "-map", "[outv]",        # IMPORTANT
                 "-c:v", "libx264",
                 "-preset", "veryfast",
                 "-crf", "20",
