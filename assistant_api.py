@@ -114,6 +114,32 @@ def save_upload_order(order: List[str]) -> None:
     except Exception as e:
         logger.error(f"[UPLOAD_ORDER] Failed to save order.json: {e}")
 
+# ================================
+# UPLOAD MANAGER HELPERS
+# ================================
+
+def list_uploads():
+    """Return S3 raw and processed objects."""
+    raw = list_videos_from_s3(prefix="raw_uploads/")
+    processed = list_videos_from_s3(prefix="processed/")
+    return {"raw": raw, "processed": processed}
+
+
+def move_upload_s3(src: str, dest: str):
+    """Move a file in S3 by copying then deleting."""
+    s3.copy_object(
+        Bucket=S3_BUCKET_NAME,
+        CopySource=f"{S3_BUCKET_NAME}/{src}",
+        Key=dest,
+    )
+    s3.delete_object(Bucket=S3_BUCKET_NAME, Key=src)
+    return {"ok": True}
+
+
+def delete_upload_s3(key: str):
+    """Delete a file from S3."""
+    s3.delete_object(Bucket=S3_BUCKET_NAME, Key=key)
+    return {"ok": True}
 
 # -------------------------------
 # Sync S3 → local tik_tok_downloads/

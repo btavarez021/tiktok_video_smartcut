@@ -289,6 +289,75 @@
       });
   }
 
+    // ================================
+    // Manage uploads already in S3
+    // ================================
+
+  async function loadUploadManager() {
+    try {
+        const res = await fetch("/api/uploads");
+        const data = await res.json();
+
+        renderUploadList("rawUploads", data.raw, "raw_uploads/");
+        renderUploadList("processedUploads", data.processed, "processed/");
+    } catch (e) {
+        console.error("UploadManager error:", e);
+    }
+}
+
+  function renderUploadList(elementId, items, prefix) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    if (!items || items.length === 0) {
+        el.innerHTML = `<div class="empty">No videos</div>`;
+        return;
+    }
+
+    el.innerHTML = items
+        .map(
+            (file) => `
+        <div class="upload-item">
+            <div class="file-info">
+                <strong>${file}</strong>
+            </div>
+
+            <div class="buttons">
+                ${
+                    prefix === "raw_uploads/"
+                        ? `<button class="btn-move" onclick="moveUpload('${prefix + file}', 'processed/${file}')">Move →</button>`
+                        : `<button class="btn-move" onclick="moveUpload('${prefix + file}', 'raw_uploads/${file}')">← Move</button>`
+                }
+                <button class="btn-delete" onclick="deleteUpload('${prefix + file}')">Delete</button>
+            </div>
+        </div>
+    `
+        )
+        .join("");
+  }
+
+  async function moveUpload(src, dest) {
+    await fetch("/api/uploads/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ src, dest }),
+    });
+
+    loadUploadManager();
+  }
+
+  async function deleteUpload(key) {
+    if (!confirm("Delete this file?")) return;
+
+    await fetch("/api/uploads/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+    });
+
+    loadUploadManager();
+  }
+
   // ================================
   // Step 1: Analysis
   // ================================
@@ -439,6 +508,7 @@
           setStatus("captionsStatus", `Error loading captions: ${err.message}`, "error");
       }
   }
+  
 
   async function saveCaptions() {
     const captionsEl = document.getElementById("captionsText");
@@ -1036,3 +1106,7 @@ function autoSelectCaptionStyle(selectedMode) {
 
       document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
   });
+
+  window.addEventListener("DOMContentLoaded", () => {
+    loadUploadManager();
+});

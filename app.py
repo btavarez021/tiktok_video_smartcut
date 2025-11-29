@@ -5,6 +5,9 @@ from flask_cors import CORS
 
 from assistant_log import status_log
 from assistant_api import (
+    list_uploads,
+    move_upload_s3,
+    delete_upload_s3,
     api_set_layout,
     api_analyze_start,
     api_analyze_step,
@@ -76,7 +79,29 @@ def route_upload():
 
     return jsonify({"uploaded": uploaded})
 
+# ---------------------------------
+# Manage files already uploaded to S3 */
+# ---------------------------------
+@app.get("/api/uploads")
+def api_list_uploads_route():
+    return list_uploads()
 
+
+@app.post("/api/uploads/move")
+def api_move_upload_route():
+    data = request.json
+    return move_upload_s3(
+        src=data["src"],
+        dest=data["dest"]
+    )
+
+
+@app.delete("/api/uploads/delete")
+def api_delete_upload_route():
+    data = request.json
+    return delete_upload_s3(
+        key=data["key"]
+    )
 # ---------------------------------
 # Analyses cache (disk + memory)
 # ---------------------------------

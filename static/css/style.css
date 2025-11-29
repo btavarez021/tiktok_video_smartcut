@@ -929,3 +929,78 @@ h3 .style-check {
     margin-top: 6px;
     font-size: 0.85rem;
 }
+
+/* Style section that manages uploads already in S3 */
+.upload-manager {
+    margin-top: 40px;
+    padding: 20px;
+    background: #1b1b1d;
+    border-radius: 10px;
+}
+
+.upload-manager h2 {
+    margin-bottom: 20px;
+    color: #fff;
+    font-size: 24px;
+}
+
+.upload-columns {
+    display: flex;
+    gap: 25px;
+}
+
+.upload-column {
+    flex: 1;
+    background: #242426;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.upload-column h3 {
+    color: #ddd;
+    margin-bottom: 12px;
+}
+
+.upload-list .upload-item {
+    background: #2c2c30;
+    border: 1px solid #3a3a40;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.upload-item .file-info {
+    color: #fff;
+    font-size: 14px;
+}
+
+.upload-item .buttons button {
+    margin-left: 8px;
+}
+
+.btn-move {
+    background: #4a8dfc;
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-delete {
+    background: #b33a3a;
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.empty {
+    padding: 10px;
+    text-align: center;
+    color: #888;
+}
