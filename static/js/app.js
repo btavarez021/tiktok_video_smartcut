@@ -756,7 +756,7 @@ function autoSelectCaptionStyle(selectedMode) {
   function initMusicPreview() {
       const btn = document.getElementById("musicPreviewBtn");
       const select = document.getElementById("musicFile");
-      const status = document.getElementById("musicPreviewStatus");
+      const status = document.getElementById("musicStatus");
 
       if (!btn || !select || !status) return;
 
