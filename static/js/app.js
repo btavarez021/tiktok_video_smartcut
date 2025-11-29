@@ -12,6 +12,17 @@
   // Utility helpers
   // ================================
 
+ // EXPORT URL helper
+  async function probeUrl(url) {
+    try {
+        const res = await fetch(url, { method: "HEAD" });
+        return res.ok;
+    } catch {
+        return false;
+    }
+}
+
+
   function toggleUploadManager() {
     const content = document.getElementById("uploadManagerContent");
     const icon = document.getElementById("uploadManagerToggle");
@@ -956,7 +967,7 @@ function autoSelectCaptionStyle(selectedMode) {
   }
 
   // ================================
-  // Step 5: Export
+  // Step 5: Export (PATCHED)
   // ================================
   async function exportVideo() {
       const exportStatus = document.getElementById("exportStatus");
@@ -967,8 +978,8 @@ function autoSelectCaptionStyle(selectedMode) {
       const mode = document.querySelector('input[name="exportMode"]:checked')?.value;
       const optimized = mode === "optimized";
 
+      // Reset UI
       setStatus("exportStatus", optimized ? "Rendering (HQ)..." : "Rendering…", "info", false);
-
       downloadArea.innerHTML = "";
       btn.disabled = true;
 
@@ -982,10 +993,24 @@ function autoSelectCaptionStyle(selectedMode) {
               throw new Error(data.error || "Unknown export error");
           }
 
-          setStatus("exportStatus", "Export complete!", "success");
-
-          const downloadUrl = data.download_url; // signed S3 URL from backend
+          const downloadUrl = data.download_url;
           const filename = data.local_filename || "export.mp4";
+
+          await new Promise(res => setTimeout(res, 500));
+
+          if (downloadUrl) {
+              const ok = await probeUrl(downloadUrl);
+
+              if (!ok) {
+                  // Retry 3 times with short spacing
+                  for (let i = 0; i < 3; i++) {
+                      await new Promise(res => setTimeout(res, 400));
+                      if (await probeUrl(downloadUrl)) break;
+                  }
+              }
+          }
+
+          setStatus("exportStatus", "Export complete!", "success");
 
           if (downloadUrl) {
               downloadArea.innerHTML = `
@@ -994,6 +1019,7 @@ function autoSelectCaptionStyle(selectedMode) {
                       ⬇ Download ${filename}
                   </button>
               `;
+
               const directBtn = document.getElementById("directDownloadBtn");
               if (directBtn) {
                   directBtn.onclick = () => safeDownload(downloadUrl, filename);
@@ -1018,6 +1044,7 @@ function autoSelectCaptionStyle(selectedMode) {
           btn.disabled = false;
       }
   }
+
 
   // ================================
   // Chat
