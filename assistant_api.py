@@ -124,29 +124,49 @@ def _sync_s3_videos_to_local() -> List[str]:
     keys = list_videos_from_s3()
     local_files = []
 
+    if not keys:
+        log_step("[SYNC] No videos found in S3")
+        return []
+
+    log_step(f"[SYNC] Found {len(keys)} video(s) in S3")
+
     order = load_upload_order()
     if order:
-        keys = sorted(keys, key=lambda k: order.index(os.path.basename(k)) 
-                    if os.path.basename(k) in order else 9999)
-
+        log_step("[SYNC] Applying upload order sorting")
+        keys = sorted(
+            keys,
+            key=lambda k: order.index(os.path.basename(k)) if os.path.basename(k) in order else 9999
+        )
 
     for key in keys:
         filename = os.path.basename(key)
         local_path = os.path.join(video_folder, filename)
 
+        # Log each file we attempt to sync
+        log_step(f"[SYNC] Checking local cache for {filename}")
+
         if not os.path.exists(local_path):
+            log_step(f"[SYNC] Download required for {key}")
+
             tmp = download_s3_video(key)
+
             if tmp:
-                import shutil
                 try:
-                    shutil.copy2(tmp, local_path)   # cross-device safe
-                except Exception:
-                    shutil.copy(tmp, local_path)
-                log_step(f"[SYNC] Downloaded {key} → {local_path}")
+                    import shutil
+                    shutil.copy2(tmp, local_path)
+                    log_step(f"[SYNC] Downloaded {key} → {local_path}")
+                except Exception as e:
+                    log_step(f"[SYNC ERROR] Failed copying {tmp} → {local_path}: {e}")
+            else:
+                log_step(f"[SYNC ERROR] download_s3_video() returned None for {key}")
+                continue  # skip invalid file
+
+        else:
+            log_step(f"[SYNC] Local copy exists: {local_path}")
 
         local_files.append(filename)
 
-    log_step(f"[SYNC] Synced {len(local_files)} videos to local folder")
+    log_step(f"[SYNC] Synced {len(local_files)} video(s) to local folder")
     return local_files
 
 # -------------------------------

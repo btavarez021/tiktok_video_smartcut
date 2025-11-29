@@ -93,11 +93,12 @@ def download_s3_video(key: str) -> Optional[str]:
 # -----------------------------------------
 def normalize_video(src: str, dst: str) -> None:
     """
-    Normalize the video for analysis/export while preserving the original extension.
-    E.g., if src is .mov, dst will also be .mov.
-
-    This is a helper; uploads are normalized elsewhere (on upload).
+    Normalize the video to H.264 yuv420p for reliable analysis/export.
+    Adds full logging to Live Log / console.
     """
+    import subprocess
+    import shutil
+
     base = os.path.splitext(dst)[0]
     src_ext = os.path.splitext(src)[1] or ".mp4"
     final_dst = f"{base}{src_ext}".lower()
@@ -124,11 +125,34 @@ def normalize_video(src: str, dst: str) -> None:
     ]
 
     log_step(f"[FFMPEG] Normalizing {src} → {final_dst}")
+
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        # STREAMING OUTPUT – so Live Log shows ffmpeg messages
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
+
+        # Stream logs line by line
+        for line in process.stderr:
+            line = line.strip()
+            if line:
+                log_step(f"[FFMPEG] {line}")
+
+        process.wait()
+
+        if process.returncode != 0:
+            raise RuntimeError(f"ffmpeg failed with exit code {process.returncode}")
+
+        log_step(f"[FFMPEG] Success → {final_dst}")
+
     except Exception as e:
         log_step(f"[FFMPEG ERROR] {e}")
         raise
+
 
 
 # -----------------------------------------
