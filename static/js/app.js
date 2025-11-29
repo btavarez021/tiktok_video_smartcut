@@ -14,29 +14,33 @@
 
   // Universal colored status helper
   // Auto-fading status helper (5 seconds)
-let _statusTimers = {};
+  let _statusTimers = {};
 
-function setStatus(id, msg, type = "info") {
-    const el = document.getElementById(id);
-    if (!el) return;
+  function setStatus(id, msg, type = "info", autoHide = true) {
+      const el = document.getElementById(id);
+      if (!el) return;
 
-    // Reset classes
-    el.className = "status-text";
-    el.classList.add("status-" + type);
+      // Reset class
+      el.className = "status-text status-" + type;
+      el.textContent = msg;
 
-    el.textContent = msg;
+      // Clear previous timer
+      if (_statusTimers[id]) {
+          clearTimeout(_statusTimers[id]);
+          delete _statusTimers[id];
+      }
 
-    // Clear previous timer for this element
-    if (_statusTimers[id]) {
-        clearTimeout(_statusTimers[id]);
-    }
+      // If no auto-hide, stop here
+      if (!autoHide) return;
 
-    // Auto-hide after 5 seconds
-    _statusTimers[id] = setTimeout(() => {
-        el.textContent = "";
-        el.className = "status-text status-info"; // Reset default look
-    }, 5000);
-}
+      // Auto hide in 5 seconds
+      _statusTimers[id] = setTimeout(() => {
+          el.textContent = "";
+          el.className = "status-text status-info";
+          delete _statusTimers[id];
+      }, 5000);
+  }
+
 
 
 
@@ -294,7 +298,7 @@ function setStatus(id, msg, type = "info") {
       if (!analyzeBtn || !statusEl) return;
 
       analyzeBtn.disabled = true;
-      setStatus("analyzeStatus", "Analyzing clips from S3… this can take a bit…", "info");
+      setStatus("analyzeStatus", "Analyzing clips from S3… this can take a bit…", "info", false);
 
       try {
           const data = await jsonFetch("/api/analyze", {
@@ -862,7 +866,7 @@ function autoSelectCaptionStyle(selectedMode) {
       const mode = document.querySelector('input[name="exportMode"]:checked')?.value;
       const optimized = mode === "optimized";
 
-      setStatus("exportStatus", optimized ? "Rendering (HQ)..." : "Rendering…", "info");
+      setStatus("exportStatus", optimized ? "Rendering (HQ)..." : "Rendering…", "info", false);
 
       downloadArea.innerHTML = "";
       btn.disabled = true;
