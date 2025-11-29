@@ -97,31 +97,36 @@
 
                         <hr class="section-divider">
 
-                        <!-- Manage uploads already in S3-->
-                        <section class="upload-manager">
-                          <div class="header-row">
-                            <h2>Upload Manager</h2>
-                            <button class="btn ghost small" onclick="loadUploadManager()">↻ Refresh</button>
-                        </div>
-                        <p class="hint-text">
-                            Videos uploaded via drag/drop appear in Raw Uploads. Move clips to Processed to include them in analysis and export.
-                        </p>
+                       <!-- Manage uploads already in S3-->
+                      <section class="upload-manager">
+                          <div class="header-row" onclick="toggleUploadManager()">
+                              <h2>Upload Manager</h2>
+                              <span id="uploadManagerToggle" class="collapse-icon">▼</span>
+                          </div>
 
-                          <div class="upload-columns">
-                              <!-- RAW UPLOADS -->
-                              <div class="upload-column">
-                                  <h3>Raw Uploads</h3>
-                                  <div id="rawUploads" class="upload-list"></div>
-                              </div>
+                          <div id="uploadManagerContent">
+                              <p class="hint-text">
+                                  Videos uploaded via drag/drop appear in Raw Uploads. Move clips to Processed to include them in analysis and export.
+                              </p>
 
-                              <!-- PROCESSED -->
-                              <div class="upload-column">
-                                  <h3>Processed</h3>
-                                  <div id="processedUploads" class="upload-list"></div>
+                              <button class="btn ghost small" onclick="loadUploadManager()">↻ Refresh</button>
+
+                              <div class="upload-columns">
+                                  <!-- RAW UPLOADS -->
+                                  <div class="upload-column">
+                                      <h3>Raw Uploads</h3>
+                                      <div id="rawUploads" class="upload-list"></div>
+                                  </div>
+
+                                  <!-- PROCESSED -->
+                                  <div class="upload-column">
+                                      <h3>Processed</h3>
+                                      <div id="processedUploads" class="upload-list"></div>
+                                  </div>
                               </div>
                           </div>
-                    
                       </section>
+
 
                         <hr class="divider" />
 

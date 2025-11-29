@@ -12,6 +12,20 @@
   // Utility helpers
   // ================================
 
+  function toggleUploadManager() {
+    const content = document.getElementById("uploadManagerContent");
+    const icon = document.getElementById("uploadManagerToggle");
+
+    content.classList.toggle("collapsed");
+
+    if (content.classList.contains("collapsed")) {
+        icon.textContent = "▲";
+    } else {
+        icon.textContent = "▼";
+    }
+}
+
+
   // Universal colored status helper
   // Auto-fading status helper (5 seconds)
   let _statusTimers = {};

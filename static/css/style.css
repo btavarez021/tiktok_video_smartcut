@@ -561,6 +561,15 @@ h3 .style-check {
         gap: 15px;
     }
 
+    @media (max-width: 768px) {
+    #uploadManagerContent {
+        display: none;
+    }
+    #uploadManagerToggle {
+        transform: rotate(180deg);
+    }
+}
+
     .upload-column {
         padding: 14px;
     }
@@ -1093,3 +1102,13 @@ h3 .style-check {
     font-style: italic;
 }
 
+/* Collapsible behavior */
+#uploadManagerContent.collapsed {
+    display: none;
+}
+
+.collapse-icon {
+    font-size: 20px;
+    cursor: pointer;
+    user-select: none;
+}
