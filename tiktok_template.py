@@ -483,6 +483,19 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
             trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
             vf = "scale=1080:-2,setsar=1"
 
+            # foreground scaling (read from YAML)
+            fg_scale = float(cfg.get("render", {}).get("fgscale", 1.0))
+            if fg_scale < 0.5 or fg_scale > 2.0:
+                fg_scale = 1.0   # safety limit
+
+            # ----- background + foreground composite -----
+            vf = (
+                f"[0:v]scale=1080:-2,setsar=1,boxblur=30:1[bg];"
+                f"[0:v]scale=iw*{fg_scale}:ih*{fg_scale},setsar=1[fg];"
+                f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2"
+            )
+
+            # ----- CAPTIONS (your existing code) -----    
             if clip["text"]:
                 wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
                 text_safe = esc(wrapped)
