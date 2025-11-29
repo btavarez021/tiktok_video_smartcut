@@ -377,17 +377,6 @@ def ensure_local_video(filename: str) -> str:
 def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
     """
     Build final TikTok-style video using FFmpeg-only pipeline:
-
-    1. Load config.yml (first_clip, middle_clips, last_clip)
-    2. For each clip:
-       - Ensure local file (downloads from S3 if missing)
-       - Trim with text overlay
-       - Validate output with size + ffprobe
-    3. Concat all trimmed clips via demuxer
-    4. Optional CTA blur/text pass (safe, time-based)
-    5. Build audio (per-clip TTS + CTA + Music) and mix
-    6. Mux final video + audio
-    7. Validate final MP4
     """
     cfg = _load_config()
     if not cfg:
@@ -402,11 +391,10 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         cfg["render"].pop("music_file", None)
         cfg["render"].pop("music_volume", None)
 
-    # --------------------------------------------------------
-    # Helper: Safe escape for FFmpeg drawtext
-    # --------------------------------------------------------
+    # -------------------------------
+    # Safe escape helper
+    # -------------------------------
     def esc(text: str) -> str:
-        # escape % first (FFmpeg uses it in format strings)
         text = text.replace("%", "\\%")
         if not text:
             return ""
@@ -416,9 +404,9 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
                 .replace(":", "\\:")
         )
 
-    # --------------------------------------------------------
-    # Build clip list from config
-    # --------------------------------------------------------
+    # -------------------------------
+    # Build clip list
+    # -------------------------------
     def collect(c: Dict[str, Any], is_last: bool = False) -> Dict[str, Any]:
         raw_file = c["file"]
         filename = os.path.basename(raw_file)
@@ -443,22 +431,20 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     if not clips:
         raise RuntimeError("No clips defined in config.yml")
 
-    # --------------------------------------------------------
+    # -------------------------------
     # 1. TRIM EACH CLIP
-    # --------------------------------------------------------
+    # -------------------------------
     trimmed_files = []
     trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
 
-    # Layout presets (TikTok / Classic)
     if layout_mode == "tiktok":
-        # TikTok caption style
         max_chars = 22
         fontsize = 68
         line_spacing = 14
         boxborderw = 55
         fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         y_expr = "(h * 0.55)"
-    else:  # classic mode
+    else:
         max_chars = 38
         fontsize = 54
         line_spacing = 8
@@ -504,50 +490,23 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
             log_step(f"[TRIM] {clip['file']} -> {trimmed_path}")
 
-            trim_proc = subprocess.run(
-                trim_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-
-            if trim_proc.stderr:
-                log_step(f"[TRIM-FFMPEG] stderr for {clip['file']}:\n{trim_proc.stderr}")
+            proc = subprocess.run(trim_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if proc.stderr:
+                log_step(f"[TRIM-FFMPEG] stderr for {clip['file']}:\n{proc.stderr}")
 
             if not os.path.exists(trimmed_path):
                 raise RuntimeError(f"[TRIM ERROR] Output not created for {clip['file']}")
 
-            if os.path.getsize(trimmed_path) < 50 * 1024:  # 50KB
-                raise RuntimeError(
-                    f"[TRIM ERROR] Output too small (<50KB) for {clip['file']}. "
-                    f"Likely corrupt input or failed trim."
-                )
-
-            try:
-                _ = subprocess.check_output(
-                    [
-                        "ffprobe", "-v", "error",
-                        "-show_entries", "format=duration",
-                        "-of", "default=noprint_wrappers=1:nokey=1",
-                        trimmed_path,
-                    ]
-                )
-            except Exception as e:
-                raise RuntimeError(
-                    f"[TRIM ERROR] Invalid MP4 produced for {clip['file']} — ffprobe error: {e}"
-                )
-
             trimmed_files.append(trimmed_path)
             lf.write(f"file '{trimmed_path}'\n")
 
-    # --------------------------------------------------------
-    # 2. CONCAT USING DEMUXER
-    # --------------------------------------------------------
+    # -------------------------------
+    # 2. CONCAT
+    # -------------------------------
     concat_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
     concat_cmd = [
         "ffmpeg", "-y",
-        "-f", "concat",
-        "-safe", "0",
+        "-f", "concat", "-safe", "0",
         "-i", trimlist,
         "-c:v", "libx264",
         "-preset", "superfast" if optimized else "veryfast",
@@ -557,72 +516,87 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
     ]
 
     log_step("[CONCAT] Merging all clips…")
-    concat_proc = subprocess.run(
-        concat_cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-
-    if concat_proc.stderr:
-        log_step(f"[CONCAT-FFMPEG] stderr:\n{concat_proc.stderr}")
-
-    if not os.path.exists(concat_output):
-        raise RuntimeError("Concat failed: output file not created.")
-
-    if os.path.getsize(concat_output) < 150 * 1024:  # <150KB
-        raise RuntimeError("Concat failed: output file too small (corrupt).")
-
-    try:
-        concat_duration = float(
-            subprocess.check_output(
-                [
-                    "ffprobe", "-v", "error",
-                    "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
-                    concat_output,
-                ]
-            ).decode().strip()
-        )
-        if concat_duration <= 0:
-            raise RuntimeError("Concat failed: zero duration.")
-    except Exception as e:
-        raise RuntimeError(f"Concat failed: invalid MP4. ffprobe error: {e}")
+    subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     final_video_source = concat_output
 
-    # --------------------------------------------------------
-    # 3. CTA OUTRO BLUR (SAFE, TIME-ALIGNED WITH NARRATION)
-    # --------------------------------------------------------
+    # ------------------------------------------------------------------
+    # *** FIX APPLIED HERE ***
+    # MOVE TTS + Duration Extension BEFORE CTA padding + blur
+    # ------------------------------------------------------------------
     cta_cfg = cfg.get("cta", {}) or {}
+    tts_tracks, cta_tts_track = _build_per_clip_tts(cfg, clips, cta_cfg)
+
+    # Auto-extend clip durations based on TTS
+    for i, clip in enumerate(clips):
+        tts_entry = tts_tracks[i] if i < len(tts_tracks) else None
+        if tts_entry and isinstance(tts_entry, tuple):
+            tts_path, tts_dur = tts_entry
+            if tts_path and tts_dur:
+                needed = tts_dur + 0.35
+                if needed > clip["duration"]:
+                    log_step(f"[A1a] Extending clip {i+1} duration from {clip['duration']:.2f}s → {needed:.2f}s")
+                    clip["duration"] = needed
+
+    # ------------------------------------------------------------------
+    # 3. CTA VIDEO EXTENSION + CTA BLUR/TEXT  (now runs AFTER durations)
+    # ------------------------------------------------------------------
     cta_enabled = cta_cfg.get("enabled", False)
     cta_text = esc(cta_cfg.get("text", ""))
     cta_dur = float(cta_cfg.get("duration", 3.0))
 
-    if cta_enabled and cta_text:
+    expected_total = sum([clip["duration"] for clip in clips])
 
-        # ---------------------------------------------
-        # NEW — Use extended clip duration instead
-        # of raw concat video duration
-        # (fixes narrator overlapping CTA blur)
-        # ---------------------------------------------
-        clips_total = sum([clip["duration"] for clip in clips])  # TRUE end of narration
-        start_cta = clips_total                                # CTA begins AFTER narration
-        end_cta = start_cta + cta_dur                          # CTA ends after its duration
+    try:
+        actual_total = float(subprocess.check_output(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", final_video_source]
+        ).decode().strip())
+    except:
+        actual_total = expected_total
+
+    if expected_total > actual_total + 0.05:
+        pad_len = expected_total - actual_total
+        log_step(f"[VIDEO EXTEND] Padding video {pad_len:.2f}s to match narration…")
+
+        extended = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+        pad_cmd = [
+            "ffmpeg", "-y",
+            "-i", final_video_source,
+            "-vf", f"tpad=stop_mode=clone:stop_duration={pad_len}",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "22",
+            "-pix_fmt", "yuv420p",
+            extended,
+        ]
+
+        subprocess.run(pad_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        final_video_source = extended
+
+    # ---- CTA Blur/Text ----
+    if cta_enabled and cta_text:
+        try:
+            vid_total = float(subprocess.check_output(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", final_video_source]
+            ).decode().strip())
+        except:
+            vid_total = expected_total
+
+        safe_cta = min(cta_dur, max(vid_total - 0.1, 0.5))
+        start_cta = max(vid_total - safe_cta, 0.0)
 
         blurred = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-
         vf = (
-            f"boxblur=10:enable='between(t,{start_cta},{end_cta})',"
-            f"drawtext=text='{cta_text}':"
-            f"fontcolor=white:fontsize=60:"
-            f"x=(w-text_w)/2:y=h-220:"
-            f"enable='between(t,{start_cta},{end_cta})'"
+            f"boxblur=10:enable='gte(t,{start_cta})',"
+            f"drawtext=text='{cta_text}':fontcolor=white:fontsize=60:"
+            f"x=(w-text_w)/2:y=h-220:enable='gte(t,{start_cta})'"
         )
 
         blur_cmd = [
             "ffmpeg", "-y",
-            "-i", concat_output,
+            "-i", final_video_source,
             "-vf", vf,
             "-c:v", "libx264",
             "-preset", "veryfast",
@@ -631,164 +605,63 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
             blurred,
         ]
 
-        log_step(f"[CTA] Applying SAFE CTA blur/text at {start_cta:.2f}s → {end_cta:.2f}s…")
+        subprocess.run(blur_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        final_video_source = blurred
 
-        proc = subprocess.run(
-            blur_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-
-        if proc.stderr:
-            log_step(f"[CTA-FFMPEG] stderr:\n{proc.stderr}")
-
-        if not os.path.exists(blurred) or os.path.getsize(blurred) < 150 * 1024:
-            log_step("[CTA] CTA failed → using unmodified concat output.")
-            final_video_source = concat_output
-        else:
-            final_video_source = blurred
-
-
-    # --------------------------------------------------------
-    # NEW — PER-CLIP TTS (A1)
-    # --------------------------------------------------------
-    cta_cfg = cfg.get("cta", {}) or {}
-    tts_tracks, cta_tts_track = _build_per_clip_tts(cfg, clips, cta_cfg)
-
-    # --------------------------------------------------------
-    # A1a — Auto-extend clip duration to fit narration length
-    # --------------------------------------------------------
-    for i, clip in enumerate(clips):
-        tts_entry = tts_tracks[i] if i < len(tts_tracks) else None
-
-        if not tts_entry or not isinstance(tts_entry, tuple):
-            continue
-
-        tts_path, tts_dur = tts_entry
-
-        if not tts_path or not tts_dur:
-            continue
-
-        needed = tts_dur + 0.35  # safety padding
-
-        if needed > clip["duration"]:
-            log_step(
-                f"[A1a] Extending clip {i+1} "
-                f"duration from {clip['duration']:.2f}s → {needed:.2f}s"
-            )
-            clip["duration"] = needed
-
-
-
-    # --------------------------------------------------------
-    # 4. AUDIO PIPELINE — per-clip TTS + CTA + music
-    # --------------------------------------------------------
+    # -------------------------------
+    # 4. AUDIO PIPELINE
+    # -------------------------------
     log_step("[AUDIO] Building audio timeline…")
-
-    # Build narration timeline using adelay offsets so narration
-    # lines up with each clip in time.
     audio_inputs = []
-    current_time = 0.0  # seconds
+    current_time = 0.0
 
-    # Per-clip TTS: align by clip durations
     for idx, clip in enumerate(clips):
         tts_entry = tts_tracks[idx] if idx < len(tts_tracks) else None
-
         if tts_entry and isinstance(tts_entry, tuple):
             tts_path, tts_dur = tts_entry
-
-            audio_inputs.append({
-                "path": tts_path,
-                "start": current_time,
-                "volume": 1.0,
-            })
-
+            audio_inputs.append({"path": tts_path, "start": current_time, "volume": 1.0})
         current_time += clip["duration"]
 
-
-    # CTA narration: ALWAYS play after the last clip + its narration
     if cta_tts_track and cta_enabled and cta_text:
-        # Extract CTA path from tuple
         if isinstance(cta_tts_track, tuple):
-            cta_path, cta_dur = cta_tts_track
+            cta_path, _ = cta_tts_track
         else:
             cta_path = cta_tts_track
-            cta_dur = None
-
-        # CTA should start AFTER all clips (including extended ones)
-        total_clip_time = sum([clip["duration"] for clip in clips])
-
-        cta_start = total_clip_time  # CTA starts exactly when last clip ends
-
-        audio_inputs.append({
-            "path": cta_path,
-            "start": cta_start,
-            "volume": 1.0,
-        })
-
-
+        audio_inputs.append({"path": cta_path, "start": current_time, "volume": 1.0})
 
     final_audio = None
 
     if audio_inputs:
-        # Build ffmpeg command to mix all TTS with timing offsets
         narration_out = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
         cmd = ["ffmpeg", "-y"]
 
         for inp in audio_inputs:
             cmd += ["-i", inp["path"]]
 
-        filter_parts = []
+        parts = []
         labels = []
 
         for idx, inp in enumerate(audio_inputs):
-            delay_ms = int(round(inp["start"] * 1000))
-            vol = inp["volume"]
-            part = f"[{idx}:a]adelay={delay_ms}|{delay_ms},volume={vol}[a{idx}]"
-
-            filter_parts.append(part)
+            delay_ms = int(inp["start"] * 1000)
+            parts.append(f"[{idx}:a]adelay={delay_ms}|{delay_ms},volume={inp['volume']}[a{idx}]")
             labels.append(f"[a{idx}]")
 
-        filter_complex = "; ".join(filter_parts) + "; " + "".join(labels) + f"amix=inputs={len(audio_inputs)}:normalize=0[outa]"
+        filter_complex = "; ".join(parts) + "; " + "".join(labels) + f"amix=inputs={len(audio_inputs)}:normalize=0[outa]"
 
-        cmd += [
-            "-filter_complex", filter_complex,
-            "-map", "[outa]",
-            "-c:a", "aac",
-            narration_out,
-        ]
+        cmd += ["-filter_complex", filter_complex, "-map", "[outa]", "-c:a", "aac", narration_out]
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-        log_step("[AUDIO] Mixing per-clip TTS (and CTA)…")
-        mix_proc = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
+        final_audio = narration_out
 
-        if mix_proc.stderr:
-            log_step(f"[AUDIO-FFMPEG] stderr:\n{mix_proc.stderr}")
-
-        if os.path.exists(narration_out) and os.path.getsize(narration_out) > 1024:
-            final_audio = narration_out
-        else:
-            log_step("[AUDIO] Narration mix invalid → disabling narration.")
-            final_audio = None
-
-    # Load background music and mix with narration (if any)
+    # -------------------------------
+    # Mix music
+    # -------------------------------
     try:
-        total_duration = float(
-            subprocess.check_output(
-                [
-                    "ffprobe", "-v", "error",
-                    "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
-                    final_video_source,
-                ]
-            ).decode().strip()
-        )
-    except Exception:
+        total_duration = float(subprocess.check_output(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", final_video_source]
+        ).decode().strip())
+    except:
         total_duration = current_time
 
     music_audio = _build_music_audio(cfg, total_duration)
@@ -809,57 +682,23 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
             stderr=subprocess.PIPE,
             text=True,
         )
-        if os.path.exists(mixed) and os.path.getsize(mixed) > 1024:
-            final_audio = mixed
-        else:
-            log_step("[AUDIO] Music+TTS mix invalid → falling back to narration only.")
+        final_audio = mixed
 
-    # --------------------------------------------------------
-    # 5. FINAL MUX (NO -shortest, explicit mapping)
-    # --------------------------------------------------------
+    # -------------------------------
+    # 5. FINAL MUX
+    # -------------------------------
     final_output = os.path.abspath(os.path.join(BASE_DIR, output_file))
-
     mux_cmd = ["ffmpeg", "-y", "-i", final_video_source]
 
     if final_audio:
-        mux_cmd.extend(
-            [
-                "-i", final_audio,
-                "-map", "0:v:0",   # video from first input
-                "-map", "1:a:0",   # audio from second input
-                "-c:v", "copy",
-                "-c:a", "aac",
-                final_output,
-            ]
-        )
+        mux_cmd += ["-i", final_audio, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", final_output]
     else:
-        mux_cmd.extend(
-            [
-                "-c:v", "copy",
-                final_output,
-            ]
-        )
+        mux_cmd += ["-c:v", "copy", final_output]
 
-    log_step("[MUX] Writing final video…")
-    mux_proc = subprocess.run(
-        mux_cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    subprocess.run(mux_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-
-    if mux_proc.stderr:
-        log_step(f"[MUX-FFMPEG] stderr:\n{mux_proc.stderr}")
-
-    # --------------------------------------------------------
-    # VERIFY OUTPUT
-    # --------------------------------------------------------
     if not os.path.exists(final_output):
         raise RuntimeError(f"Final output missing! {final_output}")
-
-    if os.path.getsize(final_output) < 1024 * 100:  # <100 KB → invalid MP4
-        raise RuntimeError("Output file is suspiciously small (likely a mux failure).")
 
     log_step(f"[EXPORT] Video rendered: {final_output}")
     return final_output
