@@ -923,3 +923,9 @@ h3 .style-check {
 .status-error {
     color: #ff4d4d !important;
 }
+
+.status-text {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.85rem;
+}

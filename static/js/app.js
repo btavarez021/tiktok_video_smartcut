@@ -515,7 +515,7 @@ async function saveLayoutMode() {
     if (!sel || !status) return;
 
     const mode = sel.value || "tiktok";
-    status.textContent = "Saving layout mode…";
+    setStatus("layoutStatus", "Saving layout mode…", "info");
 
     try {
         await jsonFetch("/api/layout", {
@@ -523,11 +523,11 @@ async function saveLayoutMode() {
             body: JSON.stringify({ mode }),
         });
 
-        status.textContent = "Layout saved!";
+        setStatus("layoutStatus", "Layout saved!", "success");
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        status.textContent = "Error saving layout: " + err.message;
+        setStatus("layoutStatus", "Error saving layout: " + err.message, "error");
     }
 }
 
@@ -661,48 +661,46 @@ async function saveLayoutMode() {
 
   // Music: save settings into YAML (top-level music block)
   async function saveMusicSettings() {
-      const enabledEl = document.getElementById("musicEnabled");
-      const fileEl = document.getElementById("musicFile");
-      const volEl = document.getElementById("musicVolume");
-      if (!enabledEl || !fileEl || !volEl) return;
+    const enabledEl = document.getElementById("musicEnabled");
+    const fileEl = document.getElementById("musicFile");
+    const volEl = document.getElementById("musicVolume");
+    const statusEl = document.getElementById("musicStatus");
 
-      const enabled = enabledEl.checked;
-      const file = fileEl.value || "";
-      const volume = parseFloat(volEl.value || "0.25");
+    if (!enabledEl || !fileEl || !volEl || !statusEl) return;
 
-      try {
-          const data = await jsonFetch("/api/config");
-          const cfg = data.config || {};
+    const enabled = enabledEl.checked;
+    const file = fileEl.value || "";
+    const volume = parseFloat(volEl.value || "0.25");
 
-          // Write clean top-level music block that tiktok_template.py expects
-          cfg.music = {
-              enabled,
-              file,
-              volume,
-          };
+    setStatus("musicStatus", "Saving music settings…", "info");
 
-          // Remove legacy render.music_* if present
-          if (cfg.render) {
-              delete cfg.render.music_enabled;
-              delete cfg.render.music_file;
-              delete cfg.render.music_volume;
-          }
+    try {
+        const data = await jsonFetch("/api/config");
+        const cfg = data.config || {};
 
-          // Convert JSON → YAML string using js-yaml (must be loaded in HTML)
-          const yamlText = jsyaml.dump(cfg);
+        cfg.music = { enabled, file, volume };
 
-          await jsonFetch("/api/save_yaml", {
-              method: "POST",
-              body: JSON.stringify({ yaml: yamlText }),
-          });
+        if (cfg.render) {
+            delete cfg.render.music_enabled;
+            delete cfg.render.music_file;
+            delete cfg.render.music_volume;
+        }
 
-          showStatus("Music saved!", "success");
-          await loadConfigAndYaml();
-      } catch (err) {
-          console.error(err);
-          showStatus("Error saving music: " + err.message, "error");
-      }
-  }
+        const yamlText = jsyaml.dump(cfg);
+
+        await jsonFetch("/api/save_yaml", {
+            method: "POST",
+            body: JSON.stringify({ yaml: yamlText }),
+        });
+
+        setStatus("musicStatus", "Music settings saved.", "success");
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+        setStatus("musicStatus", "Error saving music: " + err.message, "error");
+    }
+}
+
 
   // Music volume label live update
   function initMusicVolumeSlider() {
@@ -805,24 +803,27 @@ function autoSelectCaptionStyle(selectedMode) {
 
   // Foreground scale
   async function saveFgScale() {
-      const range = document.getElementById("fgScale");
-      if (!range) return;
+    const range = document.getElementById("fgScale");
+    const statusEl = document.getElementById("fgStatus");
+    if (!range || !statusEl) return;
 
-      const value = parseFloat(range.value || "1.0");
-      showStatus("Saving foreground scale…", "info");
+    const value = parseFloat(range.value || "1.0");
 
-      try {
-          await jsonFetch("/api/fgscale", {
-              method: "POST",
-              body: JSON.stringify({ value }),
-          });
-          showStatus("Foreground scale saved.", "success");
-          await loadConfigAndYaml();
-      } catch (err) {
-          console.error(err);
-          showStatus(`Error saving scale: ${err.message}`, "error");
-      }
-  }
+    setStatus("fgStatus", "Saving foreground scale…", "info");
+
+    try {
+        await jsonFetch("/api/fgscale", {
+            method: "POST",
+            body: JSON.stringify({ value }),
+        });
+
+        setStatus("fgStatus", "Foreground scale saved.", "success");
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+        setStatus("fgStatus", "Error saving scale: " + err.message, "error");
+    }
+}
 
   function initFgScaleSlider() {
       const range = document.getElementById("fgScale");
