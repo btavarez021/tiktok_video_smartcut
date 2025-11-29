@@ -12,6 +12,20 @@
   // Utility helpers
   // ================================
 
+  // Universal colored status helper
+  function setStatus(id, msg, type = "info") {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      el.textContent = msg;
+      el.classList.remove("status-info", "status-success", "status-error");
+
+      if (type === "success") el.classList.add("status-success");
+      else if (type === "error") el.classList.add("status-error");
+      else el.classList.add("status-info");
+  }
+
+
   // JSON fetch helper with sane defaults
   async function jsonFetch(url, options = {}) {
       const resp = await fetch(url, {
@@ -135,7 +149,7 @@
           formData.append("files", f);
       }
 
-      status.textContent = "⬆ Uploading…";
+      setStatus("uploadStatus", "⬆ Uploading…", "info");
 
       try {
           const resp = await fetch("/api/upload", {
@@ -144,13 +158,13 @@
           });
           const data = await resp.json();
           if (data.uploaded?.length) {
-              status.textContent = `✅ Uploaded ${data.uploaded.length} file(s).`;
+              setStatus("uploadStatus", `✅ Uploaded ${data.uploaded.length} file(s).`, "success");
           } else {
               status.textContent = `⚠ No files uploaded (check logs).`;
           }
       } catch (err) {
           console.error(err);
-          status.textContent = `❌ Upload failed: ${err.message}`;
+          setStatus("uploadStatus", `❌ Upload failed: ${err.message}`, "error");
       }
   }
 
@@ -266,7 +280,7 @@
       if (!analyzeBtn || !statusEl) return;
 
       analyzeBtn.disabled = true;
-      statusEl.textContent = "Analyzing clips from S3… this can take a bit depending on video length.";
+      setStatus("analyzeStatus", "Analyzing clips from S3… this can take a bit…", "info");
 
       try {
           const data = await jsonFetch("/api/analyze", {
@@ -274,11 +288,11 @@
               body: "{}",
           });
           const count = data.count ?? Object.keys(data || {}).length;
-          statusEl.textContent = `Analysis complete. ${count} video(s) described.`;
+          setStatus("analyzeStatus", `Analysis complete. ${count} video(s).`, "success");
           await refreshAnalyses();
       } catch (err) {
           console.error(err);
-          statusEl.textContent = `Error during analysis: ${err.message}`;
+          setStatus("analyzeStatus", `Error during analysis: ${err.message}`, "error");
       } finally {
           analyzeBtn.disabled = false;
       }
@@ -320,18 +334,17 @@
   async function generateYaml() {
       const statusEl = document.getElementById("yamlStatus");
       if (!statusEl) return;
-
-      statusEl.textContent = "Calling LLM to build config.yml storyboard…";
+      setStatus("yamlStatus", "Calling LLM to build config.yml storyboard…", "info");
       try {
           await jsonFetch("/api/generate_yaml", {
               method: "POST",
               body: "{}",
           });
-          statusEl.textContent = "YAML generated and saved to config.yml.";
+          setStatus("yamlStatus", "YAML generated!", "success");
           await loadConfigAndYaml();
       } catch (err) {
           console.error(err);
-          statusEl.textContent = `Error generating YAML: ${err.message}`;
+          setStatus("yamlStatus", `Error generating YAML: ${err.message}`, "error");
       }
   }
 
@@ -356,18 +369,18 @@
       if (!yamlTextEl || !statusEl) return;
 
       const raw = yamlTextEl.value || "";
-      statusEl.textContent = "Saving YAML…";
+      setStatus("yamlStatus", "Saving YAML…", "info");
 
       try {
           await jsonFetch("/api/save_yaml", {
               method: "POST",
               body: JSON.stringify({ yaml: raw }),
           });
-          statusEl.textContent = "YAML saved to config.yml.";
+          setStatus("yamlStatus", "YAML saved to config.yml.", "success");
           await loadConfigAndYaml();
       } catch (err) {
           console.error(err);
-          statusEl.textContent = `Error saving YAML: ${err.message}`;
+          setStatus("yamlStatus", `Error saving YAML: ${err.message}`, "error");
       }
   }
 
@@ -396,16 +409,16 @@
       const captionsEl = document.getElementById("captionsText");
       if (!statusEl || !captionsEl) return;
 
-      statusEl.textContent = "Loading captions from config.yml…";
+      setStatus("captionsStatus", "Loading captions…", "info");
 
       try {
           const data = await jsonFetch("/api/config");
           const cfg = data.config || {};
           captionsEl.value = buildCaptionsFromConfig(cfg);
-          statusEl.textContent = "Captions loaded. Edit and click “Save captions”.";
+          setStatus("captionsStatus", "Captions loaded.", "success");
       } catch (err) {
           console.error(err);
-          statusEl.textContent = `Error loading captions: ${err.message}`;
+          setStatus("captionsStatus", `Error loading captions: ${err.message}`, "error");
       }
   }
 
@@ -441,18 +454,18 @@
       if (!styleSel || !statusEl) return;
 
       const style = styleSel.value || "travel_blog";
-      statusEl.textContent = `Applying overlay style “${style}”…`;
+      setStatus("overlayStatus", `Applying overlay style “${style}”…`, "info");
 
       try {
           await jsonFetch("/api/overlay", {
               method: "POST",
               body: JSON.stringify({ style }),
           });
-          statusEl.textContent = "Overlay applied. YAML updated.";
+          setStatus("overlayStatus", "Overlay applied.", "success");
           await loadConfigAndYaml();
       } catch (err) {
           console.error(err);
-          statusEl.textContent = `Error applying overlay: ${err.message}`;
+          setStatus("overlayStatus", `Error applying overlay: ${err.message}`, "error");
       }
   }
 
@@ -461,20 +474,18 @@
       const statusEl = document.getElementById("timingStatus");
       if (!statusEl) return;
 
-      statusEl.textContent = smart
-          ? "Applying cinematic smart timings…"
-          : "Applying standard timing tweaks…";
+      setStatus("timingStatus", smart ? "Applying cinematic smart timings…" : "Applying standard timing…", "info");
 
       try {
           await jsonFetch("/api/timings", {
               method: "POST",
               body: JSON.stringify({ smart }),
           });
-          statusEl.textContent = "Timings updated in config.yml.";
+          setStatus("timingStatus", "Timings updated.", "success");
           await loadConfigAndYaml();
       } catch (err) {
           console.error(err);
-          statusEl.textContent = `Error adjusting timings: ${err.message}`;
+          setStatus("timingStatus", `Error adjusting timings: ${err.message}`, "error");
       }
   }
 
@@ -835,9 +846,8 @@ function autoSelectCaptionStyle(selectedMode) {
       const mode = document.querySelector('input[name="exportMode"]:checked')?.value;
       const optimized = mode === "optimized";
 
-      exportStatus.textContent = optimized
-          ? "Rendering in optimized mode…"
-          : "Rendering in standard mode…";
+      setStatus("exportStatus", optimized ? "Rendering (HQ)..." : "Rendering…", "info");
+
       downloadArea.innerHTML = "";
       btn.disabled = true;
 
@@ -851,7 +861,7 @@ function autoSelectCaptionStyle(selectedMode) {
               throw new Error(data.error || "Unknown export error");
           }
 
-          exportStatus.textContent = "Export complete.";
+          setStatus("exportStatus", "Export complete!", "success");
 
           const downloadUrl = data.download_url; // signed S3 URL from backend
           const filename = data.local_filename || "export.mp4";
@@ -882,7 +892,7 @@ function autoSelectCaptionStyle(selectedMode) {
           }
       } catch (err) {
           console.error(err);
-          exportStatus.textContent = `Error during export: ${err.message}`;
+          setStatus("exportStatus", `Error during export: ${err.message}`, "error");
       } finally {
           btn.disabled = false;
       }

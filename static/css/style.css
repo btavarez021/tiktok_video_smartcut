@@ -913,3 +913,13 @@ h3 .style-check {
     font-weight: 500;
 }
 
+/* Status message colors */
+.status-info {
+    color: #9b9b9f !important;
+}
+.status-success {
+    color: #28d05d !important;
+}
+.status-error {
+    color: #ff4d4d !important;
+}
