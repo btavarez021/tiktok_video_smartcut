@@ -179,57 +179,52 @@ No hashtags. No quotes. Return only the sentence.
     return desc
 
 
-# -----------------------------------------
-# YAML Prompt Builder
-# -----------------------------------------
 def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
     """
-    Build a prompt asking the LLM to output a valid config.yml
-    using the EXACT schema required by tiktok_template.py.
-    Filenames are used as-is (no forced .mp4).
+    Build a prompt asking the LLM to output a clean, modern config.yml
+    using the EXACT schema supported by tiktok_template.py and the UI.
     """
 
-    lines: List[str] = [
+    lines = [
         "You are generating a config.yml for a vertical TikTok HOTEL / TRAVEL video.",
         "",
-        "IMPORTANT — You MUST use this exact YAML structure:",
-        "Filenames MUST be returned exactly as provided (no renaming, no lowercase, no extension changes).",
+        "IMPORTANT RULES:",
+        "- Output ONLY valid YAML (no backticks).",
+        "- Use the EXACT schema below, no extra keys.",
+        "- Filenames must be returned EXACTLY as provided (case and extension preserved).",
+        "- Every clip must include: file, start_time, duration, text.",
+        "",
+        "======================================",
+        "REQUIRED YAML SCHEMA (FOLLOW EXACTLY)",
+        "======================================",
         "",
         "first_clip:",
         "  file: <filename>",
         "  start_time: 0",
         "  duration: <seconds>",
-        "  text: <one-sentence caption>",
-        "  scale: 1.0",
+        "  text: <caption>",
         "",
         "middle_clips:",
         "  - file: <filename>",
         "    start_time: 0",
         "    duration: <seconds>",
-        "    text: <one-sentence caption>",
-        "    scale: 1.0",
+        "    text: <caption>",
         "",
         "last_clip:",
         "  file: <filename>",
         "  start_time: 0",
         "  duration: <seconds>",
-        "  text: <one-sentence caption>",
-        "  scale: 1.0",
+        "  text: <caption>",
         "",
         "render:",
-        "  fg_scale_default: 1.0",
         "  layout_mode: tiktok",
+        "  auto_fg_scale: true",
+        "  fgscale: 1.1",
         "",
-        "# ------------------------------",
-        "# TTS (Voice Narration)",
-        "# ------------------------------",
         "tts:",
         "  enabled: false",
-        '  voice: "alloy"',
+        '  voice: "shimmer"',
         "",
-        "# ------------------------------",
-        "# Background Music System",
-        "# ------------------------------",
         "music:",
         "  enabled: false",
         "  file: ''",
@@ -240,19 +235,21 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
         '  text: ""',
         "  voiceover: false",
         "  duration: 3.0",
-        '  position: "bottom"',
         "",
         "",
-        "Here are your clips and their meanings:",
+        "======================================",
+        "CLIPS AND THEIR ANALYSIS (FOR CAPTIONS)",
+        "======================================",
     ]
 
+    # Insert clip analyses
     for vf, a in zip(video_files, analyses):
         lines.append(f"- file: {vf}")
         lines.append(f"  analysis: {a}")
 
     lines.append("")
-    lines.append("Return ONLY valid YAML. No backticks, no explanation.")
-    lines.append("Ensure you output first_clip, middle_clips, and last_clip fields exactly.")
+    lines.append("Return ONLY VALID YAML with no explanation. DO NOT wrap in code fences.")
+    lines.append("Ensure you output first_clip, middle_clips, and last_clip sections.")
 
     return "\n".join(lines)
 
