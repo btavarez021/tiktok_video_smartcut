@@ -16,6 +16,13 @@ function sessionQS() {
     return "?session=" + encodeURIComponent(ACTIVE_SESSION);
 }
 
+function updateSessionTags() {
+    document.querySelectorAll("#currentSessionTag").forEach(el => {
+        el.textContent = getActiveSession();
+    });
+}
+
+
 function sanitizeSessionName(raw) {
     let s = (raw || "").toLowerCase().trim();
 
@@ -62,6 +69,8 @@ function setActiveSession(name) {
     // Refresh analyses + config view for this session
     refreshAnalyses();
     loadConfigAndYaml();
+    updateSessionTags();
+
 }
 
 // ================================
