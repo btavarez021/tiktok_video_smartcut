@@ -389,6 +389,24 @@ function initUploadUI() {
 
 }
 
+function toggleSessionManager() {
+    const body = document.getElementById("sessionManagerContent");
+    const icon = document.getElementById("sessionManagerToggle");
+
+    if (!body || !icon) return;
+
+    body.classList.toggle("open");
+
+    if (body.classList.contains("open")) {
+        body.style.maxHeight = body.scrollHeight + "px";
+        icon.textContent = "▲";
+    } else {
+        body.style.maxHeight = "0px";
+        icon.textContent = "▼";
+    }
+}
+
+
 // ================================
 // Manage uploads already in S3
 // ================================

@@ -1413,3 +1413,17 @@ h3 .style-check {
     position: relative;
     z-index: 1 !important;
 }
+
+
+#sessionManagerContent {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+#sessionManagerContent.open {
+    opacity: 1;
+    max-height: 800px; /* plenty */
+}
+
