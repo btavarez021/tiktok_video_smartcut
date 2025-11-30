@@ -5,10 +5,9 @@ import json
 import glob
 import logging
 from typing import Dict, Any, List
-
 import yaml
 from openai import OpenAI
-
+from flask import request
 from assistant_log import log_step, log_error, log_success
 from tiktok_template import config_path, edit_video, video_folder
 from s3_config import (
@@ -168,10 +167,10 @@ def delete_upload_s3(key: str) -> Dict[str, Any]:
 def list_sessions():
     """
     Return a list of session folder names under raw_uploads/.
-    Robust against prefix changes, nested paths, and S3 structure differences.
+    Works even if RAW_PREFIX has trailing slash or not.
     """
-    # Ensure RAW_PREFIX ends with "/", otherwise S3 won't treat it as a folder
-    prefix = RAW_PREFIX if RAW_PREFIX.endswith("/") else RAW_PREFIX + "/"
+    # Normalize RAW_PREFIX to "raw_uploads/"
+    prefix = RAW_PREFIX.rstrip("/") + "/"
 
     resp = s3.list_objects_v2(
         Bucket=S3_BUCKET_NAME,
@@ -181,7 +180,7 @@ def list_sessions():
 
     sessions = []
     for p in resp.get("CommonPrefixes", []):
-        full_prefix = p["Prefix"]          # e.g. raw_uploads/mgm_grand/
+        full_prefix = p["Prefix"]              # raw_uploads/mgm_grand/
         session_name = full_prefix[len(prefix):].rstrip("/")  # mgm_grand
 
         if session_name:
@@ -409,7 +408,7 @@ def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
 
         # Apply session overrides
         session = request.args.get("session", "default")
-        session = backend_sanitize_session(session)
+        session = sanitize_session(session)
         cfg = merge_session_config_into(cfg, session)
 
         with open(config_path, "w", encoding="utf-8") as f:
