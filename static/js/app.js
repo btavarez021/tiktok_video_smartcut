@@ -410,10 +410,14 @@ function toggleSessionManager() {
 async function loadUploadManager() {
     try {
         const session = encodeURIComponent(getActiveSession());
+
+        // Set label
+        const sessLabel = document.getElementById("uploadManagerSession");
+        if (sessLabel) sessLabel.textContent = getActiveSession();
+
         const res = await fetch(`/api/uploads?session=${session}`);
         const data = await res.json();
 
-        // data.raw / data.processed are expected to be *filenames* only
         renderUploadList("rawUploads", data.raw, "raw");
         renderUploadList("processedUploads", data.processed, "processed");
     } catch (e) {
@@ -445,7 +449,7 @@ function renderUploadList(elementId, items, kind) {
             return `
         <div class="upload-item">
             <div class="file-info">
-                <strong>${file}</strong>
+                <strong>${session}/${file}</strong>
             </div>
 
             <div class="buttons">
