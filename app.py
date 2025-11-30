@@ -8,6 +8,8 @@ from werkzeug.utils import secure_filename
 
 from assistant_log import status_log
 from assistant_api import (
+    delete_session,
+    list_sessions,
     list_uploads,
     move_upload_s3,
     delete_upload_s3,
@@ -48,6 +50,17 @@ def sanitize_session(s: str) -> str:
         return "default"
     s = s.lower().strip().replace(" ", "_")
     return "".join(c for c in s if c.isalnum() or c == "_") or "default"
+
+@app.route("/api/sessions", methods=["GET"])
+def api_list_sessions():
+    return jsonify({"sessions": list_sessions()})
+
+
+@app.route("/api/session/<session>", methods=["DELETE"])
+def api_delete_session(session):
+    delete_session(session)
+    return jsonify({"success": True})
+
 
 
 # ---------------------------------

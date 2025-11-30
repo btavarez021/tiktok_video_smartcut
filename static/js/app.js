@@ -648,6 +648,31 @@ async function loadCaptionsFromYaml() {
     }
 }
 
+async function loadSessions() {
+    const res = await fetch("/api/sessions");
+    const data = await res.json();
+
+    const list = document.getElementById("sessionList");
+    list.innerHTML = "";
+
+    data.sessions.forEach(session => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+            <div class="analysis-file">${session}</div>
+            <button class="btn btn-delete" onclick="deleteSession('${session}')">🗑 Delete</button>
+        `;
+        list.appendChild(li);
+    });
+}
+
+async function deleteSession(session) {
+    if (!confirm(`Delete session '${session}' including all its videos?`)) return;
+
+    await fetch(`/api/session/${session}`, { method: "DELETE" });
+
+    loadSessions();
+}
+
 async function saveCaptions() {
     const captionsEl = document.getElementById("captionsText");
     if (!captionsEl) return;
@@ -1387,4 +1412,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document
         .getElementById("chatSendBtn")
         ?.addEventListener("click", sendChat);
+        
+    document.getElementById("refreshSessionsBtn").addEventListener("click", loadSessions);
+
 });

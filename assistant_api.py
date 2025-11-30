@@ -162,6 +162,40 @@ def delete_upload_s3(key: str) -> Dict[str, Any]:
     s3.delete_object(Bucket=S3_BUCKET_NAME, Key=key)
     return {"ok": True}
 
+def list_sessions():
+    """Return a list of folder names under raw_uploads/."""
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX, Delimiter='/')
+
+    folders = []
+    for p in resp.get("CommonPrefixes", []):
+        prefix = p["Prefix"]        # raw_uploads/MGM_Grand_2025/
+        folder = prefix.split("/", 1)[1].rstrip("/")   # MGM_Grand_2025
+        folders.append(folder)
+
+    return folders
+
+
+def delete_session(session):
+    """Delete an entire session folder from S3."""
+    session = session.strip()
+
+    raw_pref = f"{RAW_PREFIX}{session}/"
+    proc_pref = f"{PROCESSED_PREFIX}{session}/"
+
+    def delete_prefix(prefix):
+        resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+        keys = [{'Key': obj['Key']} for obj in resp.get('Contents', [])]
+
+        if keys:
+            s3.delete_objects(
+                Bucket=S3_BUCKET_NAME,
+                Delete={'Objects': keys, 'Quiet': True}
+            )
+
+    delete_prefix(raw_pref)
+    delete_prefix(proc_pref)
+
+    return True
 
 # -------------------------------
 # Sync S3 → local tik_tok_downloads/ (per session)
