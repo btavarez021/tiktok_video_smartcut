@@ -55,8 +55,13 @@ function setActiveSession(name) {
     if (label) label.textContent = ACTIVE_SESSION;
     if (input && input.value !== ACTIVE_SESSION) input.value = ACTIVE_SESSION;
 
+    console.log("[SESSION] Active:", ACTIVE_SESSION);
+
     // Reload upload manager for this session
     loadUploadManager();
+    // Refresh analyses + config view for this session
+    refreshAnalyses();
+    loadConfigAndYaml();
 }
 
 // ================================
@@ -648,29 +653,50 @@ async function loadCaptionsFromYaml() {
     }
 }
 
+// Session list (for Session Manager card)
 async function loadSessions() {
-    const res = await fetch("/api/sessions");
-    const data = await res.json();
+    try {
+        const res = await fetch("/api/sessions");
+        const data = await res.json();
 
-    const list = document.getElementById("sessionList");
-    list.innerHTML = "";
+        const list = document.getElementById("sessionList");
+        if (!list) return;
 
-    data.sessions.forEach(session => {
-        const li = document.createElement("li");
-        li.innerHTML = `
-            <div class="analysis-file">${session}</div>
-            <button class="btn btn-delete" onclick="deleteSession('${session}')">🗑 Delete</button>
-        `;
-        list.appendChild(li);
-    });
+        list.innerHTML = "";
+
+        (data.sessions || []).forEach((session) => {
+            const li = document.createElement("li");
+            li.className = "analysis-item";
+            li.innerHTML = `
+                <span class="analysis-file">${session}</span>
+                <button class="btn btn-delete deleteSessionBtn" data-session="${session}">
+                    🗑 Delete
+                </button>
+            `;
+            list.appendChild(li);
+        });
+    } catch (err) {
+        console.error("[SESSION] loadSessions failed:", err);
+    }
 }
 
 async function deleteSession(session) {
     if (!confirm(`Delete session '${session}' including all its videos?`)) return;
 
-    await fetch(`/api/session/${session}`, { method: "DELETE" });
+    try {
+        await fetch(`/api/session/${encodeURIComponent(session)}`, {
+            method: "DELETE",
+        });
 
-    loadSessions();
+        // If we deleted the current one, snap back to default
+        if (getActiveSession() === session) {
+            setActiveSession("default");
+        }
+
+        loadSessions();
+    } catch (err) {
+        console.error("[SESSION] deleteSession failed:", err);
+    }
 }
 
 async function saveCaptions() {
@@ -1112,8 +1138,12 @@ function initMusicPreview() {
 
 // Foreground scale
 async function saveFgScale() {
-    const auto = document.getElementById("autoFgScale")?.checked;
-    const fg = parseFloat(document.getElementById("fgScale")?.value || "1.0");
+    const autoEl = document.getElementById("autoFgScale");
+    const range = document.getElementById("fgScale");
+    if (!autoEl || !range) return;
+
+    const auto = autoEl.checked;
+    const fg = parseFloat(range.value || "1.0");
 
     setStatus("fgStatus", "Saving foreground scale…", "info");
 
@@ -1149,29 +1179,33 @@ function initFgScaleSlider() {
     });
 }
 
-const autoFgScaleEl = document.getElementById("autoFgScale");
-const manualFgContainer = document.getElementById("manualFgScaleContainer");
-const fgScaleEl = document.getElementById("fgScale");
-const fgScaleValue = document.getElementById("fgScaleValue");
+function initFgScaleUI() {
+    const autoFgScaleEl = document.getElementById("autoFgScale");
+    const manualFgContainer = document.getElementById("manualFgScaleContainer");
+    const fgScaleEl = document.getElementById("fgScale");
+    const fgScaleValue = document.getElementById("fgScaleValue");
 
-// Hide slider if auto enabled
-function updateFgScaleUI() {
-    if (autoFgScaleEl.checked) {
-        manualFgContainer.classList.add("hidden");
-    } else {
-        manualFgContainer.classList.remove("hidden");
+    if (!autoFgScaleEl || !manualFgContainer || !fgScaleEl || !fgScaleValue) {
+        return;
     }
-}
 
-// Bind change event
-autoFgScaleEl.addEventListener("change", () => {
+    function updateFgScaleUI() {
+        if (autoFgScaleEl.checked) {
+            manualFgContainer.classList.add("hidden");
+        } else {
+            manualFgContainer.classList.remove("hidden");
+        }
+    }
+
+    autoFgScaleEl.addEventListener("change", updateFgScaleUI);
+
+    fgScaleEl.addEventListener("input", () => {
+        fgScaleValue.textContent = fgScaleEl.value;
+    });
+
+    // Initial state
     updateFgScaleUI();
-});
-
-// Update label
-fgScaleEl.addEventListener("input", () => {
-    fgScaleValue.textContent = fgScaleEl.value;
-});
+}
 
 // ================================
 // Step 5: Export (PATCHED + SESSION)
@@ -1300,169 +1334,6 @@ async function sendChat() {
     }
 }
 
-// ===========================================================
-// SESSION SYSTEM — FULL JS PATCH
-// ===========================================================
-
-// ---------------------------------------------
-// Store active session locally
-// ---------------------------------------------
-function setActiveSession(name) {
-    name = (name || "").trim();
-    if (!name) name = "default";
-
-    localStorage.setItem("activeSession", name);
-
-    const label = document.getElementById("activeSessionLabel");
-    if (label) label.textContent = name;
-
-    const dropdown = document.getElementById("sessionDropdown");
-    if (dropdown) dropdown.value = name;
-
-    console.log("[SESSION] Active session set:", name);
-}
-
-function getActiveSession() {
-    try {
-        return localStorage.getItem("activeSession") || "default";
-    } catch {
-        return "default";
-    }
-}
-
-
-// ---------------------------------------------
-// Load session list from backend
-// ---------------------------------------------
-async function loadSessions() {
-    try {
-        const res = await jsonFetch("/api/sessions", { method: "GET" });
-        const sessions = res.sessions || [];
-
-        populateSessionDropdown(sessions);
-        populateSessionList(sessions);
-    } catch (err) {
-        console.error("[SESSION] Failed loading sessions:", err);
-    }
-}
-
-
-// ---------------------------------------------
-// Populate dropdown to switch sessions
-// ---------------------------------------------
-function populateSessionDropdown(sessions) {
-    const dd = document.getElementById("sessionDropdown");
-    if (!dd) return;
-    dd.innerHTML = "";
-
-    sessions.forEach((s) => {
-        const opt = document.createElement("option");
-        opt.value = s;
-        opt.textContent = s;
-        dd.appendChild(opt);
-    });
-
-    const active = getActiveSession();
-    if (sessions.includes(active)) {
-        dd.value = active;
-    }
-}
-
-
-// ---------------------------------------------
-// Populate session delete list UI
-// ---------------------------------------------
-function populateSessionList(sessions) {
-    const ul = document.getElementById("sessionList");
-    if (!ul) return;
-    ul.innerHTML = "";
-
-    sessions.forEach((s) => {
-        const li = document.createElement("li");
-        li.className = "analysis-item";
-        li.innerHTML = `
-            <span>${s}</span>
-            <button class="btn danger small deleteSessionBtn" data-s="${s}">
-                Delete
-            </button>
-        `;
-        ul.appendChild(li);
-    });
-}
-
-
-// ---------------------------------------------
-// Delete session handler
-// ---------------------------------------------
-async function deleteSession(name) {
-    if (!confirm(`Delete session '${name}' permanently?`)) return;
-
-    try {
-        await jsonFetch(`/api/session/${name}`, {
-            method: "DELETE",
-        });
-
-        // Clear if active session was deleted
-        if (getActiveSession() === name) {
-            setActiveSession("default");
-        }
-
-        await loadSessions();
-    } catch (err) {
-        console.error("[SESSION] Delete failed:", err);
-    }
-}
-
-
-// ---------------------------------------------
-// Attach event listeners
-// ---------------------------------------------
-function initSessionSystem() {
-
-    // --- Set session button ---
-    document.getElementById("setSessionBtn")?.addEventListener("click", () => {
-        const val = document.getElementById("sessionInput").value.trim();
-        if (!val) return;
-
-        setActiveSession(val);
-        loadSessions();
-    });
-
-    // --- Switch session ---
-    document.getElementById("switchSessionBtn")?.addEventListener("click", () => {
-        const dd = document.getElementById("sessionDropdown");
-        if (!dd) return;
-        setActiveSession(dd.value);
-    });
-
-    // --- Delete session buttons ---
-    document.addEventListener("click", (e) => {
-        const btn = e.target.closest(".deleteSessionBtn");
-        if (!btn) return;
-        const name = btn.dataset.s;
-        deleteSession(name);
-    });
-
-    // --- Refresh session list ---
-    document.getElementById("refreshSessionsBtn")?.addEventListener("click", () => {
-        loadSessions();
-    });
-
-    // Load active session on page load
-    const active = getActiveSession();
-    const label = document.getElementById("activeSessionLabel");
-    if (label) label.textContent = active;
-
-    // Initial load
-    loadSessions();
-}
-
-
-// ===========================================================
-// Boot on DOM ready
-// ================================
-
-
 // ================================
 // Init wiring
 // ================================
@@ -1472,7 +1343,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // ================================
     try {
         const stored = localStorage.getItem("activeSession");
-        ACTIVE_SESSION = stored || "default";
+        ACTIVE_SESSION = sanitizeSessionName(stored || "default");
     } catch {
         ACTIVE_SESSION = "default";
     }
@@ -1490,12 +1361,25 @@ document.addEventListener("DOMContentLoaded", () => {
             setActiveSession(name);
         });
 
+    document
+        .addEventListener("click", (e) => {
+            const btn = e.target.closest(".deleteSessionBtn");
+            if (!btn) return;
+            const session = btn.dataset.session;
+            if (session) deleteSession(session);
+        });
+
+    document
+        .getElementById("refreshSessionsBtn")
+        ?.addEventListener("click", loadSessions);
+
     // Stepper & logs
     initStepper();
     startStatusLogPolling();
 
-    // Sliders
+    // Sliders / fg-scale UI
     initFgScaleSlider();
+    initFgScaleUI();
     initMusicVolumeSlider();
 
     // Preview Music
@@ -1506,6 +1390,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Upload Manager (list raw + processed files)
     loadUploadManager();
+
+    // Initial session list
+    loadSessions();
 
     // Music list + settings
     loadMusicTracks();
@@ -1596,7 +1483,4 @@ document.addEventListener("DOMContentLoaded", () => {
     document
         .getElementById("chatSendBtn")
         ?.addEventListener("click", sendChat);
-
-    document.getElementById("refreshSessionsBtn").addEventListener("click", loadSessions);
-
 });
