@@ -757,6 +757,7 @@ async function deleteSession(session) {
         }
 
         loadSessions();
+        loadSessionDropdown(); // refresh dropdown after deletion
     } catch (err) {
         console.error("[SESSION] deleteSession failed:", err);
     }
@@ -1422,6 +1423,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const name =
                 document.getElementById("sessionInput")?.value || "";
             setActiveSession(name);
+            loadSessionDropdown();   
         });
 
     document
@@ -1554,6 +1556,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!ddl) return;
     const selected = ddl.value || "default";
     setActiveSession(selected);
+    loadSessionDropdown();
 });
 
 });
