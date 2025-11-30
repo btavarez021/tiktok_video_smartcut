@@ -345,7 +345,7 @@ function initUploadUI() {
         setStatus("uploadStatus", "❗ Please select at least one video before uploading.", "error");
 
         // Optional small shake animation on the button
-        uploadBtn.classList.add("shake");
+        uploadBtn.classList.add("error-flash");
         setTimeout(() => uploadBtn.classList.remove("shake"), 400);
 
         return;
@@ -702,6 +702,42 @@ async function loadSessions() {
         console.error("[SESSION] loadSessions failed:", err);
     }
 }
+
+// ================================
+// Populate quick-switch session dropdown
+// ================================
+async function loadSessionDropdown() {
+    try {
+        const res = await fetch("/api/sessions");
+        const data = await res.json();
+
+        const ddl = document.getElementById("sessionDropdown");
+        if (!ddl) return;
+
+        ddl.innerHTML = "";
+
+        const sessions = data.sessions || [];
+
+        if (sessions.length === 0) {
+            ddl.innerHTML = `<option value="">(no sessions found)</option>`;
+            return;
+        }
+
+        sessions.forEach((s) => {
+            const opt = document.createElement("option");
+            opt.value = s;
+            opt.textContent = s;
+            ddl.appendChild(opt);
+        });
+
+        // highlight currently active session
+        ddl.value = getActiveSession();
+
+    } catch (err) {
+        console.error("[SESSION] dropdown load failed:", err);
+    }
+}
+
 
 async function deleteSession(session) {
     if (!confirm(`Delete session '${session}' including all its videos?`)) return;
@@ -1416,6 +1452,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Initial session list
     loadSessions();
+    loadSessionDropdown();
+
 
     // Music list + settings
     loadMusicTracks();
@@ -1506,4 +1544,12 @@ document.addEventListener("DOMContentLoaded", () => {
     document
         .getElementById("chatSendBtn")
         ?.addEventListener("click", sendChat);
+
+    document.getElementById("switchSessionBtn")?.addEventListener("click", () => {
+    const ddl = document.getElementById("sessionDropdown");
+    if (!ddl) return;
+    const selected = ddl.value || "default";
+    setActiveSession(selected);
+});
+
 });

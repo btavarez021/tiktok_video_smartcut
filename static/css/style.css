@@ -1442,3 +1442,14 @@ h3 .style-check {
     opacity: 0.7;
 }
 
+.error-flash {
+    animation: errorFlash 0.5s;
+}
+
+@keyframes errorFlash {
+    0% { background-color: #ff4b4b; }
+    100% { background-color: var(--btn-secondary-bg, #444); }
+}
+
+
+
