@@ -69,9 +69,13 @@ function setActiveSession(name) {
     if (input && input.value !== ACTIVE_SESSION) input.value = ACTIVE_SESSION;
 
     console.log("[SESSION] Active:", ACTIVE_SESSION);
-
+    
     // Reload upload manager for this session
     loadUploadManager();
+
+    // CLEAR old analyses UI immediately so outdated items disappear
+    clearAnalysisUI()
+
     // Refresh analyses + config view for this session
     refreshAnalyses();
     loadConfigAndYaml();
@@ -502,10 +506,24 @@ async function deleteUpload(key) {
     loadUploadManager();
 }
 
+// Clear old analysis results whenever switching sessions
+function clearAnalysisUI() {
+    const list = document.getElementById("analysesList");
+    if (list) list.innerHTML = "";
+
+    const status = document.getElementById("analyzeStatus");
+    if (status) {
+        status.textContent = "Session changed — analyze to see results.";
+        status.className = "hint-text";
+    }
+}
+
+
 // ================================
 // Step 1: Analysis
 // ================================
 async function analyzeClips() {
+    clearAnalysisUI(); 
     const analyzeBtn = document.getElementById("analyzeBtn");
     const statusEl = document.getElementById("analyzeStatus");
     if (!analyzeBtn || !statusEl) return;

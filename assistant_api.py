@@ -49,6 +49,63 @@ TEXT_MODEL = "gpt-4.1-mini"
 ANALYSIS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "video_analysis_cache")
 os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
 
+# ==========================================
+# SESSION-SCOPED ANALYSIS CACHE (NEW SYSTEM)
+# ==========================================
+ANALYSIS_BASE_DIR = os.path.join(os.path.dirname(__file__), "video_analysis_cache")
+os.makedirs(ANALYSIS_BASE_DIR, exist_ok=True)
+
+
+def _session_cache_dir(session: str) -> str:
+    """Return full path to the session-specific analysis directory."""
+    safe = sanitize_session(session)
+    path = os.path.join(ANALYSIS_BASE_DIR, safe)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def save_analysis_result_session(session: str, filename: str, description: str) -> None:
+    """Save a single analysis result inside the session-specific folder."""
+    folder = _session_cache_dir(session)
+    out_path = os.path.join(folder, filename + ".json")
+    payload = {"filename": filename, "description": description}
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+
+
+def load_analysis_results_session(session: str) -> Dict[str, str]:
+    """Load all analysis results for a given session only."""
+    folder = _session_cache_dir(session)
+    results = {}
+
+    for path in glob.glob(os.path.join(folder, "*.json")):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            fname = data.get("filename")
+            desc = data.get("description")
+            if fname and desc:
+                results[fname] = desc
+        except Exception as e:
+            logger.error(f"[LOAD_ANALYSIS][{session}] failed for {path}: {e}")
+
+    return results
+
+
+# ==========================================
+# 🔥 LEGACY GLOBAL CACHE CLEANUP (RUNS ONCE)
+# ==========================================
+# Remove old-style "*.json" files that lived directly under video_analysis_cache/
+LEGACY_DIR = ANALYSIS_BASE_DIR  # same folder
+
+try:
+    # Delete only top-level stale JSONs (NOT subfolders!)
+    for f in glob.glob(os.path.join(LEGACY_DIR, "*.json")):
+        os.remove(f)
+except Exception as e:
+    print("[LEGACY CLEANUP] Skipped:", e)
+    
 # -------------------------------
 # Export mode
 # -------------------------------
@@ -300,9 +357,6 @@ def _sync_s3_videos_to_local(session: str) -> List[str]:
 # Analyze APIs (per session)
 # -------------------------------
 def _analyze_all_videos(session: str) -> Dict[str, Any]:
-    """
-    Analyze all raw videos for a given session and store JSON in ANALYSIS_CACHE_DIR.
-    """
     session = sanitize_session(session)
     raw_prefix = f"{RAW_PREFIX}{session}/"
 
@@ -320,13 +374,13 @@ def _analyze_all_videos(session: str) -> Dict[str, Any]:
 
         try:
             desc = analyze_video(tmp)
-            basename = os.path.basename(key).lower()
-            save_analysis_result(basename, desc)
+            basename = os.path.basename(key)
+            save_analysis_result_session(session, basename, desc)
             count += 1
         except Exception as e:
-            logger.error(f"[ANALYZE] Failed for {key}: {e}")
+            logger.error(f"[ANALYZE][{session}] Failed for {key}: {e}")
 
-    log_step(f"[ANALYZE] Completed analysis for {count} videos (session='{session}')")
+    log_step(f"[ANALYZE] Completed analysis for {count} video(s) in session '{session}'")
     return {"status": "ok", "count": count}
 
 
@@ -359,7 +413,7 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
             log_error("[YAML]", Exception(msg))
             return {"error": msg}
 
-        analyses_map = load_all_analysis_results()
+        analyses_map = load_analysis_results_session(session)
 
         files_for_prompt: List[str] = []
         analyses_for_prompt: List[str] = []

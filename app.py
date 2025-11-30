@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 # Import backend API helpers
 from assistant_log import status_log
 from assistant_api import (
+    load_analysis_results_session,
     delete_session,
     list_sessions,
     list_uploads,
@@ -136,8 +137,11 @@ def api_delete_upload_route():
 # ANALYSIS CACHE + ANALYSIS RUNNERS
 # ============================================================================
 @app.route("/api/analyses_cache", methods=["GET"])
-def api_get_analyses_cache_route():
-    return jsonify(load_all_analysis_results())
+def api_analyses_cache():
+    session = request.args.get("session", "default")
+    session = sanitize_session(session)
+    results = load_analysis_results_session(session)
+    return results
 
 
 @app.route("/api/analyze_start", methods=["POST"])
