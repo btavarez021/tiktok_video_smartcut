@@ -191,6 +191,10 @@ textarea::-webkit-scrollbar-thumb,
     color: var(--text-strong);
 }
 
+.card-header h2 .tooltip {
+    margin-left: 6px;
+}
+
 .card-subtitle {
     color: var(--text-dim);
     margin-top: 6px;
@@ -754,6 +758,19 @@ h3 .style-check {
     display: block;
 }
 
+.acc-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+    opacity: 0;
+}
+
+.acc-section.open .acc-body {
+    max-height: 1000px;
+    opacity: 1;
+}
+
+
 /* Optional subtle indicator on open */
 .acc-section.open .acc-header {
     border-color: var(--primary);
@@ -771,10 +788,11 @@ h3 .style-check {
         z-index: 1;
     }
 
+      /* UPDATED: stepper spacing on mobile */
     .stepper {
+        margin-bottom: 20px;
         position: relative;
         z-index: 50;
-        margin-bottom: 12px;
         display: flex !important;
         flex-direction: row !important;
         overflow-x: auto !important;
@@ -783,10 +801,9 @@ h3 .style-check {
         padding-inline: 16px;
     }
 
+    /* Each step gets extra padding on mobile */
     .stepper .step {
-        flex: 0 0 auto;
-        padding: 10px 16px;
-        width: auto;
+        padding: 10px 8px;
     }
 
     .card,
@@ -820,6 +837,13 @@ h3 .style-check {
     .side-column {
         order: 10;
     }
+
+    .side-column {
+    position: sticky;
+    top: 80px;
+    height: fit-content;
+}
+
 
     #exportModeContainer {
         flex-wrap: wrap !important;
@@ -1154,13 +1178,3 @@ h3 .style-check {
   opacity: 1;
 }
 
-.tip {
-  cursor: help;
-  font-size: 14px;
-  margin-left: 4px;
-  opacity: 0.7;
-}
-
-.tip:hover {
-  opacity: 1;
-}

@@ -56,8 +56,7 @@
     </button>
 </nav>
 
-
-<!-- MAIN GRID -->
+<!-- MAIN GRID (2 columns) -->
 <main class="layout">
 
 <!-- LEFT MAIN COLUMN -->
@@ -216,7 +215,6 @@
                 </div>
             </section>
 
-
             <hr class="divider" />
 
             <!-- Analyze -->
@@ -247,7 +245,8 @@
 
         </div>
     </section>
-        <!-- STEP 2 -->
+
+    <!-- STEP 2 -->
     <section class="card step-card" id="step-2">
         <div class="card-header">
             <h2>
@@ -281,7 +280,6 @@
 
             <div class="split">
 
-                <!-- YAML Editor -->
                 <div class="split-panel">
                     <label class="field-label">
                         config.yml
@@ -300,7 +298,6 @@
                     </div>
                 </div>
 
-                <!-- YAML Preview -->
                 <div class="split-panel">
                     <h3>
                         Preview (Parsed)
@@ -319,7 +316,6 @@
 
         </div>
     </section>
-
 
     <!-- STEP 3 -->
     <section class="card step-card" id="step-3">
@@ -375,7 +371,6 @@
         </div>
     </section>
 
-
     <!-- STEP 4 -->
     <section class="card step-card" id="step-4">
         <div class="card-header">
@@ -396,7 +391,7 @@
 
         <div class="card-body accordion">
 
-            <!-- 4A — Overlay & Timing -->
+            <!-- Overlay + Timing -->
             <div class="acc-section">
                 <button class="acc-header">
                     🎨 Overlay & Timing
@@ -404,20 +399,19 @@
                         <span class="tooltiptext">
                             Overlay Style = how captions look/feel  
                             Timing = pacing of clip switches  
-                            Cinematic timing = slower + more transitions  
+                            Cinematic = slower + smoother  
                         </span>
                     </span>
                 </button>
 
                 <div class="acc-body">
 
-                    <!-- Overlay -->
                     <h3>
                         Overlay Style
                         <span class="tooltip">ⓘ
                             <span class="tooltiptext">
-                                Controls how captions are displayed visually.  
-                                "AI Recommended" reads your clips + captions and chooses the best aesthetic.
+                                Controls how captions appear on-screen.  
+                                AI Recommended adapts based on clip mood.
                             </span>
                         </span>
                     </h3>
@@ -426,12 +420,11 @@
                         Caption tone
                         <span class="tooltip">ⓘ
                             <span class="tooltiptext">
-                                Select the personality of your captions:  
-                                • Travel Blog = warm & friendly  
-                                • Punchy = high-energy TikTok vibes  
-                                • Cinematic = slower + emotional  
-                                • Descriptive = clean & literal  
-                                • Influencer = conversational  
+                                Travel Blog = warm  
+                                Punchy = energetic  
+                                Cinematic = emotional  
+                                Descriptive = literal  
+                                Influencer = conversational  
                             </span>
                         </span>
                     </label>
@@ -448,26 +441,19 @@
                     <button id="applyOverlayBtn" class="btn secondary">✨ Apply overlay</button>
                     <div id="overlayStatus" class="hint-text"></div>
 
-                    <!-- Timing -->
                     <h3>
                         Timings
                         <span class="tooltip">ⓘ
                             <span class="tooltiptext">
-                                Timing affects how long each clip stays on screen.  
-                                Standard = faster, TikTok-style pacing  
-                                Cinematic = slower, dramatic transitions  
+                                Standard = faster pacing  
+                                Cinematic = slower + smooth transitions  
                             </span>
                         </span>
                     </h3>
 
                     <div class="row">
-                        <button id="applyStandardTimingBtn" class="btn ghost">
-                            ⏱ Standard
-                        </button>
-
-                        <button id="applyCinematicTimingBtn" class="btn ghost">
-                            🎬 Cinematic
-                        </button>
+                        <button id="applyStandardTimingBtn" class="btn ghost">⏱ Standard</button>
+                        <button id="applyCinematicTimingBtn" class="btn ghost">🎬 Cinematic</button>
                     </div>
 
                     <div id="timingStatus" class="hint-text"></div>
@@ -475,50 +461,22 @@
                 </div>
             </div>
 
-                        <!-- 4B — Voice + CTA -->
+            <!-- Voice + CTA -->
             <div class="acc-section">
                 <button class="acc-header">
                     🎤 Voice (TTS) & CTA
-                    <span class="tooltip">ⓘ
-                        <span class="tooltiptext">
-                            Add professional AI voiceovers and a call-to-action message.  
-                            TTS applies to captions and optionally the CTA.
-                        </span>
-                    </span>
                 </button>
 
                 <div class="acc-body">
 
-                    <!-- ========================= -->
-                    <!-- TTS SETTINGS -->
-                    <!-- ========================= -->
-                    <h3>
-                        Voice (TTS)
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Enable AI-generated voiceovers from your captions.  
-                                Choose your narrator voice (Alloy, Nova, Shimmer, etc.)
-                            </span>
-                        </span>
-                    </h3>
+                    <h3>Voice (TTS)</h3>
 
                     <div class="checkbox-row">
                         <input type="checkbox" id="ttsEnabled" />
                         <label for="ttsEnabled">Enable TTS voiceover</label>
                     </div>
 
-                    <label class="field-label">
-                        Voice
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Pick a tone that matches your brand:  
-                                • Alloy = cinematic deep  
-                                • Nova = friendly social vibe  
-                                • Echo = energetic TikTok tone  
-                            </span>
-                        </span>
-                    </label>
-
+                    <label class="field-label">Voice</label>
                     <select id="ttsVoice" class="select">
                         <option value="alloy">Alloy</option>
                         <option value="verse">Verse</option>
@@ -538,35 +496,14 @@
                     <button id="saveTtsBtn" class="btn ghost">💾 Save TTS</button>
                     <div id="ttsStatus" class="status-text status-info"></div>
 
-
-                    <!-- ========================= -->
-                    <!-- CTA SETTINGS -->
-                    <!-- ========================= -->
-                    <h3>
-                        CTA
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Add a call-to-action box at the end.  
-                                Example: “Tap for today’s hotel deals 🔗”
-                            </span>
-                        </span>
-                    </h3>
+                    <h3>CTA</h3>
 
                     <div class="checkbox-row">
                         <input type="checkbox" id="ctaEnabled" />
                         <label for="ctaEnabled">Enable CTA overlay</label>
                     </div>
 
-                    <label class="field-label">
-                        CTA text
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                This text appears on-screen during the CTA clip.  
-                                Keep it short, actionable, and clean.
-                            </span>
-                        </span>
-                    </label>
-
+                    <label class="field-label">CTA text</label>
                     <input id="ctaText" class="input" placeholder="Tap to book with today’s deals 🔗" />
 
                     <div class="checkbox-row">
@@ -580,35 +517,22 @@
                 </div>
             </div>
 
-
-            <!-- 4C — Caption Layout -->
+            <!-- Caption Layout -->
             <div class="acc-section">
                 <button class="acc-header">
                     📝 Caption Layout
-                    <span class="tooltip">ⓘ
-                        <span class="tooltiptext">
-                            Choose between TikTok-style bold centered captions  
-                            or clean bottom-bar “classic” captions.
-                        </span>
-                    </span>
                 </button>
 
                 <div class="acc-body">
 
                     <label class="field-label">
                         Choose Caption Style
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                TikTok = bold, large, centered  
-                                Classic = bottom, cleaner, subtle  
-                            </span>
-                        </span>
                     </label>
 
                     <div class="form-row">
                         <select id="layoutMode" class="select">
                             <option value="tiktok">TikTok (recommended)</option>
-                            <option value="classic">Classic (bottom bar style)</option>
+                            <option value="classic">Classic (bottom bar)</option>
                         </select>
 
                         <button id="saveLayoutBtn" class="btn small ghost">💾 Save</button>
@@ -617,67 +541,35 @@
                     <div id="layoutStatus" class="status-text status-info"></div>
 
                     <p class="hint">
-                        • <b>TikTok</b>: modern creator style — bold, centered<br>
-                        • <b>Classic</b>: minimal, subtle, bottom-aligned<br>
-                        Saved into <code>render.layout_mode</code> in YAML.
+                        • TikTok = bold centered captions<br>
+                        • Classic = subtle bottom captions<br>
+                        Stored in <code>render.layout_mode</code>
                     </p>
 
                 </div>
             </div>
 
-
-            <!-- 4D — Music + Foreground Scale -->
+            <!-- Music + Scale -->
             <div class="acc-section">
                 <button class="acc-header">
                     🎵 Music & Foreground Scale
-                    <span class="tooltip">ⓘ
-                        <span class="tooltiptext">
-                            Add background music and adjust zoom of the foreground video  
-                            (blurred background stays full screen).
-                        </span>
-                    </span>
                 </button>
 
                 <div class="acc-body">
 
-                    <h3>
-                        Background Music
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Enable music, choose a track, set volume.  
-                                Music is auto-aligned to your final timing.
-                            </span>
-                        </span>
-                    </h3>
+                    <h3>Background Music</h3>
 
                     <div class="checkbox-row">
                         <input type="checkbox" id="musicEnabled" />
                         <label for="musicEnabled">Enable background music</label>
                     </div>
 
-                    <label class="field-label">
-                        Music track
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Add your own MP3 files in the “music/” folder  
-                                to expand your library.
-                            </span>
-                        </span>
-                    </label>
-
+                    <label class="field-label">Music track</label>
                     <select id="musicFile" class="select">
                         <option value="">– No music –</option>
                     </select>
 
-                    <label class="field-label" style="margin-top:8px;">
-                        Volume
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Recommended 0.15–0.30 so it does not overpower the voiceover.
-                            </span>
-                        </span>
-                    </label>
-
+                    <label class="field-label" style="margin-top:8px;">Volume</label>
                     <input id="musicVolume" type="range" min="0" max="1" step="0.05" value="0.25" />
                     <div class="range-value"><span id="musicVolumeLabel">0.25</span></div>
 
@@ -685,18 +577,10 @@
                         <button id="saveMusicBtn" class="btn ghost">💾 Save music</button>
                         <button id="musicPreviewBtn" class="btn primary">▶ Preview</button>
                     </div>
+
                     <div id="musicStatus" class="status-text status-info"></div>
 
-                    <h3>
-                        Foreground Scale
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Controls zoom level of the main video.  
-                                Larger values = closer crop.  
-                                Useful when subjects appear too far away.
-                            </span>
-                        </span>
-                    </h3>
+                    <h3>Foreground Scale</h3>
 
                     <label class="field-label">Default zoom</label>
                     <input id="fgScale" type="range" min="0.8" max="1.3" step="0.05" value="1.0" />
@@ -711,7 +595,6 @@
         </div>
     </section>
 
-
     <!-- STEP 5 -->
     <section class="card step-card" id="step-5">
         <div class="card-header">
@@ -719,14 +602,8 @@
                 Step 5 · Export & Download
                 <span class="tooltip">ⓘ
                     <span class="tooltiptext">
-                        Render your final vertical MP4 with all chosen settings:  
-                        • captions  
-                        • TTS  
-                        • timing  
-                        • overlay  
-                        • music  
-                        • CTA  
-                        The result uploads to S3 and generates a download link.
+                        Render your final vertical MP4 using all settings above.  
+                        Export uploads to S3 → gives you a download link.
                     </span>
                 </span>
             </h2>
@@ -742,9 +619,8 @@
                 Render Mode
                 <span class="tooltip">ⓘ
                     <span class="tooltiptext">
-                        Standard = fastest  
-                        Optimized = higher quality, slower render  
-                        Good for final exports after testing.
+                        Standard = fast draft  
+                        Optimized = high-quality final export  
                     </span>
                 </span>
             </h3>
@@ -769,6 +645,8 @@
         </div>
     </section>
 
+</section> <!-- END LEFT MAIN COLUMN -->
+
 <!-- RIGHT SIDEBAR -->
 <aside class="side-column">
 
@@ -777,7 +655,7 @@
         <div class="card-header">
             <h2>Live Log</h2>
             <p class="card-subtitle">
-                Shows all backend actions: S3, ffmpeg, LLM, export.
+                Shows backend actions: S3, ffmpeg, AI usage, export.
             </p>
         </div>
         <div class="card-body">
@@ -790,7 +668,7 @@
         <div class="card-header">
             <h2>Creative Assistant</h2>
             <p class="card-subtitle">
-                Ask for hooks, thumbnails, storylines, or caption alternatives.
+                Ask for hooks, storylines, thumbnails, or caption ideas.
             </p>
         </div>
 
@@ -809,9 +687,9 @@
 
 </aside>
 
-</main> <!-- end layout -->
+</main> <!-- END MAIN LAYOUT -->
 
-</div> <!-- end app-shell -->
+</div> <!-- END APP SHELL -->
 
 </body>
 </html>
