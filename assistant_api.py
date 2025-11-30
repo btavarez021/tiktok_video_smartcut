@@ -425,10 +425,15 @@ def api_get_config() -> Dict[str, Any]:
     try:
         cfg = yaml.safe_load(yaml_text) or {}
         cfg = _cleanup_render_section(cfg)
+
+        # 🔥 Re-serialize cleaned config so UI sees the cleaned version
+        yaml_text = yaml.safe_dump(cfg, sort_keys=False)
+
     except Exception:
         cfg = {}
 
     return {"yaml": yaml_text, "config": cfg}
+
 
 
 def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
