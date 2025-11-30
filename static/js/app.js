@@ -12,6 +12,12 @@ let ACTIVE_SESSION = "default";
 // Session helpers
 // -------------------------
 
+function updateSessionLabels() {
+    const labels = document.querySelectorAll(".sessionLabel");
+    labels.forEach(l => l.textContent = ACTIVE_SESSION || "default");
+}
+
+
 function sessionQS() {
     return "?session=" + encodeURIComponent(ACTIVE_SESSION);
 }
@@ -69,8 +75,7 @@ function setActiveSession(name) {
     // Refresh analyses + config view for this session
     refreshAnalyses();
     loadConfigAndYaml();
-    updateSessionTags();
-
+    updateSessionLabels();
 }
 
 // ================================
