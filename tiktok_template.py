@@ -251,6 +251,49 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
 
     return tts_files, cta_tuple
 
+
+def compute_auto_zoom(video_path: str) -> float:
+    """
+    Compute a smart foreground scale factor to remove thick borders
+    while preventing over-zooming. Safe for MOV/MP4.
+    """
+    try:
+        # Get actual resolution using ffprobe
+        out = subprocess.check_output([
+            "ffprobe", "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=width,height",
+            "-of", "csv=s=x:p=0",
+            video_path
+        ]).decode().strip()
+
+        w, h = map(int, out.split("x"))
+    except:
+        # fallback safety
+        return 1.10
+
+    target_w = 1080
+    target_h = 1920
+
+    # Aspect ratios
+    clip_aspect = w / h
+    target_aspect = target_w / target_h
+
+    # For pillarboxed clips (too tall)
+    if clip_aspect < target_aspect:
+        zoom = target_w / w      # zoom until width matches
+    # For letterboxed clips (too wide)
+    else:
+        zoom = target_h / h      # zoom until height matches
+
+    # Add slight zoom so borders fully disappear
+    zoom *= 1.05
+
+    # clamp to safe range
+    zoom = min(max(zoom, 1.05), 1.20)
+    return zoom
+
+
 # -----------------------------------------
 # Background music (YAML: music: {enabled, file, volume})
 # -----------------------------------------
@@ -430,6 +473,19 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
         clips.append(collect(m))
     clips.append(collect(cfg["last_clip"], is_last=True))
 
+    # AUTO ZOOM MODE (Option A)
+    render_cfg = cfg.setdefault("render", {})
+    auto_enabled = render_cfg.get("auto_fg_scale", True)
+
+    if auto_enabled:
+        # compute zoom based on first clip (consistent aesthetic)
+        example_clip = clips[0]["file"]
+        auto_zoom = compute_auto_zoom(example_clip)
+
+        log_step(f"[AUTOZOOM] Calculated fgscale={auto_zoom:.3f}")
+        render_cfg["fgscale"] = auto_zoom
+
+
     if not clips:
         raise RuntimeError("No clips defined in config.yml")
 
@@ -484,9 +540,12 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
             vf = "scale=1080:-2,setsar=1"
 
             # foreground scaling (read from YAML)
-            fg_scale = float(cfg.get("render", {}).get("fgscale", 1.0))
-            if fg_scale < 0.5 or fg_scale > 2.0:
-                fg_scale = 1.0   # safety limit
+            render_cfg = cfg.get("render", {})
+            fg_scale = float(render_cfg.get("fgscale", 1.10))  # fallback better than 1.0
+
+            # clamp to safe values
+            fg_scale = min(max(fg_scale, 1.0), 1.25)
+
 
             # ===== 1. BASE FG + BG chain (required for filter_complex) =====
             vf = (

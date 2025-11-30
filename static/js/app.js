@@ -1214,6 +1214,17 @@ function initMusicPreview() {
     });
 }
 
+async function saveYamlToServer() {
+    const text = document.getElementById("yamlText").value;
+    return jsonFetch("/api/save_yaml", {
+        method: "POST",
+        body: JSON.stringify({
+            session: getActiveSession(),
+            yaml: text
+        }),
+    });
+}
+
 // Foreground scale
 async function saveFgScale() {
     const autoEl = document.getElementById("autoFgScale");
@@ -1226,6 +1237,26 @@ async function saveFgScale() {
     setStatus("fgStatus", "Saving foreground scale…", "info");
 
     try {
+        // 1. Update YAML directly
+        let yamlObj = jsyaml.load(document.getElementById("yamlText").value) || {};
+        yamlObj.render = yamlObj.render || {};
+
+        yamlObj.render.auto_fg_scale = auto;
+
+        if (auto) {
+            // remove manual scale if auto mode is ON
+            delete yamlObj.render.fgscale;
+        } else {
+            yamlObj.render.fgscale = fg;
+        }
+
+        // Write YAML back into textarea
+        document.getElementById("yamlText").value = jsyaml.dump(yamlObj);
+
+        // 2. Save YAML to backend
+        await saveYamlToServer();
+
+        // 3. Also notify /api/fgscale (keeps backward compatibility)
         await jsonFetch("/api/fgscale", {
             method: "POST",
             body: JSON.stringify({
@@ -1244,6 +1275,7 @@ async function saveFgScale() {
         setStatus("fgStatus", "Error saving scale: " + err.message, "error");
     }
 }
+
 
 
 function initFgScaleSlider() {
@@ -1430,7 +1462,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ? "▲ Hide Parsed Preview"
             : "▼ Show Parsed Preview";
     });
-    
+
     // ================================
     // Session init
     // ================================
