@@ -1117,3 +1117,50 @@ h3 .style-check {
     user-select: none;
 }
 
+
+.session-bar {
+  margin-bottom: 16px;
+}
+
+.session-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.session-row .input {
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+  .session-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #setSessionBtn {
+    width: 100%;
+  }
+}
+
+.tip {
+  cursor: help;
+  font-size: 14px;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.tip:hover {
+  opacity: 1;
+}
+
+.tip {
+  cursor: help;
+  font-size: 14px;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.tip:hover {
+  opacity: 1;
+}

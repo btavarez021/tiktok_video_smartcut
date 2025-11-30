@@ -1,7 +1,10 @@
-# app.py
+# app.py — session-aware routes (aligned with app.js)
+
 import os
+
 from flask import Flask, jsonify, request, send_file, render_template
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 
 from assistant_log import status_log
 from assistant_api import (
@@ -27,13 +30,24 @@ from assistant_api import (
     get_export_mode,
     set_export_mode,
     load_all_analysis_results,
+    sanitize_session as backend_sanitize_session,
 )
-from upload_utils import upload_raw_file
 from tiktok_template import config_path
+from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 import yaml
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)
+
+
+# ---------------------------------
+# Local session sanitizer (UI → backend)
+# ---------------------------------
+def sanitize_session(s: str) -> str:
+    if not s:
+        return "default"
+    s = s.lower().strip().replace(" ", "_")
+    return "".join(c for c in s if c.isalnum() or c == "_") or "default"
 
 
 # ---------------------------------
@@ -61,49 +75,51 @@ def api_status():
 
 
 # ---------------------------------
-# Upload to S3
+# Upload to S3 (per session)
 # ---------------------------------
 @app.route("/api/upload", methods=["POST"])
-def route_upload():
-    if "files" not in request.files:
-        return jsonify({"error": "No files field in form-data."}), 400
+def upload():
+    session = sanitize_session(request.args.get("session", "default"))
 
-    files = request.files.getlist("files")
-    uploaded = []
+    uploaded_files = []
 
-    for f in files:
-        if not f.filename:
-            continue
-        key = upload_raw_file(f)
-        uploaded.append(key)
+    for file in request.files.getlist("files"):
+        filename = secure_filename(file.filename)
+        # Use RAW_PREFIX to stay in sync with s3_config
+        key = f"{RAW_PREFIX}{session}/{filename}"
+        s3.upload_fileobj(file, S3_BUCKET_NAME, key)
+        uploaded_files.append(filename)
 
-    return jsonify({"uploaded": uploaded})
+    return jsonify({"uploaded": uploaded_files})
+
 
 # ---------------------------------
-# Manage files already uploaded to S3 */
+# Manage files already uploaded to S3
 # ---------------------------------
 @app.get("/api/uploads")
 def api_list_uploads_route():
-    return list_uploads()
+    session = sanitize_session(request.args.get("session", "default"))
+    return list_uploads(session)
 
 
 @app.post("/api/uploads/move")
 def api_move_upload_route():
-    data = request.json
+    data = request.get_json() or {}
     return move_upload_s3(
         src=data["src"],
-        dest=data["dest"]
+        dest=data["dest"],
     )
 
 
 @app.delete("/api/uploads/delete")
 def api_delete_upload_route():
-    data = request.json
-    return delete_upload_s3(
-        key=data["key"]
-    )
+    data = request.get_json() or {}
+    return delete_upload_s3(key=data["key"])
+
+
 # ---------------------------------
 # Analyses cache (disk + memory)
+# Note: still global; we don't yet partition by session.
 # ---------------------------------
 @app.route("/api/analyses_cache", methods=["GET"])
 def api_get_analyses_cache():
@@ -112,11 +128,15 @@ def api_get_analyses_cache():
 
 
 # ---------------------------------
-# Analyze APIs
+# Analyze APIs (per session)
 # ---------------------------------
 @app.route("/api/analyze_start", methods=["POST"])
 def route_analyze_start():
-    result = api_analyze_start()
+    # Support both body + query param, but JS sends body.
+    body = request.get_json(silent=True) or {}
+    session = body.get("session") or request.args.get("session", "default")
+    session = sanitize_session(session)
+    result = api_analyze_start(session=session)
     return jsonify(result)
 
 
@@ -128,7 +148,10 @@ def route_analyze_step():
 
 @app.route("/api/analyze", methods=["POST"])
 def route_analyze():
-    result = api_analyze()
+    body = request.get_json(silent=True) or {}
+    session = body.get("session") or request.args.get("session", "default")
+    session = sanitize_session(session)
+    result = api_analyze(session=session)
     return jsonify(result)
 
 
@@ -137,12 +160,16 @@ def route_analyze():
 # ---------------------------------
 @app.route("/api/generate_yaml", methods=["POST"])
 def route_generate_yaml():
-    cfg = api_generate_yaml()
+    body = request.get_json(silent=True) or {}
+    session = body.get("session") or request.args.get("session", "default")
+    session = sanitize_session(session)
+    cfg = api_generate_yaml(session=session)
     return jsonify(cfg)
 
 
 @app.route("/api/config", methods=["GET"])
 def route_get_config():
+    # For now, config is global; session query arg is ignored.
     cfg = api_get_config()
     return jsonify(cfg)
 
@@ -151,6 +178,7 @@ def route_get_config():
 def route_save_yaml():
     data = request.get_json() or {}
     yaml_text = data.get("yaml", "")
+    # session is currently ignored; config is global.
     result = api_save_yaml(yaml_text)
     return jsonify(result)
 
@@ -167,6 +195,7 @@ def route_get_captions():
 def route_save_captions():
     data = request.get_json() or {}
     text = data.get("text", "")
+    # session is currently ignored; captions file is global.
     result = api_save_captions(text)
     return jsonify(result)
 
@@ -178,9 +207,9 @@ def route_save_captions():
 def route_export():
     data = request.get_json() or {}
     optimized = bool(data.get("optimized", False))
+    # session value is accepted from JS but currently not used in api_export.
     result = api_export(optimized=optimized)
     return jsonify(result)
-
 
 
 @app.route("/api/download/<path:filename>", methods=["GET"])
@@ -212,6 +241,7 @@ def route_cta():
     result = api_set_cta(enabled, text, voiceover)
     return jsonify(result)
 
+
 # ---------------------------------
 # Music
 # ---------------------------------
@@ -221,6 +251,7 @@ def api_music_list():
     files = [f for f in os.listdir(music_dir) if f.lower().endswith(".mp3")]
     return {"files": files}
 
+
 @app.route("/api/music", methods=["POST"])
 def api_music():
     data = request.get_json(force=True)
@@ -229,7 +260,7 @@ def api_music():
     volume = float(data.get("volume", 0.25))
 
     with open(config_path, "r") as f:
-        cfg = yaml.safe_load(f)
+        cfg = yaml.safe_load(f) or {}
 
     if "render" not in cfg:
         cfg["render"] = {}
@@ -242,6 +273,7 @@ def api_music():
         yaml.safe_dump(cfg, f, sort_keys=False)
 
     return {"status": "ok"}
+
 
 @app.route("/api/music_file/<path:filename>")
 def route_music_file(filename):
@@ -258,6 +290,7 @@ def route_music_file(filename):
 def route_overlay():
     data = request.get_json() or {}
     style = data.get("style", "travel_blog")
+    # session currently not used in overlay; it just edits global config.yml.
     result = api_apply_overlay(style)
     return jsonify(result)
 
@@ -266,14 +299,18 @@ def route_overlay():
 def route_timings():
     data = request.get_json() or {}
     smart = bool(data.get("smart", False))
+    # session currently not used; timings edit global config.yml.
     result = api_apply_timings(smart=smart)
     return jsonify(result)
+
 
 @app.route("/api/layout", methods=["POST"])
 def route_set_layout():
     data = request.get_json(force=True)
     mode = data.get("mode", "tiktok")
-    return jsonify(api_set_layout(mode))
+    result = api_set_layout(mode)
+    return jsonify(result)
+
 
 @app.route("/api/fgscale", methods=["POST"])
 def route_fgscale():

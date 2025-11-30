@@ -1,19 +1,70 @@
+// ================================
+// Variables
+// ================================
 
-  // ================================
-  // Variables
-  // ================================
+let previewAudio = null;
+let previewPlaying = false;
 
-  let previewAudio = null;
-  let previewPlaying = false;
+// 🔵 Active session (hotel / batch)
+let ACTIVE_SESSION = "default";
 
+// -------------------------
+// Session helpers
+// -------------------------
 
+function sessionQS() {
+    return "?session=" + encodeURIComponent(ACTIVE_SESSION);
+}
 
-  // ================================
-  // Utility helpers
-  // ================================
+function sanitizeSessionName(raw) {
+    let s = (raw || "").toLowerCase().trim();
 
- // EXPORT URL helper
-  async function probeUrl(url) {
+    // Optional: strip accents
+    try {
+        s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+    } catch {
+        // older browsers: ignore
+    }
+
+    // Replace non-alnum with underscores
+    s = s.replace(/[^a-z0-9]+/g, "_");
+    // Trim extra underscores
+    s = s.replace(/^_+|_+$/g, "");
+
+    if (!s) s = "default";
+    return s;
+}
+
+function getActiveSession() {
+    return ACTIVE_SESSION || "default";
+}
+
+function setActiveSession(name) {
+    const safe = sanitizeSessionName(name);
+    ACTIVE_SESSION = safe;
+
+    // Persist between refreshes
+    try {
+        localStorage.setItem("activeSession", ACTIVE_SESSION);
+    } catch (e) {
+        console.warn("localStorage not available for session persistence", e);
+    }
+
+    const label = document.getElementById("activeSessionLabel");
+    const input = document.getElementById("sessionInput");
+    if (label) label.textContent = ACTIVE_SESSION;
+    if (input && input.value !== ACTIVE_SESSION) input.value = ACTIVE_SESSION;
+
+    // Reload upload manager for this session
+    loadUploadManager();
+}
+
+// ================================
+// Utility helpers
+// ================================
+
+// EXPORT URL helper – checks if S3 link is live
+async function probeUrl(url) {
     try {
         const res = await fetch(url, { method: "HEAD" });
         return res.ok;
@@ -22,10 +73,10 @@
     }
 }
 
-
-  function toggleUploadManager() {
+function toggleUploadManager() {
     const content = document.getElementById("uploadManagerContent");
     const icon = document.getElementById("uploadManagerToggle");
+    if (!content || !icon) return;
 
     content.classList.toggle("collapsed");
 
@@ -36,301 +87,313 @@
     }
 }
 
+// Auto-fading status helper
+let _statusTimers = {};
 
-  // Universal colored status helper
-  // Auto-fading status helper (5 seconds)
-  let _statusTimers = {};
+function setStatus(id, msg, type = "info", autoHide = true) {
+    const el = document.getElementById(id);
+    if (!el) return;
 
-  function setStatus(id, msg, type = "info", autoHide = true) {
-      const el = document.getElementById(id);
-      if (!el) return;
+    // Reset class
+    el.className = "status-text status-" + type;
+    el.textContent = msg;
 
-      // Reset class
-      el.className = "status-text status-" + type;
-      el.textContent = msg;
+    // Clear previous timer
+    if (_statusTimers[id]) {
+        clearTimeout(_statusTimers[id]);
+        delete _statusTimers[id];
+    }
 
-      // Clear previous timer
-      if (_statusTimers[id]) {
-          clearTimeout(_statusTimers[id]);
-          delete _statusTimers[id];
-      }
+    // If no auto-hide, stop here
+    if (!autoHide) return;
 
-      // If no auto-hide, stop here
-      if (!autoHide) return;
+    // Auto hide in 5 seconds
+    _statusTimers[id] = setTimeout(() => {
+        el.textContent = "";
+        el.className = "status-text status-info";
+        delete _statusTimers[id];
+    }, 5000);
+}
 
-      // Auto hide in 5 seconds
-      _statusTimers[id] = setTimeout(() => {
-          el.textContent = "";
-          el.className = "status-text status-info";
-          delete _statusTimers[id];
-      }, 5000);
-  }
+// JSON fetch helper with sane defaults
+async function jsonFetch(url, options = {}) {
+    const resp = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+    });
 
+    if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || `Request failed: ${resp.status}`);
+    }
 
-
-
-  // JSON fetch helper with sane defaults
-  async function jsonFetch(url, options = {}) {
-      const resp = await fetch(url, {
-          headers: { "Content-Type": "application/json" },
-          ...options,
-      });
-
-      if (!resp.ok) {
-          const text = await resp.text();
-          throw new Error(text || `Request failed: ${resp.status}`);
-      }
-
-      try {
-          return await resp.json();
-      } catch {
-          return {};
-      }
-  }
-
-
-  // Status hint helper (bottom style line)
-  function showStatus(msg, type = "info") {
-      const el = document.getElementById("styleStatus");
-      if (!el) return;
-      el.textContent = msg;
-      el.className = "hint-text " + type;
-  }
-
-  // Simple download helper (works on mobile/desktop)
-  function safeDownload(url, filename = "export.mp4") {
-      const a = document.createElement("a");
-      a.href = url;
-      a.style.display = "none";
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-  }
-
-  // ================================
-  // Stepper behavior
-  // ================================
-  function initStepper() {
-      const stepButtons = document.querySelectorAll(".stepper .step");
-
-      stepButtons.forEach((btn) => {
-          btn.addEventListener("click", () => {
-              const targetSel = btn.dataset.target;
-              const targetEl = document.querySelector(targetSel);
-              if (targetEl) {
-                  targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
-              }
-              stepButtons.forEach((b) => b.classList.remove("active"));
-              btn.classList.add("active");
-          });
-      });
-
-      const steps = Array.from(document.querySelectorAll(".step-card"));
-      if (!steps.length) return;
-
-      const observer = new IntersectionObserver(
-          (entries) => {
-              entries.forEach((entry) => {
-                  if (entry.isIntersecting) {
-                      const id = "#" + entry.target.id;
-                      stepButtons.forEach((btn) => {
-                          if (btn.dataset.target === id) {
-                              stepButtons.forEach((b) => b.classList.remove("active"));
-                              btn.classList.add("active");
-                          }
-                      });
-                  }
-              });
-          },
-          { threshold: 0.4 }
-      );
-
-      steps.forEach((s) => observer.observe(s));
-  }
-
-  // ================================
-  // Status log polling
-  // ================================
-  let statusLogTimer = null;
-
-  async function refreshStatusLog() {
-      try {
-          const data = await jsonFetch("/api/status");
-          const log = data.status_log || [];
-          const el = document.getElementById("statusLog");
-          if (!el) return;
-          el.textContent = log.join("\n");
-          el.scrollTop = el.scrollHeight;
-      } catch {
-          // silent fail for logs
-      }
-  }
-
-  function startStatusLogPolling() {
-      if (statusLogTimer) clearInterval(statusLogTimer);
-      refreshStatusLog();
-      statusLogTimer = setInterval(refreshStatusLog, 2000);
-  }
-
-  // ================================
-  // Upload: plain + drag & drop UI
-  // ================================
-  async function uploadFiles() {
-      // Used if you call uploadFiles() from HTML onclick
-      const input = document.getElementById("uploadFiles");
-      const status = document.getElementById("uploadStatus");
-      if (!input || !status) return;
-
-      if (!input.files.length) {
-          status.textContent = "❌ No files selected.";
-          return;
-      }
-
-      const formData = new FormData();
-      for (let f of input.files) {
-          formData.append("files", f);
-      }
-
-      setStatus("uploadStatus", "⬆ Uploading…", "info");
-
-      try {
-          const resp = await fetch("/api/upload", {
-              method: "POST",
-              body: formData,
-          });
-          const data = await resp.json();
-          if (data.uploaded?.length) {
-              setStatus("uploadStatus", `✅ Uploaded ${data.uploaded.length} file(s).`, "success");
-          } else {
-              status.textContent = `⚠ No files uploaded (check logs).`;
-          }
-      } catch (err) {
-          console.error(err);
-          setStatus("uploadStatus", `❌ Upload failed: ${err.message}`, "error");
-      }
-  }
-
-  function initUploadUI() {
-      const dropZone = document.getElementById("dropZone");
-      const fileInput = document.getElementById("uploadFiles");
-      const preview = document.getElementById("uploadPreview");
-      const uploadBtn = document.getElementById("uploadBtn");
-      const progressWrapper = document.getElementById("uploadProgressWrapper");
-      const progressBar = document.getElementById("uploadProgress");
-      const statusEl = document.getElementById("uploadStatus");
-
-      if (!dropZone || !fileInput || !preview || !uploadBtn || !progressWrapper || !progressBar || !statusEl) {
-          return;
-      }
-
-      let selectedFiles = [];
-
-      function updatePreview() {
-          preview.innerHTML = "";
-          selectedFiles.forEach((file, idx) => {
-              const wrapper = document.createElement("div");
-              wrapper.className = "preview-item";
-
-              const name = document.createElement("div");
-              name.className = "preview-name";
-              name.textContent = file.name;
-
-              const removeBtn = document.createElement("button");
-              removeBtn.className = "preview-remove";
-              removeBtn.innerHTML = "✖";
-
-              removeBtn.onclick = () => {
-                  selectedFiles.splice(idx, 1);
-                  updatePreview();
-              };
-
-              wrapper.appendChild(name);
-              wrapper.appendChild(removeBtn);
-              preview.appendChild(wrapper);
-          });
-
-          uploadBtn.disabled = selectedFiles.length === 0;
-      }
-
-      dropZone.addEventListener("click", () => fileInput.click());
-
-      fileInput.addEventListener("change", (e) => {
-          selectedFiles = Array.from(e.target.files);
-          updatePreview();
-      });
-
-      dropZone.addEventListener("dragover", (e) => {
-          e.preventDefault();
-          dropZone.classList.add("dragover");
-      });
-
-      dropZone.addEventListener("dragleave", () => {
-          dropZone.classList.remove("dragover");
-      });
-
-      dropZone.addEventListener("drop", (e) => {
-          e.preventDefault();
-          dropZone.classList.remove("dragover");
-          selectedFiles = Array.from(e.dataTransfer.files);
-          updatePreview();
-      });
-
-      uploadBtn.addEventListener("click", () => {
-          if (!selectedFiles.length) return;
-
-          statusEl.textContent = "Uploading…";
-          progressWrapper.classList.remove("hidden");
-          progressBar.style.width = "0%";
-
-          const formData = new FormData();
-          selectedFiles.forEach((f) => formData.append("files", f));
-
-          const xhr = new XMLHttpRequest();
-          xhr.open("POST", "/api/upload");
-
-          xhr.upload.onprogress = (e) => {
-              if (e.lengthComputable) {
-                  const pct = (e.loaded / e.total) * 100;
-                  progressBar.style.width = pct.toFixed(1) + "%";
-              }
-          };
-
-          xhr.onload = () => {
-              if (xhr.status === 200) {
-                  const resp = JSON.parse(xhr.responseText);
-                  statusEl.textContent = `✅ Uploaded ${resp.uploaded?.length || 0} file(s).`;
-                  progressBar.style.width = "100%";
-              } else {
-                  statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
-              }
-          };
-
-          xhr.onerror = () => {
-              statusEl.textContent = "❌ Upload error.";
-          };
-
-          xhr.send(formData);
-      });
-  }
-
-    // ================================
-    // Manage uploads already in S3
-    // ================================
-
-  async function loadUploadManager() {
     try {
-        const res = await fetch("/api/uploads");
+        return await resp.json();
+    } catch {
+        return {};
+    }
+}
+
+// Status hint helper (bottom style line)
+function showStatus(msg, type = "info") {
+    const el = document.getElementById("styleStatus");
+    if (!el) return;
+    el.textContent = msg;
+    el.className = "hint-text " + type;
+}
+
+// Simple download helper (works on mobile/desktop)
+function safeDownload(url, filename = "export.mp4") {
+    const a = document.createElement("a");
+    a.href = url;
+    a.style.display = "none";
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
+
+// ================================
+// Stepper behavior
+// ================================
+function initStepper() {
+    const stepButtons = document.querySelectorAll(".stepper .step");
+
+    stepButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const targetSel = btn.dataset.target;
+            const targetEl = document.querySelector(targetSel);
+            if (targetEl) {
+                targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+            stepButtons.forEach((b) => b.classList.remove("active"));
+            btn.classList.add("active");
+        });
+    });
+
+    const steps = Array.from(document.querySelectorAll(".step-card"));
+    if (!steps.length) return;
+
+    const observer = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    const id = "#" + entry.target.id;
+                    stepButtons.forEach((btn) => {
+                        if (btn.dataset.target === id) {
+                            stepButtons.forEach((b) => b.classList.remove("active"));
+                            btn.classList.add("active");
+                        }
+                    });
+                }
+            });
+        },
+        { threshold: 0.4 }
+    );
+
+    steps.forEach((s) => observer.observe(s));
+}
+
+// ================================
+// Status log polling
+// ================================
+let statusLogTimer = null;
+
+async function refreshStatusLog() {
+    try {
+        const data = await jsonFetch("/api/status");
+        const log = data.status_log || [];
+        const el = document.getElementById("statusLog");
+        if (!el) return;
+        el.textContent = log.join("\n");
+        el.scrollTop = el.scrollHeight;
+    } catch {
+        // silent fail for logs
+    }
+}
+
+function startStatusLogPolling() {
+    if (statusLogTimer) clearInterval(statusLogTimer);
+    refreshStatusLog();
+    statusLogTimer = setInterval(refreshStatusLog, 2000);
+}
+
+// ================================
+// Upload: plain + drag & drop UI
+// ================================
+async function uploadFiles() {
+    const input = document.getElementById("uploadFiles");
+    const status = document.getElementById("uploadStatus");
+    if (!input || !status) return;
+
+    if (!input.files.length) {
+        status.textContent = "❌ No files selected.";
+        return;
+    }
+
+    const formData = new FormData();
+    for (let f of input.files) {
+        formData.append("files", f);
+    }
+
+    setStatus("uploadStatus", "⬆ Uploading…", "info");
+
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const resp = await fetch(`/api/upload?session=${session}`, {
+            method: "POST",
+            body: formData,
+        });
+        const data = await resp.json();
+        if (data.uploaded?.length) {
+            setStatus(
+                "uploadStatus",
+                `✅ Uploaded ${data.uploaded.length} file(s).`,
+                "success"
+            );
+            loadUploadManager();
+        } else {
+            status.textContent = `⚠ No files uploaded (check logs).`;
+        }
+    } catch (err) {
+        console.error(err);
+        setStatus("uploadStatus", `❌ Upload failed: ${err.message}`, "error");
+    }
+}
+
+function initUploadUI() {
+    const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("uploadFiles");
+    const preview = document.getElementById("uploadPreview");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const progressWrapper = document.getElementById("uploadProgressWrapper");
+    const progressBar = document.getElementById("uploadProgress");
+    const statusEl = document.getElementById("uploadStatus");
+
+    if (
+        !dropZone ||
+        !fileInput ||
+        !preview ||
+        !uploadBtn ||
+        !progressWrapper ||
+        !progressBar ||
+        !statusEl
+    ) {
+        return;
+    }
+
+    let selectedFiles = [];
+
+    function updatePreview() {
+        preview.innerHTML = "";
+        selectedFiles.forEach((file, idx) => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "preview-item";
+
+            const name = document.createElement("div");
+            name.className = "preview-name";
+            name.textContent = file.name;
+
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "preview-remove";
+            removeBtn.innerHTML = "✖";
+
+            removeBtn.onclick = () => {
+                selectedFiles.splice(idx, 1);
+                updatePreview();
+            };
+
+            wrapper.appendChild(name);
+            wrapper.appendChild(removeBtn);
+            preview.appendChild(wrapper);
+        });
+
+        uploadBtn.disabled = selectedFiles.length === 0;
+    }
+
+    dropZone.addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", (e) => {
+        selectedFiles = Array.from(e.target.files);
+        updatePreview();
+    });
+
+    dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("dragover");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragover");
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+        selectedFiles = Array.from(e.dataTransfer.files);
+        updatePreview();
+    });
+
+    uploadBtn.addEventListener("click", () => {
+        if (!selectedFiles.length) return;
+
+        statusEl.textContent = "Uploading…";
+        progressWrapper.classList.remove("hidden");
+        progressBar.style.width = "0%";
+
+        const formData = new FormData();
+        selectedFiles.forEach((f) => formData.append("files", f));
+
+        const xhr = new XMLHttpRequest();
+        const session = encodeURIComponent(getActiveSession());
+        xhr.open("POST", `/api/upload?session=${session}`);
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const pct = (e.loaded / e.total) * 100;
+                progressBar.style.width = pct.toFixed(1) + "%";
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                const resp = JSON.parse(xhr.responseText);
+                statusEl.textContent = `✅ Uploaded ${
+                    resp.uploaded?.length || 0
+                } file(s).`;
+                progressBar.style.width = "100%";
+                loadUploadManager();
+            } else {
+                statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
+            }
+        };
+
+        xhr.onerror = () => {
+            statusEl.textContent = "❌ Upload error.";
+        };
+
+        xhr.send(formData);
+    });
+}
+
+// ================================
+// Manage uploads already in S3
+// ================================
+async function loadUploadManager() {
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const res = await fetch(`/api/uploads?session=${session}`);
         const data = await res.json();
 
-        renderUploadList("rawUploads", data.raw, "raw_uploads/");
-        renderUploadList("processedUploads", data.processed, "processed/");
+        // data.raw / data.processed are expected to be *filenames* only
+        renderUploadList("rawUploads", data.raw, "raw");
+        renderUploadList("processedUploads", data.processed, "processed");
     } catch (e) {
         console.error("UploadManager error:", e);
     }
 }
 
-  function renderUploadList(elementId, items, prefix) {
+function renderUploadList(elementId, items, kind) {
     const el = document.getElementById(elementId);
     if (!el) return;
 
@@ -339,9 +402,19 @@
         return;
     }
 
+    const session = getActiveSession();
+    const rawPrefix = `raw_uploads/${session}/`;
+    const processedPrefix = `processed/${session}/`;
+
     el.innerHTML = items
-        .map(
-            (file) => `
+        .map((file) => {
+            const isRaw = kind === "raw";
+            const srcKey = isRaw ? rawPrefix + file : processedPrefix + file;
+            const destKey = isRaw
+                ? processedPrefix + file
+                : rawPrefix + file;
+
+            return `
         <div class="upload-item">
             <div class="file-info">
                 <strong>${file}</strong>
@@ -349,19 +422,19 @@
 
             <div class="buttons">
                 ${
-                    prefix === "raw_uploads/"
-                        ? `<button class="btn-move" onclick="moveUpload('${prefix + file}', 'processed/${file}')">Move →</button>`
-                        : `<button class="btn-move" onclick="moveUpload('${prefix + file}', 'raw_uploads/${file}')">← Move</button>`
+                    isRaw
+                        ? `<button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">Move →</button>`
+                        : `<button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">← Move</button>`
                 }
-                <button class="btn-delete" onclick="deleteUpload('${prefix + file}')">Delete</button>
+                <button class="btn-delete" onclick="deleteUpload('${srcKey}')">Delete</button>
             </div>
         </div>
-    `
-        )
+    `;
+        })
         .join("");
-  }
+}
 
-  async function moveUpload(src, dest) {
+async function moveUpload(src, dest) {
     await fetch("/api/uploads/move", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -369,9 +442,9 @@
     });
 
     loadUploadManager();
-  }
+}
 
-  async function deleteUpload(key) {
+async function deleteUpload(key) {
     if (!confirm("Delete this file?")) return;
 
     await fetch("/api/uploads/delete", {
@@ -381,176 +454,222 @@
     });
 
     loadUploadManager();
-  }
+}
 
-  // ================================
-  // Step 1: Analysis
-  // ================================
-  async function analyzeClips() {
-      const analyzeBtn = document.getElementById("analyzeBtn");
-      const statusEl = document.getElementById("analyzeStatus");
-      if (!analyzeBtn || !statusEl) return;
+// ================================
+// Step 1: Analysis
+// ================================
+async function analyzeClips() {
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const statusEl = document.getElementById("analyzeStatus");
+    if (!analyzeBtn || !statusEl) return;
 
-      analyzeBtn.disabled = true;
-      setStatus("analyzeStatus", "Analyzing clips from S3… this can take a bit…", "info", false);
+    analyzeBtn.disabled = true;
+    setStatus(
+        "analyzeStatus",
+        "Analyzing clips from S3… this can take a bit…",
+        "info",
+        false
+    );
 
-      try {
-          const data = await jsonFetch("/api/analyze", {
-              method: "POST",
-              body: "{}",
-          });
-          const count = data.count ?? Object.keys(data || {}).length;
-          setStatus("analyzeStatus", `Analysis complete. ${count} video(s).`, "success");
-          await refreshAnalyses();
-      } catch (err) {
-          console.error(err);
-          setStatus("analyzeStatus", `Error during analysis: ${err.message}`, "error");
-      } finally {
-          analyzeBtn.disabled = false;
-      }
-  }
+    try {
+        const data = await jsonFetch("/api/analyze", {
+            method: "POST",
+            body: JSON.stringify({ session: getActiveSession() }),
+        });
+        const count = data.count ?? Object.keys(data || {}).length;
+        setStatus(
+            "analyzeStatus",
+            `Analysis complete. ${count} video(s).`,
+            "success"
+        );
+        await refreshAnalyses();
+    } catch (err) {
+        console.error(err);
+        setStatus(
+            "analyzeStatus",
+            `Error during analysis: ${err.message}`,
+            "error"
+        );
+    } finally {
+        analyzeBtn.disabled = false;
+    }
+}
 
-  async function refreshAnalyses() {
-      const listEl = document.getElementById("analysesList");
-      if (!listEl) return;
+async function refreshAnalyses() {
+    const listEl = document.getElementById("analysesList");
+    if (!listEl) return;
 
-      listEl.innerHTML = "";
-      try {
-          const data = await jsonFetch("/api/analyses_cache");
-          const entries = Object.entries(data || {});
-          if (!entries.length) {
-              listEl.innerHTML =
-                  '<li><span class="analysis-desc">No analyses found yet. Run "Analyze clips" first.</span></li>';
-              return;
-          }
-          entries.forEach(([file, desc]) => {
-              const li = document.createElement("li");
-              const f = document.createElement("div");
-              f.className = "analysis-file";
-              f.textContent = file;
-              const d = document.createElement("div");
-              d.className = "analysis-desc";
-              d.textContent = desc || "(no description)";
-              li.appendChild(f);
-              li.appendChild(d);
-              listEl.appendChild(li);
-          });
-      } catch (err) {
-          listEl.innerHTML = `<li><span class="analysis-desc">Error loading analyses: ${err.message}</span></li>`;
-      }
-  }
+    listEl.innerHTML = "";
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(
+            `/api/analyses_cache?session=${session}`
+        );
+        const entries = Object.entries(data || {});
+        if (!entries.length) {
+            listEl.innerHTML =
+                '<li><span class="analysis-desc">No analyses found yet. Run "Analyze clips" first.</span></li>';
+            return;
+        }
+        entries.forEach(([file, desc]) => {
+            const li = document.createElement("li");
+            const f = document.createElement("div");
+            f.className = "analysis-file";
+            f.textContent = file;
+            const d = document.createElement("div");
+            d.className = "analysis-desc";
+            d.textContent = desc || "(no description)";
+            li.appendChild(f);
+            li.appendChild(d);
+            listEl.appendChild(li);
+        });
+    } catch (err) {
+        listEl.innerHTML = `<li><span class="analysis-desc">Error loading analyses: ${err.message}</span></li>`;
+    }
+}
 
-  // ================================
-  // Step 2: YAML generation & config
-  // ================================
-  async function generateYaml() {
-      const statusEl = document.getElementById("yamlStatus");
-      if (!statusEl) return;
-      setStatus("yamlStatus", "Calling LLM to build config.yml storyboard…", "info");
-      try {
-          await jsonFetch("/api/generate_yaml", {
-              method: "POST",
-              body: "{}",
-          });
-          setStatus("yamlStatus", "YAML generated!", "success");
-          await loadConfigAndYaml();
-      } catch (err) {
-          console.error(err);
-          setStatus("yamlStatus", `Error generating YAML: ${err.message}`, "error");
-      }
-  }
+// ================================
+// Step 2: YAML generation & config
+// ================================
+async function generateYaml() {
+    const statusEl = document.getElementById("yamlStatus");
+    if (!statusEl) return;
+    setStatus(
+        "yamlStatus",
+        "Calling LLM to build config.yml storyboard…",
+        "info"
+    );
+    try {
+        await jsonFetch("/api/generate_yaml", {
+            method: "POST",
+            body: JSON.stringify({ session: getActiveSession() }),
+        });
+        setStatus("yamlStatus", "YAML generated!", "success");
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+        setStatus(
+            "yamlStatus",
+            `Error generating YAML: ${err.message}`,
+            "error"
+        );
+    }
+}
 
-  async function loadConfigAndYaml() {
-      const yamlTextEl = document.getElementById("yamlText");
-      const yamlPreviewEl = document.getElementById("yamlPreview");
-      if (!yamlTextEl || !yamlPreviewEl) return;
+async function loadConfigAndYaml() {
+    const yamlTextEl = document.getElementById("yamlText");
+    const yamlPreviewEl = document.getElementById("yamlPreview");
+    if (!yamlTextEl || !yamlPreviewEl) return;
 
-      try {
-          const data = await jsonFetch("/api/config");
-          yamlTextEl.value = data.yaml || "# No config.yml yet.";
-          yamlPreviewEl.textContent = JSON.stringify(data.config || {}, null, 2);
-      } catch (err) {
-          yamlTextEl.value = "";
-          yamlPreviewEl.textContent = `Error loading config: ${err.message}`;
-      }
-  }
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        yamlTextEl.value = data.yaml || "# No config.yml yet.";
+        yamlPreviewEl.textContent = JSON.stringify(
+            data.config || {},
+            null,
+            2
+        );
+    } catch (err) {
+        yamlTextEl.value = "";
+        yamlPreviewEl.textContent = `Error loading config: ${err.message}`;
+    }
+}
 
-  async function saveYaml() {
-      const yamlTextEl = document.getElementById("yamlText");
-      const statusEl = document.getElementById("yamlStatus");
-      if (!yamlTextEl || !statusEl) return;
+async function saveYaml() {
+    const yamlTextEl = document.getElementById("yamlText");
+    const statusEl = document.getElementById("yamlStatus");
+    if (!yamlTextEl || !statusEl) return;
 
-      const raw = yamlTextEl.value || "";
-      setStatus("yamlStatus", "Saving YAML…", "info");
+    const raw = yamlTextEl.value || "";
+    setStatus("yamlStatus", "Saving YAML…", "info");
 
-      try {
-          await jsonFetch("/api/save_yaml", {
-              method: "POST",
-              body: JSON.stringify({ yaml: raw }),
-          });
-          setStatus("yamlStatus", "YAML saved to config.yml.", "success");
-          await loadConfigAndYaml();
-      } catch (err) {
-          console.error(err);
-          setStatus("yamlStatus", `Error saving YAML: ${err.message}`, "error");
-      }
-  }
+    try {
+        await jsonFetch("/api/save_yaml", {
+            method: "POST",
+            body: JSON.stringify({
+                yaml: raw,
+                session: getActiveSession(),
+            }),
+        });
+        setStatus("yamlStatus", "YAML saved to config.yml.", "success");
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+        setStatus(
+            "yamlStatus",
+            `Error saving YAML: ${err.message}`,
+            "error"
+        );
+    }
+}
 
-  // ================================
-  // Step 3: Captions
-  // ================================
-  function buildCaptionsFromConfig(cfg) {
-      if (!cfg || typeof cfg !== "object") return "";
-      const parts = [];
+// ================================
+// Step 3: Captions
+// ================================
+function buildCaptionsFromConfig(cfg) {
+    if (!cfg || typeof cfg !== "object") return "";
+    const parts = [];
 
-      if (cfg.first_clip && cfg.first_clip.text) parts.push(cfg.first_clip.text);
+    if (cfg.first_clip && cfg.first_clip.text) parts.push(cfg.first_clip.text);
 
-      if (Array.isArray(cfg.middle_clips)) {
-          cfg.middle_clips.forEach((clip) => {
-              if (clip && clip.text) parts.push(clip.text);
-          });
-      }
+    if (Array.isArray(cfg.middle_clips)) {
+        cfg.middle_clips.forEach((clip) => {
+            if (clip && clip.text) parts.push(clip.text);
+        });
+    }
 
-      if (cfg.last_clip && cfg.last_clip.text) parts.push(cfg.last_clip.text);
+    if (cfg.last_clip && cfg.last_clip.text) parts.push(cfg.last_clip.text);
 
-      return parts.join("\n\n");
-  }
+    return parts.join("\n\n");
+}
 
-  async function loadCaptionsFromYaml() {
-      const statusEl = document.getElementById("captionsStatus");
-      const captionsEl = document.getElementById("captionsText");
-      if (!statusEl || !captionsEl) return;
+async function loadCaptionsFromYaml() {
+    const statusEl = document.getElementById("captionsStatus");
+    const captionsEl = document.getElementById("captionsText");
+    if (!statusEl || !captionsEl) return;
 
-      setStatus("captionsStatus", "Loading captions…", "info");
+    setStatus("captionsStatus", "Loading captions…", "info");
 
-      try {
-          const data = await jsonFetch("/api/config");
-          const cfg = data.config || {};
-          captionsEl.value = buildCaptionsFromConfig(cfg);
-          setStatus("captionsStatus", "Captions loaded.", "success");
-      } catch (err) {
-          console.error(err);
-          setStatus("captionsStatus", `Error loading captions: ${err.message}`, "error");
-      }
-  }
-  
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        const cfg = data.config || {};
+        captionsEl.value = buildCaptionsFromConfig(cfg);
+        setStatus("captionsStatus", "Captions loaded.", "success");
+    } catch (err) {
+        console.error(err);
+        setStatus(
+            "captionsStatus",
+            `Error loading captions: ${err.message}`,
+            "error"
+        );
+    }
+}
 
-  async function saveCaptions() {
+async function saveCaptions() {
     const captionsEl = document.getElementById("captionsText");
     if (!captionsEl) return;
 
     const text = captionsEl.value || "";
 
-    // 🔵 Show "working…" message that DOES NOT auto-hide
-    setStatus("captionsStatus", "Saving captions into config.yml…", "working", false);
+    setStatus(
+        "captionsStatus",
+        "Saving captions into config.yml…",
+        "working",
+        false
+    );
 
     try {
         const result = await jsonFetch("/api/save_captions", {
             method: "POST",
-            body: JSON.stringify({ text }),
+            body: JSON.stringify({
+                text,
+                session: getActiveSession(),
+            }),
         });
 
-        // 🟢 Success message that auto-hides (optional: true)
         setStatus(
             "captionsStatus",
             `Saved ${result.count || 0} caption block(s).`,
@@ -561,8 +680,6 @@
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-
-        // 🔴 Error message that does NOT auto-hide
         setStatus(
             "captionsStatus",
             `Error saving captions: ${err.message}`,
@@ -572,72 +689,93 @@
     }
 }
 
+// ================================
+// Step 4: Overlay, timings, TTS, CTA, fg scale, music
+// ================================
 
-  // ================================
-  // Step 4: Overlay, timings, TTS, CTA, fg scale, music
-  // ================================
+// Overlay style
+async function applyOverlay() {
+    const styleSel = document.getElementById("overlayStyle");
+    const statusEl = document.getElementById("overlayStatus");
+    if (!styleSel || !statusEl) return;
 
-  // Overlay style
-  async function applyOverlay() {
-      const styleSel = document.getElementById("overlayStyle");
-      const statusEl = document.getElementById("overlayStatus");
-      if (!styleSel || !statusEl) return;
+    const style = styleSel.value || "travel_blog";
+    setStatus(
+        "overlayStatus",
+        `Applying overlay style “${style}”…`,
+        "info"
+    );
 
-      const style = styleSel.value || "travel_blog";
-      setStatus("overlayStatus", `Applying overlay style “${style}”…`, "info");
+    try {
+        await jsonFetch("/api/overlay", {
+            method: "POST",
+            body: JSON.stringify({
+                style,
+                session: getActiveSession(),
+            }),
+        });
+        setStatus("overlayStatus", "Overlay applied.", "success");
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+        setStatus(
+            "overlayStatus",
+            `Error applying overlay: ${err.message}`,
+            "error"
+        );
+    }
+}
 
-      try {
-          await jsonFetch("/api/overlay", {
-              method: "POST",
-              body: JSON.stringify({ style }),
-          });
-          setStatus("overlayStatus", "Overlay applied.", "success");
-          await loadConfigAndYaml();
-      } catch (err) {
-          console.error(err);
-          setStatus("overlayStatus", `Error applying overlay: ${err.message}`, "error");
-      }
-  }
+// Timings
+async function applyTiming(smart) {
+    const statusEl = document.getElementById("timingStatus");
+    if (!statusEl) return;
 
-  // Timings
-  async function applyTiming(smart) {
-      const statusEl = document.getElementById("timingStatus");
-      if (!statusEl) return;
+    setStatus(
+        "timingStatus",
+        smart
+            ? "Applying cinematic smart timings…"
+            : "Applying standard timing…",
+        "info"
+    );
 
-      setStatus("timingStatus", smart ? "Applying cinematic smart timings…" : "Applying standard timing…", "info");
+    try {
+        await jsonFetch("/api/timings", {
+            method: "POST",
+            body: JSON.stringify({
+                smart,
+                session: getActiveSession(),
+            }),
+        });
+        setStatus("timingStatus", "Timings updated.", "success");
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+        setStatus(
+            "timingStatus",
+            `Error adjusting timings: ${err.message}`,
+            "error"
+        );
+    }
+}
 
-      try {
-          await jsonFetch("/api/timings", {
-              method: "POST",
-              body: JSON.stringify({ smart }),
-          });
-          setStatus("timingStatus", "Timings updated.", "success");
-          await loadConfigAndYaml();
-      } catch (err) {
-          console.error(err);
-          setStatus("timingStatus", `Error adjusting timings: ${err.message}`, "error");
-      }
-  }
+// Layout Mode (TikTok / Classic)
+async function loadLayoutFromYaml() {
+    const sel = document.getElementById("layoutMode");
+    if (!sel) return;
 
-  // ================================
-  // Layout Mode (TikTok / Classic)
-  // ================================
-  async function loadLayoutFromYaml() {
-      const sel = document.getElementById("layoutMode");
-      if (!sel) return;
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        const cfg = data.config || {};
+        const render = cfg.render || {};
 
-      try {
-          const data = await jsonFetch("/api/config");
-          const cfg = data.config || {};
-          const render = cfg.render || {};
-
-          const mode = render.layout_mode || "tiktok";
-          sel.value = mode;
-      } catch (err) {
-          console.error("Failed loading layout mode", err);
-      }
-  }
-
+        const mode = render.layout_mode || "tiktok";
+        sel.value = mode;
+    } catch (err) {
+        console.error("Failed loading layout mode", err);
+    }
+}
 
 async function saveLayoutMode() {
     const sel = document.getElementById("layoutMode");
@@ -650,58 +788,72 @@ async function saveLayoutMode() {
     try {
         await jsonFetch("/api/layout", {
             method: "POST",
-            body: JSON.stringify({ mode }),
+            body: JSON.stringify({
+                mode,
+                session: getActiveSession(),
+            }),
         });
 
         setStatus("layoutStatus", "Layout saved!", "success");
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        setStatus("layoutStatus", "Error saving layout: " + err.message, "error");
+        setStatus(
+            "layoutStatus",
+            "Error saving layout: " + err.message,
+            "error"
+        );
     }
 }
 
-  // TTS
-  async function saveTtsSettings() {
-      const enabledEl = document.getElementById("ttsEnabled");
-      const voiceEl = document.getElementById("ttsVoice");
-      const statusEl = document.getElementById("ttsStatus");
-      if (!enabledEl || !voiceEl || !statusEl) return;
+// TTS
+async function saveTtsSettings() {
+    const enabledEl = document.getElementById("ttsEnabled");
+    const voiceEl = document.getElementById("ttsVoice");
+    const statusEl = document.getElementById("ttsStatus");
+    if (!enabledEl || !voiceEl || !statusEl) return;
 
-      setStatus("ttsStatus", "Saving TTS settings…", "info");
+    setStatus("ttsStatus", "Saving TTS settings…", "info");
 
-      try {
-          const data = await jsonFetch("/api/config");
-          const cfg = data.config || {};
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        const cfg = data.config || {};
 
-          cfg.tts = {
-              enabled: enabledEl.checked,
-              voice: voiceEl.value || "alloy",
-          };
+        cfg.tts = {
+            enabled: enabledEl.checked,
+            voice: voiceEl.value || "alloy",
+        };
 
-          if (cfg.render) {
-              delete cfg.render.tts_enabled;
-              delete cfg.render.tts_voice;
-          }
+        if (cfg.render) {
+            delete cfg.render.tts_enabled;
+            delete cfg.render.tts_voice;
+        }
 
-          const yamlText = jsyaml.dump(cfg);
+        const yamlText = jsyaml.dump(cfg);
 
-          await jsonFetch("/api/save_yaml", {
-              method: "POST",
-              body: JSON.stringify({ yaml: yamlText }),
-          });
+        await jsonFetch("/api/save_yaml", {
+            method: "POST",
+            body: JSON.stringify({
+                yaml: yamlText,
+                session: getActiveSession(),
+            }),
+        });
 
-          setStatus("ttsStatus", "TTS settings saved.", "success");
-          await loadConfigAndYaml();
-      } catch (err) {
-          console.error(err);
-          setStatus("ttsStatus", `Error saving TTS: ${err.message}`, "error");
-      }
-  }
+        setStatus("ttsStatus", "TTS settings saved.", "success");
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error(err);
+        setStatus(
+            "ttsStatus",
+            `Error saving TTS: ${err.message}`,
+            "error"
+        );
+    }
+}
 
-
-  // CTA
-  async function saveCtaSettings() {
+// CTA
+async function saveCtaSettings() {
     const enabledEl = document.getElementById("ctaEnabled");
     const textEl = document.getElementById("ctaText");
     const voiceoverEl = document.getElementById("ctaVoiceover");
@@ -717,6 +869,7 @@ async function saveLayoutMode() {
                 enabled: enabledEl.checked,
                 text: textEl.value || "",
                 voiceover: voiceoverEl.checked,
+                session: getActiveSession(),
             }),
         });
 
@@ -724,73 +877,77 @@ async function saveLayoutMode() {
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        setStatus("ctaStatus", `Error saving CTA: ${err.message}`, "error");
+        setStatus(
+            "ctaStatus",
+            `Error saving CTA: ${err.message}`,
+            "error"
+        );
     }
 }
 
+// Music: load available tracks (global)
+async function loadMusicTracks() {
+    const sel = document.getElementById("musicFile");
+    if (!sel) return;
 
-  // Music: load available tracks
-  async function loadMusicTracks() {
-      const sel = document.getElementById("musicFile");
-      if (!sel) return;
+    sel.innerHTML = `<option value="">– No music –</option>`;
 
-      sel.innerHTML = `<option value="">– No music –</option>`;
+    try {
+        const data = await jsonFetch("/api/music_list");
+        const files = data.files || [];
+        files.forEach((f) => {
+            const opt = document.createElement("option");
+            opt.value = f;
+            opt.textContent = f;
+            sel.appendChild(opt);
+        });
+    } catch (err) {
+        console.error("Music list load failed", err);
+    }
+}
 
-      try {
-          const data = await jsonFetch("/api/music_list");
-          const files = data.files || [];
-          files.forEach((f) => {
-              const opt = document.createElement("option");
-              opt.value = f;
-              opt.textContent = f;
-              sel.appendChild(opt);
-          });
-      } catch (err) {
-          console.error("Music list load failed", err);
-      }
-  }
+// Music: read settings from YAML
+async function loadMusicSettingsFromYaml() {
+    const enabledEl = document.getElementById("musicEnabled");
+    const fileEl = document.getElementById("musicFile");
+    const volEl = document.getElementById("musicVolume");
+    const volLbl = document.getElementById("musicVolumeLabel");
+    if (!enabledEl || !fileEl || !volEl || !volLbl) return;
 
-  // Music: read settings from YAML (top-level music block; fallback to legacy render.*)
-  async function loadMusicSettingsFromYaml() {
-      const enabledEl = document.getElementById("musicEnabled");
-      const fileEl = document.getElementById("musicFile");
-      const volEl = document.getElementById("musicVolume");
-      const volLbl = document.getElementById("musicVolumeLabel");
-      if (!enabledEl || !fileEl || !volEl || !volLbl) return;
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        const cfg = data.config || {};
 
-      try {
-          const data = await jsonFetch("/api/config");
-          const cfg = data.config || {};
+        const music = cfg.music || {};
+        const render = cfg.render || {};
 
-          const music = cfg.music || {};
-          const render = cfg.render || {};
+        const enabled =
+            music.enabled ??
+            render.music_enabled ??
+            false;
 
-          const enabled =
-              music.enabled ??
-              render.music_enabled ??
-              false;
+        const file =
+            music.file ??
+            render.music_file ??
+            "";
 
-          const file =
-              music.file ??
-              render.music_file ??
-              "";
+        const volume =
+            music.volume ??
+            render.music_volume ??
+            0.25;
 
-          const volume =
-              music.volume ??
-              render.music_volume ??
-              0.25;
+        enabledEl.checked = !!enabled;
+        fileEl.value = file;
+        volEl.value = volume;
+        volLbl.textContent = Number(volume).toFixed(2);
+    } catch (err) {
+        console.error("Music settings load failed", err);
+    }
+}
 
-          enabledEl.checked = !!enabled;
-          fileEl.value = file;
-          volEl.value = volume;
-          volLbl.textContent = Number(volume).toFixed(2);
-      } catch (err) {
-          console.error("Music settings load failed", err);
-      }
-  }
-
-  // Music: save settings into YAML (top-level music block)
-  async function saveMusicSettings() {
+// Music: save settings into YAML
+async function saveMusicSettings() {
     const enabledEl = document.getElementById("musicEnabled");
     const fileEl = document.getElementById("musicFile");
     const volEl = document.getElementById("musicVolume");
@@ -805,7 +962,8 @@ async function saveLayoutMode() {
     setStatus("musicStatus", "Saving music settings…", "info");
 
     try {
-        const data = await jsonFetch("/api/config");
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
         const cfg = data.config || {};
 
         cfg.music = { enabled, file, volume };
@@ -820,38 +978,42 @@ async function saveLayoutMode() {
 
         await jsonFetch("/api/save_yaml", {
             method: "POST",
-            body: JSON.stringify({ yaml: yamlText }),
+            body: JSON.stringify({
+                yaml: yamlText,
+                session: getActiveSession(),
+            }),
         });
 
         setStatus("musicStatus", "Music settings saved.", "success");
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        setStatus("musicStatus", "Error saving music: " + err.message, "error");
+        setStatus(
+            "musicStatus",
+            "Error saving music: " + err.message,
+            "error"
+        );
     }
 }
 
+// Music volume label live update
+function initMusicVolumeSlider() {
+    const slider = document.getElementById("musicVolume");
+    const lbl = document.getElementById("musicVolumeLabel");
+    if (!slider || !lbl) return;
 
-  // Music volume label live update
-  function initMusicVolumeSlider() {
-      const slider = document.getElementById("musicVolume");
-      const lbl = document.getElementById("musicVolumeLabel");
-      if (!slider || !lbl) return;
+    slider.addEventListener("input", () => {
+        lbl.textContent = Number(slider.value).toFixed(2);
+    });
+}
 
-      slider.addEventListener("input", () => {
-          lbl.textContent = Number(slider.value).toFixed(2);
-      });
-  }
-
-  // ================================
-  // Auto Caption Style Selector
-  // ================================
-  // Auto Caption Layout Selector (merged)
+// ================================
+// Auto Caption Style Selector
+// ================================
 function autoSelectCaptionStyle(selectedMode) {
     const layoutSelect = document.getElementById("layoutMode");
     if (!layoutSelect) return;
 
-    // Map: standard → TikTok vertical; optimized → Classic look
     const isTikTok = selectedMode === "standard";
 
     layoutSelect.value = isTikTok ? "tiktok" : "classic";
@@ -865,74 +1027,66 @@ function autoSelectCaptionStyle(selectedMode) {
     );
 }
 
+// Preview music
+function initMusicPreview() {
+    const btn = document.getElementById("musicPreviewBtn");
+    const select = document.getElementById("musicFile");
+    const status = document.getElementById("musicStatus");
 
+    if (!btn || !select || !status) return;
 
+    select.addEventListener("change", () => {
+        if (previewAudio) {
+            previewAudio.pause();
+            previewAudio.currentTime = 0;
+        }
+        previewAudio = null;
+        previewPlaying = false;
+        btn.textContent = "▶ Preview";
+        status.textContent = "";
+    });
 
-  // Preview music
-  function initMusicPreview() {
-      const btn = document.getElementById("musicPreviewBtn");
-      const select = document.getElementById("musicFile");
-      const status = document.getElementById("musicStatus");
+    btn.addEventListener("click", () => {
+        const file = select.value;
 
-      if (!btn || !select || !status) return;
+        if (!file) {
+            alert("Select a music track first.");
+            return;
+        }
 
-      // Reset player when switching songs
-      select.addEventListener("change", () => {
-          if (previewAudio) {
-              previewAudio.pause();
-              previewAudio.currentTime = 0;
-          }
-          previewAudio = null;
-          previewPlaying = false;
-          btn.textContent = "▶ Preview";
-          status.textContent = "";                        // 🔥 Clear status
-      });
+        if (!previewAudio) {
+            previewAudio = new Audio(`/api/music_file/${file}`);
+            previewAudio.volume = 0.8;
 
-      btn.addEventListener("click", () => {
-          const file = select.value;
+            previewAudio.onplay = () => {
+                previewPlaying = true;
+                btn.textContent = "⏸ Pause";
+                status.textContent = `🎵 Now Playing: ${file}`;
+            };
 
-          if (!file) {
-              alert("Select a music track first.");
-              return;
-          }
+            previewAudio.onpause = () => {
+                previewPlaying = false;
+                btn.textContent = "▶ Preview";
+                status.textContent = `⏸ Paused: ${file}`;
+            };
 
-          // Create new Audio instance if needed
-          if (!previewAudio) {
-              previewAudio = new Audio(`/api/music_file/${file}`);
-              previewAudio.volume = 0.8;
+            previewAudio.onended = () => {
+                previewPlaying = false;
+                btn.textContent = "▶ Preview";
+                status.textContent = "";
+            };
+        }
 
-              previewAudio.onplay = () => {
-                  previewPlaying = true;
-                  btn.textContent = "⏸ Pause";
-                  status.textContent = `🎵 Now Playing: ${file}`;   // 🔥 NEW
-              };
+        if (previewAudio.paused) {
+            previewAudio.play();
+        } else {
+            previewAudio.pause();
+        }
+    });
+}
 
-              previewAudio.onpause = () => {
-                  previewPlaying = false;
-                  btn.textContent = "▶ Preview";
-                  status.textContent = `⏸ Paused: ${file}`;        // 🔥 NEW
-              };
-
-              previewAudio.onended = () => {
-                  previewPlaying = false;
-                  btn.textContent = "▶ Preview";
-                  status.textContent = "";                         // 🔥 Clear when done
-              };
-          }
-
-          if (previewAudio.paused) {
-              previewAudio.play();
-          } else {
-              previewAudio.pause();
-          }
-      });
-  }
-
-
-
-
-  // Foreground scale
-  async function saveFgScale() {
+// Foreground scale
+async function saveFgScale() {
     const range = document.getElementById("fgScale");
     const statusEl = document.getElementById("fgStatus");
     if (!range || !statusEl) return;
@@ -944,209 +1098,293 @@ function autoSelectCaptionStyle(selectedMode) {
     try {
         await jsonFetch("/api/fgscale", {
             method: "POST",
-            body: JSON.stringify({ value }),
+            body: JSON.stringify({
+                value,
+                session: getActiveSession(),
+            }),
         });
 
         setStatus("fgStatus", "Foreground scale saved.", "success");
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        setStatus("fgStatus", "Error saving scale: " + err.message, "error");
+        setStatus(
+            "fgStatus",
+            "Error saving scale: " + err.message,
+            "error"
+        );
     }
 }
 
-  function initFgScaleSlider() {
-      const range = document.getElementById("fgScale");
-      const label = document.getElementById("fgScaleValue");
-      if (!range || !label) return;
+function initFgScaleSlider() {
+    const range = document.getElementById("fgScale");
+    const label = document.getElementById("fgScaleValue");
+    if (!range || !label) return;
 
-      label.textContent = range.value;
-      range.addEventListener("input", () => {
-          label.textContent = range.value;
-      });
-  }
+    label.textContent = range.value;
+    range.addEventListener("input", () => {
+        label.textContent = range.value;
+    });
+}
 
-  // ================================
-  // Step 5: Export (PATCHED)
-  // ================================
-  async function exportVideo() {
-      const exportStatus = document.getElementById("exportStatus");
-      const downloadArea = document.getElementById("downloadArea");
-      const btn = document.getElementById("exportBtn");
-      if (!exportStatus || !downloadArea || !btn) return;
+// ================================
+// Step 5: Export (PATCHED + SESSION)
+// ================================
+async function exportVideo() {
+    const exportStatus = document.getElementById("exportStatus");
+    const downloadArea = document.getElementById("downloadArea");
+    const btn = document.getElementById("exportBtn");
+    if (!exportStatus || !downloadArea || !btn) return;
 
-      const mode = document.querySelector('input[name="exportMode"]:checked')?.value;
-      const optimized = mode === "optimized";
+    const mode = document.querySelector(
+        'input[name="exportMode"]:checked'
+    )?.value;
+    const optimized = mode === "optimized";
 
-      // Reset UI
-      setStatus("exportStatus", optimized ? "Rendering (HQ)..." : "Rendering…", "info", false);
-      downloadArea.innerHTML = "";
-      btn.disabled = true;
+    setStatus(
+        "exportStatus",
+        optimized ? "Rendering (HQ)..." : "Rendering…",
+        "info",
+        false
+    );
 
-      try {
-          const data = await jsonFetch("/api/export", {
-              method: "POST",
-              body: JSON.stringify({ optimized }),
-          });
+    downloadArea.innerHTML = "";
+    btn.disabled = true;
 
-          if (data.status !== "ok") {
-              throw new Error(data.error || "Unknown export error");
-          }
+    try {
+        const data = await jsonFetch("/api/export", {
+            method: "POST",
+            body: JSON.stringify({
+                optimized,
+                session: getActiveSession(),
+            }),
+        });
 
-          const downloadUrl = data.download_url;
-          const filename = data.local_filename || "export.mp4";
+        if (data.status !== "ok") {
+            throw new Error(data.error || "Unknown export error");
+        }
 
-          await new Promise(res => setTimeout(res, 500));
+        const downloadUrl = data.download_url;
+        const filename = data.local_filename || "export.mp4";
 
-          if (downloadUrl) {
-              const ok = await probeUrl(downloadUrl);
+        // Give S3 a moment to finalize
+        await new Promise((res) => setTimeout(res, 500));
 
-              if (!ok) {
-                  // Retry 3 times with short spacing
-                  for (let i = 0; i < 3; i++) {
-                      await new Promise(res => setTimeout(res, 400));
-                      if (await probeUrl(downloadUrl)) break;
-                  }
-              }
-          }
+        if (downloadUrl) {
+            let ok = await probeUrl(downloadUrl);
+            if (!ok) {
+                // Retry a few times if S3 is laggy
+                for (let i = 0; i < 3; i++) {
+                    await new Promise((res) => setTimeout(res, 400));
+                    ok = await probeUrl(downloadUrl);
+                    if (ok) break;
+                }
+            }
+        }
 
-          setStatus("exportStatus", "Export complete!", "success");
+        setStatus("exportStatus", "Export complete!", "success");
 
-          if (downloadUrl) {
-              downloadArea.innerHTML = `
-                  <div>✅ Video ready:</div>
-                  <button id="directDownloadBtn" class="btn primary full">
-                      ⬇ Download ${filename}
-                  </button>
-              `;
+        if (downloadUrl) {
+            downloadArea.innerHTML = `
+                <div>✅ Video ready:</div>
+                <button id="directDownloadBtn" class="btn primary full">
+                    ⬇ Download ${filename}
+                </button>
+            `;
 
-              const directBtn = document.getElementById("directDownloadBtn");
-              if (directBtn) {
-                  directBtn.onclick = () => safeDownload(downloadUrl, filename);
-              }
-          } else {
-              downloadArea.innerHTML = `
-                  <div>⚠ Local file only (S3 upload missing):</div>
-                  <button id="directLocalBtn" class="btn primary full">
-                      ⬇ Download ${filename}
-                  </button>
-              `;
-              const localBtn = document.getElementById("directLocalBtn");
-              if (localBtn) {
-                  localBtn.onclick = () =>
-                      safeDownload(`/api/download/${encodeURIComponent(filename)}`, filename);
-              }
-          }
-      } catch (err) {
-          console.error(err);
-          setStatus("exportStatus", `Error during export: ${err.message}`, "error", false);
-      } finally {
-          btn.disabled = false;
-      }
-  }
+            const directBtn = document.getElementById("directDownloadBtn");
+            if (directBtn) {
+                directBtn.onclick = () => safeDownload(downloadUrl, filename);
+            }
+        } else {
+            downloadArea.innerHTML = `
+                <div>⚠ Local file only (S3 upload missing):</div>
+                <button id="directLocalBtn" class="btn primary full">
+                    ⬇ Download ${filename}
+                </button>
+            `;
+            const localBtn = document.getElementById("directLocalBtn");
+            if (localBtn) {
+                localBtn.onclick = () =>
+                    safeDownload(
+                        `/api/download/${encodeURIComponent(filename)}`,
+                        filename
+                    );
+            }
+        }
+    } catch (err) {
+        console.error(err);
+        setStatus(
+            "exportStatus",
+            `Error during export: ${err.message}`,
+            "error",
+            false
+        );
+    } finally {
+        btn.disabled = false;
+    }
+}
 
+// ================================
+// Chat
+// ================================
+async function sendChat() {
+    const input = document.getElementById("chatInput");
+    const output = document.getElementById("chatOutput");
+    const btn = document.getElementById("chatSendBtn");
+    if (!input || !output || !btn) return;
 
-  // ================================
-  // Chat
-  // ================================
-  async function sendChat() {
-      const input = document.getElementById("chatInput");
-      const output = document.getElementById("chatOutput");
-      const btn = document.getElementById("chatSendBtn");
-      if (!input || !output || !btn) return;
+    const msg = (input.value || "").trim();
+    if (!msg) return;
 
-      const msg = (input.value || "").trim();
-      if (!msg) return;
+    btn.disabled = true;
+    output.textContent = "Thinking…";
 
-      btn.disabled = true;
-      output.textContent = "Thinking…";
+    try {
+        const data = await jsonFetch("/api/chat", {
+            method: "POST",
+            body: JSON.stringify({ message: msg }),
+        });
+        output.textContent = data.reply || "(no reply)";
+    } catch (err) {
+        console.error(err);
+        output.textContent = `Error: ${err.message}`;
+    } finally {
+        btn.disabled = false;
+    }
+}
 
-      try {
-          const data = await jsonFetch("/api/chat", {
-              method: "POST",
-              body: JSON.stringify({ message: msg }),
-          });
-          output.textContent = data.reply || "(no reply)";
-      } catch (err) {
-          console.error(err);
-          output.textContent = `Error: ${err.message}`;
-      } finally {
-          btn.disabled = false;
-      }
-  }
+// ================================
+// Init wiring
+// ================================
+document.addEventListener("DOMContentLoaded", () => {
+    // ================================
+    // Session init
+    // ================================
+    try {
+        const stored = localStorage.getItem("activeSession");
+        ACTIVE_SESSION = stored || "default";
+    } catch {
+        ACTIVE_SESSION = "default";
+    }
 
-  // ================================
-  // Init wiring
-  // ================================
-  document.addEventListener("DOMContentLoaded", () => {
-      // Stepper & logs
-      initStepper();
-      startStatusLogPolling();
+    const label = document.getElementById("activeSessionLabel");
+    const input = document.getElementById("sessionInput");
+    if (label) label.textContent = ACTIVE_SESSION;
+    if (input) input.value = ACTIVE_SESSION;
 
-      // Sliders
-      initFgScaleSlider();
-      initMusicVolumeSlider();
+    document
+        .getElementById("setSessionBtn")
+        ?.addEventListener("click", () => {
+            const name =
+                document.getElementById("sessionInput")?.value || "";
+            setActiveSession(name);
+        });
 
-      // Preview Music
-      initMusicPreview();
+    // Stepper & logs
+    initStepper();
+    startStatusLogPolling();
 
-      // Upload UI
-      initUploadUI();
+    // Sliders
+    initFgScaleSlider();
+    initMusicVolumeSlider();
 
-      // Upload Manager (list raw + processed files)
-      loadUploadManager();
+    // Preview Music
+    initMusicPreview();
 
-      // Music list + settings
-      loadMusicTracks();
-      loadMusicSettingsFromYaml();
+    // Upload UI
+    initUploadUI();
 
-      // Initial YAML + analyses
-      refreshAnalyses();
-      loadConfigAndYaml();
+    // Upload Manager (list raw + processed files)
+    loadUploadManager();
 
-      document.querySelectorAll(".acc-header").forEach((btn) => {
-          btn.addEventListener("click", () => {
-              const sec = btn.parentElement;
-              sec.classList.toggle("open");
-          });
-      });
+    // Music list + settings
+    loadMusicTracks();
+    loadMusicSettingsFromYaml();
 
-      // ================================
-      // Export Mode Change Listener
-      // ================================
-      // Export Mode Change Listener (radio buttons)
-      document.querySelectorAll('input[name="exportMode"]')
-    .forEach((radio) => {
-        radio.addEventListener("change", (e) => {
-            autoSelectCaptionStyle(e.target.value);
+    // Initial YAML + analyses
+    refreshAnalyses();
+    loadConfigAndYaml();
+
+    // Accordion toggles
+    document.querySelectorAll(".acc-header").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const sec = btn.parentElement;
+            sec.classList.toggle("open");
         });
     });
 
+    // Export Mode Change Listener (radio buttons → auto caption layout)
+    document
+        .querySelectorAll('input[name="exportMode"]')
+        .forEach((radio) => {
+            radio.addEventListener("change", (e) => {
+                autoSelectCaptionStyle(e.target.value);
+            });
+        });
 
-      // Buttons / actions (all optional-chained)
-      document.getElementById("analyzeBtn")?.addEventListener("click", analyzeClips);
-      document.getElementById("refreshAnalysesBtn")?.addEventListener("click", refreshAnalyses);
+    // Buttons / actions
+    document
+        .getElementById("analyzeBtn")
+        ?.addEventListener("click", analyzeClips);
+    document
+        .getElementById("refreshAnalysesBtn")
+        ?.addEventListener("click", refreshAnalyses);
 
-      document.getElementById("generateYamlBtn")?.addEventListener("click", generateYaml);
-      document.getElementById("refreshYamlBtn")?.addEventListener("click", loadConfigAndYaml);
-      document.getElementById("saveYamlBtn")?.addEventListener("click", saveYaml);
+    document
+        .getElementById("generateYamlBtn")
+        ?.addEventListener("click", generateYaml);
+    document
+        .getElementById("refreshYamlBtn")
+        ?.addEventListener("click", loadConfigAndYaml);
+    document
+        .getElementById("saveYamlBtn")
+        ?.addEventListener("click", saveYaml);
 
-      document.getElementById("loadCaptionsFromYamlBtn")?.addEventListener("click", loadCaptionsFromYaml);
-      document.getElementById("saveCaptionsBtn")?.addEventListener("click", saveCaptions);
+    document
+        .getElementById("loadCaptionsFromYamlBtn")
+        ?.addEventListener("click", loadCaptionsFromYaml);
+    document
+        .getElementById("saveCaptionsBtn")
+        ?.addEventListener("click", saveCaptions);
 
-      document.getElementById("applyOverlayBtn")?.addEventListener("click", applyOverlay);
-      document.getElementById("applyStandardTimingBtn")?.addEventListener("click", () => applyTiming(false));
-      document.getElementById("applyCinematicTimingBtn")?.addEventListener("click", () => applyTiming(true));
+    document
+        .getElementById("applyOverlayBtn")
+        ?.addEventListener("click", applyOverlay);
+    document
+        .getElementById("applyStandardTimingBtn")
+        ?.addEventListener("click", () =>
+            applyTiming(false)
+        );
+    document
+        .getElementById("applyCinematicTimingBtn")
+        ?.addEventListener("click", () =>
+            applyTiming(true)
+        );
 
-      document.getElementById("saveTtsBtn")?.addEventListener("click", saveTtsSettings);
-      document.getElementById("saveCtaBtn")?.addEventListener("click", saveCtaSettings);
-      document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
-      document.getElementById("saveLayoutBtn")?.addEventListener("click", saveLayoutMode);
-      loadLayoutFromYaml();
+    document
+        .getElementById("saveTtsBtn")
+        ?.addEventListener("click", saveTtsSettings);
+    document
+        .getElementById("saveCtaBtn")
+        ?.addEventListener("click", saveCtaSettings);
+    document
+        .getElementById("saveFgScaleBtn")
+        ?.addEventListener("click", saveFgScale);
+    document
+        .getElementById("saveLayoutBtn")
+        ?.addEventListener("click", saveLayoutMode);
+    loadLayoutFromYaml();
 
-      document.getElementById("saveMusicBtn")?.addEventListener("click", saveMusicSettings);
+    document
+        .getElementById("saveMusicBtn")
+        ?.addEventListener("click", saveMusicSettings);
 
-      document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
+    document
+        .getElementById("exportBtn")
+        ?.addEventListener("click", exportVideo);
 
-      document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
-  });
+    document
+        .getElementById("chatSendBtn")
+        ?.addEventListener("click", sendChat);
+});
