@@ -1416,6 +1416,21 @@ async function sendChat() {
 // Init wiring
 // ================================
 document.addEventListener("DOMContentLoaded", () => {
+
+
+  const toggleBtn = document.getElementById("toggleYamlPreviewBtn");
+    const previewBox = document.getElementById("yamlPreviewContainer");
+
+    if (!toggleBtn || !previewBox) return;
+
+    toggleBtn.addEventListener("click", () => {
+        const isOpen = previewBox.classList.toggle("open");
+
+        toggleBtn.textContent = isOpen
+            ? "▲ Hide Parsed Preview"
+            : "▼ Show Parsed Preview";
+    });
+    
     // ================================
     // Session init
     // ================================

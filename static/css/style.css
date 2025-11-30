@@ -1304,3 +1304,26 @@ h3 {
         min-height: 120px;
     }
 }
+
+/* ================================
+   YAML PREVIEW — Mobile collapse
+================================ */
+@media (max-width: 768px) {
+
+    /* Button is visible on mobile */
+    #toggleYamlPreviewBtn {
+        display: block !important;
+        margin-bottom: 10px;
+    }
+
+    /* Hide parsed preview by default */
+    #yamlPreviewContainer {
+        display: none;
+    }
+
+    /* When opened via JS */
+    #yamlPreviewContainer.open {
+        display: block;
+        margin-top: 12px;
+    }
+}

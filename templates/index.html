@@ -377,7 +377,15 @@
                             </div>
                         </div>
 
-                        <div class="split-panel">
+                        <div class="split-panel" id="yamlPreviewWrapper">
+
+                        <!-- Mobile toggle button (hidden on desktop) -->
+                        <button id="toggleYamlPreviewBtn" class="btn ghost small" style="display:none;">
+                            ▼ Show Parsed Preview
+                        </button>
+
+                        <!-- Preview container -->
+                        <div id="yamlPreviewContainer">
                             <h3>
                                 Preview (Parsed)
                                 <span class="tooltip">ⓘ
@@ -390,6 +398,9 @@
 
                             <div id="yamlPreview" class="yaml-preview"></div>
                         </div>
+
+                    </div>
+
                     </div>
 
                 </div>
