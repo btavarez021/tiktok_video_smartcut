@@ -166,17 +166,28 @@ def delete_upload_s3(key: str) -> Dict[str, Any]:
     return {"ok": True}
 
 def list_sessions():
-    """Return a list of folder names under raw_uploads/."""
-    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=RAW_PREFIX, Delimiter='/')
+    """
+    Return a list of session folder names under raw_uploads/.
+    Robust against prefix changes, nested paths, and S3 structure differences.
+    """
+    # Ensure RAW_PREFIX ends with "/", otherwise S3 won't treat it as a folder
+    prefix = RAW_PREFIX if RAW_PREFIX.endswith("/") else RAW_PREFIX + "/"
 
-    folders = []
+    resp = s3.list_objects_v2(
+        Bucket=S3_BUCKET_NAME,
+        Prefix=prefix,
+        Delimiter="/"
+    )
+
+    sessions = []
     for p in resp.get("CommonPrefixes", []):
-        prefix = p["Prefix"]        # raw_uploads/MGM_Grand_2025/
-        folder = prefix.split("/", 1)[1].rstrip("/")   # MGM_Grand_2025
-        folders.append(folder)
+        full_prefix = p["Prefix"]          # e.g. raw_uploads/mgm_grand/
+        session_name = full_prefix[len(prefix):].rstrip("/")  # mgm_grand
 
-    return folders
+        if session_name:
+            sessions.append(session_name)
 
+    return sessions
 
 def delete_session(session):
     """Delete an entire session folder from S3."""
