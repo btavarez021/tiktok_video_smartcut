@@ -777,9 +777,11 @@ h3 .style-check {
 }
 
 /* ---------------------------------------
-   Mobile UI
+   Mobile UI — Corrected Stepper
 ---------------------------------------- */
 @media (max-width: 900px) {
+
+    /* Main layout collapses to single column */
     .layout {
         grid-template-columns: 1fr !important;
         gap: 20px;
@@ -788,24 +790,27 @@ h3 .style-check {
         z-index: 1;
     }
 
-      /* UPDATED: stepper spacing on mobile */
+    /* Horizontal scrolling stepper */
     .stepper {
-        margin-bottom: 20px;
-        position: relative;
-        z-index: 50;
         display: flex !important;
         flex-direction: row !important;
         overflow-x: auto !important;
-        white-space: nowrap;
+        white-space: nowrap !important;
         gap: 12px;
         padding-inline: 16px;
+        margin-bottom: 20px;
+        scroll-behavior: smooth;
     }
 
-    /* Each step gets extra padding on mobile */
+    /* Prevent vertical stacking */
     .stepper .step {
-        padding: 10px 8px;
+        flex: 0 0 auto !important;
+        min-width: max-content;
+        padding: 10px 12px;
+        text-align: center;
     }
 
+    /* Cards and spacing */
     .card,
     .step-card {
         margin: 0 !important;
@@ -834,16 +839,13 @@ h3 .style-check {
         width: 100%;
     }
 
+    /* Sidebar behaves better */
     .side-column {
         order: 10;
+        position: sticky;
+        top: 80px;
+        height: fit-content;
     }
-
-    .side-column {
-    position: sticky;
-    top: 80px;
-    height: fit-content;
-}
-
 
     #exportModeContainer {
         flex-wrap: wrap !important;
@@ -859,6 +861,7 @@ h3 .style-check {
         font-size: 13px;
     }
 }
+
 
 /* Extra small devices */
 @media (max-width: 480px) {
