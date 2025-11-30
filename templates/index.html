@@ -141,35 +141,36 @@
 
       <!-- ================================
      SESSION MANAGER (Accordion)
-     ================================ -->
-      <section class="card acc-section" id="sessionManagerCard">
+    ================================ -->
+    <section class="card" id="sessionManagerCard">
 
-          <button class="acc-header" onclick="toggleSessionManager()">
-              📁 Session Manager
-              <span class="tooltip">ⓘ
-                  <span class="tooltiptext">
-                      Manage all hotel sessions stored in S3.  
-                      Delete old ones to keep your workspace clean.
-                  </span>
-              </span>
-              <span id="sessionManagerToggle" class="collapse-icon" style="float:right;">▼</span>
-          </button>
+        <div class="header-row" onclick="toggleSessionManager()">
+            <h2>
+                Session Manager
+                <span class="tooltip">ⓘ
+                    <span class="tooltiptext">
+                        Manage all hotel sessions stored in S3.<br>
+                        Delete old ones to keep your workspace clean.
+                    </span>
+                </span>
+            </h2>
+            <span id="sessionManagerToggle" class="collapse-icon">▼</span>
+        </div>
 
-          <div id="sessionManagerContent" class="acc-body" style="padding-left:6px;">
-              
-              <p class="hint-text">
-                  These are all sessions stored in S3.  
-                  Deleting one removes its raw & processed clips.
-              </p>
+        <div id="sessionManagerContent" class="collapsed">
+            <p class="hint-text">
+                These are all sessions stored in S3.<br>
+                Deleting one removes raw + processed clips.
+            </p>
 
-              <button id="refreshSessionsBtn" class="btn ghost small">↻ Refresh</button>
+            <button id="refreshSessionsBtn" class="btn ghost small">↻ Refresh</button>
 
-              <ul id="sessionList" class="analysis-list" style="margin-top:12px;">
-                  <!-- JS populates -->
-              </ul>
-          </div>
+            <ul id="sessionList" class="analysis-list" style="margin-top:12px;">
+                <!-- JS populates -->
+            </ul>
+        </div>
 
-      </section>
+    </section>
 
 
     <!-- STEP 1 -->

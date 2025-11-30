@@ -1415,6 +1415,7 @@ h3 .style-check {
 }
 
 
+/* Session Manager accordion body */
 #sessionManagerContent {
     max-height: 0;
     overflow: hidden;
@@ -1422,8 +1423,22 @@ h3 .style-check {
     transition: max-height 0.35s ease, opacity 0.25s ease;
 }
 
-#sessionManagerContent.open {
+#sessionManagerContent:not(.collapsed) {
+    max-height: 700px; /* enough for many sessions */
     opacity: 1;
-    max-height: 800px; /* plenty */
+}
+
+/* Header row (same as upload manager) */
+#sessionManagerCard .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 10px 6px;
+}
+
+#sessionManagerCard .collapse-icon {
+    font-size: 16px;
+    opacity: 0.7;
 }
 
