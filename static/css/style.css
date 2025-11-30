@@ -1246,3 +1246,140 @@ h3 .style-check {
 #manualFgScaleContainer.hidden {
     display: none;
 }
+
+
+/* ============================================================
+   SESSION SYSTEM — CLEAN & MODERN UI
+============================================================ */
+
+/* Wrapper spacing */
+.session-bar,
+#sessionManagerCard {
+    margin-bottom: 20px;
+}
+
+/* Session row for input + button */
+.session-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.session-row .input {
+    flex: 1;
+}
+
+/* Dropdown row */
+.session-dropdown-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+/* Hint text for active session */
+.session-hint {
+    margin-top: 6px;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+}
+
+/* ------------------------------------------------------------
+   Tooltip improvements
+------------------------------------------------------------ */
+.tooltip {
+    display: inline-block;
+    margin-left: 4px;
+    cursor: pointer;
+    position: relative;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.tooltiptext {
+    visibility: hidden;
+    opacity: 0;
+    width: 220px;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 8px;
+
+    position: absolute;
+    z-index: 1000;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 130%;
+
+    font-size: 0.75rem;
+    line-height: 1.2rem;
+
+    transition: opacity 0.25s ease;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* ------------------------------------------------------------
+   Session List (delete view)
+------------------------------------------------------------ */
+#sessionList {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+}
+
+#sessionList .analysis-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 10px 12px;
+    margin-bottom: 8px;
+
+    background: var(--surface-2);
+    border-radius: 10px;
+
+    font-size: 0.95rem;
+}
+
+#sessionList .analysis-item span {
+    font-weight: 500;
+}
+
+#sessionList .analysis-item .btn.small {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+}
+
+/* ------------------------------------------------------------
+   Mobile responsiveness
+------------------------------------------------------------ */
+@media (max-width: 768px) {
+
+    .session-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .session-dropdown-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #setSessionBtn,
+    #switchSessionBtn,
+    #refreshSessionsBtn {
+        width: 100%;
+    }
+
+    #sessionList .analysis-item {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+}

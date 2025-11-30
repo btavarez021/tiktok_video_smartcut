@@ -62,51 +62,113 @@
 <!-- LEFT MAIN COLUMN -->
 <section class="main-column">
 
-    <!-- SESSION SELECTION -->
-    <section class="session-bar card">
-        <div class="card-header">
-            <h2>
-                Session / Hotel 
-                <span class="tooltip">ⓘ
-                    <span class="tooltiptext">
-                        Sessions separate your projects.  
-                        Example: One session = one hotel stay.  
-                        Upload multiple batches without mixing them.
-                    </span>
-                </span>
-            </h2>
-            <p class="card-subtitle">
-                Group clips by hotel or trip. Every session exports its own reel.
-            </p>
-        </div>
+    <!-- ================================
+     SESSION CONTROL CENTER
+     ================================ -->
+      <section class="session-bar card">
+          <div class="card-header">
+              <h2>
+                  Session / Hotel
+                  <span class="tooltip">ⓘ
+                      <span class="tooltiptext">
+                          A session keeps clips grouped by hotel/trip.  
+                          Example: “MGM Grand 2025” or “Ritz Cancun Beach Wing”.  
+                          Each session exports its own reel.
+                      </span>
+                  </span>
+              </h2>
+              <p class="card-subtitle">
+                  Organize your videos by hotel stay or trip.  
+                  Switch sessions anytime — nothing gets mixed.
+              </p>
+          </div>
 
-        <div class="card-body">
-            <label class="field-label" for="sessionInput">
-                Session name
-                <span class="tooltip">ⓘ
-                    <span class="tooltiptext">
-                        Pick a name like “Ritz Cancun 2025 – Beach Wing”.  
-                        This creates a folder in S3 for clean organization.
-                    </span>
-                </span>
-            </label>
+          <div class="card-body">
 
-            <div class="session-row">
-                <input
-                    id="sessionInput"
-                    class="input"
-                    type="text"
-                    placeholder="e.g. Le Meridien Rooftop Vibes"
-                />
-                <button id="setSessionBtn" class="btn secondary">Set active session</button>
-            </div>
+              <!-- Create / Activate Session ----------------------- -->
+              <label class="field-label" for="sessionInput">
+                  Create or set active session
+                  <span class="tooltip">ⓘ
+                      <span class="tooltiptext">
+                          Enter a new session name or an existing one.  
+                          It becomes your active workspace and uploads go into that folder.
+                      </span>
+                  </span>
+              </label>
 
-            <p class="hint-text">
-                Active session:
-                <strong><span id="activeSessionLabel">default</span></strong>
-            </p>
-        </div>
-    </section>
+              <div class="session-row">
+                  <input
+                      id="sessionInput"
+                      class="input"
+                      type="text"
+                      placeholder="e.g. MGM Grand 2025"
+                  />
+                  <button id="setSessionBtn" class="btn secondary">
+                      Set active session
+                  </button>
+              </div>
+
+              <p class="hint-text">
+                  Active session:
+                  <strong><span id="activeSessionLabel">default</span></strong>
+              </p>
+
+              <hr style="opacity: 0.15; margin: 18px 0;" />
+
+              <!-- Quick Switch Dropdown --------------------------- -->
+              <label class="field-label" for="sessionDropdown">
+                  Switch to another session
+                  <span class="tooltip">ⓘ
+                      <span class="tooltiptext">
+                          Quickly jump into another hotel project.  
+                          Useful when managing multiple reels.
+                      </span>
+                  </span>
+              </label>
+
+              <div class="session-row">
+                  <select id="sessionDropdown" class="select" style="flex:1;">
+                      <!-- Populated by JS -->
+                  </select>
+                  <button id="switchSessionBtn" class="btn small secondary">
+                      Switch
+                  </button>
+              </div>
+
+          </div>
+      </section>
+
+
+      <!-- ================================
+          SESSION MANAGER
+          ================================ -->
+      <section class="card" id="sessionManagerCard">
+          <div class="card-header">
+              <h2>
+                  Session Manager
+                  <span class="tooltip">ⓘ
+                      <span class="tooltiptext">
+                          View and remove entire session folders from S3.  
+                          Use this to clean up old hotel projects you no longer need.
+                      </span>
+                  </span>
+              </h2>
+              <p class="card-subtitle">
+                  Delete old sessions to keep your workspace clean.
+              </p>
+          </div>
+
+          <div class="card-body">
+              <button id="refreshSessionsBtn" class="btn ghost">↻ Refresh</button>
+
+              <ul id="sessionList" class="analysis-list">
+                  <!-- JS will insert:
+                      <li>SessionName <button class="delete"></button></li>
+                  -->
+              </ul>
+          </div>
+      </section>
+
 
     <section class="card" id="sessionManagerCard">
   <div class="card-header">

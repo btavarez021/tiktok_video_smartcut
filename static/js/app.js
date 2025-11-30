@@ -1300,6 +1300,169 @@ async function sendChat() {
     }
 }
 
+// ===========================================================
+// SESSION SYSTEM — FULL JS PATCH
+// ===========================================================
+
+// ---------------------------------------------
+// Store active session locally
+// ---------------------------------------------
+function setActiveSession(name) {
+    name = (name || "").trim();
+    if (!name) name = "default";
+
+    localStorage.setItem("activeSession", name);
+
+    const label = document.getElementById("activeSessionLabel");
+    if (label) label.textContent = name;
+
+    const dropdown = document.getElementById("sessionDropdown");
+    if (dropdown) dropdown.value = name;
+
+    console.log("[SESSION] Active session set:", name);
+}
+
+function getActiveSession() {
+    try {
+        return localStorage.getItem("activeSession") || "default";
+    } catch {
+        return "default";
+    }
+}
+
+
+// ---------------------------------------------
+// Load session list from backend
+// ---------------------------------------------
+async function loadSessions() {
+    try {
+        const res = await jsonFetch("/api/sessions", { method: "GET" });
+        const sessions = res.sessions || [];
+
+        populateSessionDropdown(sessions);
+        populateSessionList(sessions);
+    } catch (err) {
+        console.error("[SESSION] Failed loading sessions:", err);
+    }
+}
+
+
+// ---------------------------------------------
+// Populate dropdown to switch sessions
+// ---------------------------------------------
+function populateSessionDropdown(sessions) {
+    const dd = document.getElementById("sessionDropdown");
+    if (!dd) return;
+    dd.innerHTML = "";
+
+    sessions.forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s;
+        opt.textContent = s;
+        dd.appendChild(opt);
+    });
+
+    const active = getActiveSession();
+    if (sessions.includes(active)) {
+        dd.value = active;
+    }
+}
+
+
+// ---------------------------------------------
+// Populate session delete list UI
+// ---------------------------------------------
+function populateSessionList(sessions) {
+    const ul = document.getElementById("sessionList");
+    if (!ul) return;
+    ul.innerHTML = "";
+
+    sessions.forEach((s) => {
+        const li = document.createElement("li");
+        li.className = "analysis-item";
+        li.innerHTML = `
+            <span>${s}</span>
+            <button class="btn danger small deleteSessionBtn" data-s="${s}">
+                Delete
+            </button>
+        `;
+        ul.appendChild(li);
+    });
+}
+
+
+// ---------------------------------------------
+// Delete session handler
+// ---------------------------------------------
+async function deleteSession(name) {
+    if (!confirm(`Delete session '${name}' permanently?`)) return;
+
+    try {
+        await jsonFetch(`/api/session/${name}`, {
+            method: "DELETE",
+        });
+
+        // Clear if active session was deleted
+        if (getActiveSession() === name) {
+            setActiveSession("default");
+        }
+
+        await loadSessions();
+    } catch (err) {
+        console.error("[SESSION] Delete failed:", err);
+    }
+}
+
+
+// ---------------------------------------------
+// Attach event listeners
+// ---------------------------------------------
+function initSessionSystem() {
+
+    // --- Set session button ---
+    document.getElementById("setSessionBtn")?.addEventListener("click", () => {
+        const val = document.getElementById("sessionInput").value.trim();
+        if (!val) return;
+
+        setActiveSession(val);
+        loadSessions();
+    });
+
+    // --- Switch session ---
+    document.getElementById("switchSessionBtn")?.addEventListener("click", () => {
+        const dd = document.getElementById("sessionDropdown");
+        if (!dd) return;
+        setActiveSession(dd.value);
+    });
+
+    // --- Delete session buttons ---
+    document.addEventListener("click", (e) => {
+        const btn = e.target.closest(".deleteSessionBtn");
+        if (!btn) return;
+        const name = btn.dataset.s;
+        deleteSession(name);
+    });
+
+    // --- Refresh session list ---
+    document.getElementById("refreshSessionsBtn")?.addEventListener("click", () => {
+        loadSessions();
+    });
+
+    // Load active session on page load
+    const active = getActiveSession();
+    const label = document.getElementById("activeSessionLabel");
+    if (label) label.textContent = active;
+
+    // Initial load
+    loadSessions();
+}
+
+
+// ===========================================================
+// Boot on DOM ready
+// ================================
+
+
 // ================================
 // Init wiring
 // ================================
