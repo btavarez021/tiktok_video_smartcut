@@ -340,45 +340,53 @@ function initUploadUI() {
     });
 
     uploadBtn.addEventListener("click", () => {
-        if (!selectedFiles.length) return;
+    if (!selectedFiles.length) {
+        // Feedback message
+        setStatus("uploadStatus", "❗ Please select at least one video before uploading.", "error");
 
-        statusEl.textContent = "Uploading…";
-        progressWrapper.classList.remove("hidden");
-        progressBar.style.width = "0%";
+        // Optional small shake animation on the button
+        uploadBtn.classList.add("shake");
+        setTimeout(() => uploadBtn.classList.remove("shake"), 400);
 
-        const formData = new FormData();
-        selectedFiles.forEach((f) => formData.append("files", f));
+        return;
+    }
 
-        const xhr = new XMLHttpRequest();
-        const session = encodeURIComponent(getActiveSession());
-        xhr.open("POST", `/api/upload?session=${session}`);
+    statusEl.textContent = "Uploading…";
+    progressWrapper.classList.remove("hidden");
+    progressBar.style.width = "0%";
 
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-                const pct = (e.loaded / e.total) * 100;
-                progressBar.style.width = pct.toFixed(1) + "%";
-            }
-        };
+    const formData = new FormData();
+    selectedFiles.forEach((f) => formData.append("files", f));
 
-        xhr.onload = () => {
-            if (xhr.status === 200) {
-                const resp = JSON.parse(xhr.responseText);
-                statusEl.textContent = `✅ Uploaded ${
-                    resp.uploaded?.length || 0
-                } file(s).`;
-                progressBar.style.width = "100%";
-                loadUploadManager();
-            } else {
-                statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
-            }
-        };
+    const xhr = new XMLHttpRequest();
+    const session = encodeURIComponent(getActiveSession());
+    xhr.open("POST", `/api/upload?session=${session}`);
 
-        xhr.onerror = () => {
-            statusEl.textContent = "❌ Upload error.";
-        };
+    xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+            const pct = (e.loaded / e.total) * 100;
+            progressBar.style.width = pct.toFixed(1) + "%";
+        }
+    };
 
-        xhr.send(formData);
-    });
+    xhr.onload = () => {
+        if (xhr.status === 200) {
+            const resp = JSON.parse(xhr.responseText);
+            statusEl.textContent = `✅ Uploaded ${resp.uploaded?.length || 0} file(s).`;
+            progressBar.style.width = "100%";
+            loadUploadManager();
+        } else {
+            statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
+        }
+    };
+
+    xhr.onerror = () => {
+        statusEl.textContent = "❌ Upload error.";
+    };
+
+    xhr.send(formData);
+});
+
 }
 
 // ================================
