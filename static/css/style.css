@@ -1178,3 +1178,64 @@ h3 .style-check {
   opacity: 1;
 }
 
+/* ---------------------------------------
+   Tooltip System (Matches Your Dark Theme)
+---------------------------------------- */
+.tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: help;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    opacity: 0.8;
+    margin-left: 4px;
+    user-select: none;
+}
+
+.tooltip:hover {
+    opacity: 1;
+}
+
+/* Tooltip bubble */
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 240px;
+    max-width: 260px;
+    background: #1f1f21;
+    color: var(--text);
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #333;
+
+    position: absolute;
+    z-index: 9999;
+
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+
+    font-size: 0.8rem;
+    line-height: 1.35;
+
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+/* Tooltip arrow */
+.tooltip .tooltiptext::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: #1f1f21 transparent transparent transparent;
+}
+
+/* Show tooltip */
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
