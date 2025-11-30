@@ -220,8 +220,11 @@ def route_save_captions():
 def route_export():
     data = request.get_json() or {}
     optimized = bool(data.get("optimized", False))
-    # session value is accepted from JS but currently not used in api_export.
-    result = api_export(optimized=optimized)
+
+    # get active session from client (if sent), and sanitize it
+    session = sanitize_session(data.get("session", "default"))
+
+    result = api_export(optimized=optimized, session=session)
     return jsonify(result)
 
 
@@ -328,9 +331,21 @@ def route_set_layout():
 @app.route("/api/fgscale", methods=["POST"])
 def route_fgscale():
     data = request.get_json() or {}
-    value = float(data.get("value", 1.0))
-    result = api_fgscale(value)
+
+    session = sanitize_session(data.get("session", "default"))
+    fgscale_mode = data.get("fgscale_mode", "manual")
+    fgscale = data.get("fgscale", None)
+
+    # convert fgscale to float if present
+    if fgscale is not None:
+        try:
+            fgscale = float(fgscale)
+        except:
+            return jsonify({"status": "error", "error": "Invalid fgscale value"})
+
+    result = api_fgscale(session, fgscale_mode, fgscale)
     return jsonify(result)
+
 
 
 # ---------------------------------

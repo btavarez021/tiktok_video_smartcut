@@ -23,6 +23,9 @@ from s3_config import (
 
 # Import ONLY non-circular functions from tiktok_assistant
 from tiktok_assistant import (
+    merge_session_config_into,
+    load_session_config,
+    save_session_config,
     generate_signed_download_url,
     list_videos_from_s3,
     download_s3_video,
@@ -355,8 +358,12 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
             render["layout_mode"] = "tiktok"
 
         # NOTE: still using a single global config_path for now
+        # Apply session overrides (fgscale, etc.)
+        cfg = merge_session_config_into(cfg, session)
+
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
+
 
         log_success("[YAML]", "Generated and saved config.yml")
         return cfg
@@ -389,8 +396,14 @@ def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
         cfg = yaml.safe_load(yaml_text) or {}
         cfg = sanitize_yaml_filenames(cfg)
 
+        # Apply session overrides
+        session = request.args.get("session", "default")
+        session = backend_sanitize_session(session)
+        cfg = merge_session_config_into(cfg, session)
+
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
+
 
         log_success("[SAVE_YAML]", "config.yml saved successfully")
         return {"status": "ok"}
@@ -451,7 +464,10 @@ def api_save_captions(text: str) -> Dict[str, Any]:
 # -------------------------------
 # EXPORT (global config, session-agnostic)
 # -------------------------------
-def api_export(optimized: bool = False) -> Dict[str, Any]:
+# -------------------------------
+# EXPORT (global config, session-aware)
+# -------------------------------
+def api_export(optimized: bool = False, session: str = "default") -> Dict[str, Any]:
     if not os.path.exists(config_path):
         msg = "config.yml not found"
         log_error("[EXPORT]", Exception(msg))
@@ -461,6 +477,24 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
         mode = _EXPORT_MODE
         log_step(f"[EXPORT] Rendering in {mode.upper()} mode (optimized={optimized})")
 
+        # Inject session-specific overrides BEFORE rendering
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+
+            # sanitize session coming from caller
+            session = sanitize_session(session)
+
+            # merge per-session config (fgscale, etc.)
+            cfg = merge_session_config_into(cfg, session)
+
+            with open(config_path, "w", encoding="utf-8") as f:
+                yaml.safe_dump(cfg, f, sort_keys=False)
+
+        except Exception as e:
+            log_error("[EXPORT][SESSION MERGE]", e)
+
+        # Now render with merged config.yml
         out_path = edit_video(optimized=optimized)
         if not out_path:
             raise RuntimeError("edit_video() returned no output path")
@@ -489,6 +523,7 @@ def api_export(optimized: bool = False) -> Dict[str, Any]:
     except Exception as e:
         log_error("[EXPORT]", e)
         return {"status": "error", "error": str(e)}
+
 
 
 # -------------------------------
@@ -567,16 +602,33 @@ def api_set_layout(mode: str) -> Dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 
-def api_fgscale(value: float) -> Dict[str, Any]:
+def api_fgscale(session: str, fgscale_mode: str, fgscale: float | None) -> Dict[str, Any]:
+    """
+    Save foreground scale settings for a specific session.
+
+    fgscale_mode: "auto" or "manual"
+    fgscale: float value when manual, or None when auto.
+    """
     try:
-        cfg = _load_config_for_mutation()
-        r = cfg.setdefault("render", {})
-        r["fg_scale_default"] = float(value)
-        _save_config(cfg)
-        log_success("[FGSCALE]", f"Applied {value}")
-        return {"status": "ok", "render": r}
+        # Load session config
+        cfg = load_session_config(session)
+        render_cfg = cfg.get("render", {})
+
+        # Apply changes
+        render_cfg["fgscale_mode"] = fgscale_mode
+        render_cfg["fgscale"] = fgscale  # can be None
+
+        cfg["render"] = render_cfg
+
+        # Save updated config
+        save_session_config(session, cfg)
+
+        log_success("[FGSCALE]", f"({session}) mode={fgscale_mode} value={fgscale}")
+        return {"status": "ok", "render": render_cfg}
+
     except Exception as e:
         return {"status": "error", "error": str(e)}
+
 
 
 # -------------------------------

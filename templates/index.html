@@ -595,13 +595,26 @@
                     <div id="musicStatus" class="status-text status-info"></div>
 
                     <h3>Foreground Scale</h3>
+                    <p class="card-subtitle">
+                      Automatically zooms videos to remove thick blur borders. Turn off to manually set zoom.
+                    </p>
 
-                    <label class="field-label">Default zoom</label>
-                    <input id="fgScale" type="range" min="0.8" max="1.3" step="0.05" value="1.0" />
-                    <div class="range-value"><span id="fgScaleValue">1.0</span>x</div>
+                    <div class="checkbox-row">
+                      <input type="checkbox" id="autoFgScale" checked />
+                      <label for="autoFgScale">Auto Zoom (recommended)</label>
+                    </div>
 
-                    <button id="saveFgScaleBtn" class="btn ghost">💾 Save scale</button>
+                    <!-- Slider only shown when auto is OFF -->
+                    <div id="manualFgScaleContainer">
+                      <label class="field-label">Manual Zoom</label>
+                      <input id="fgScale" type="range" min="0.8" max="1.3" step="0.05" value="1.0" />
+                      <div class="range-value"><span id="fgScaleValue">1.0</span>x</div>
+                      
+                      <button id="saveFgScaleBtn" class="btn ghost">💾 Save scale</button>
+                    </div>
+
                     <div id="fgStatus" class="status-text status-info"></div>
+
 
                 </div>
             </div>

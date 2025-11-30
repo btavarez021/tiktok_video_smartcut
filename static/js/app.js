@@ -1112,11 +1112,8 @@ function initMusicPreview() {
 
 // Foreground scale
 async function saveFgScale() {
-    const range = document.getElementById("fgScale");
-    const statusEl = document.getElementById("fgStatus");
-    if (!range || !statusEl) return;
-
-    const value = parseFloat(range.value || "1.0");
+    const auto = document.getElementById("autoFgScale")?.checked;
+    const fg = parseFloat(document.getElementById("fgScale")?.value || "1.0");
 
     setStatus("fgStatus", "Saving foreground scale…", "info");
 
@@ -1124,22 +1121,22 @@ async function saveFgScale() {
         await jsonFetch("/api/fgscale", {
             method: "POST",
             body: JSON.stringify({
-                value,
                 session: getActiveSession(),
+                fgscale_mode: auto ? "auto" : "manual",
+                fgscale: auto ? null : fg
             }),
         });
 
         setStatus("fgStatus", "Foreground scale saved.", "success");
+
+        // Reload YAML so UI reflects updated render settings
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        setStatus(
-            "fgStatus",
-            "Error saving scale: " + err.message,
-            "error"
-        );
+        setStatus("fgStatus", "Error saving scale: " + err.message, "error");
     }
 }
+
 
 function initFgScaleSlider() {
     const range = document.getElementById("fgScale");
@@ -1151,6 +1148,30 @@ function initFgScaleSlider() {
         label.textContent = range.value;
     });
 }
+
+const autoFgScaleEl = document.getElementById("autoFgScale");
+const manualFgContainer = document.getElementById("manualFgScaleContainer");
+const fgScaleEl = document.getElementById("fgScale");
+const fgScaleValue = document.getElementById("fgScaleValue");
+
+// Hide slider if auto enabled
+function updateFgScaleUI() {
+    if (autoFgScaleEl.checked) {
+        manualFgContainer.classList.add("hidden");
+    } else {
+        manualFgContainer.classList.remove("hidden");
+    }
+}
+
+// Bind change event
+autoFgScaleEl.addEventListener("change", () => {
+    updateFgScaleUI();
+});
+
+// Update label
+fgScaleEl.addEventListener("input", () => {
+    fgScaleValue.textContent = fgScaleEl.value;
+});
 
 // ================================
 // Step 5: Export (PATCHED + SESSION)
@@ -1412,7 +1433,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document
         .getElementById("chatSendBtn")
         ?.addEventListener("click", sendChat);
-        
+
     document.getElementById("refreshSessionsBtn").addEventListener("click", loadSessions);
 
 });

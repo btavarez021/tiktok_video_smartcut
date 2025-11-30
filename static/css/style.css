@@ -1242,3 +1242,7 @@ h3 .style-check {
     visibility: visible;
     opacity: 1;
 }
+
+#manualFgScaleContainer.hidden {
+    display: none;
+}

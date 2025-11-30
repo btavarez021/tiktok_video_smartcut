@@ -256,7 +256,71 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
 
     return "\n".join(lines)
 
+SESSION_CONFIG_DIR = "session_configs"
 
+def ensure_session_config_dir():
+    os.makedirs(SESSION_CONFIG_DIR, exist_ok=True)
+
+
+def session_config_path(session: str) -> str:
+    ensure_session_config_dir()
+    safe = session.replace("/", "_")
+    return os.path.join(SESSION_CONFIG_DIR, f"{safe}.yml")
+
+
+def load_session_config(session: str) -> dict:
+    """
+    Load YAML config for a specific session (hotel).
+    If not found, return an empty default config.
+    """
+    ensure_session_config_dir()
+    path = session_config_path(session)
+
+    if not os.path.exists(path):
+        return {}  # brand new session, no config yet
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+
+def save_session_config(session: str, cfg: dict):
+    """
+    Save YAML config for a specific session.
+    """
+    ensure_session_config_dir()
+    path = session_config_path(session)
+
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
+
+# =========================================
+# SESSION → GLOBAL CONFIG MERGER
+# =========================================
+def merge_session_config_into(cfg: dict, session: str) -> dict:
+    """
+    Return a config.yml dict with session-specific overrides applied.
+    Only touches the 'render' section for now.
+    """
+    try:
+        s_cfg = load_session_config(session)
+        if not isinstance(s_cfg, dict):
+            return cfg
+
+        s_render = s_cfg.get("render", {})
+        if not s_render:
+            return cfg
+
+        render = cfg.setdefault("render", {})
+        for k, v in s_render.items():
+            render[k] = v
+
+        return cfg
+
+    except Exception:
+        return cfg
 
 # -----------------------------------------
 # Save analysis to memory + disk
