@@ -165,28 +165,22 @@ def delete_upload_s3(key: str) -> Dict[str, Any]:
     return {"ok": True}
 
 def list_sessions():
-    """
-    Return a list of session folder names under raw_uploads/.
-    Works even if RAW_PREFIX has trailing slash or not.
-    """
-    # Normalize RAW_PREFIX to "raw_uploads/"
-    prefix = RAW_PREFIX.rstrip("/") + "/"
-
-    resp = s3.list_objects_v2(
+    response = s3.list_objects_v2(
         Bucket=S3_BUCKET_NAME,
-        Prefix=prefix,
+        Prefix=f"{RAW_PREFIX}",   # e.g. "raw_uploads/"
         Delimiter="/"
     )
 
-    sessions = []
-    for p in resp.get("CommonPrefixes", []):
-        full_prefix = p["Prefix"]              # raw_uploads/mgm_grand/
-        session_name = full_prefix[len(prefix):].rstrip("/")  # mgm_grand
+    folders = []
+    for cp in response.get("CommonPrefixes", []):
+        prefix = cp.get("Prefix")
+        # remove the raw_uploads/ prefix
+        session = prefix.replace(RAW_PREFIX, "").strip("/")
+        if session:
+            folders.append(session)
 
-        if session_name:
-            sessions.append(session_name)
+    return folders
 
-    return sessions
 
 def delete_session(session):
     """Delete an entire session folder from S3."""
