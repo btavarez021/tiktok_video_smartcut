@@ -105,27 +105,34 @@ function setActiveSession(name) {
     loadSessions();
 }
 
-// ================================
-// SIDEBAR SESSION MANAGER
-// ================================
+/* =========================================
+        SIDEBAR SESSION MANAGER v2
+========================================= */
 
-// Load sessions into sidebar dropdown
-async function loadSidebarDropdown() {
+function sidebarToast(msg) {
+    const area = document.getElementById("sidebarSessionToastArea");
+    if (!area) return;
+
+    const div = document.createElement("div");
+    div.className = "sidebar-toast";
+    div.textContent = msg;
+
+    area.appendChild(div);
+    setTimeout(() => div.classList.add("fade-out"), 1300);
+    setTimeout(() => div.remove(), 1600);
+}
+
+async function sidebarLoadSessions() {
     try {
         const res = await fetch("/api/sessions");
         const data = await res.json();
+
         const ddl = document.getElementById("sidebarSessionDropdown");
         if (!ddl) return;
 
         ddl.innerHTML = "";
-        const sessions = data.sessions || [];
 
-        if (sessions.length === 0) {
-            ddl.innerHTML = `<option value="">(no sessions yet)</option>`;
-            return;
-        }
-
-        sessions.forEach((s) => {
+        (data.sessions || []).forEach((s) => {
             const opt = document.createElement("option");
             opt.value = s;
             opt.textContent = s;
@@ -133,71 +140,65 @@ async function loadSidebarDropdown() {
         });
 
         ddl.value = getActiveSession();
-    } 
-    catch (e) { console.error("Sidebar dropdown err:", e); }
+    } catch (err) {
+        console.error("Failed loading sessions:", err);
+    }
 }
 
-
-// Sync sidebar label with app
-function updateSidebarLabel() {
-    const label = document.getElementById("sidebarSessionLabel");
-    if (label) label.textContent = getActiveSession();
+function sidebarSyncActiveLabel() {
+    document.getElementById("sidebarActiveSession").textContent = getActiveSession();
 }
 
+/* Create Session */
+document.getElementById("sidebarCreateBtn")?.addEventListener("click", () => {
+    const input = document.getElementById("sidebarNewSessionInput");
+    const name = input.value.trim();
 
-// Toast for sidebar
-function showSidebarToast(msg) {
-    const area = document.getElementById("sidebarSessionToastArea");
-    if (!area) return;
-
-    const toast = document.createElement("div");
-    toast.className = "session-sidebar-toast";
-    toast.textContent = msg;
-    area.appendChild(toast);
-
-    setTimeout(() => toast.classList.add("fade-out"), 1500);
-    setTimeout(() => toast.remove(), 1800);
-}
-
-
-// Sidebar switch handler
-document.getElementById("sidebarSwitchBtn")?.addEventListener("click", () => {
-    const ddl = document.getElementById("sidebarSessionDropdown");
-    if (!ddl) return;
-
-    const selected = ddl.value || "default";
-
-    // Change session
-    setActiveSession(selected);
-
-    // Sync both dropdowns + labels in the app
-    loadSidebarDropdown();
-    loadSessionDropdown();
-    updateSidebarLabel();
-
-    const mainLabel = document.getElementById("activeSessionLabel");
-    if (mainLabel) {
-        mainLabel.classList.add("session-pulse");
-        setTimeout(() => mainLabel.classList.remove("session-pulse"), 800);
+    if (!name) {
+        input.classList.add("shake");
+        setTimeout(() => input.classList.remove("shake"), 300);
+        return;
     }
 
-    // Sidebar pulse
-    const sidebarLabel = document.getElementById("sidebarSessionLabel");
-    if (sidebarLabel) {
-        sidebarLabel.classList.add("sidebar-session-pulse");
-        setTimeout(() => sidebarLabel.classList.remove("sidebar-session-pulse"), 800);
-    }
+    setActiveSession(name);
+    sidebarLoadSessions();
+    sidebarSyncActiveLabel();
 
-    // Toasts
-    showSidebarToast(`Switched to “${selected}”`);
-    showSessionToast?.(`Switched to “${selected}”`);
+    sidebarToast(`Created & switched to “${name}”`);
+    input.value = "";
 });
 
+/* Switch Session */
+document.getElementById("sidebarSwitchBtn")?.addEventListener("click", () => {
+    const ddl = document.getElementById("sidebarSessionDropdown");
+    if (ddl.value) {
+        setActiveSession(ddl.value);
+        sidebarSyncActiveLabel();
+        sidebarToast(`Switched to “${ddl.value}”`);
+    }
+});
 
-// Ensure sidebar stays synced on page load
+/* Delete Session */
+document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () => {
+    const session = getActiveSession();
+    if (session === "default") {
+        sidebarToast("Cannot delete default");
+        return;
+    }
+
+    await fetch(`/api/session/${session}`, { method: "DELETE" });
+
+    setActiveSession("default");
+    sidebarLoadSessions();
+    sidebarSyncActiveLabel();
+
+    sidebarToast(`Deleted session “${session}”`);
+});
+
+/* Init on page load */
 document.addEventListener("DOMContentLoaded", () => {
-    loadSidebarDropdown();
-    updateSidebarLabel();
+    sidebarLoadSessions();
+    sidebarSyncActiveLabel();
 });
 
 

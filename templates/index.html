@@ -61,118 +61,9 @@
 
         <!-- LEFT MAIN COLUMN -->
         <section class="main-column">
-
-            <!-- ================================
-                 SESSION CONTROL CENTER
-            ================================== -->
-            <section class="card session-bar">
-                <div class="card-header">
-                    <h2>
-                        Session / Hotel
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                A session keeps clips grouped by hotel/trip.<br>
-                                Example: “MGM Grand 2025” or “Ritz Cancun Beach Wing”.<br>
-                                Each session exports its own reel.
-                            </span>
-                        </span>
-                    </h2>
-                    <p class="card-subtitle">
-                        Organize your videos by hotel stay or trip.<br>
-                        Switch sessions anytime — nothing gets mixed.
-                    </p>
-                </div>
-
-                <div class="card-body">
-
-                    <!-- Create / Activate Session -->
-                    <label class="field-label" for="sessionInput">
-                        Create or set active session
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Enter a new session name or an existing one.<br>
-                                It becomes your active workspace and uploads go into that folder.
-                            </span>
-                        </span>
-                    </label>
-
-                    <div class="session-row">
-                        <input
-                            id="sessionInput"
-                            class="input"
-                            type="text"
-                            placeholder="e.g. MGM Grand 2025"
-                        />
-                        <button id="setSessionBtn" class="btn secondary">
-                            Set active session
-                        </button>
-                    </div>
-
-                    <p class="hint-text">
-                        Active session:
-                        <strong><span id="activeSessionLabel">default</span></strong>
-                    </p>
-
-                    <hr style="opacity: 0.15; margin: 18px 0;" />
-
-                    <!-- Quick Switch Dropdown -->
-                    <label class="field-label" for="sessionDropdown">
-                        Switch to another session
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Quickly jump into another hotel project.<br>
-                                Useful when managing multiple reels.
-                            </span>
-                        </span>
-                    </label>
-
-                   <div class="session-row">
-                      <div class="select-wrapper" style="flex:1;">
-                          <select id="sessionDropdown" class="select">
-                              <!-- Populated by JS -->
-                          </select>
-                      </div>
-                      <button id="switchSessionBtn" class="btn small secondary">
-                          Switch
-                      </button>
-                  </div>
-
-                  <div id="sessionToastArea"></div>
-
-                </div>
-            </section>
-
-            <!-- ================================
-                 SESSION MANAGER (Accordion)
-            ================================== -->
-            <section class="card subtle-card" id="sessionManagerCard">
-                <div class="header-row" onclick="toggleSessionManager()">
-                    <h2>
-                        Session Manager
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Manage all hotel sessions stored in S3.<br>
-                                Delete old ones to keep your workspace clean.
-                            </span>
-                        </span>
-                    </h2>
-                    <span id="sessionManagerToggle" class="collapse-icon">▼</span>
-                </div>
-
-                <div id="sessionManagerContent" class="collapsed">
-                    <p class="hint-text">
-                        These are all sessions stored in S3.<br>
-                        Deleting one removes raw + processed clips.
-                    </p>
-
-                    <button id="refreshSessionsBtn" class="btn ghost small">↻ Refresh</button>
-
-                    <ul id="sessionList" class="analysis-list" style="margin-top:12px;">
-                        <!-- JS populates -->
-                    </ul>
-                </div>
-            </section>
-
+          
+            
+        
             <!-- ================================
                  STEP 1
             ================================== -->
@@ -767,42 +658,52 @@
         <!-- RIGHT SIDEBAR -->
         <aside class="side-column">
 
-          <!-- SESSION MANAGER (SIDEBAR) -->
-          <section class="card session-sidebar-card">
+          <!-- ================================
+              SIDEBAR SESSION MANAGER v2
+          ================================ -->
+          <section id="sidebarSessionCard" class="card session-card">
               <div class="card-header">
                   <h2>Session Manager</h2>
                   <p class="card-subtitle">
-                      Switch hotels instantly. Linked to Steps 1–5.
+                      Manage your video sessions — always visible.
                   </p>
               </div>
 
               <div class="card-body">
 
-                  <!-- Active session label -->
-                  <div class="session-sidebar-active">
-                      Active:
-                      <strong id="sidebarSessionLabel">default</strong>
+                  <!-- Active Session Display -->
+                  <div class="active-session-box">
+                      <p class="label">Active session:</p>
+                      <div id="sidebarActiveSession" class="active-session-name">default</div>
                   </div>
 
-                  <div class="divider"></div>
-
-                  <!-- Switch dropdown -->
-                  <label class="field-label">Switch session</label>
+                  <!-- Create New Session -->
+                  <label class="field-label" for="sidebarNewSessionInput">Create new session</label>
                   <div class="session-row">
-                      <div class="select-wrapper" style="flex:1;">
-                          <select id="sidebarSessionDropdown" class="select">
-                              <!-- JS populates -->
-                          </select>
-                      </div>
-                      <button id="sidebarSwitchBtn" class="btn small secondary">
-                          Switch
-                      </button>
+                      <input id="sidebarNewSessionInput" class="input" type="text" placeholder="e.g. Ritz Cancun 2025" />
+                      <button id="sidebarCreateBtn" class="btn secondary small">Create</button>
                   </div>
 
-                  <!-- Toast area for sidebar -->
+                  <hr class="section-divider" />
+
+                  <!-- Switch Session -->
+                  <label class="field-label" for="sidebarSessionDropdown">Switch session</label>
+                  <div class="session-row">
+                      <select id="sidebarSessionDropdown" class="select">
+                          <!-- Populated by JS -->
+                      </select>
+                      <button id="sidebarSwitchBtn" class="btn secondary small">Switch</button>
+                  </div>
+
+                  <!-- Delete Session -->
+                  <button id="sidebarDeleteBtn" class="btn ghost full" style="margin-top:12px; color:#ff6b6b;">
+                      Delete Active Session
+                  </button>
+
                   <div id="sidebarSessionToastArea"></div>
               </div>
           </section>
+
 
 
             <!-- Live Log -->

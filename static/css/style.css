@@ -1432,52 +1432,48 @@ h3 {
 }
 
 /* ================================
-   SESSION SIDEBAR (Desktop only)
+   SIDEBAR SESSION MANAGER v2
 ================================ */
-
-.session-sidebar-card {
-    display: block;
+.session-card .active-session-box {
+    background: #242426;
+    border: 1px solid #333;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 14px;
 }
 
-@media (max-width: 900px) {
-    /* Hide sidebar version on mobile */
-    .session-sidebar-card {
-        display: none !important;
-    }
-}
-
-.session-sidebar-active {
-    font-size: 0.85rem;
-    margin-bottom: 10px;
+.session-card .active-session-box .label {
+    font-size: 0.8rem;
     color: var(--text-dim);
+    margin: 0;
 }
 
-/* Pulse for label */
-.sidebar-session-pulse {
-    background: linear-gradient(90deg, #7f5cff, #9c77ff);
-    color: white !important;
-    padding: 2px 6px;
-    border-radius: 6px;
-    animation: pulseGlow 0.8s ease-out;
+.active-session-name {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-top: 6px;
+    color: var(--primary);
 }
 
-/* Toast mini messages */
-#sidebarSessionToastArea {
-    margin-top: 10px;
+.session-card .session-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-.session-sidebar-toast {
+/* Toast */
+.sidebar-toast {
     background: #7f5cff;
     color: white;
-    padding: 6px 12px;
+    padding: 8px 14px;
     border-radius: 8px;
-    font-size: 13px;
-    margin-top: 6px;
+    font-size: 14px;
+    margin-top: 8px;
     animation: toastPop 0.25s ease-out;
 }
 
-.session-sidebar-toast.fade-out {
-    opacity: 0;
-    transform: translateY(-3px);
-    transition: opacity 0.25s, transform 0.25s;
+@keyframes toastPop {
+    from { opacity: 0; transform: translateY(6px) scale(0.94); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
