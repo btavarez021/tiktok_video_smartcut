@@ -1546,6 +1546,37 @@ async function sendChat() {
 // ================================
 document.addEventListener("DOMContentLoaded", () => {
 
+    /* ---------------------------------------
+       MOBILE SESSION TOGGLE (OPEN + CLOSE)
+    ----------------------------------------*/
+
+    const mobileSessionBtn = document.getElementById("mobileSessionBtn");
+    const sidebarPanel = document.getElementById("sidebarSessionCard");
+    const mobileCloseBtn = document.getElementById("mobileCloseSessionBtn");
+
+    // Open slide-up panel
+    mobileSessionBtn?.addEventListener("click", () => {
+        sidebarPanel.classList.add("open");
+    });
+
+    // Close using X button
+    mobileCloseBtn?.addEventListener("click", () => {
+        sidebarPanel.classList.remove("open");
+    });
+
+    // Tap outside to close panel
+    document.addEventListener("click", (e) => {
+        if (!sidebarPanel.classList.contains("open")) return;
+
+        const clickedInside =
+            sidebarPanel.contains(e.target) ||
+            e.target === mobileSessionBtn;
+
+        if (!clickedInside) {
+            sidebarPanel.classList.remove("open");
+        }
+    });  
+
   /* ---------------------------------------
    SIDEBAR SESSION MANAGER (FIXED)
 ----------------------------------------*/
@@ -1611,14 +1642,19 @@ document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () 
     sidebarToast(`Deleted session “${session}”`);
 });
 
+// Tap outside to close
+document.addEventListener("click", (e) => {
+    if (!sidebarPanel.classList.contains("open")) return;
 
+    const clickedInside =
+        sidebarPanel.contains(e.target) ||
+        e.target === mobileSessionBtn;
 
-const mobileSessionBtn = document.getElementById("mobileSessionBtn");
-const sidebarPanel = document.getElementById("sidebarSessionCard");
-
-mobileSessionBtn?.addEventListener("click", () => {
-    sidebarPanel.classList.add("open");
+    if (!clickedInside) {
+        sidebarPanel.classList.remove("open");
+    }
 });
+
 
 // Close when clicking outside panel
 document.addEventListener("click", (e) => {

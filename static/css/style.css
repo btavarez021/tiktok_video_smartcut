@@ -1525,6 +1525,18 @@ h3 {
     }
 }
 
+.mobile-close-btn {
+    width: 100%;
+    background: #222;
+    color: #fff;
+    padding: 12px 0;
+    border-radius: 10px;
+    border: 1px solid #333;
+    margin-bottom: 14px;
+    font-size: 16px;
+}
+
+
 /* ================================
    DESKTOP ONLY (hide mobile button)
 ================================ */
@@ -1533,4 +1545,29 @@ h3 {
         display: none !important;
     }
 }
+
+/* ================================
+   DESKTOP: keep sidebar in place
+================================ */
+@media (min-width: 769px) {
+    #sidebarSessionCard {
+        position: sticky;
+        top: 20px;
+
+        width: 100%;
+        max-height: calc(100vh - 40px);
+
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+        overflow-y: auto;
+
+        transform: none !important; /* override mobile slide */
+        box-shadow: none; 
+        z-index: auto; /* normal layering */
+    }
+}
+
+
 
