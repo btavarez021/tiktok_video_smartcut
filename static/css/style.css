@@ -3056,7 +3056,7 @@ h3 {
         top: 20px;
 
         width: 100%;
-        max-height: calc(100vh - 40px);
+        max-height: none;
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 12px;
