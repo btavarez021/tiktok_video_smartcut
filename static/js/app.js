@@ -12,6 +12,7 @@ let ACTIVE_SESSION = "default";
 // Session helpers
 // -------------------------
 
+
 function updateSessionLabels() {
     const labels = document.querySelectorAll(".sessionLabel");
     labels.forEach(l => l.textContent = ACTIVE_SESSION || "default");
@@ -56,35 +57,73 @@ function setActiveSession(name) {
     const safe = sanitizeSessionName(name);
     ACTIVE_SESSION = safe;
 
-    // Persist between refreshes
+    // persist
     try {
         localStorage.setItem("activeSession", ACTIVE_SESSION);
-    } catch (e) {
-        console.warn("localStorage not available for session persistence", e);
+    } catch {}
+
+    // Update label
+    const label = document.getElementById("activeSessionLabel");
+    if (label) {
+        label.textContent = ACTIVE_SESSION;
+        label.classList.remove("session-active-flash");
+        void label.offsetWidth; // force reflow to restart animation
+        label.classList.add("session-active-flash");
     }
 
-    const label = document.getElementById("activeSessionLabel");
-    const input = document.getElementById("sessionInput");
-    if (label) label.textContent = ACTIVE_SESSION;
-    if (input && input.value !== ACTIVE_SESSION) input.value = ACTIVE_SESSION;
+    // highlight dropdown if switching also triggers update
+    const ddl = document.getElementById("sessionDropdown");
+    if (ddl) {
+        ddl.value = ACTIVE_SESSION;
+        ddl.classList.remove("session-pulse");
+        void ddl.offsetWidth;
+        ddl.classList.add("session-pulse");
+    }
+
+    // toast message
+    const toastArea = document.getElementById("sessionToastArea");
+    if (toastArea) {
+        toastArea.innerHTML = `
+            <div class="session-toast">
+                ✓ Active session changed to <strong>${ACTIVE_SESSION}</strong>
+            </div>
+        `;
+        setTimeout(() => (toastArea.innerHTML = ""), 2600);
+    }
 
     console.log("[SESSION] Active:", ACTIVE_SESSION);
-    
-    // Reload upload manager for this session
+
+    // UI refresh actions
     loadUploadManager();
-
-    // CLEAR old analyses UI immediately so outdated items disappear
-    clearAnalysisUI()
-
-    // Refresh analyses + config view for this session
+    clearAnalysisUI();
     refreshAnalyses();
     loadConfigAndYaml();
-    updateSessionLabels();
+    loadSessionDropdown();
+    loadSessions();
 }
+
 
 // ================================
 // Utility helpers
 // ================================
+
+
+function showSessionToast(msg) {
+    const area = document.getElementById("sessionToastArea");
+    if (!area) return;
+
+    const el = document.createElement("div");
+    el.className = "session-toast";
+    el.textContent = msg;
+
+    area.appendChild(el);
+
+    setTimeout(() => {
+        el.classList.add("fade-out");
+        setTimeout(() => el.remove(), 500);
+    }, 1300);
+}
+
 
 // EXPORT URL helper – checks if S3 link is live
 async function probeUrl(url) {
@@ -1622,9 +1661,33 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("switchSessionBtn")?.addEventListener("click", () => {
     const ddl = document.getElementById("sessionDropdown");
     if (!ddl) return;
+
     const selected = ddl.value || "default";
+
+    // 1. Switch
     setActiveSession(selected);
     loadSessionDropdown();
+
+    // 2. Highlight Active Label
+    const label = document.getElementById("activeSessionLabel");
+    if (label) {
+        label.classList.add("session-pulse");
+        setTimeout(() => label.classList.remove("session-pulse"), 800);
+    }
+
+    // 3. Dropdown Pulse
+    ddl.classList.add("session-ddl-pulse");
+    setTimeout(() => ddl.classList.remove("session-ddl-pulse"), 600);
+
+    // 4. Show Toast
+    showSessionToast(`Switched to “${selected}”`);
+
+    // 5. (Optional) Scroll to Upload Manager
+    const uploadSection = document.getElementById("uploadManagerContent");
+    if (uploadSection) {
+        uploadSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
 });
+
 
 });

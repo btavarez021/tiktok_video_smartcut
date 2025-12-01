@@ -1327,3 +1327,67 @@ h3 {
         margin-top: 12px;
     }
 }
+
+
+/* ===========================
+   SESSION MANAGER ENHANCEMENTS
+   =========================== */
+
+/* Pulse on active session label */
+.session-pulse {
+    background: linear-gradient(90deg, #7f5cff, #9c77ff);
+    color: white !important;
+    padding: 2px 8px;
+    border-radius: 6px;
+    animation: pulseGlow 0.8s ease-out;
+}
+
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 0px #7f5cff; }
+    50% { box-shadow: 0 0 12px #a08cff; }
+    100% { box-shadow: 0 0 0px transparent; }
+}
+
+/* Dropdown confirm pulse */
+.session-ddl-pulse {
+    animation: ddlPulse 0.6s ease-out;
+}
+
+@keyframes ddlPulse {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.04); }
+    100% { transform: scale(1); }
+}
+
+/* Toast notification */
+#sessionToastArea {
+    margin-top: 12px;
+    position: relative;
+}
+
+.session-toast {
+    background: #7f5cff;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-top: 6px;
+    animation: toastPop 0.25s ease-out;
+}
+
+@keyframes toastPop {
+    from { 
+        opacity: 0; 
+        transform: translateY(4px) scale(0.96); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+    }
+}
+
+.session-toast.fade-out {
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.3s, transform 0.3s;
+}
