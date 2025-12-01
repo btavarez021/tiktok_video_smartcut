@@ -1782,6 +1782,17 @@ textarea::-webkit-scrollbar-thumb,
     display: flex;
     flex-direction: column;
     gap: 22px;
+
+    /* Needed so content doesn't slide behind sticky session panel */
+    position: relative;
+    z-index: 1;
+}
+
+/* Add layout padding so main content never scrolls under the sticky sidebar */
+@media (min-width: 769px) {
+    .layout {
+        padding-right: 360px; /* sidebar width + safe margin */
+    }
 }
 
 .log-card,
