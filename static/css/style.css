@@ -1521,5 +1521,51 @@ h3 {
     }
 }
 
+/* Desktop only — hide mobile close button */
+@media (min-width: 769px) {
+    .mobile-close-btn {
+        display: none !important;
+    }
+}
+
+/* ================================
+   DESKTOP ONLY (hide mobile button)
+================================ */
+@media (min-width: 769px) {
+    .mobile-session-btn {
+        display: none !important;
+    }
+}
+
+/* ================================
+   DESKTOP: keep sidebar in place
+================================ */
+@media (min-width: 769px) {
+    #sidebarSessionCard {
+        position: sticky;
+        top: 20px;
+
+        width: 100%;
+        max-height: calc(100vh - 40px);
+
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+        overflow-y: auto;
+
+        transform: none !important; /* override mobile slide */
+        box-shadow: none; 
+        z-index: auto; /* normal layering */
+    }
+}
+
+/* Desktop only — hide mobile close button */
+@media (min-width: 769px) {
+    .mobile-close-btn {
+        display: none !important;
+    }
+}
+
 
 
