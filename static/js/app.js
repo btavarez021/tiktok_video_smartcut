@@ -1690,8 +1690,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ddlWrapper.classList.add("session-ddl-pulse");
         setTimeout(() => ddlWrapper.classList.remove("session-ddl-pulse"), 600);
     }
-
-
+    
     // 4. Toast
     showSessionToast(`Switched to “${selected}”`);
 });

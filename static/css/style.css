@@ -1072,10 +1072,15 @@ h3 {
 }
 
 /* Session dropdown z-index fix */
-.session-bar,
-#sessionDropdown {
+.session-bar {
     position: relative;
     z-index: 9999 !important;
+}
+
+/* Remove z-index from the select element itself */
+#sessionDropdown {
+    position: relative;
+    z-index: auto !important;
 }
 
 /* Drop step-card below session UI */
