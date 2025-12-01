@@ -57,16 +57,42 @@ function setActiveSession(name) {
     const safe = sanitizeSessionName(name);
     ACTIVE_SESSION = safe;
 
+    // 🔥 FIX: Update ALL “Session:” labels everywhere
+    updateSessionLabels();
+
+    // persist
     try {
         localStorage.setItem("activeSession", ACTIVE_SESSION);
     } catch {}
 
-    // update UI values without animations
+    // Update main label
     const label = document.getElementById("activeSessionLabel");
-    if (label) label.textContent = ACTIVE_SESSION;
+    if (label) {
+        label.textContent = ACTIVE_SESSION;
+        label.classList.remove("session-active-flash");
+        void label.offsetWidth;
+        label.classList.add("session-active-flash");
+    }
 
+    // highlight dropdown
     const ddl = document.getElementById("sessionDropdown");
-    if (ddl) ddl.value = ACTIVE_SESSION;
+    if (ddl) {
+        ddl.value = ACTIVE_SESSION;
+        ddl.classList.remove("session-pulse");
+        void ddl.offsetWidth;
+        ddl.classList.add("session-pulse");
+    }
+
+    // toast
+    const toastArea = document.getElementById("sessionToastArea");
+    if (toastArea) {
+        toastArea.innerHTML = `
+            <div class="session-toast">
+                ✓ Active session changed to <strong>${ACTIVE_SESSION}</strong>
+            </div>
+        `;
+        setTimeout(() => (toastArea.innerHTML = ""), 2600);
+    }
 
     console.log("[SESSION] Active:", ACTIVE_SESSION);
 
@@ -78,6 +104,7 @@ function setActiveSession(name) {
     loadSessionDropdown();
     loadSessions();
 }
+
 
 
 
