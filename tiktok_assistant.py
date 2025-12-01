@@ -297,22 +297,39 @@ def save_session_config(session: str, cfg: dict):
 # =========================================
 def merge_session_config_into(cfg: dict, session: str) -> dict:
     """
-    Return a config.yml dict with session-specific overrides applied.
-    Only touches the 'render' section for now.
+    Merge session-specific settings (render, cta, tts, music, etc.)
+    into the base YAML config for UI preview and export.
     """
     try:
         s_cfg = load_session_config(session)
         if not isinstance(s_cfg, dict):
             return cfg
 
-        s_render = s_cfg.get("render", {})
-        if not s_render:
-            return cfg
+        # --- MERGE render ---
+        if "render" in s_cfg:
+            render = cfg.setdefault("render", {})
+            for k, v in s_cfg["render"].items():
+                render[k] = v
 
-        render = cfg.setdefault("render", {})
-        for k, v in s_render.items():
-            render[k] = v
+        # --- MERGE CTA ---
+        if "cta" in s_cfg:
+            cta = cfg.setdefault("cta", {})
+            for k, v in s_cfg["cta"].items():
+                cta[k] = v
 
+        # --- MERGE TTS (if you store separate TTS keys) ---
+        if "tts" in s_cfg:
+            tts = cfg.setdefault("tts", {})
+            for k, v in s_cfg["tts"].items():
+                tts[k] = v
+
+        # --- MERGE MUSIC (if stored) ---
+        if "music" in s_cfg:
+            music = cfg.setdefault("music", {})
+            for k, v in s_cfg["music"].items():
+                music[k] = v
+
+        # Add more sections if needed later
         return cfg
 
     except Exception:
