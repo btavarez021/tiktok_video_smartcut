@@ -19,7 +19,7 @@ from s3_config import (
     clean_s3_key,
     PROCESSED_PREFIX,
 )
-
+import shutil
 # Import ONLY non-circular functions from tiktok_assistant
 from tiktok_assistant import (
     merge_session_config_into,
@@ -105,7 +105,7 @@ try:
         os.remove(f)
 except Exception as e:
     print("[LEGACY CLEANUP] Skipped:", e)
-    
+
 # -------------------------------
 # Export mode
 # -------------------------------
@@ -275,9 +275,10 @@ def list_sessions():
 
 
 def delete_session(session):
-    """Delete an entire session folder from S3."""
-    session = session.strip()
+    """Delete ENTIRE session: S3 files + session config + analysis cache."""
+    session = sanitize_session(session)
 
+    # ---- 1. Delete S3 raw + processed ----
     raw_pref = f"{RAW_PREFIX}{session}/"
     proc_pref = f"{PROCESSED_PREFIX}{session}/"
 
@@ -293,6 +294,14 @@ def delete_session(session):
 
     delete_prefix(raw_pref)
     delete_prefix(proc_pref)
+
+    # ---- 2. Delete session config directory ----
+    cfg_dir = os.path.join("session_configs", session)
+    shutil.rmtree(cfg_dir, ignore_errors=True)
+
+    # ---- 3. Delete session analysis cache ----
+    cache_dir = os.path.join(ANALYSIS_BASE_DIR, session)
+    shutil.rmtree(cache_dir, ignore_errors=True)
 
     return True
 
