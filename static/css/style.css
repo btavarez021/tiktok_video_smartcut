@@ -1513,7 +1513,6 @@ h3 {
         border-radius: 12px;
         padding: 18px;
         overflow-y: visible;     /* ← remove scrollbar */
-
         transform: none !important;
         box-shadow: none; 
         z-index: auto;
