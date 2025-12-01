@@ -1579,13 +1579,35 @@ h3 {
     }
 }
 
-/* =======================================
-   FORCE MOBILE SIDEBAR ABOVE ALL ELEMENTS
-   ======================================= */
+/* ==========================================
+   OVERRIDE STACKING CONTEXT — MOBILE SIDEBAR
+   ========================================== */
 @media (max-width: 768px) {
+
+    /* Force sidebar out of layout stacking context */
     #sidebarSessionCard {
-        z-index: 2147483647 !important; /* maximum safe z-index */
         position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: -100% !important;
+
+        z-index: 2147483647 !important; /* highest layer */
+        transform: none !important;
+        pointer-events: auto !important;
+    }
+
+    /* Slide-up state */
+    #sidebarSessionCard.open {
+        bottom: 0 !important;
+    }
+
+    /* Ensure layout NEVER sits above it */
+    .layout,
+    .app-shell,
+    body,
+    html {
+        z-index: 0 !important;
+        position: static !important;
     }
 }
-  
+
