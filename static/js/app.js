@@ -105,7 +105,100 @@ function setActiveSession(name) {
     loadSessions();
 }
 
+// ================================
+// SIDEBAR SESSION MANAGER
+// ================================
 
+// Load sessions into sidebar dropdown
+async function loadSidebarDropdown() {
+    try {
+        const res = await fetch("/api/sessions");
+        const data = await res.json();
+        const ddl = document.getElementById("sidebarSessionDropdown");
+        if (!ddl) return;
+
+        ddl.innerHTML = "";
+        const sessions = data.sessions || [];
+
+        if (sessions.length === 0) {
+            ddl.innerHTML = `<option value="">(no sessions yet)</option>`;
+            return;
+        }
+
+        sessions.forEach((s) => {
+            const opt = document.createElement("option");
+            opt.value = s;
+            opt.textContent = s;
+            ddl.appendChild(opt);
+        });
+
+        ddl.value = getActiveSession();
+    } 
+    catch (e) { console.error("Sidebar dropdown err:", e); }
+}
+
+
+// Sync sidebar label with app
+function updateSidebarLabel() {
+    const label = document.getElementById("sidebarSessionLabel");
+    if (label) label.textContent = getActiveSession();
+}
+
+
+// Toast for sidebar
+function showSidebarToast(msg) {
+    const area = document.getElementById("sidebarSessionToastArea");
+    if (!area) return;
+
+    const toast = document.createElement("div");
+    toast.className = "session-sidebar-toast";
+    toast.textContent = msg;
+    area.appendChild(toast);
+
+    setTimeout(() => toast.classList.add("fade-out"), 1500);
+    setTimeout(() => toast.remove(), 1800);
+}
+
+
+// Sidebar switch handler
+document.getElementById("sidebarSwitchBtn")?.addEventListener("click", () => {
+    const ddl = document.getElementById("sidebarSessionDropdown");
+    if (!ddl) return;
+
+    const selected = ddl.value || "default";
+
+    // Change session
+    setActiveSession(selected);
+
+    // Sync both dropdowns + labels in the app
+    loadSidebarDropdown();
+    loadSessionDropdown();
+    updateSidebarLabel();
+
+    const mainLabel = document.getElementById("activeSessionLabel");
+    if (mainLabel) {
+        mainLabel.classList.add("session-pulse");
+        setTimeout(() => mainLabel.classList.remove("session-pulse"), 800);
+    }
+
+    // Sidebar pulse
+    const sidebarLabel = document.getElementById("sidebarSessionLabel");
+    if (sidebarLabel) {
+        sidebarLabel.classList.add("sidebar-session-pulse");
+        setTimeout(() => sidebarLabel.classList.remove("sidebar-session-pulse"), 800);
+    }
+
+    // Toasts
+    showSidebarToast(`Switched to “${selected}”`);
+    showSessionToast?.(`Switched to “${selected}”`);
+});
+
+
+// Ensure sidebar stays synced on page load
+document.addEventListener("DOMContentLoaded", () => {
+    loadSidebarDropdown();
+    updateSidebarLabel();
+});
 
 
 // ================================

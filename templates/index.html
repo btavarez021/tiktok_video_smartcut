@@ -767,6 +767,44 @@
         <!-- RIGHT SIDEBAR -->
         <aside class="side-column">
 
+          <!-- SESSION MANAGER (SIDEBAR) -->
+          <section class="card session-sidebar-card">
+              <div class="card-header">
+                  <h2>Session Manager</h2>
+                  <p class="card-subtitle">
+                      Switch hotels instantly. Linked to Steps 1–5.
+                  </p>
+              </div>
+
+              <div class="card-body">
+
+                  <!-- Active session label -->
+                  <div class="session-sidebar-active">
+                      Active:
+                      <strong id="sidebarSessionLabel">default</strong>
+                  </div>
+
+                  <div class="divider"></div>
+
+                  <!-- Switch dropdown -->
+                  <label class="field-label">Switch session</label>
+                  <div class="session-row">
+                      <div class="select-wrapper" style="flex:1;">
+                          <select id="sidebarSessionDropdown" class="select">
+                              <!-- JS populates -->
+                          </select>
+                      </div>
+                      <button id="sidebarSwitchBtn" class="btn small secondary">
+                          Switch
+                      </button>
+                  </div>
+
+                  <!-- Toast area for sidebar -->
+                  <div id="sidebarSessionToastArea"></div>
+              </div>
+          </section>
+
+
             <!-- Live Log -->
             <section class="card log-card">
                 <div class="card-header">
