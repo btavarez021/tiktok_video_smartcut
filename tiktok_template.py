@@ -37,10 +37,10 @@ os.makedirs(video_folder, exist_ok=True)
 MUSIC_DIR = os.path.join(BASE_DIR, "music")
 os.makedirs(MUSIC_DIR, exist_ok=True)
 
-config_path = os.path.join(BASE_DIR, "config.yml")
-
 TARGET_W = 1080
 TARGET_H = 1920
+
+
 
 
 # -----------------------------------------
@@ -60,10 +60,17 @@ def blur_frame(frame, radius: int = 18):
 # -----------------------------------------
 # Config helpers
 # -----------------------------------------
-def _load_config() -> Dict[str, Any]:
-    if not os.path.exists(config_path):
+
+def get_config_path(session_id: str) -> str:
+    folder = os.path.join(BASE_DIR, "configs", session_id)
+    os.makedirs(folder, exist_ok=True)
+    return os.path.join(folder, "config.yml")
+
+def load_config_for_session(session_id: str):
+    path = get_config_path(session_id)
+    if not os.path.exists(path):
         return {}
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
@@ -419,11 +426,11 @@ def ensure_local_video(filename: str) -> str:
 # -----------------------------------------
 # Core export function: edit_video
 # -----------------------------------------
-def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
+def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
     """
     Build final TikTok-style video using FFmpeg-only pipeline:
     """
-    cfg = _load_config()
+    cfg = load_config_for_session(session_id)
     if not cfg:
         raise RuntimeError("config.yml missing or empty")
 

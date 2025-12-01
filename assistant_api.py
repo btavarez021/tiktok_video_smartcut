@@ -9,7 +9,7 @@ import yaml
 from openai import OpenAI
 from flask import request
 from assistant_log import log_step, log_error, log_success
-from tiktok_template import config_path, edit_video, video_folder
+from tiktok_template import config_path, edit_video, video_folder, get_config_path
 from s3_config import (
     s3,
     S3_BUCKET_NAME,
@@ -33,6 +33,8 @@ from tiktok_assistant import (
     save_analysis_result,
     sanitize_yaml_filenames,
 )
+from tiktok_assistant import apply_overlay
+
 
 logger = logging.getLogger(__name__)
 
@@ -443,6 +445,8 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
 # Config retrieval + saving (global)
 # -------------------------------
 def api_get_config() -> Dict[str, Any]:
+    session_id = request.args.get("session")
+    config_path = get_config_path(session_id)
     if not os.path.exists(config_path):
         return {"yaml": "", "config": {}, "error": "config.yml not found"}
 
@@ -471,6 +475,7 @@ def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
         session = sanitize_session(session)
         cfg = merge_session_config_into(cfg, session)
 
+        config_path = get_config_path(session)
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
@@ -533,51 +538,47 @@ def api_save_captions(text: str) -> Dict[str, Any]:
 # -------------------------------
 # EXPORT (global config, session-aware)
 # -------------------------------
-def api_export(optimized: bool = False, session: str = "default") -> Dict[str, Any]:
-    if not os.path.exists(config_path):
-        msg = "config.yml not found"
-        log_error("[EXPORT]", Exception(msg))
-        return {"status": "error", "error": msg}
-
+def api_export(optimized: bool, session: str) -> Dict[str, Any]:
     try:
-        mode = _EXPORT_MODE
-        log_step(f"[EXPORT] Rendering in {mode.upper()} mode (optimized={optimized})")
+        session = sanitize_session(session)
 
-        # Inject session-specific overrides BEFORE rendering
+        # Per-session config path
+        path = get_config_path(session)
+
+        if not os.path.exists(path):
+            msg = f"config.yml not found for session '{session}'"
+            log_error("[EXPORT]", Exception(msg))
+            return {"status": "error", "error": msg}
+
+        # 1. Load + merge session config
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
 
-            # sanitize session coming from caller
-            session = sanitize_session(session)
-
-            # merge per-session config (fgscale, etc.)
             cfg = merge_session_config_into(cfg, session)
 
-            with open(config_path, "w", encoding="utf-8") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 yaml.safe_dump(cfg, f, sort_keys=False)
 
         except Exception as e:
             log_error("[EXPORT][SESSION MERGE]", e)
 
-        # Now render with merged config.yml
-        out_path = edit_video(optimized=optimized)
+        # 2. Render using the session-specific config
+        out_path = edit_video(session_id=session, optimized=optimized)
         if not out_path:
             raise RuntimeError("edit_video() returned no output path")
 
-        log_step(f"[EXPORT] Finished rendering: {out_path}")
-
         filename = os.path.basename(out_path)
+
+        # 3. Upload to S3
         prefix = EXPORT_PREFIX.rstrip("/")
-        raw_key = f"{prefix}/{filename}"
-        export_key = clean_s3_key(raw_key)
+        export_key = clean_s3_key(f"{prefix}/{filename}")
 
         s3.upload_file(out_path, S3_BUCKET_NAME, export_key)
         log_step(f"[EXPORT] Uploaded to s3://{S3_BUCKET_NAME}/{export_key}")
 
         url = generate_signed_download_url(export_key)
 
-        log_success("[EXPORT]", f"Completed and uploaded {filename}")
         return {
             "status": "ok",
             "output_path": out_path,
@@ -589,7 +590,6 @@ def api_export(optimized: bool = False, session: str = "default") -> Dict[str, A
     except Exception as e:
         log_error("[EXPORT]", e)
         return {"status": "error", "error": str(e)}
-
 
 
 # -------------------------------
@@ -632,29 +632,41 @@ def api_set_cta(enabled: bool, text: str | None, voiceover: bool | None) -> Dict
 # -------------------------------
 # Overlay + Timings + fg_scale
 # -------------------------------
-def api_apply_overlay(style: str) -> Dict[str, Any]:
+def api_apply_overlay(session_id: str, style: str) -> Dict[str, Any]:
     try:
-        from tiktok_assistant import apply_overlay
+        session_id = sanitize_session(session_id)
 
-        apply_overlay(style)
-        log_success("[OVERLAY]", f"Applied overlay style '{style}'")
-        return {"status": "ok", "style": style}
+        apply_overlay(session_id, style)
+
+        log_success("[OVERLAY]",
+                    f"Applied overlay style '{style}' for session '{session_id}'")
+
+        return {"status": "ok", "style": style, "session": session_id}
+
     except Exception as e:
         log_error("[OVERLAY]", e)
         return {"status": "error", "error": str(e)}
 
 
-def api_apply_timings(smart: bool = False) -> Dict[str, Any]:
-    from tiktok_assistant import apply_smart_timings
-
+def api_apply_timings(session_id: str, smart: bool = False) -> Dict[str, Any]:
     try:
+        from tiktok_assistant import apply_smart_timings
+
+        session_id = sanitize_session(session_id)
         pacing = "cinematic" if smart else "standard"
-        apply_smart_timings(pacing)
-        log_success("[TIMINGS]", f"Applied '{smart}'")
-        return {"status": "ok", "pacing": pacing}
+
+        # Apply timings for THIS session's config
+        apply_smart_timings(session_id, pacing)
+
+        log_success("[TIMINGS]",
+                    f"Applied timings '{pacing}' for session '{session_id}'")
+
+        return {"status": "ok", "pacing": pacing, "session": session_id}
+
     except Exception as e:
         log_error("[TIMINGS]", e)
         return {"status": "error", "error": str(e)}
+
 
 
 def api_set_layout(mode: str) -> Dict[str, Any]:

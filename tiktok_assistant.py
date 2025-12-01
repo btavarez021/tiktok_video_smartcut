@@ -15,7 +15,6 @@ import yaml
 from openai import OpenAI
 
 from assistant_log import log_step
-from tiktok_template import config_path        # only need config_path, not edit_video/video_folder
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX  # shared S3 client + config
 
 logger = logging.getLogger(__name__)
@@ -400,12 +399,10 @@ def _style_instructions(style: str) -> str:
     }.get(style, "Friendly hotel travel tone.")
 
 
-def apply_overlay(style: str, target: str = "all", filename: Optional[str] = None) -> None:
-    """
-    Rewrite ONLY the 'text' fields in config.yml based on a caption style.
-    """
+def apply_overlay(session: str, style: str, target: str = "all", filename: Optional[str] = None) -> None:
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
+        path = session_config_path(session)
+        with open(path, "r", encoding="utf-8") as f:
             yaml_text = f.read()
     except Exception:
         return
@@ -437,6 +434,7 @@ Return ONLY YAML.
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
         )
+
         new_yaml = (resp.choices[0].message.content or "").strip()
         new_yaml = new_yaml.replace("```yaml", "").replace("```", "").strip()
 
@@ -446,21 +444,18 @@ Return ONLY YAML.
 
         cfg = sanitize_yaml_filenames(cfg)
 
-        with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(cfg, f, sort_keys=False)
-
-        log_step(f"Overlay applied: {style}")
+        save_session_config(session, cfg)
+        log_step(f"Overlay applied for session={session}, style={style}")
 
     except Exception as e:
         logger.error(f"Overlay error: {e}")
 
 
-def apply_smart_timings(pacing: str = "standard") -> None:
-    """
-    Adjust only the duration fields in config.yml via LLM.
-    """
+
+def apply_smart_timings(session: str, pacing: str = "standard") -> None:
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
+        path = session_config_path(session)
+        with open(path, "r", encoding="utf-8") as f:
             yaml_text = f.read()
     except Exception:
         return
@@ -507,10 +502,8 @@ Return ONLY YAML.
 
         cfg = sanitize_yaml_filenames(cfg)
 
-        with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(cfg, f, sort_keys=False)
-
-        log_step(f"Smart timings applied ({pacing})")
+        save_session_config(session, cfg)
+        log_step(f"Smart timings applied ({pacing}) for session={session}")
 
     except Exception as e:
         logger.error(f"Timings error: {e}")

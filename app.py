@@ -277,13 +277,23 @@ def route_music_file(filename):
 @app.route("/api/overlay", methods=["POST"])
 def route_overlay():
     data = request.get_json() or {}
-    return jsonify(api_apply_overlay(data.get("style", "travel_blog")))
+
+    style = data.get("style", "travel_blog")
+    session_id = data.get("session", "default")
+
+    return jsonify(api_apply_overlay(session_id, style))
+
 
 
 @app.route("/api/timings", methods=["POST"])
 def route_timings():
     data = request.get_json() or {}
-    return jsonify(api_apply_timings(bool(data.get("smart", False))))
+
+    smart = bool(data.get("smart", False))
+    session_id = data.get("session", "default")
+
+    return jsonify(api_apply_timings(session_id, smart))
+
 
 
 @app.route("/api/layout", methods=["POST"])
