@@ -51,6 +51,10 @@ body {
     overflow-y: auto;
 }
 
+.main-column {
+    min-width: 0;
+}
+
 /* Scrollbars */
 .layout::-webkit-scrollbar,
 textarea::-webkit-scrollbar,
@@ -63,10 +67,6 @@ textarea::-webkit-scrollbar-thumb,
 .log-view::-webkit-scrollbar-thumb {
     background: #444;
     border-radius: 8px;
-}
-
-.stepper {
-    flex-shrink: 0;
 }
 
 /* ---------------------------------------
@@ -136,6 +136,7 @@ textarea::-webkit-scrollbar-thumb,
     padding: 14px 26px;
     background: #111112;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .stepper .step {
@@ -169,7 +170,7 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Cards
+   Cards + Session Tag
 ---------------------------------------- */
 .card {
     background: var(--card);
@@ -191,6 +192,10 @@ textarea::-webkit-scrollbar-thumb,
     color: var(--text-strong);
 }
 
+.card-header h2 .tooltip {
+    margin-left: 6px;
+}
+
 .card-subtitle {
     color: var(--text-dim);
     margin-top: 6px;
@@ -203,6 +208,20 @@ textarea::-webkit-scrollbar-thumb,
 
 .card-subsection {
     margin-bottom: 22px;
+}
+
+.subtle-card {
+    background: #161618;
+    border-style: dashed;
+    border-color: #2a2a2e;
+}
+
+.session-tag {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
 /* ---------------------------------------
@@ -222,7 +241,7 @@ textarea::-webkit-scrollbar-thumb,
 }
 
 /* ---------------------------------------
-   Lists & Log
+   Lists & Analyses
 ---------------------------------------- */
 .analysis-list {
     list-style: none;
@@ -246,22 +265,113 @@ textarea::-webkit-scrollbar-thumb,
     font-size: 0.9rem;
 }
 
-/* Log view */
+/* ---------------------------------------
+   Log view (terminal style)
+---------------------------------------- */
 #statusLog,
 .log-view {
-    background: #111;
-    color: #bfbfbf;
-    padding: 14px;
-    height: 100%;
-    overflow-y: auto;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    font-size: 0.85rem;
-
+    background: #0b0b0c !important;
+    border: 1px solid #232326 !important;
+    color: #cdd0d4 !important;
+    font-family: "JetBrains Mono", monospace !important;
+    font-size: 0.85rem !important;
+    line-height: 1.35 !important;
+    padding: 16px !important;
+    border-radius: 8px !important;
+    overflow-y: auto !important;
     white-space: pre-wrap !important;
     word-break: break-word !important;
-    max-width: 100% !important;
     overflow-wrap: break-word;
+    max-width: 100% !important;
+    position: relative;
+}
+
+/* Light “terminal glow” at the top */
+.log-view::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 36px;
+    background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0.04),
+        rgba(255,255,255,0)
+    );
+    pointer-events: none;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+/* Desktop max-height */
+@media (min-width: 900px) {
+    .log-view {
+        max-height: 360px;
+    }
+}
+
+/* Mobile log height */
+@media (max-width: 900px) {
+    .log-view {
+        max-height: 260px !important;
+        font-size: 13px !important;
+    }
+}
+
+/* Scrollbar styling */
+.log-view::-webkit-scrollbar {
+    width: 8px;
+}
+
+.log-view::-webkit-scrollbar-track {
+    background: #111;
+}
+
+.log-view::-webkit-scrollbar-thumb {
+    background: #3a3a3d;
+    border-radius: 8px;
+}
+
+.log-view::-webkit-scrollbar-thumb:hover {
+    background: #4a4a4f;
+}
+
+/* Log line highlighting */
+.log-view span {
+    display: block;
+    padding: 2px 0;
+    white-space: pre-wrap;
+}
+
+.log-view span.error,
+.log-view span.ERROR,
+.log-view span.err,
+.log-view span.ERR {
+    color: #ff6b6b !important;
+    font-weight: 600;
+}
+
+.log-view span.warn,
+.log-view span.warning,
+.log-view span.WARN,
+.log-view span.WARNING {
+    color: #ffd86b !important;
+    font-weight: 600;
+}
+
+.log-view span.success,
+.log-view span.SUCCESS,
+.log-view span.ok,
+.log-view span.OK {
+    color: #6bff9c !important;
+    font-weight: 600;
+}
+
+.log-view span.info,
+.log-view span.INFO {
+    color: #6bb6ff !important;
+    font-weight: 500;
 }
 
 /* ---------------------------------------
@@ -329,6 +439,13 @@ textarea::-webkit-scrollbar-thumb,
     align-items: center;
 }
 
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
 /* ---------------------------------------
    Buttons
 ---------------------------------------- */
@@ -387,11 +504,17 @@ input[type="range"] {
 }
 
 /* ---------------------------------------
-   Divider
+   Dividers
 ---------------------------------------- */
 .divider {
     border: none;
     border-top: 1px solid #2a2a2d;
+    margin: 18px 0;
+}
+
+.section-divider {
+    border: none;
+    border-top: 1px dashed #2a2a2d;
     margin: 18px 0;
 }
 
@@ -402,6 +525,40 @@ input[type="range"] {
     color: var(--text-dim);
     font-size: 0.85rem;
     margin-top: 6px;
+}
+
+.hint {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 6px;
+}
+
+/* Status message colors */
+.status-text {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.85rem;
+}
+
+.status-info {
+    color: #9b9b9f !important;
+}
+.status-success {
+    color: #28d05d !important;
+}
+.status-error {
+    color: #ff4d4d !important;
+}
+
+/* Section mini labels inside Step 1 */
+.section-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 0 0 10px 0;
+    padding-left: 2px;
+    letter-spacing: 0.3px;
+    opacity: 0.9;
 }
 
 /* ---------------------------------------
@@ -432,30 +589,14 @@ input[type="range"] {
 }
 
 /* ---------------------------------------
-   Step 4 Checkmarks & Headings
+   Headings
 ---------------------------------------- */
 h3 {
     margin-top: 16px;
     margin-bottom: 8px;
     font-size: 1rem;
-    font-weight: 700;            /* bold headings */
-    color: var(--text-strong);   /* brighter text for contrast */
-}
-
-.style-check {
-    display: inline-block;
-    margin-left: 6px;
-    color: var(--text-dim);
-    font-size: 1.1rem;
-}
-
-.style-check.active {
-    color: var(--success);
-}
-
-h3 .style-check {
-    position: relative;
-    top: 2px;
+    font-weight: 700;
+    color: var(--text-strong);
 }
 
 /* ---------------------------------------
@@ -551,66 +692,8 @@ h3 .style-check {
 }
 
 /* ---------------------------------------
-   Checkbox & Radio Alignment (Desktop + Mobile)
+   Checkbox & Radio
 ---------------------------------------- */
-
-/* Mobile optimization for Upload Manager */
-@media (max-width: 768px) {
-
-    /* Collapse logic (working) */
-    #uploadManagerContent {
-        max-height: 2000px;
-        opacity: 1;
-        overflow: hidden;
-        transition: max-height 0.35s ease, opacity 0.25s ease;
-    }
-
-    #uploadManagerContent.collapsed {
-        max-height: 0 !important;
-        opacity: 0 !important;
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-        margin-top: 0 !important;
-        margin-bottom: 0 !important;
-        overflow: hidden !important;
-    }
-
-    /* Stack Raw + Processed vertically */
-    .upload-columns {
-        display: flex;
-        flex-direction: column !important;
-        gap: 22px;
-    }
-
-    /* Make each column look like its own card */
-    .upload-column {
-        width: 100%;
-        background: #2a2a2d;
-        padding: 18px;
-        border-radius: 10px;
-    }
-
-    .upload-column h3 {
-        font-size: 18px;
-        margin-bottom: 10px;
-    }
-
-    /* Better spacing for each upload item */
-    .upload-item {
-        flex-direction: column;
-        gap: 12px;
-        align-items: flex-start !important;
-    }
-
-    .upload-item .buttons {
-        width: 100%;
-        justify-content: flex-end;
-        display: flex;
-        gap: 10px;
-    }
-}
-
-
 .checkbox-row {
     display: flex;
     align-items: center;
@@ -628,7 +711,7 @@ h3 .style-check {
     justify-content: flex-start;
 }
 
-/* Custom radios + checkboxes (all breakpoints) */
+/* Custom radios + checkboxes */
 .radio input[type="radio"],
 .checkbox-row input[type="checkbox"] {
     -webkit-appearance: none;
@@ -636,7 +719,7 @@ h3 .style-check {
     width: 18px;
     height: 18px;
     margin: 0;
-    border-radius: 4px; /* checkbox default shape */
+    border-radius: 4px;
     border: 2px solid #666;
     background: #161616;
     position: relative;
@@ -645,29 +728,28 @@ h3 .style-check {
 
 .radio input[type="radio"] {
     border-radius: 50%;
-    border: 2px solid #aaa !important;   /* brighter ring */
+    border: 2px solid #aaa !important;
     width: 20px;
     height: 20px;
 }
 
-
-/* Radio checked — high contrast + visible on dark mobile backgrounds */
+/* Radio checked */
 .radio input[type="radio"]:checked {
-    border-color: #fff !important; /* white ring */
+    border-color: #fff !important;
 }
 
 .radio input[type="radio"]:checked::after {
     content: "";
     position: absolute;
-    top: 4px;       /* better center on iOS */
+    top: 4px;
     left: 4px;
-    width: 10px;    /* bigger, more visible dot */
+    width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: var(--primary); /* your accent color */
+    background: var(--primary);
 }
 
-/* Checkbox checked — bold check mark */
+/* Checkbox checked */
 .checkbox-row input[type="checkbox"]:checked::after {
     content: "✔";
     position: absolute;
@@ -687,9 +769,7 @@ h3 .style-check {
     margin: 0;
 }
 
-/* ---------------------------------------
-   Export mode radios + spacing
----------------------------------------- */
+/* Export mode radios */
 #exportModeContainer {
     display: flex;
     flex-direction: row;
@@ -712,20 +792,6 @@ h3 .style-check {
 }
 
 /* ---------------------------------------
-   Music preview / Save spacing
----------------------------------------- */
-.music-preview {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 10px;
-}
-
-#saveMusicBtn {
-    margin-left: 0;
-}
-
-/* ---------------------------------------
    Accordion (Step 4)
 ---------------------------------------- */
 .accordion .acc-header {
@@ -733,9 +799,9 @@ h3 .style-check {
     text-align: left;
     padding: 10px 14px;
     font-size: 1rem;
-    font-weight: 700;                  /* bold */
+    font-weight: 700;
     background: linear-gradient(90deg, #252528, #1c1c1e);
-    color: var(--text-strong);         /* brighter for contrast */
+    color: var(--text-strong);
     border: 1px solid #444;
     border-radius: 6px;
     cursor: pointer;
@@ -743,15 +809,22 @@ h3 .style-check {
 }
 
 .acc-body {
-    display: none;
-    padding: 12px 4px 20px 4px;
-    border-left: 2px solid #444;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    padding: 0 4px;
     margin-left: 6px;
-    margin-bottom: 16px;
+    margin-bottom: 0;
+    border-left: 2px solid transparent;
+    transition: max-height 0.35s ease, opacity 0.25s ease, margin-bottom 0.25s ease, border-left-color 0.25s ease;
 }
 
 .acc-section.open .acc-body {
-    display: block;
+    max-height: 1000px;
+    opacity: 1;
+    padding: 12px 4px 20px 4px;
+    margin-bottom: 16px;
+    border-left-color: #444;
 }
 
 /* Optional subtle indicator on open */
@@ -760,235 +833,8 @@ h3 .style-check {
 }
 
 /* ---------------------------------------
-   Mobile UI
+   Upload Manager
 ---------------------------------------- */
-@media (max-width: 900px) {
-    .layout {
-        grid-template-columns: 1fr !important;
-        gap: 20px;
-        padding: 16px;
-        position: relative;
-        z-index: 1;
-    }
-
-    .stepper {
-        position: relative;
-        z-index: 50;
-        margin-bottom: 12px;
-        display: flex !important;
-        flex-direction: row !important;
-        overflow-x: auto !important;
-        white-space: nowrap;
-        gap: 12px;
-        padding-inline: 16px;
-    }
-
-    .stepper .step {
-        flex: 0 0 auto;
-        padding: 10px 16px;
-        width: auto;
-    }
-
-    .card,
-    .step-card {
-        margin: 0 !important;
-        position: relative;
-        z-index: 10;
-    }
-
-    input,
-    textarea,
-    select,
-    .btn {
-        width: 100%;
-    }
-
-    textarea {
-        min-height: 180px;
-        font-size: 15px;
-    }
-
-    .split {
-        flex-direction: column;
-        gap: 18px;
-    }
-
-    .split-panel {
-        width: 100%;
-    }
-
-    .side-column {
-        order: 10;
-    }
-
-    #exportModeContainer {
-        flex-wrap: wrap !important;
-        gap: 12px;
-    }
-
-    #exportModeContainer label {
-        font-size: 15px;
-    }
-
-    .log-view {
-        max-height: 260px !important;
-        font-size: 13px;
-    }
-}
-
-/* Extra small devices */
-@media (max-width: 480px) {
-    .step-index {
-        display: none;
-    }
-
-    .step-label {
-        font-size: 13px;
-    }
-
-    #yamlText {
-        min-height: 220px;
-    }
-
-    #chatInput {
-        min-height: 120px;
-    }
-}
-
-/* ========================================================
-   Terminal-Style Log Viewer (Desktop + Mobile)
-======================================================== */
-.log-view {
-    background: #0b0b0c !important;
-    border: 1px solid #232326 !important;
-    color: #cdd0d4 !important;
-    font-family: "JetBrains Mono", monospace !important;
-    font-size: 0.85rem !important;
-    line-height: 1.35 !important;
-    padding: 16px !important;
-    border-radius: 8px !important;
-    overflow-y: auto !important;
-    white-space: pre-wrap !important;
-    word-break: break-word !important;
-    overflow-wrap: break-word;
-    max-width: 100% !important;
-    position: relative;
-}
-
-/* Light “terminal glow” at the top */
-.log-view::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 36px;
-    background: linear-gradient(
-        to bottom,
-        rgba(255,255,255,0.04),
-        rgba(255,255,255,0)
-    );
-    pointer-events: none;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-}
-
-/* Desktop max-height */
-@media (min-width: 900px) {
-    .log-view {
-        max-height: 360px;
-    }
-}
-
-/* Mobile log height */
-@media (max-width: 900px) {
-    .log-view {
-        max-height: 260px !important;
-        font-size: 13px !important;
-    }
-}
-
-/* Scrollbar styling */
-.log-view::-webkit-scrollbar {
-    width: 8px;
-}
-
-.log-view::-webkit-scrollbar-track {
-    background: #111;
-}
-
-.log-view::-webkit-scrollbar-thumb {
-    background: #3a3a3d;
-    border-radius: 8px;
-}
-
-.log-view::-webkit-scrollbar-thumb:hover {
-    background: #4a4a4f;
-}
-
-/* ========================================================
-   Log Line Highlighting (Error / Warning / Info / Success)
-======================================================== */
-
-/* Make each log line stylable */
-.log-view span {
-    display: block;
-    padding: 2px 0;
-    white-space: pre-wrap;
-}
-
-/* ERROR lines */
-.log-view span.error,
-.log-view span.ERROR,
-.log-view span.err,
-.log-view span.ERR {
-    color: #ff6b6b !important;
-    font-weight: 600;
-}
-
-/* WARNING lines */
-.log-view span.warn,
-.log-view span.warning,
-.log-view span.WARN,
-.log-view span.WARNING {
-    color: #ffd86b !important;
-    font-weight: 600;
-}
-
-/* SUCCESS lines */
-.log-view span.success,
-.log-view span.SUCCESS,
-.log-view span.ok,
-.log-view span.OK {
-    color: #6bff9c !important;
-    font-weight: 600;
-}
-
-/* INFO lines */
-.log-view span.info,
-.log-view span.INFO {
-    color: #6bb6ff !important;
-    font-weight: 500;
-}
-
-/* Status message colors */
-.status-info {
-    color: #9b9b9f !important;
-}
-.status-success {
-    color: #28d05d !important;
-}
-.status-error {
-    color: #ff4d4d !important;
-}
-
-.status-text {
-    display: block;
-    margin-top: 6px;
-    font-size: 0.85rem;
-}
-
-/* Upload Manager container */
 .upload-manager {
     margin-top: 40px;
     padding: 20px;
@@ -997,7 +843,7 @@ h3 .style-check {
     border: 1px solid #262629;
 }
 
-/* Header row (title + refresh button) */
+/* Header row */
 .upload-manager .header-row {
     display: flex;
     justify-content: space-between;
@@ -1107,8 +953,16 @@ h3 .style-check {
 }
 
 /* Collapsible behavior */
-#uploadManagerContent.collapsed {
-    display: none;
+#uploadManagerContent {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+#uploadManagerContent:not(.collapsed) {
+    max-height: 1400px;
+    opacity: 1;
 }
 
 .collapse-icon {
@@ -1117,3 +971,462 @@ h3 .style-check {
     user-select: none;
 }
 
+/* ---------------------------------------
+   Session System
+---------------------------------------- */
+
+/* Wrapper spacing */
+.session-bar,
+#sessionManagerCard {
+    margin-bottom: 20px;
+}
+
+/* Make session bar look like a card */
+.session-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+/* Session row for input + button */
+.session-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.session-row .input {
+    flex: 1;
+}
+
+/* Session Manager accordion body */
+#sessionManagerContent {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+#sessionManagerContent:not(.collapsed) {
+    max-height: 700px;
+    opacity: 1;
+}
+
+/* Header row (same as upload manager) */
+#sessionManagerCard .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 10px 12px;
+}
+
+#sessionManagerCard .collapse-icon {
+    font-size: 16px;
+    opacity: 0.7;
+}
+
+/* Session list */
+#sessionList {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+}
+
+#sessionList .analysis-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 10px 12px;
+    margin-bottom: 8px;
+
+    background: var(--card-lighter);
+    border-radius: 10px;
+
+    font-size: 0.95rem;
+}
+
+#sessionList .analysis-item span {
+    font-weight: 500;
+}
+
+#sessionList .analysis-item .btn.small {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+}
+
+/* subtle shake animation for invalid actions */
+.shake {
+    animation: shakeAnim 0.2s ease-in-out 0s 2;
+}
+
+@keyframes shakeAnim {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    50% { transform: translateX(3px); }
+    75% { transform: translateX(-3px); }
+    100% { transform: translateX(0); }
+}
+
+/* Session dropdown z-index fix */
+.session-bar {
+    position: relative;
+    z-index: 9999 !important;
+}
+
+/* MUST BE CLEAN (no position, no z-index) */
+#sessionDropdown {
+    position: static !important;   /* ← resets everything */
+    z-index: auto !important;
+}
+
+/* Drop step-card below session UI */
+.card,
+.step-card {
+    position: relative;
+    z-index: 1 !important;
+}
+
+.error-flash {
+    animation: errorFlash 0.5s;
+}
+
+@keyframes errorFlash {
+    0% { background-color: #ff4b4b; }
+    100% { background-color: var(--secondary); }
+}
+
+/* ---------------------------------------
+   Tooltip System
+---------------------------------------- */
+.tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: help;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    opacity: 0.8;
+    margin-left: 4px;
+    user-select: none;
+}
+
+.tooltip:hover {
+    opacity: 1;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 240px;
+    max-width: 260px;
+    background: #1f1f21;
+    color: var(--text);
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #333;
+
+    position: absolute;
+    z-index: 9999;
+
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+
+    font-size: 0.8rem;
+    line-height: 1.35;
+
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+/* Tooltip arrow */
+.tooltip .tooltiptext::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: #1f1f21 transparent transparent transparent;
+}
+
+/* Show tooltip */
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* ---------------------------------------
+   Foreground Scale Toggle
+---------------------------------------- */
+#manualFgScaleContainer.hidden {
+    display: none;
+}
+
+/* ---------------------------------------
+   Mobile UI
+---------------------------------------- */
+@media (max-width: 900px) {
+
+    .layout {
+        grid-template-columns: 1fr !important;
+        gap: 20px;
+        padding: 16px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .stepper {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        gap: 12px;
+        padding-inline: 16px;
+        margin-bottom: 20px;
+        scroll-behavior: smooth;
+    }
+
+    .stepper .step {
+        flex: 0 0 auto !important;
+        min-width: max-content;
+        padding: 10px 12px;
+        text-align: center;
+    }
+
+    .card,
+    .step-card {
+        margin: 0 !important;
+        position: relative;
+        z-index: 10;
+    }
+
+    input,
+    textarea,
+    select,
+    .btn {
+        width: 100%;
+    }
+
+    textarea {
+        min-height: 180px;
+        font-size: 15px;
+    }
+
+    .split {
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .split-panel {
+        width: 100%;
+    }
+
+    .side-column {
+        order: 10;
+        position: sticky;
+        top: 80px;
+        height: fit-content;
+    }
+
+    #exportModeContainer {
+        flex-wrap: wrap !important;
+        gap: 12px;
+    }
+
+    #exportModeContainer label {
+        font-size: 15px;
+    }
+
+    .session-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #setSessionBtn,
+    #switchSessionBtn,
+    #refreshSessionsBtn {
+        width: 100%;
+    }
+
+    #sessionList .analysis-item {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+
+    /* Upload manager columns stack */
+    .upload-columns {
+        flex-direction: column !important;
+        gap: 22px;
+    }
+
+    .upload-column {
+        width: 100%;
+        background: #2a2a2d;
+        padding: 18px;
+        border-radius: 10px;
+    }
+
+    .upload-column h3 {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+
+    .upload-item {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start !important;
+    }
+
+    .upload-item .buttons {
+        width: 100%;
+        justify-content: flex-end;
+        display: flex;
+        gap: 10px;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+    .step-index {
+        display: none;
+    }
+
+    .step-label {
+        font-size: 13px;
+    }
+
+    #yamlText {
+        min-height: 220px;
+    }
+
+    #chatInput {
+        min-height: 120px;
+    }
+}
+
+/* ================================
+   YAML PREVIEW — Mobile collapse
+================================ */
+@media (max-width: 768px) {
+
+    /* Button is visible on mobile */
+    #toggleYamlPreviewBtn {
+        display: block !important;
+        margin-bottom: 10px;
+    }
+
+    /* Hide parsed preview by default */
+    #yamlPreviewContainer {
+        display: none;
+    }
+
+    /* When opened via JS */
+    #yamlPreviewContainer.open {
+        display: block;
+        margin-top: 12px;
+    }
+}
+
+
+/* ===========================
+   SESSION MANAGER ENHANCEMENTS
+   =========================== */
+
+/* Pulse on active session label */
+.session-pulse {
+    background: linear-gradient(90deg, #7f5cff, #9c77ff);
+    color: white !important;
+    padding: 2px 8px;
+    border-radius: 6px;
+    animation: pulseGlow 0.8s ease-out;
+}
+
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 0px #7f5cff; }
+    50% { box-shadow: 0 0 12px #a08cff; }
+    100% { box-shadow: 0 0 0px transparent; }
+}
+
+/* Dropdown confirm pulse */
+.select-wrapper.session-ddl-pulse {
+    animation: ddlPulse 0.6s ease-out;
+}
+
+@keyframes ddlPulse {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.04); }
+    100% { transform: scale(1); }
+}
+
+/* Toast notification */
+#sessionToastArea {
+    margin-top: 12px;
+    position: relative;
+}
+
+.session-toast {
+    background: #7f5cff;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-top: 6px;
+    animation: toastPop 0.25s ease-out;
+}
+
+@keyframes toastPop {
+    from { 
+        opacity: 0; 
+        transform: translateY(4px) scale(0.96); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+    }
+}
+
+.session-toast.fade-out {
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+/* Ensures desktop dropdown stays styled after JS updates */
+#sessionDropdown.force-restyle,
+#sessionDropdown.force-restyle option {
+    background-color: #1d1d1d !important;
+    color: #ffffff !important;
+}
+
+/* -------------------------------------------
+   FIX: Prevent Chrome/Edge from switching to
+   native dropdown (white background problem)
+-------------------------------------------- */
+
+/* Isolate the <select> from wrapper transforms */
+.select-wrapper {
+    transform: none !important;
+}
+
+/* Prevent animation from affecting the select */
+.select-wrapper.session-ddl-pulse select {
+    transform: none !important;
+}
+
+/* FORCE dark theme for desktop dropdowns */
+#sessionDropdown,
+#sessionDropdown option {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+    border: 1px solid #333 !important;
+
+    /* KEY FIXES */
+    -webkit-appearance: none !important;
+    appearance: none !important;
+}

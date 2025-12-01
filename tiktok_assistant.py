@@ -56,32 +56,20 @@ def generate_signed_download_url(key: str, expires_in: int = 3600) -> str:
     )
 
 
-def list_videos_from_s3(prefix: str, return_full_keys: bool = False) -> List[str]:
-    """
-    List all video objects under a given prefix.
-    - return_full_keys=False → only filenames (Upload Manager)
-    - return_full_keys=True  → full S3 keys (Analysis, Export, etc.)
-    """
-    resp = s3.list_objects_v2(
-        Bucket=S3_BUCKET_NAME,
-        Prefix=prefix
-    )
+def list_videos_from_s3(prefix: str, return_full_keys: bool = False):
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+    contents = resp.get("Contents", [])
+    files = []
 
-    contents = resp.get("Contents", []) or []
-    keys = [obj["Key"] for obj in contents]
-
-    files: List[str] = []
-
-    for key in keys:
+    for obj in contents:
+        key = obj["Key"]
         ext = os.path.splitext(key)[1].lower()
         if ext not in [".mp4", ".mov", ".avi", ".m4v"]:
             continue
 
         if return_full_keys:
-            # old behavior → analysis/export still works
             files.append(key)
         else:
-            # cleaned name for the Upload Manager UI
             short = key[len(prefix):]
             if short and "/" not in short:
                 files.append(short)
@@ -191,57 +179,52 @@ No hashtags. No quotes. Return only the sentence.
     return desc
 
 
-# -----------------------------------------
-# YAML Prompt Builder
-# -----------------------------------------
 def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
     """
-    Build a prompt asking the LLM to output a valid config.yml
-    using the EXACT schema required by tiktok_template.py.
-    Filenames are used as-is (no forced .mp4).
+    Build a prompt asking the LLM to output a clean, modern config.yml
+    using the EXACT schema supported by tiktok_template.py and the UI.
     """
 
-    lines: List[str] = [
+    lines = [
         "You are generating a config.yml for a vertical TikTok HOTEL / TRAVEL video.",
         "",
-        "IMPORTANT — You MUST use this exact YAML structure:",
-        "Filenames MUST be returned exactly as provided (no renaming, no lowercase, no extension changes).",
+        "IMPORTANT RULES:",
+        "- Output ONLY valid YAML (no backticks).",
+        "- Use the EXACT schema below, no extra keys.",
+        "- Filenames must be returned EXACTLY as provided (case and extension preserved).",
+        "- Every clip must include: file, start_time, duration, text.",
+        "",
+        "======================================",
+        "REQUIRED YAML SCHEMA (FOLLOW EXACTLY)",
+        "======================================",
         "",
         "first_clip:",
         "  file: <filename>",
         "  start_time: 0",
         "  duration: <seconds>",
-        "  text: <one-sentence caption>",
-        "  scale: 1.0",
+        "  text: <caption>",
         "",
         "middle_clips:",
         "  - file: <filename>",
         "    start_time: 0",
         "    duration: <seconds>",
-        "    text: <one-sentence caption>",
-        "    scale: 1.0",
+        "    text: <caption>",
         "",
         "last_clip:",
         "  file: <filename>",
         "  start_time: 0",
         "  duration: <seconds>",
-        "  text: <one-sentence caption>",
-        "  scale: 1.0",
+        "  text: <caption>",
         "",
         "render:",
-        "  fg_scale_default: 1.0",
         "  layout_mode: tiktok",
+        "  auto_fg_scale: true",
+        "  fgscale: 1.1",
         "",
-        "# ------------------------------",
-        "# TTS (Voice Narration)",
-        "# ------------------------------",
         "tts:",
         "  enabled: false",
-        '  voice: "alloy"',
+        '  voice: "shimmer"',
         "",
-        "# ------------------------------",
-        "# Background Music System",
-        "# ------------------------------",
         "music:",
         "  enabled: false",
         "  file: ''",
@@ -252,23 +235,89 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
         '  text: ""',
         "  voiceover: false",
         "  duration: 3.0",
-        '  position: "bottom"',
         "",
         "",
-        "Here are your clips and their meanings:",
+        "======================================",
+        "CLIPS AND THEIR ANALYSIS (FOR CAPTIONS)",
+        "======================================",
     ]
 
+    # Insert clip analyses
     for vf, a in zip(video_files, analyses):
         lines.append(f"- file: {vf}")
         lines.append(f"  analysis: {a}")
 
     lines.append("")
-    lines.append("Return ONLY valid YAML. No backticks, no explanation.")
-    lines.append("Ensure you output first_clip, middle_clips, and last_clip fields exactly.")
+    lines.append("Return ONLY VALID YAML with no explanation. DO NOT wrap in code fences.")
+    lines.append("Ensure you output first_clip, middle_clips, and last_clip sections.")
 
     return "\n".join(lines)
 
+SESSION_CONFIG_DIR = "session_configs"
 
+def ensure_session_config_dir():
+    os.makedirs(SESSION_CONFIG_DIR, exist_ok=True)
+
+
+def session_config_path(session: str) -> str:
+    ensure_session_config_dir()
+    safe = session.replace("/", "_")
+    return os.path.join(SESSION_CONFIG_DIR, f"{safe}.yml")
+
+
+def load_session_config(session: str) -> dict:
+    """
+    Load YAML config for a specific session (hotel).
+    If not found, return an empty default config.
+    """
+    ensure_session_config_dir()
+    path = session_config_path(session)
+
+    if not os.path.exists(path):
+        return {}  # brand new session, no config yet
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+
+def save_session_config(session: str, cfg: dict):
+    """
+    Save YAML config for a specific session.
+    """
+    ensure_session_config_dir()
+    path = session_config_path(session)
+
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
+
+# =========================================
+# SESSION → GLOBAL CONFIG MERGER
+# =========================================
+def merge_session_config_into(cfg: dict, session: str) -> dict:
+    """
+    Return a config.yml dict with session-specific overrides applied.
+    Only touches the 'render' section for now.
+    """
+    try:
+        s_cfg = load_session_config(session)
+        if not isinstance(s_cfg, dict):
+            return cfg
+
+        s_render = s_cfg.get("render", {})
+        if not s_render:
+            return cfg
+
+        render = cfg.setdefault("render", {})
+        for k, v in s_render.items():
+            render[k] = v
+
+        return cfg
+
+    except Exception:
+        return cfg
 
 # -----------------------------------------
 # Save analysis to memory + disk
