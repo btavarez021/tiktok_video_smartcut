@@ -658,55 +658,7 @@
         <!-- RIGHT SIDEBAR -->
         <aside class="side-column">
 
-          <!-- ================================
-              SIDEBAR SESSION MANAGER v2
-          ================================ -->
-          <section id="sidebarSessionCard" class="card session-card">
-              <div class="card-header">
-                  <h2>Session Manager</h2>
-                  <p class="card-subtitle">
-                      Manage your video sessions — always visible.
-                  </p>
-              </div>
-
-              <div class="card-body">
-
-                  <!-- Active Session Display -->
-                  <div class="active-session-box">
-                      <p class="label">Active session:</p>
-                      <div id="sidebarActiveSession" class="active-session-name">default</div>
-                  </div>
-
-                  <!-- Create New Session -->
-                  <label class="field-label" for="sidebarNewSessionInput">Create new session</label>
-                  <div class="session-row">
-                      <input id="sidebarNewSessionInput" class="input" type="text" placeholder="e.g. Ritz Cancun 2025" />
-                      <button id="sidebarCreateBtn" class="btn secondary small">Create</button>
-                  </div>
-
-                  <hr class="section-divider" />
-
-                  <!-- Switch Session -->
-                  <label class="field-label" for="sidebarSessionDropdown">Switch session</label>
-                  <div class="session-row">
-                      <select id="sidebarSessionDropdown" class="select">
-                          <!-- Populated by JS -->
-                      </select>
-                      <button id="sidebarSwitchBtn" class="btn secondary small">Switch</button>
-                  </div>
-
-                  <!-- Delete Session -->
-                  <button id="sidebarDeleteBtn" class="btn ghost full" style="margin-top:12px; color:#ff6b6b;">
-                      Delete Active Session
-                  </button>
-
-                  <div id="sidebarSessionToastArea"></div>
-              </div>
-          </section>
-
-
-
-            <!-- Live Log -->
+              <!-- Live Log -->
             <section class="card log-card">
                 <div class="card-header">
                     <h2>Live Log</h2>
@@ -751,6 +703,52 @@
     </main> <!-- END MAIN LAYOUT -->
 
 </div> <!-- END APP SHELL -->
+
+<!-- ================================
+              SIDEBAR SESSION MANAGER v2
+          ================================ -->
+          <section id="sidebarSessionCard" class="card session-card">
+              <div class="card-header">
+                  <h2>Session Manager</h2>
+                  <p class="card-subtitle">
+                      Manage your video sessions — always visible.
+                  </p>
+              </div>
+
+              <div class="card-body">
+
+                  <!-- Active Session Display -->
+                  <div class="active-session-box">
+                      <p class="label">Active session:</p>
+                      <div id="sidebarActiveSession" class="active-session-name">default</div>
+                  </div>
+
+                  <!-- Create New Session -->
+                  <label class="field-label" for="sidebarNewSessionInput">Create new session</label>
+                  <div class="session-row">
+                      <input id="sidebarNewSessionInput" class="input" type="text" placeholder="e.g. Ritz Cancun 2025" />
+                      <button id="sidebarCreateBtn" class="btn secondary small">Create</button>
+                  </div>
+
+                  <hr class="section-divider" />
+
+                  <!-- Switch Session -->
+                  <label class="field-label" for="sidebarSessionDropdown">Switch session</label>
+                  <div class="session-row">
+                      <select id="sidebarSessionDropdown" class="select">
+                          <!-- Populated by JS -->
+                      </select>
+                      <button id="sidebarSwitchBtn" class="btn secondary small">Switch</button>
+                  </div>
+
+                  <!-- Delete Session -->
+                  <button id="sidebarDeleteBtn" class="btn ghost full" style="margin-top:12px; color:#ff6b6b;">
+                      Delete Active Session
+                  </button>
+
+                  <div id="sidebarSessionToastArea"></div>
+              </div>
+          </section>
 
 </body>
 </html>
