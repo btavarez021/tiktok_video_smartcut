@@ -1477,54 +1477,6 @@ h3 {
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ================================
-   MOBILE ONLY
-================================ */
-@media (max-width: 768px) {
-
-    /* Floating session button */
-    .mobile-session-btn {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 99999;
-        background: #7f5cff;
-        color: #fff;
-        padding: 12px 18px;
-        border-radius: 50px;
-        border: none;
-        font-size: 16px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-    }
-
-    /* Slide-up Session Manager panel */
-    #sidebarSessionCard {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-
-        width: 100%;
-        max-height: 75vh;
-
-        background: #111;
-        padding: 20px 18px;
-        border-radius: 16px 16px 0 0;
-
-        overflow-y: auto;
-        box-shadow: 0 -6px 22px rgba(0,0,0,0.55);
-
-        z-index: 99998;
-        transform: translateY(105%);
-        transition: transform 0.35s ease;
-    }
-
-    /* When opened */
-    #sidebarSessionCard.open {
-        transform: translateY(0);
-    }
-}
-
 .mobile-close-btn {
     width: 100%;
     background: #222;
