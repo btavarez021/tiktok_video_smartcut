@@ -1546,76 +1546,63 @@ async function sendChat() {
 // ================================
 document.addEventListener("DOMContentLoaded", () => {
 
-  /* Create Session */
-document.getElementById("sidebarCreateBtn")?.addEventListener("click", () => {
-    const input = document.getElementById("sidebarNewSessionInput");
-    const name = input.value.trim();
+  /* ---------------------------------------
+   SIDEBAR SESSION MANAGER (FIXED)
+----------------------------------------*/
 
-    if (!name) {
-        input.classList.add("shake");
-        setTimeout(() => input.classList.remove("shake"), 300);
-        return;
-    }
-
-    async function createSidebarSession(name) {
-    const safe = sanitizeSessionName(name);
-
-    // 1. Tell backend to create the session folder
-    await fetch(`/api/session/${safe}`, { method: "POST" });
-
-    // 2. Switch locally
-    setActiveSession(safe);
-
-    // 3. Refresh sidebar dropdown + label
-    sidebarLoadSessions();
-    sidebarSyncActiveLabel();
-
-    // 4. Toast
-    sidebarToast(`Created & switched to “${safe}”`);
-}
-
-// Event listener
-document.getElementById("sidebarCreateBtn")?.addEventListener("click", () => {
+// CREATE session
+document.getElementById("sidebarCreateBtn")?.addEventListener("click", async () => {
     const input = document.getElementById("sidebarNewSessionInput");
     const raw = input.value.trim();
+
     if (!raw) {
         input.classList.add("shake");
         setTimeout(() => input.classList.remove("shake"), 300);
         return;
     }
 
-    createSidebarSession(raw);
+    const safe = sanitizeSessionName(raw);
+
+    // Backend: create folder
+    await fetch(`/api/session/${safe}`, { method: "POST" });
+
+    // Local switch
+    setActiveSession(safe);
+
+    sidebarLoadSessions();
+    sidebarSyncActiveLabel();
+    sidebarToast(`Created & switched to “${safe}”`);
+
     input.value = "";
 });
 
-});
-
-/* Switch Session */
+// SWITCH session
 document.getElementById("sidebarSwitchBtn")?.addEventListener("click", () => {
     const ddl = document.getElementById("sidebarSessionDropdown");
-    if (ddl.value) {
-        setActiveSession(ddl.value);
-        sidebarSyncActiveLabel();
-        sidebarToast(`Switched to “${ddl.value}”`);
-    }
+    if (!ddl.value) return;
+
+    setActiveSession(ddl.value);
+    sidebarSyncActiveLabel();
+    sidebarToast(`Switched to “${ddl.value}”`);
 });
 
-/* Delete Session */
+// DELETE session
 document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () => {
-    const session = getActiveSession();
-    if (session === "default") {
+    const current = getActiveSession();
+    if (current === "default") {
         sidebarToast("Cannot delete default");
         return;
     }
 
-    await fetch(`/api/session/${session}`, { method: "DELETE" });
+    await fetch(`/api/session/${current}`, { method: "DELETE" });
 
     setActiveSession("default");
     sidebarLoadSessions();
     sidebarSyncActiveLabel();
 
-    sidebarToast(`Deleted session “${session}”`);
+    sidebarToast(`Deleted session “${current}”`);
 });
+
 
 const mobileSessionBtn = document.getElementById("mobileSessionBtn");
 const sidebarPanel = document.getElementById("sidebarSessionCard");
@@ -1637,11 +1624,8 @@ document.addEventListener("click", (e) => {
 
 
 /* Init on page load */
-document.addEventListener("DOMContentLoaded", () => {
-    sidebarLoadSessions();
-    sidebarSyncActiveLabel();
-});
-
+sidebarLoadSessions();
+sidebarSyncActiveLabel();
 
   const toggleBtn = document.getElementById("toggleYamlPreviewBtn");
     const previewBox = document.getElementById("yamlPreviewContainer");
