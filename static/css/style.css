@@ -1077,9 +1077,9 @@ h3 {
     z-index: 9999 !important;
 }
 
-/* Remove z-index from the select element itself */
+/* MUST BE CLEAN (no position, no z-index) */
 #sessionDropdown {
-    position: relative;
+    position: static !important;   /* ← resets everything */
     z-index: auto !important;
 }
 
@@ -1402,4 +1402,31 @@ h3 {
 #sessionDropdown.force-restyle option {
     background-color: #1d1d1d !important;
     color: #ffffff !important;
+}
+
+/* -------------------------------------------
+   FIX: Prevent Chrome/Edge from switching to
+   native dropdown (white background problem)
+-------------------------------------------- */
+
+/* Isolate the <select> from wrapper transforms */
+.select-wrapper {
+    transform: none !important;
+}
+
+/* Prevent animation from affecting the select */
+.select-wrapper.session-ddl-pulse select {
+    transform: none !important;
+}
+
+/* FORCE dark theme for desktop dropdowns */
+#sessionDropdown,
+#sessionDropdown option {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+    border: 1px solid #333 !important;
+
+    /* KEY FIXES */
+    -webkit-appearance: none !important;
+    appearance: none !important;
 }
