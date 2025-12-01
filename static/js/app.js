@@ -80,17 +80,6 @@ function setActiveSession(name) {
         ddl.classList.add("session-pulse");
     }
 
-    // toast message
-    const toastArea = document.getElementById("sessionToastArea");
-    if (toastArea) {
-        toastArea.innerHTML = `
-            <div class="session-toast">
-                ✓ Active session changed to <strong>${ACTIVE_SESSION}</strong>
-            </div>
-        `;
-        setTimeout(() => (toastArea.innerHTML = ""), 2600);
-    }
-
     console.log("[SESSION] Active:", ACTIVE_SESSION);
 
     // UI refresh actions
