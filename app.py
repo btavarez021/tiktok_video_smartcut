@@ -35,9 +35,10 @@ from assistant_api import (
     set_export_mode,
     load_all_analysis_results,
     sanitize_session as backend_sanitize_session,  # unified sanitizer
+    load_session_config,
+    save_session_config
 )
 
-from tiktok_template import config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 
 
@@ -182,7 +183,19 @@ def route_get_config():
 def route_save_yaml_route():
     data = request.get_json() or {}
     yaml_text = data.get("yaml", "")
+
+    # Determine session
+    session = sanitize_session(
+        request.args.get("session", data.get("session", "default"))
+    )
+
+    # Patch request.args for api_save_yaml()
+    # (so it reads ?session=xxx exactly like before)
+    request.args = request.args.copy()
+    request.args["session"] = session
+
     return jsonify(api_save_yaml(yaml_text))
+
 
 
 # ============================================================================
@@ -196,7 +209,9 @@ def route_get_captions():
 @app.route("/api/save_captions", methods=["POST"])
 def route_save_captions():
     data = request.get_json() or {}
-    return jsonify(api_save_captions(data.get("text", "")))
+    session = sanitize_session(data.get("session", "default"))
+    text = data.get("text", "")
+    return jsonify(api_save_captions(text, session))
 
 
 # ============================================================================
@@ -224,13 +239,32 @@ def route_download(filename):
 @app.route("/api/tts", methods=["POST"])
 def route_tts():
     data = request.get_json() or {}
-    return jsonify(api_set_tts(bool(data.get("enabled", False)), data.get("voice")))
+    session = sanitize_session(data.get("session", "default"))
+    voice = data.get("voice", None)
+    if not voice:
+        voice = None
+
+    return jsonify(api_set_tts(
+    session,
+    bool(data.get("enabled", False)),
+    data.get("voice")
+))
+
 
 
 @app.route("/api/cta", methods=["POST"])
 def route_cta():
     data = request.get_json() or {}
-    return jsonify(api_set_cta(bool(data.get("enabled", False)), data.get("text"), data.get("voiceover")))
+    session = sanitize_session(data.get("session", "default"))
+
+    return jsonify(api_set_cta(
+    session,
+    bool(data.get("enabled", False)),
+    data.get("text"),
+    data.get("voiceover"),
+    data.get("duration")  # NEW
+))
+
 
 
 # ============================================================================
@@ -246,20 +280,20 @@ def api_music_list_route():
 @app.route("/api/music", methods=["POST"])
 def api_music():
     data = request.get_json(force=True)
+
+    session = sanitize_session(data.get("session", "default"))
     enabled = bool(data.get("enabled"))
     file = data.get("file") or ""
     volume = float(data.get("volume", 0.25))
 
-    with open(config_path, "r") as f:
-        cfg = yaml.safe_load(f) or {}
+    cfg = load_session_config(session)
+    r = cfg.setdefault("render", {})
 
-    cfg.setdefault("render", {})
-    cfg["render"]["music_enabled"] = enabled
-    cfg["render"]["music_file"] = file
-    cfg["render"]["music_volume"] = volume
+    r["music_enabled"] = enabled
+    r["music_file"] = file
+    r["music_volume"] = volume
 
-    with open(config_path, "w") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+    save_session_config(session, cfg)
 
     return jsonify({"status": "ok"})
 
@@ -299,7 +333,10 @@ def route_timings():
 @app.route("/api/layout", methods=["POST"])
 def route_set_layout():
     data = request.get_json(force=True)
-    return jsonify(api_set_layout(data.get("mode", "tiktok")))
+    session = sanitize_session(data.get("session", "default"))
+    mode = data.get("mode", "tiktok")
+    return jsonify(api_set_layout(session, mode))
+
 
 
 @app.route("/api/fgscale", methods=["POST"])

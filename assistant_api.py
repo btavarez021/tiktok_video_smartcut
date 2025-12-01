@@ -305,7 +305,10 @@ def _sync_s3_videos_to_local(session: str) -> List[str]:
     # Sync each file
     for key in keys:
         filename = os.path.basename(key)
-        local_path = os.path.join(video_folder, filename)
+        session_dir = os.path.join(video_folder, session)
+        os.makedirs(session_dir, exist_ok=True)
+        local_path = os.path.join(session_dir, filename)
+
 
         log_step(f"[SYNC] Checking cache for {filename}")
 
@@ -425,6 +428,11 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
         if "layout_mode" not in render:
             render["layout_mode"] = "tiktok"
 
+        # --- NEW: ensure CTA duration exists ---
+        cta = cfg.setdefault("cta", {})
+        cta["duration"] = cta.get("duration", 3.0)
+
+
         # NOTE: still using a single global config_path for now
         # Apply session overrides (fgscale, etc.)
         cfg = merge_session_config_into(cfg, session)
@@ -446,8 +454,9 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
 # Config retrieval + saving (global)
 # -------------------------------
 def api_get_config() -> Dict[str, Any]:
-    session_id = request.args.get("session")
+    session_id = sanitize_session(request.args.get("session", "default"))
     config_path = get_config_path(session_id)
+
     if not os.path.exists(config_path):
         return {"yaml": "", "config": {}, "error": "config.yml not found"}
 
@@ -456,10 +465,7 @@ def api_get_config() -> Dict[str, Any]:
 
     try:
         cfg = yaml.safe_load(yaml_text) or {}
-
-        # 🔥 Re-serialize cleaned config so UI sees the cleaned version
         yaml_text = yaml.safe_dump(cfg, sort_keys=False)
-
     except Exception:
         cfg = {}
 
@@ -633,18 +639,34 @@ def api_set_tts(session: str, enabled: bool, voice: str | None) -> Dict[str, Any
 
 
 
-def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool | None) -> Dict[str, Any]:
+def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool | None, duration: float | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
 
     cfg = load_session_config(session)
     c = cfg.setdefault("cta", {})
+
+    # Always set enabled
     c["enabled"] = bool(enabled)
 
+    # Update text if provided
     if text is not None:
         c["text"] = text
+
+    # Update voiceover if provided
     if voiceover is not None:
         c["voiceover"] = bool(voiceover)
 
+    # NEW: CTA duration
+    if duration is not None:
+        try:
+            c["duration"] = float(duration)
+        except:
+            c["duration"] = 3.0
+    else:
+        # Ensure duration exists
+        c["duration"] = c.get("duration", 3.0)
+
+    # Save final config
     save_session_config(session, cfg)
 
     return {"status": "ok", "cta": c}

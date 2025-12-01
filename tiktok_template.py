@@ -40,9 +40,6 @@ os.makedirs(MUSIC_DIR, exist_ok=True)
 TARGET_W = 1080
 TARGET_H = 1920
 
-
-
-
 # -----------------------------------------
 # Simple Gaussian blur via Pillow
 # -----------------------------------------
@@ -395,30 +392,41 @@ def _build_base_audio(video_path, total_duration):
 # -----------------------------------------
 # Ensure local video exists (S3 → local sync)
 # -----------------------------------------
-def ensure_local_video(filename: str) -> str:
+def ensure_local_video(session_id: str, filename: str) -> str:
     """
-    Makes sure the video exists locally in tik_tok_downloads/.
-    If missing, download from S3 RAW_PREFIX folder.
+    Ensures the video exists locally in:
+        tik_tok_downloads/<session_id>/<filename>
+
+    If missing, download from:
+        s3://bucket/raw_uploads/<session>/<filename>
+
     Returns absolute local path.
     """
-    local_path = os.path.join(video_folder, filename)
+
+    # Local folder for this session
+    session_dir = os.path.join(video_folder, session_id)
+    os.makedirs(session_dir, exist_ok=True)
+
+    local_path = os.path.join(session_dir, filename)
+
+    # If already cached locally, use it
     if os.path.exists(local_path):
         return local_path
 
-    # Normalize RAW_PREFIX to avoid double slashes
-    prefix = RAW_PREFIX.rstrip("/")
-    s3_key = f"{prefix}/{filename}"
+    # Normalize for safety
+    prefix = RAW_PREFIX.rstrip("/")  # "raw_uploads"
+    s3_key = f"{prefix}/{session_id}/{filename}"
 
     log_step(f"[SYNC] Downloading missing clip: s3://{S3_BUCKET_NAME}/{s3_key}")
 
     try:
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
         s3.download_file(S3_BUCKET_NAME, s3_key, local_path)
         log_step(f"[SYNC] Restored local clip → {local_path}")
     except Exception as e:
         raise RuntimeError(f"[SYNC ERROR] Cannot restore {filename} from S3: {e}")
 
     return local_path
+
 
 # -----------------------------------------
 # Core export function: edit_video   (WITH S1 SMOOTH CTA FADE)
@@ -462,7 +470,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     def collect(c: Dict[str, Any], is_last: bool = False) -> Dict[str, Any]:
         raw_file = c["file"]
         filename = os.path.basename(raw_file)
-        local_file = ensure_local_video(filename)
+        local_file = ensure_local_video(session_id, filename)
 
         return {
             "file": local_file,
