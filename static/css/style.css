@@ -1578,3 +1578,14 @@ h3 {
         display: block !important;
     }
 }
+
+/* =======================================
+   FORCE MOBILE SIDEBAR ABOVE ALL ELEMENTS
+   ======================================= */
+@media (max-width: 768px) {
+    #sidebarSessionCard {
+        z-index: 2147483647 !important; /* maximum safe z-index */
+        position: fixed !important;
+    }
+}
+  
