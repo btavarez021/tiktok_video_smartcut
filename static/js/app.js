@@ -149,58 +149,6 @@ function sidebarSyncActiveLabel() {
     document.getElementById("sidebarActiveSession").textContent = getActiveSession();
 }
 
-/* Create Session */
-document.getElementById("sidebarCreateBtn")?.addEventListener("click", () => {
-    const input = document.getElementById("sidebarNewSessionInput");
-    const name = input.value.trim();
-
-    if (!name) {
-        input.classList.add("shake");
-        setTimeout(() => input.classList.remove("shake"), 300);
-        return;
-    }
-
-    setActiveSession(name);
-    sidebarLoadSessions();
-    sidebarSyncActiveLabel();
-
-    sidebarToast(`Created & switched to “${name}”`);
-    input.value = "";
-});
-
-/* Switch Session */
-document.getElementById("sidebarSwitchBtn")?.addEventListener("click", () => {
-    const ddl = document.getElementById("sidebarSessionDropdown");
-    if (ddl.value) {
-        setActiveSession(ddl.value);
-        sidebarSyncActiveLabel();
-        sidebarToast(`Switched to “${ddl.value}”`);
-    }
-});
-
-/* Delete Session */
-document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () => {
-    const session = getActiveSession();
-    if (session === "default") {
-        sidebarToast("Cannot delete default");
-        return;
-    }
-
-    await fetch(`/api/session/${session}`, { method: "DELETE" });
-
-    setActiveSession("default");
-    sidebarLoadSessions();
-    sidebarSyncActiveLabel();
-
-    sidebarToast(`Deleted session “${session}”`);
-});
-
-/* Init on page load */
-document.addEventListener("DOMContentLoaded", () => {
-    sidebarLoadSessions();
-    sidebarSyncActiveLabel();
-});
-
 
 // ================================
 // Utility helpers
@@ -1597,6 +1545,77 @@ async function sendChat() {
 // Init wiring
 // ================================
 document.addEventListener("DOMContentLoaded", () => {
+
+  /* Create Session */
+document.getElementById("sidebarCreateBtn")?.addEventListener("click", () => {
+    const input = document.getElementById("sidebarNewSessionInput");
+    const name = input.value.trim();
+
+    if (!name) {
+        input.classList.add("shake");
+        setTimeout(() => input.classList.remove("shake"), 300);
+        return;
+    }
+
+    setActiveSession(name);
+    sidebarLoadSessions();
+    sidebarSyncActiveLabel();
+
+    sidebarToast(`Created & switched to “${name}”`);
+    input.value = "";
+});
+
+/* Switch Session */
+document.getElementById("sidebarSwitchBtn")?.addEventListener("click", () => {
+    const ddl = document.getElementById("sidebarSessionDropdown");
+    if (ddl.value) {
+        setActiveSession(ddl.value);
+        sidebarSyncActiveLabel();
+        sidebarToast(`Switched to “${ddl.value}”`);
+    }
+});
+
+/* Delete Session */
+document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () => {
+    const session = getActiveSession();
+    if (session === "default") {
+        sidebarToast("Cannot delete default");
+        return;
+    }
+
+    await fetch(`/api/session/${session}`, { method: "DELETE" });
+
+    setActiveSession("default");
+    sidebarLoadSessions();
+    sidebarSyncActiveLabel();
+
+    sidebarToast(`Deleted session “${session}”`);
+});
+
+const mobileSessionBtn = document.getElementById("mobileSessionBtn");
+const sidebarPanel = document.getElementById("sidebarSessionCard");
+
+mobileSessionBtn?.addEventListener("click", () => {
+    sidebarPanel.classList.add("open");
+});
+
+// Close when clicking outside panel
+document.addEventListener("click", (e) => {
+    if (!sidebarPanel.classList.contains("open")) return;
+
+    const clickedInside = sidebarPanel.contains(e.target) ||
+                          e.target === mobileSessionBtn;
+    if (!clickedInside) {
+        sidebarPanel.classList.remove("open");
+    }
+});
+
+
+/* Init on page load */
+document.addEventListener("DOMContentLoaded", () => {
+    sidebarLoadSessions();
+    sidebarSyncActiveLabel();
+});
 
 
   const toggleBtn = document.getElementById("toggleYamlPreviewBtn");
