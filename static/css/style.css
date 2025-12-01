@@ -1507,18 +1507,20 @@ h3 {
         top: 20px;
 
         width: 100%;
-        max-height: none;        /* ← remove height cap */
+        max-height: none;
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 12px;
         padding: 18px;
-        overflow-y: visible;     /* ← remove scrollbar */
+
+        /* FINAL, CORRECT SETTINGS */
+        overflow-y: hidden;    /* remove scrollbar + prevent stack overflow */
+        z-index: 5 !important; /* ensure content never scrolls over it */
+
         transform: none !important;
-        box-shadow: none; 
-        z-index: auto;
+        box-shadow: none;
     }
 }
-
 
 /* Desktop only — hide mobile close button */
 @media (min-width: 769px) {
