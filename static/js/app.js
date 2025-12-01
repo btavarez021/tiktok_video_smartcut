@@ -1290,14 +1290,13 @@ async function saveFgScale() {
 
         await saveYamlToServer();
 
-        await jsonFetch("/api/fgscale", {
-            method: "POST",
-            body: JSON.stringify({
-                session: getActiveSession(),
-                fgscale_mode: auto ? "auto" : "manual",
-                fgscale: auto ? null : fg,
-            }),
-        });
+        await jsonFetch(
+            `/api/fgscale?session=${encodeURIComponent(getActiveSession())}` +
+            `&fgscale_mode=${auto ? "auto" : "manual"}` +
+            `&fgscale=${auto ? "" : fg}`,
+            { method: "POST" }
+        );
+
 
         setStatus("fgStatus", "Foreground scale saved.", "success");
         await loadConfigAndYaml();
