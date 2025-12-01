@@ -1642,30 +1642,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const selected = ddl.value || "default";
 
-    // 1. Switch
+    // 1. Switch sessions
     setActiveSession(selected);
     loadSessionDropdown();
 
-    // 2. Highlight Active Label
+    // 2. Label pulse animation
     const label = document.getElementById("activeSessionLabel");
     if (label) {
         label.classList.add("session-pulse");
         setTimeout(() => label.classList.remove("session-pulse"), 800);
     }
 
-    // 3. Dropdown Pulse
+    // 3. Dropdown pulse
     ddl.classList.add("session-ddl-pulse");
     setTimeout(() => ddl.classList.remove("session-ddl-pulse"), 600);
 
-    // 4. Show Toast
+    // 4. Toast
     showSessionToast(`Switched to “${selected}”`);
-
-    // 5. (Optional) Scroll to Upload Manager
-    const uploadSection = document.getElementById("uploadManagerContent");
-    if (uploadSection) {
-        uploadSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
 });
-
 
 });
