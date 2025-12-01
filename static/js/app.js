@@ -1245,28 +1245,18 @@ async function saveYamlToServer() {
 
 // Foreground scale
 async function saveFgScale() {
-    const autoEl = document.getElementById("autoFgScale");
-    const range = document.getElementById("fgScale");
-    if (!autoEl || !range) return;
-
-    const auto = autoEl.checked;
-    const fg = parseFloat(range.value || "1.0");
+    const auto = document.getElementById("autoFgScale").checked;
+    const fg = parseFloat(document.getElementById("fgScale").value || "1.0");
 
     setStatus("fgStatus", "Saving foreground scale…", "info");
 
     try {
-        // 1. Update YAML directly
+        // 1. Update YAML using SAME KEYS as backend
         let yamlObj = jsyaml.load(document.getElementById("yamlText").value) || {};
         yamlObj.render = yamlObj.render || {};
 
-        yamlObj.render.auto_fg_scale = auto;
-
-        if (auto) {
-            // remove manual scale if auto mode is ON
-            delete yamlObj.render.fgscale;
-        } else {
-            yamlObj.render.fgscale = fg;
-        }
+        yamlObj.render.fgscale_mode = auto ? "auto" : "manual";
+        yamlObj.render.fgscale = auto ? null : fg;
 
         // Write YAML back into textarea
         document.getElementById("yamlText").value = jsyaml.dump(yamlObj);
@@ -1274,7 +1264,7 @@ async function saveFgScale() {
         // 2. Save YAML to backend
         await saveYamlToServer();
 
-        // 3. Also notify /api/fgscale (keeps backward compatibility)
+        // 3. Notify backend
         await jsonFetch("/api/fgscale", {
             method: "POST",
             body: JSON.stringify({
@@ -1286,15 +1276,14 @@ async function saveFgScale() {
 
         setStatus("fgStatus", "Foreground scale saved.", "success");
 
-        // Reload YAML so UI reflects updated render settings
+        // 4. Reload YAML so UI reflects updated state
         await loadConfigAndYaml();
+
     } catch (err) {
         console.error(err);
         setStatus("fgStatus", "Error saving scale: " + err.message, "error");
     }
 }
-
-
 
 function initFgScaleSlider() {
     const range = document.getElementById("fgScale");
