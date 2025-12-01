@@ -2981,9 +2981,11 @@ h3 {
     appearance: none !important;
 }
 
-/* ================================
-   SIDEBAR SESSION MANAGER v2
-================================ */
+/* ============================================================
+   SESSION MANAGER — CLEAN VERSION
+   ============================================================ */
+
+/* Shared card styles */
 .session-card .active-session-box {
     background: #242426;
     border: 1px solid #333;
@@ -2995,7 +2997,6 @@ h3 {
 .session-card .active-session-box .label {
     font-size: 0.8rem;
     color: var(--text-dim);
-    margin: 0;
 }
 
 .active-session-name {
@@ -3027,6 +3028,7 @@ h3 {
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Close button (shown only on mobile) */
 .mobile-close-btn {
     width: 100%;
     background: #222;
@@ -3038,50 +3040,46 @@ h3 {
     font-size: 16px;
 }
 
-
-/* ================================
-   DESKTOP ONLY (hide mobile button)
-================================ */
+/* ============================================================
+   DESKTOP MODE
+   ============================================================ */
 @media (min-width: 769px) {
+
+    /* Hide floating button */
     .mobile-session-btn {
         display: none !important;
     }
-}
 
-/* ================================
-   DESKTOP: keep sidebar in place
-================================ */
-@media (min-width: 769px) {
+    /* Keep sidebar sticky on desktop */
     #sidebarSessionCard {
         position: sticky;
         top: 20px;
 
         width: 100%;
         max-height: calc(100vh - 40px);
-
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 12px;
         padding: 18px;
         overflow-y: auto;
 
-        transform: none !important; /* override mobile slide */
-        box-shadow: none; 
-        z-index: auto; /* normal layering */
+        transform: none !important;
+        box-shadow: none;
+        z-index: auto;
     }
-}
 
-/* Desktop only — hide mobile close button */
-@media (min-width: 769px) {
+    /* No close button on desktop */
     .mobile-close-btn {
         display: none !important;
     }
 }
 
-/* ================================
-   MOBILE SESSION BUTTON (show on mobile)
-================================ */
+/* ============================================================
+   MOBILE MODE
+   ============================================================ */
 @media (max-width: 768px) {
+
+    /* Floating trigger button */
     .mobile-session-btn {
         position: fixed;
         bottom: 20px;
@@ -3096,22 +3094,17 @@ h3 {
         box-shadow: 0 4px 16px rgba(0,0,0,0.35);
         display: block !important;
     }
-}
 
-
-/* ===========================================
-   MOBILE SIDEBAR (slide-up panel)
-   =========================================== */
-@media (max-width: 768px) {
+    /* Slide-up panel */
     #sidebarSessionCard {
         position: fixed;
         left: 0;
         right: 0;
-        bottom: -100%;          /* hidden off-screen */
+        bottom: -100%; /* hidden */
         background: var(--card);
         border-top-left-radius: 16px;
         border-top-right-radius: 16px;
-        padding: 18px;
+        padding: 20px;
         box-shadow: 0 -12px 30px rgba(0,0,0,0.65);
         transition: bottom 0.3s ease;
         z-index: 99998;
@@ -3119,15 +3112,35 @@ h3 {
         overflow-y: auto;
     }
 
-    /* When JS adds `.open` → slide up */
+    /* When JS toggles "open" class */
     #sidebarSessionCard.open {
         bottom: 0;
     }
 
-    /* Mobile close button ONLY on mobile */
+    /* Show close button only on mobile */
     .mobile-close-btn {
         display: block !important;
+    }
+
+    /* Stack rows vertically */
+    .session-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .session-row button {
+        width: 100%;
     }
 }
 
 
+/* FORCE mobile session panel to always appear on top */
+@media (max-width: 768px) {
+    #sidebarSessionCard {
+        z-index: 999999 !important;  /* 🔥 above everything */
+    }
+
+    .mobile-session-btn {
+        z-index: 1000000 !important; /* button above the panel */
+    }
+}
