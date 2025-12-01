@@ -1,7 +1,6 @@
 // ================================
 // Variables
 // ================================
-
 let previewAudio = null;
 let previewPlaying = false;
 
@@ -11,38 +10,31 @@ let ACTIVE_SESSION = "default";
 // -------------------------
 // Session helpers
 // -------------------------
-
-
 function updateSessionLabels() {
     const labels = document.querySelectorAll(".sessionLabel");
-    labels.forEach(l => l.textContent = ACTIVE_SESSION || "default");
+    labels.forEach((l) => (l.textContent = getActiveSession()));
 }
 
-
 function sessionQS() {
-    return "?session=" + encodeURIComponent(ACTIVE_SESSION);
+    return "?session=" + encodeURIComponent(getActiveSession());
 }
 
 function updateSessionTags() {
-    document.querySelectorAll("#currentSessionTag").forEach(el => {
+    document.querySelectorAll("#currentSessionTag").forEach((el) => {
         el.textContent = getActiveSession();
     });
 }
 
-
 function sanitizeSessionName(raw) {
     let s = (raw || "").toLowerCase().trim();
 
-    // Optional: strip accents
     try {
         s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
     } catch {
-        // older browsers: ignore
+        // ignore
     }
 
-    // Replace non-alnum with underscores
     s = s.replace(/[^a-z0-9]+/g, "_");
-    // Trim extra underscores
     s = s.replace(/^_+|_+$/g, "");
 
     if (!s) s = "default";
@@ -57,7 +49,7 @@ function setActiveSession(name) {
     const safe = sanitizeSessionName(name);
     ACTIVE_SESSION = safe;
 
-    // 🔥 FIX: Update ALL “Session:” labels everywhere
+    // Update label chips
     updateSessionLabels();
 
     // persist
@@ -65,7 +57,7 @@ function setActiveSession(name) {
         localStorage.setItem("activeSession", ACTIVE_SESSION);
     } catch {}
 
-    // Update main label
+    // OLD header label (if present)
     const label = document.getElementById("activeSessionLabel");
     if (label) {
         label.textContent = ACTIVE_SESSION;
@@ -74,7 +66,7 @@ function setActiveSession(name) {
         label.classList.add("session-active-flash");
     }
 
-    // highlight dropdown
+    // OLD dropdown (if present)
     const ddl = document.getElementById("sessionDropdown");
     if (ddl) {
         ddl.value = ACTIVE_SESSION;
@@ -83,7 +75,7 @@ function setActiveSession(name) {
         ddl.classList.add("session-pulse");
     }
 
-    // toast
+    // OLD toast area (if present)
     const toastArea = document.getElementById("sessionToastArea");
     if (toastArea) {
         toastArea.innerHTML = `
@@ -96,6 +88,9 @@ function setActiveSession(name) {
 
     console.log("[SESSION] Active:", ACTIVE_SESSION);
 
+    // Sidebar label
+    sidebarSyncActiveLabel();
+
     // UI refresh actions
     loadUploadManager();
     clearAnalysisUI();
@@ -103,16 +98,57 @@ function setActiveSession(name) {
     loadConfigAndYaml();
     loadSessionDropdown();
     loadSessions();
+    sidebarLoadSessions();
 }
 
+// =========================================
+// SIDEBAR SESSION MANAGER v2
+// =========================================
+function sidebarToast(msg) {
+    const area = document.getElementById("sidebarSessionToastArea");
+    if (!area) return;
 
+    const div = document.createElement("div");
+    div.className = "sidebar-toast";
+    div.textContent = msg;
 
+    area.appendChild(div);
+    setTimeout(() => div.classList.add("fade-out"), 1300);
+    setTimeout(() => div.remove(), 1600);
+}
+
+async function sidebarLoadSessions() {
+    try {
+        const res = await fetch("/api/sessions");
+        const data = await res.json();
+
+        const ddl = document.getElementById("sidebarSessionDropdown");
+        if (!ddl) return;
+
+        ddl.innerHTML = "";
+
+        (data.sessions || []).forEach((s) => {
+            const opt = document.createElement("option");
+            opt.value = s;
+            opt.textContent = s;
+            ddl.appendChild(opt);
+        });
+
+        ddl.value = getActiveSession();
+    } catch (err) {
+        console.error("Failed loading sessions:", err);
+    }
+}
+
+function sidebarSyncActiveLabel() {
+    const el = document.getElementById("sidebarActiveSession");
+    if (!el) return;
+    el.textContent = getActiveSession();
+}
 
 // ================================
 // Utility helpers
 // ================================
-
-
 function showSessionToast(msg) {
     const area = document.getElementById("sessionToastArea");
     if (!area) return;
@@ -128,7 +164,6 @@ function showSessionToast(msg) {
         setTimeout(() => el.remove(), 500);
     }, 1300);
 }
-
 
 // EXPORT URL helper – checks if S3 link is live
 async function probeUrl(url) {
@@ -161,20 +196,16 @@ function setStatus(id, msg, type = "info", autoHide = true) {
     const el = document.getElementById(id);
     if (!el) return;
 
-    // Reset class
     el.className = "status-text status-" + type;
     el.textContent = msg;
 
-    // Clear previous timer
     if (_statusTimers[id]) {
         clearTimeout(_statusTimers[id]);
         delete _statusTimers[id];
     }
 
-    // If no auto-hide, stop here
     if (!autoHide) return;
 
-    // Auto hide in 5 seconds
     _statusTimers[id] = setTimeout(() => {
         el.textContent = "";
         el.className = "status-text status-info";
@@ -209,7 +240,7 @@ function showStatus(msg, type = "info") {
     el.className = "hint-text " + type;
 }
 
-// Simple download helper (works on mobile/desktop)
+// Simple download helper
 function safeDownload(url, filename = "export.mp4") {
     const a = document.createElement("a");
     a.href = url;
@@ -231,7 +262,10 @@ function initStepper() {
             const targetSel = btn.dataset.target;
             const targetEl = document.querySelector(targetSel);
             if (targetEl) {
-                targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
+                targetEl.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                });
             }
             stepButtons.forEach((b) => b.classList.remove("active"));
             btn.classList.add("active");
@@ -275,7 +309,7 @@ async function refreshStatusLog() {
         el.textContent = log.join("\n");
         el.scrollTop = el.scrollHeight;
     } catch {
-        // silent fail for logs
+        // silent
     }
 }
 
@@ -402,69 +436,55 @@ function initUploadUI() {
     });
 
     uploadBtn.addEventListener("click", () => {
-    if (!selectedFiles.length) {
-        // Feedback message
-        setStatus("uploadStatus", "❗ Please select at least one video before uploading.", "error");
+        if (!selectedFiles.length) {
+            setStatus(
+                "uploadStatus",
+                "❗ Please select at least one video before uploading.",
+                "error"
+            );
 
-        // Optional small shake animation on the button
-        uploadBtn.classList.add("error-flash");
-        setTimeout(() => uploadBtn.classList.remove("shake"), 400);
+            uploadBtn.classList.add("error-flash");
+            setTimeout(() => uploadBtn.classList.remove("error-flash"), 400);
 
-        return;
-    }
-
-    statusEl.textContent = "Uploading…";
-    progressWrapper.classList.remove("hidden");
-    progressBar.style.width = "0%";
-
-    const formData = new FormData();
-    selectedFiles.forEach((f) => formData.append("files", f));
-
-    const xhr = new XMLHttpRequest();
-    const session = encodeURIComponent(getActiveSession());
-    xhr.open("POST", `/api/upload?session=${session}`);
-
-    xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-            const pct = (e.loaded / e.total) * 100;
-            progressBar.style.width = pct.toFixed(1) + "%";
+            return;
         }
-    };
 
-    xhr.onload = () => {
-        if (xhr.status === 200) {
-            const resp = JSON.parse(xhr.responseText);
-            statusEl.textContent = `✅ Uploaded ${resp.uploaded?.length || 0} file(s).`;
-            progressBar.style.width = "100%";
-            loadUploadManager();
-        } else {
-            statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
-        }
-    };
+        statusEl.textContent = "Uploading…";
+        progressWrapper.classList.remove("hidden");
+        progressBar.style.width = "0%";
 
-    xhr.onerror = () => {
-        statusEl.textContent = "❌ Upload error.";
-    };
+        const formData = new FormData();
+        selectedFiles.forEach((f) => formData.append("files", f));
 
-    xhr.send(formData);
-});
+        const xhr = new XMLHttpRequest();
+        const session = encodeURIComponent(getActiveSession());
+        xhr.open("POST", `/api/upload?session=${session}`);
 
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const pct = (e.loaded / e.total) * 100;
+                progressBar.style.width = pct.toFixed(1) + "%";
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                const resp = JSON.parse(xhr.responseText);
+                statusEl.textContent = `✅ Uploaded ${resp.uploaded?.length || 0} file(s).`;
+                progressBar.style.width = "100%";
+                loadUploadManager();
+            } else {
+                statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
+            }
+        };
+
+        xhr.onerror = () => {
+            statusEl.textContent = "❌ Upload error.";
+        };
+
+        xhr.send(formData);
+    });
 }
-
-function toggleSessionManager() {
-    const content = document.getElementById("sessionManagerContent");
-    const icon = document.getElementById("sessionManagerToggle");
-
-    if (content.classList.contains("collapsed")) {
-        content.classList.remove("collapsed");
-        icon.textContent = "▲";
-    } else {
-        content.classList.add("collapsed");
-        icon.textContent = "▼";
-    }
-}
-
-
 
 // ================================
 // Manage uploads already in S3
@@ -473,7 +493,6 @@ async function loadUploadManager() {
     try {
         const session = encodeURIComponent(getActiveSession());
 
-        // Set label
         const sessLabel = document.getElementById("uploadManagerSession");
         if (sessLabel) sessLabel.textContent = getActiveSession();
 
@@ -504,9 +523,7 @@ function renderUploadList(elementId, items, kind) {
         .map((file) => {
             const isRaw = kind === "raw";
             const srcKey = isRaw ? rawPrefix + file : processedPrefix + file;
-            const destKey = isRaw
-                ? processedPrefix + file
-                : rawPrefix + file;
+            const destKey = isRaw ? processedPrefix + file : rawPrefix + file;
 
             return `
         <div class="upload-item">
@@ -562,12 +579,11 @@ function clearAnalysisUI() {
     }
 }
 
-
 // ================================
 // Step 1: Analysis
 // ================================
 async function analyzeClips() {
-    clearAnalysisUI(); 
+    clearAnalysisUI();
     const analyzeBtn = document.getElementById("analyzeBtn");
     const statusEl = document.getElementById("analyzeStatus");
     if (!analyzeBtn || !statusEl) return;
@@ -611,9 +627,7 @@ async function refreshAnalyses() {
     listEl.innerHTML = "";
     try {
         const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(
-            `/api/analyses_cache?session=${session}`
-        );
+        const data = await jsonFetch(`/api/analyses_cache?session=${session}`);
         const entries = Object.entries(data || {});
         if (!entries.length) {
             listEl.innerHTML =
@@ -674,11 +688,7 @@ async function loadConfigAndYaml() {
         const session = encodeURIComponent(getActiveSession());
         const data = await jsonFetch(`/api/config?session=${session}`);
         yamlTextEl.value = data.yaml || "# No config.yml yet.";
-        yamlPreviewEl.textContent = JSON.stringify(
-            data.config || {},
-            null,
-            2
-        );
+        yamlPreviewEl.textContent = JSON.stringify(data.config || {}, null, 2);
     } catch (err) {
         yamlTextEl.value = "";
         yamlPreviewEl.textContent = `Error loading config: ${err.message}`;
@@ -756,7 +766,7 @@ async function loadCaptionsFromYaml() {
     }
 }
 
-// Session list (for Session Manager card)
+// OLD session list (if legacy card exists)
 async function loadSessions() {
     try {
         const res = await fetch("/api/sessions");
@@ -783,9 +793,7 @@ async function loadSessions() {
     }
 }
 
-// ================================
-// Populate quick-switch session dropdown
-// ================================
+// Populate quick-switch session dropdown (legacy)
 async function loadSessionDropdown() {
     try {
         const res = await fetch("/api/sessions");
@@ -810,18 +818,14 @@ async function loadSessionDropdown() {
             ddl.appendChild(opt);
         });
 
-        // Highlight the active session
         ddl.value = getActiveSession();
 
-        // 🔥 Fix Chrome/desktop style reset after dynamic repopulation
         ddl.classList.add("force-restyle");
         setTimeout(() => ddl.classList.remove("force-restyle"), 0);
-
     } catch (err) {
         console.error("[SESSION] dropdown load failed:", err);
     }
 }
-
 
 async function deleteSession(session) {
     if (!confirm(`Delete session '${session}' including all its videos?`)) return;
@@ -831,13 +835,14 @@ async function deleteSession(session) {
             method: "DELETE",
         });
 
-        // If we deleted the current one, snap back to default
         if (getActiveSession() === session) {
             setActiveSession("default");
         }
 
         loadSessions();
-        loadSessionDropdown(); // refresh dropdown after deletion
+        loadSessionDropdown();
+        sidebarLoadSessions();
+        sidebarSyncActiveLabel();
     } catch (err) {
         console.error("[SESSION] deleteSession failed:", err);
     }
@@ -887,19 +892,13 @@ async function saveCaptions() {
 // ================================
 // Step 4: Overlay, timings, TTS, CTA, fg scale, music
 // ================================
-
-// Overlay style
 async function applyOverlay() {
     const styleSel = document.getElementById("overlayStyle");
     const statusEl = document.getElementById("overlayStatus");
     if (!styleSel || !statusEl) return;
 
     const style = styleSel.value || "travel_blog";
-    setStatus(
-        "overlayStatus",
-        `Applying overlay style “${style}”…`,
-        "info"
-    );
+    setStatus("overlayStatus", `Applying overlay style “${style}”…`, "info");
 
     try {
         await jsonFetch("/api/overlay", {
@@ -993,11 +992,7 @@ async function saveLayoutMode() {
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        setStatus(
-            "layoutStatus",
-            "Error saving layout: " + err.message,
-            "error"
-        );
+        setStatus("layoutStatus", "Error saving layout: " + err.message, "error");
     }
 }
 
@@ -1039,11 +1034,7 @@ async function saveTtsSettings() {
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        setStatus(
-            "ttsStatus",
-            `Error saving TTS: ${err.message}`,
-            "error"
-        );
+        setStatus("ttsStatus", `Error saving TTS: ${err.message}`, "error");
     }
 }
 
@@ -1072,11 +1063,7 @@ async function saveCtaSettings() {
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        setStatus(
-            "ctaStatus",
-            `Error saving CTA: ${err.message}`,
-            "error"
-        );
+        setStatus("ctaStatus", `Error saving CTA: ${err.message}`, "error");
     }
 }
 
@@ -1183,11 +1170,7 @@ async function saveMusicSettings() {
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
-        setStatus(
-            "musicStatus",
-            "Error saving music: " + err.message,
-            "error"
-        );
+        setStatus("musicStatus", "Error saving music: " + err.message, "error");
     }
 }
 
@@ -1202,9 +1185,7 @@ function initMusicVolumeSlider() {
     });
 }
 
-// ================================
 // Auto Caption Style Selector
-// ================================
 function autoSelectCaptionStyle(selectedMode) {
     const layoutSelect = document.getElementById("layoutMode");
     if (!layoutSelect) return;
@@ -1286,7 +1267,7 @@ async function saveYamlToServer() {
         method: "POST",
         body: JSON.stringify({
             session: getActiveSession(),
-            yaml: text
+            yaml: text,
         }),
     });
 }
@@ -1299,34 +1280,29 @@ async function saveFgScale() {
     setStatus("fgStatus", "Saving foreground scale…", "info");
 
     try {
-        // 1. Update YAML using SAME KEYS as backend
         let yamlObj = jsyaml.load(document.getElementById("yamlText").value) || {};
         yamlObj.render = yamlObj.render || {};
 
         yamlObj.render.fgscale_mode = auto ? "auto" : "manual";
         yamlObj.render.fgscale = auto ? null : fg;
 
-        // Write YAML back into textarea
         document.getElementById("yamlText").value = jsyaml.dump(yamlObj);
 
-        // 2. Save YAML to backend
         await saveYamlToServer();
 
-        // 3. Notify backend
         await jsonFetch("/api/fgscale", {
             method: "POST",
             body: JSON.stringify({
                 session: getActiveSession(),
                 fgscale_mode: auto ? "auto" : "manual",
-                fgscale: auto ? null : fg
+                fgscale: auto ? null : fg,
             }),
         });
 
+
+
         setStatus("fgStatus", "Foreground scale saved.", "success");
-
-        // 4. Reload YAML so UI reflects updated state
         await loadConfigAndYaml();
-
     } catch (err) {
         console.error(err);
         setStatus("fgStatus", "Error saving scale: " + err.message, "error");
@@ -1368,12 +1344,11 @@ function initFgScaleUI() {
         fgScaleValue.textContent = fgScaleEl.value;
     });
 
-    // Initial state
     updateFgScaleUI();
 }
 
 // ================================
-// Step 5: Export (PATCHED + SESSION)
+// Step 5: Export
 // ================================
 async function exportVideo() {
     const exportStatus = document.getElementById("exportStatus");
@@ -1381,9 +1356,7 @@ async function exportVideo() {
     const btn = document.getElementById("exportBtn");
     if (!exportStatus || !downloadArea || !btn) return;
 
-    const mode = document.querySelector(
-        'input[name="exportMode"]:checked'
-    )?.value;
+    const mode = document.querySelector('input[name="exportMode"]:checked')?.value;
     const optimized = mode === "optimized";
 
     setStatus(
@@ -1412,13 +1385,11 @@ async function exportVideo() {
         const downloadUrl = data.download_url;
         const filename = data.local_filename || "export.mp4";
 
-        // Give S3 a moment to finalize
         await new Promise((res) => setTimeout(res, 500));
 
         if (downloadUrl) {
             let ok = await probeUrl(downloadUrl);
             if (!ok) {
-                // Retry a few times if S3 is laggy
                 for (let i = 0; i < 3; i++) {
                     await new Promise((res) => setTimeout(res, 400));
                     ok = await probeUrl(downloadUrl);
@@ -1503,24 +1474,7 @@ async function sendChat() {
 // Init wiring
 // ================================
 document.addEventListener("DOMContentLoaded", () => {
-
-
-  const toggleBtn = document.getElementById("toggleYamlPreviewBtn");
-    const previewBox = document.getElementById("yamlPreviewContainer");
-
-    if (!toggleBtn || !previewBox) return;
-
-    toggleBtn.addEventListener("click", () => {
-        const isOpen = previewBox.classList.toggle("open");
-
-        toggleBtn.textContent = isOpen
-            ? "▲ Hide Parsed Preview"
-            : "▼ Show Parsed Preview";
-    });
-
-    // ================================
-    // Session init
-    // ================================
+    // Load stored session
     try {
         const stored = localStorage.getItem("activeSession");
         ACTIVE_SESSION = sanitizeSessionName(stored || "default");
@@ -1528,31 +1482,128 @@ document.addEventListener("DOMContentLoaded", () => {
         ACTIVE_SESSION = "default";
     }
 
-    const label = document.getElementById("activeSessionLabel");
-    const input = document.getElementById("sessionInput");
-    if (label) label.textContent = ACTIVE_SESSION;
-    if (input) input.value = ACTIVE_SESSION;
+    // Sync labels
+    updateSessionLabels();
+    sidebarSyncActiveLabel();
 
-    document
-        .getElementById("setSessionBtn")
-        ?.addEventListener("click", () => {
-            const name =
-                document.getElementById("sessionInput")?.value || "";
-            setActiveSession(name);
-            loadSessionDropdown();   
+    // YAML preview toggle
+    const toggleBtn = document.getElementById("toggleYamlPreviewBtn");
+    const previewBox = document.getElementById("yamlPreviewContainer");
+    if (toggleBtn && previewBox) {
+        toggleBtn.addEventListener("click", () => {
+            const isOpen = previewBox.classList.toggle("open");
+            toggleBtn.textContent = isOpen
+                ? "▲ Hide Parsed Preview"
+                : "▼ Show Parsed Preview";
+        });
+    }
+
+    // MOBILE SESSION PANEL
+    const mobileSessionBtn = document.getElementById("mobileSessionBtn");
+    const sidebarPanel = document.getElementById("sidebarSessionCard");
+    const mobileCloseBtn = document.getElementById("mobileCloseSessionBtn");
+
+    if (mobileSessionBtn && sidebarPanel) {
+        mobileSessionBtn.addEventListener("click", () => {
+            sidebarPanel.classList.add("open");
         });
 
-    document
-        .addEventListener("click", (e) => {
-            const btn = e.target.closest(".deleteSessionBtn");
-            if (!btn) return;
-            const session = btn.dataset.session;
-            if (session) deleteSession(session);
-        });
+        if (mobileCloseBtn) {
+            mobileCloseBtn.addEventListener("click", () => {
+                sidebarPanel.classList.remove("open");
+            });
+        }
 
-    document
-        .getElementById("refreshSessionsBtn")
-        ?.addEventListener("click", loadSessions);
+        // Single outside-click handler
+        document.addEventListener("click", (e) => {
+            if (!sidebarPanel.classList.contains("open")) return;
+
+            const clickedInside =
+                sidebarPanel.contains(e.target) ||
+                e.target === mobileSessionBtn;
+            if (!clickedInside) {
+                sidebarPanel.classList.remove("open");
+            }
+        });
+    }
+
+    // SIDEBAR SESSION BUTTONS
+    document.getElementById("sidebarCreateBtn")?.addEventListener("click", async () => {
+        const input = document.getElementById("sidebarNewSessionInput");
+        if (!input) return;
+
+        const raw = input.value.trim();
+        if (!raw) {
+            input.classList.add("shake");
+            setTimeout(() => input.classList.remove("shake"), 300);
+            return;
+        }
+
+        const safe = sanitizeSessionName(raw);
+        await fetch(`/api/session/${safe}`, { method: "POST" });
+
+        setActiveSession(safe);
+        sidebarLoadSessions();
+        sidebarSyncActiveLabel();
+        sidebarToast(`Created & switched to “${safe}”`);
+        input.value = "";
+    });
+
+    document.getElementById("sidebarSwitchBtn")?.addEventListener("click", () => {
+        const ddl = document.getElementById("sidebarSessionDropdown");
+        if (!ddl || !ddl.value) return;
+
+        setActiveSession(ddl.value);
+        sidebarSyncActiveLabel();
+        sidebarToast(`Switched to “${ddl.value}”`);
+    });
+
+    document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () => {
+        const session = getActiveSession();
+
+        if (session === "default") {
+            sidebarToast("Cannot delete default");
+            return;
+        }
+
+        const ok = confirm(
+            `Delete session "${session}"?\n\nThis deletes ALL videos, config.yml, and analysis for that session.`
+        );
+        if (!ok) {
+            sidebarToast("Deletion cancelled");
+            return;
+        }
+
+        await fetch(`/api/session/${session}`, { method: "DELETE" });
+
+        setActiveSession("default");
+        sidebarLoadSessions();
+        sidebarSyncActiveLabel();
+
+        sidebarToast(`Deleted session “${session}”`);
+    });
+
+    // Legacy delete buttons in other card (if present)
+    document.addEventListener("click", (e) => {
+        const btn = e.target.closest(".deleteSessionBtn");
+        if (!btn) return;
+        const session = btn.dataset.session;
+        if (session) deleteSession(session);
+    });
+
+    // Legacy top session bar hooks (safe no-op if missing)
+    const headerLabel = document.getElementById("activeSessionLabel");
+    const headerInput = document.getElementById("sessionInput");
+    if (headerLabel) headerLabel.textContent = getActiveSession();
+    if (headerInput) headerInput.value = getActiveSession();
+
+    document.getElementById("setSessionBtn")?.addEventListener("click", () => {
+        const val = document.getElementById("sessionInput")?.value || "";
+        setActiveSession(val);
+        loadSessionDropdown();
+    });
+
+    document.getElementById("refreshSessionsBtn")?.addEventListener("click", loadSessions);
 
     // Stepper & logs
     initStepper();
@@ -1563,27 +1614,26 @@ document.addEventListener("DOMContentLoaded", () => {
     initFgScaleUI();
     initMusicVolumeSlider();
 
-    // Preview Music
+    // Music preview
     initMusicPreview();
 
-    // Upload UI
+    // Upload UI & manager
     initUploadUI();
-
-    // Upload Manager (list raw + processed files)
     loadUploadManager();
 
-    // Initial session list
+    // Session lists
     loadSessions();
     loadSessionDropdown();
-
+    sidebarLoadSessions();
 
     // Music list + settings
     loadMusicTracks();
     loadMusicSettingsFromYaml();
 
-    // Initial YAML + analyses
+    // YAML + analyses
     refreshAnalyses();
     loadConfigAndYaml();
+    loadLayoutFromYaml();
 
     // Accordion toggles
     document.querySelectorAll(".acc-header").forEach((btn) => {
@@ -1593,19 +1643,15 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Export Mode Change Listener (radio buttons → auto caption layout)
-    document
-        .querySelectorAll('input[name="exportMode"]')
-        .forEach((radio) => {
-            radio.addEventListener("change", (e) => {
-                autoSelectCaptionStyle(e.target.value);
-            });
+    // Export-mode → auto caption layout
+    document.querySelectorAll('input[name="exportMode"]').forEach((radio) => {
+        radio.addEventListener("change", (e) => {
+            autoSelectCaptionStyle(e.target.value);
         });
+    });
 
     // Buttons / actions
-    document
-        .getElementById("analyzeBtn")
-        ?.addEventListener("click", analyzeClips);
+    document.getElementById("analyzeBtn")?.addEventListener("click", analyzeClips);
     document
         .getElementById("refreshAnalysesBtn")
         ?.addEventListener("click", refreshAnalyses);
@@ -1616,83 +1662,55 @@ document.addEventListener("DOMContentLoaded", () => {
     document
         .getElementById("refreshYamlBtn")
         ?.addEventListener("click", loadConfigAndYaml);
-    document
-        .getElementById("saveYamlBtn")
-        ?.addEventListener("click", saveYaml);
+    document.getElementById("saveYamlBtn")?.addEventListener("click", saveYaml);
 
     document
         .getElementById("loadCaptionsFromYamlBtn")
         ?.addEventListener("click", loadCaptionsFromYaml);
-    document
-        .getElementById("saveCaptionsBtn")
-        ?.addEventListener("click", saveCaptions);
+    document.getElementById("saveCaptionsBtn")?.addEventListener("click", saveCaptions);
 
-    document
-        .getElementById("applyOverlayBtn")
-        ?.addEventListener("click", applyOverlay);
+    document.getElementById("applyOverlayBtn")?.addEventListener("click", applyOverlay);
     document
         .getElementById("applyStandardTimingBtn")
-        ?.addEventListener("click", () =>
-            applyTiming(false)
-        );
+        ?.addEventListener("click", () => applyTiming(false));
     document
         .getElementById("applyCinematicTimingBtn")
-        ?.addEventListener("click", () =>
-            applyTiming(true)
-        );
+        ?.addEventListener("click", () => applyTiming(true));
 
-    document
-        .getElementById("saveTtsBtn")
-        ?.addEventListener("click", saveTtsSettings);
-    document
-        .getElementById("saveCtaBtn")
-        ?.addEventListener("click", saveCtaSettings);
-    document
-        .getElementById("saveFgScaleBtn")
-        ?.addEventListener("click", saveFgScale);
-    document
-        .getElementById("saveLayoutBtn")
-        ?.addEventListener("click", saveLayoutMode);
-    loadLayoutFromYaml();
+    document.getElementById("saveTtsBtn")?.addEventListener("click", saveTtsSettings);
+    document.getElementById("saveCtaBtn")?.addEventListener("click", saveCtaSettings);
+    document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
+    document.getElementById("saveLayoutBtn")?.addEventListener("click", saveLayoutMode);
+    document.getElementById("saveMusicBtn")?.addEventListener("click", saveMusicSettings);
 
-    document
-        .getElementById("saveMusicBtn")
-        ?.addEventListener("click", saveMusicSettings);
+    document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
+    document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
 
-    document
-        .getElementById("exportBtn")
-        ?.addEventListener("click", exportVideo);
-
-    document
-        .getElementById("chatSendBtn")
-        ?.addEventListener("click", sendChat);
-
+    // Legacy quick-switch for sessions (top bar)
     document.getElementById("switchSessionBtn")?.addEventListener("click", () => {
-    const ddl = document.getElementById("sessionDropdown");
-    if (!ddl) return;
+        const ddl = document.getElementById("sessionDropdown");
+        if (!ddl) return;
 
-    const selected = ddl.value || "default";
+        const selected = ddl.value || "default";
 
-    // 1. Switch sessions
-    setActiveSession(selected);
-    loadSessionDropdown();
+        setActiveSession(selected);
+        loadSessionDropdown();
 
-    // 2. Label pulse animation
-    const label = document.getElementById("activeSessionLabel");
-    if (label) {
-        label.classList.add("session-pulse");
-        setTimeout(() => label.classList.remove("session-pulse"), 800);
-    }
+        const label = document.getElementById("activeSessionLabel");
+        if (label) {
+            label.classList.add("session-pulse");
+            setTimeout(() => label.classList.remove("session-pulse"), 800);
+        }
 
-    // 3. Dropdown pulse
-    const ddlWrapper = ddl.closest(".select-wrapper");
-    if (ddlWrapper) {
-        ddlWrapper.classList.add("session-ddl-pulse");
-        setTimeout(() => ddlWrapper.classList.remove("session-ddl-pulse"), 600);
-    }
-    
-    // 4. Toast
-    showSessionToast(`Switched to “${selected}”`);
-});
+        const ddlWrapper = ddl.closest(".select-wrapper");
+        if (ddlWrapper) {
+            ddlWrapper.classList.add("session-ddl-pulse");
+            setTimeout(
+                () => ddlWrapper.classList.remove("session-ddl-pulse"),
+                600
+            );
+        }
 
+        showSessionToast(`Switched to “${selected}”`);
+    });
 });

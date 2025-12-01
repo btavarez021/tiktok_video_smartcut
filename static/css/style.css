@@ -1079,7 +1079,7 @@ h3 {
 
 /* MUST BE CLEAN (no position, no z-index) */
 #sessionDropdown {
-    position: static !important;   /* ← resets everything */
+    position: static !important;
     z-index: auto !important;
 }
 
@@ -1381,13 +1381,13 @@ h3 {
 }
 
 @keyframes toastPop {
-    from { 
-        opacity: 0; 
-        transform: translateY(4px) scale(0.96); 
+    from {
+        opacity: 0;
+        transform: translateY(4px) scale(0.96);
     }
-    to { 
-        opacity: 1; 
-        transform: translateY(0) scale(1); 
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
     }
 }
 
@@ -1421,7 +1421,7 @@ h3 {
 
 /* FORCE dark theme for desktop dropdowns */
 #sessionDropdown,
-#sessionDropdown option {
+#sessionDropdown.option {
     background-color: #1a1a1a !important;
     color: #ffffff !important;
     border: 1px solid #333 !important;
@@ -1429,4 +1429,171 @@ h3 {
     /* KEY FIXES */
     -webkit-appearance: none !important;
     appearance: none !important;
+}
+
+/* ================================
+   SIDEBAR SESSION MANAGER v2
+================================ */
+.session-card .active-session-box {
+    background: #242426;
+    border: 1px solid #333;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+}
+
+.session-card .active-session-box .label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin: 0;
+}
+
+.active-session-name {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-top: 6px;
+    color: var(--primary);
+}
+
+.session-card .session-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Toast */
+.sidebar-toast {
+    background: #7f5cff;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-top: 8px;
+    animation: toastPop 0.25s ease-out;
+}
+
+@keyframes toastPop {
+    from { opacity: 0; transform: translateY(6px) scale(0.94); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.mobile-close-btn {
+    width: 100%;
+    background: #222;
+    color: #fff;
+    padding: 12px 0;
+    border-radius: 10px;
+    border: 1px solid #333;
+    margin-bottom: 14px;
+    font-size: 16px;
+}
+
+
+/* ================================
+   DESKTOP ONLY (hide mobile button)
+================================ */
+@media (min-width: 769px) {
+    .mobile-session-btn {
+        display: none !important;
+    }
+}
+
+/* ================================
+   DESKTOP: keep sidebar in place
+================================ */
+
+
+/* Desktop only — hide mobile close button */
+@media (min-width: 769px) {
+    .mobile-close-btn {
+        display: none !important;
+    }
+}
+
+/* ================================
+   MOBILE SESSION BUTTON (show on mobile)
+================================ */
+@media (max-width: 768px) {
+    .mobile-session-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 99999;
+        background: #7f5cff;
+        color: #fff;
+        padding: 12px 18px;
+        border-radius: 50px;
+        border: none;
+        font-size: 16px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+        display: block !important;
+    }
+}
+
+/* ===========================================
+   MOBILE SIDEBAR (slide-up panel)
+   =========================================== */
+
+    /* When JS adds `.open` → slide up */
+    #sidebarSessionCard.open {
+        bottom: 0;
+    }
+
+    /* Mobile close button ONLY on mobile */
+    .mobile-close-btn {
+        display: block !important;
+    }
+
+/* ===========================================================
+   CLEAN STACKING FIX — MOBILE SIDEBAR SESSION MANAGER
+   =========================================================== */
+@media (max-width: 768px) {
+
+    /* 1. Sidebar slide-up: highest layer on the entire page */
+    #sidebarSessionCard {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: -100% !important;
+        background: var(--card);
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 -14px 40px rgba(0,0,0,0.75);
+        max-height: 70vh;
+        overflow-y: auto;
+
+        /* THE MAGIC FIX */
+        z-index: 2147483647 !important;
+        transform: none !important;
+    }
+
+    /* Slide-up state */
+    #sidebarSessionCard.open {
+        bottom: 0 !important;
+    }
+
+    /* 2. Floating button stays above everything EXCEPT the sidebar */
+    .mobile-session-btn {
+        z-index: 2147483000 !important;
+        position: fixed !important;
+    }
+
+    /* 3. Push EVERYTHING ELSE DOWN in stack context */
+    .layout,
+    .app-shell,
+    .card,
+    .step-card,
+    .log-view,
+    .chat-card {
+        position: relative !important;
+        z-index: 0 !important;
+    }
+
+    /* 4. Ensure header doesn't overlap the sidebar */
+    .app-header {
+        z-index: 1 !important;
+        position: relative !important;
+    }
+
 }
