@@ -1588,20 +1588,29 @@ document.getElementById("sidebarSwitchBtn")?.addEventListener("click", () => {
 
 // DELETE session
 document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () => {
-    const current = getActiveSession();
-    if (current === "default") {
+    const session = getActiveSession();
+
+    if (session === "default") {
         sidebarToast("Cannot delete default");
         return;
     }
 
-    await fetch(`/api/session/${current}`, { method: "DELETE" });
+    // 🔥 Confirmation popup
+    const ok = confirm(`Delete session "${session}"?\n\nThis deletes ALL videos, config.yml, and analysis for that session.`);
+    if (!ok) {
+        sidebarToast("Deletion cancelled");
+        return;
+    }
+
+    await fetch(`/api/session/${session}`, { method: "DELETE" });
 
     setActiveSession("default");
     sidebarLoadSessions();
     sidebarSyncActiveLabel();
 
-    sidebarToast(`Deleted session “${current}”`);
+    sidebarToast(`Deleted session “${session}”`);
 });
+
 
 
 const mobileSessionBtn = document.getElementById("mobileSessionBtn");
