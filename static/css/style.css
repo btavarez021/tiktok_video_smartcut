@@ -1507,19 +1507,19 @@ h3 {
         top: 20px;
 
         width: 100%;
-        max-height: calc(100vh - 40px);
-
+        max-height: none;        /* ← remove height cap */
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 12px;
         padding: 18px;
-        overflow-y: auto;
+        overflow-y: visible;     /* ← remove scrollbar */
 
-        transform: none !important; /* override mobile slide */
+        transform: none !important;
         box-shadow: none; 
-        z-index: auto; /* normal layering */
+        z-index: auto;
     }
 }
+
 
 /* Desktop only — hide mobile close button */
 @media (min-width: 769px) {
@@ -2752,7 +2752,7 @@ h3 {
     .step-card {
         margin: 0 !important;
         position: relative;
-        z-index: 10;
+        z-index: auto !important; 
     }
 
     input,
