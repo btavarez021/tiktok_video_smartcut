@@ -3099,6 +3099,35 @@ h3 {
 }
 
 
+/* ===========================================
+   MOBILE SIDEBAR (slide-up panel)
+   =========================================== */
+@media (max-width: 768px) {
+    #sidebarSessionCard {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: -100%;          /* hidden off-screen */
+        background: var(--card);
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 -12px 30px rgba(0,0,0,0.65);
+        transition: bottom 0.3s ease;
+        z-index: 99998;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
 
+    /* When JS adds `.open` → slide up */
+    #sidebarSessionCard.open {
+        bottom: 0;
+    }
+
+    /* Mobile close button ONLY on mobile */
+    .mobile-close-btn {
+        display: block !important;
+    }
+}
 
 
