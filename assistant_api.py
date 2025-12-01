@@ -124,42 +124,6 @@ def set_export_mode(mode: str) -> Dict[str, Any]:
     log_step(f"[EXPORT_MODE] set to {mode}")
     return {"mode": _EXPORT_MODE}
 
-# Clean YAML File
-def _cleanup_render_section(cfg: dict) -> dict:
-    if not isinstance(cfg, dict):
-        return cfg
-
-    render = cfg.get("render", {})
-    if not isinstance(render, dict):
-        return cfg
-
-    # Delete legacy unused keys under render
-    for bad in (
-        "fg_scale_default",
-        "video_mode",
-        "music_enabled",
-        "music_file",
-        "music_volume",
-    ):
-        render.pop(bad, None)
-
-    # These are the ONLY valid keys inside render
-    VALID_RENDER_KEYS = {
-        "layout_mode",
-        "auto_fg_scale",
-        "fgscale",
-        "fgscale_mode",   # optional if you want manual/auto
-    }
-
-    # Remove unknown render keys
-    for key in list(render.keys()):
-        if key not in VALID_RENDER_KEYS:
-            render.pop(key, None)
-
-    cfg["render"] = render
-    return cfg
-
-
 # -------------------------------
 # Session sanitizer (backend)
 # -------------------------------
@@ -487,7 +451,6 @@ def api_get_config() -> Dict[str, Any]:
 
     try:
         cfg = yaml.safe_load(yaml_text) or {}
-        cfg = _cleanup_render_section(cfg)
 
         # 🔥 Re-serialize cleaned config so UI sees the cleaned version
         yaml_text = yaml.safe_dump(cfg, sort_keys=False)
@@ -498,14 +461,10 @@ def api_get_config() -> Dict[str, Any]:
     return {"yaml": yaml_text, "config": cfg}
 
 
-
 def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
     try:
         cfg = yaml.safe_load(yaml_text) or {}
         cfg = sanitize_yaml_filenames(cfg)
-
-        # clean bad keys
-        cfg = _cleanup_render_section(cfg)
 
         # Apply session overrides
         session = request.args.get("session", "default")
