@@ -1524,3 +1524,33 @@ h3 {
         display: none !important;
     }
 }
+
+/* Mobile session slide-up panel — force above all UI */
+#sidebarSessionCard {
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    padding: 20px 18px;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -6px 22px rgba(0,0,0,0.55);
+
+    z-index: 99999 !important;  /* 🔥 always on top */
+    transform: translateY(110%);
+    transition: transform 0.35s ease;
+}
+
+/* When opened */
+#sidebarSessionCard.open {
+    transform: translateY(0);
+}
+
+/* Smaller devices */
+@media (max-width: 900px) {
+    #sidebarSessionCard {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+}
