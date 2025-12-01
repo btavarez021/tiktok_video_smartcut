@@ -9,7 +9,7 @@ import yaml
 from openai import OpenAI
 from flask import request
 from assistant_log import log_step, log_error, log_success
-from tiktok_template import config_path, edit_video, video_folder, get_config_path
+from tiktok_template import edit_video, video_folder, get_config_path
 from s3_config import (
     s3,
     S3_BUCKET_NAME,
@@ -429,9 +429,10 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
         # Apply session overrides (fgscale, etc.)
         cfg = merge_session_config_into(cfg, session)
 
-        with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(cfg, f, sort_keys=False)
+        path = get_config_path(session)
 
+        with open(path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
 
         log_success("[YAML]", "Generated and saved config.yml")
         return cfg
@@ -501,11 +502,13 @@ def api_get_captions() -> Dict[str, Any]:
         return {"text": f.read()}
 
 
-def api_save_captions(text: str) -> Dict[str, Any]:
+def api_save_captions(text: str, session: str) -> Dict[str, Any]:
     try:
+        session = sanitize_session(session)
+        path = get_config_path(session)
         blocks = [b.strip() for b in text.split("\n\n") if b.strip()]
 
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
 
         idx = 0
@@ -522,7 +525,7 @@ def api_save_captions(text: str) -> Dict[str, Any]:
         if "last_clip" in cfg and idx < len(blocks):
             cfg["last_clip"]["text"] = blocks[idx]
 
-        with open(config_path, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
         with open(_CAPTIONS_FILE, "w", encoding="utf-8") as f:
@@ -595,38 +598,57 @@ def api_export(optimized: bool, session: str) -> Dict[str, Any]:
 # -------------------------------
 # TTS / CTA Settings (global)
 # -------------------------------
-def _load_config_for_mutation() -> dict:
-    if not os.path.exists(config_path):
+def load_config_for_session(session: str) -> dict:
+    session = sanitize_session(session)
+    path = get_config_path(session)
+
+    if not os.path.exists(path):
         return {}
-    with open(config_path, "r", encoding="utf-8") as f:
+
+    with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
-def _save_config(cfg: dict) -> None:
-    with open(config_path, "w", encoding="utf-8") as f:
+def save_config_for_session(session: str, cfg: dict) -> None:
+    session = sanitize_session(session)
+    path = get_config_path(session)
+
+    with open(path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
 
 
-def api_set_tts(enabled: bool, voice: str | None) -> Dict[str, Any]:
-    cfg = _load_config_for_mutation()
+def api_set_tts(session: str, enabled: bool, voice: str | None) -> Dict[str, Any]:
+    session = sanitize_session(session)
+
+    cfg = load_session_config(session)
     r = cfg.setdefault("render", {})
     r["tts_enabled"] = bool(enabled)
+
     if voice:
         r["tts_voice"] = voice
-    _save_config(cfg)
+
+    save_session_config(session, cfg)
+
     return {"status": "ok", "render": r}
 
 
-def api_set_cta(enabled: bool, text: str | None, voiceover: bool | None) -> Dict[str, Any]:
-    cfg = _load_config_for_mutation()
+
+def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool | None) -> Dict[str, Any]:
+    session = sanitize_session(session)
+
+    cfg = load_session_config(session)
     c = cfg.setdefault("cta", {})
     c["enabled"] = bool(enabled)
+
     if text is not None:
         c["text"] = text
     if voiceover is not None:
         c["voiceover"] = bool(voiceover)
-    _save_config(cfg)
+
+    save_session_config(session, cfg)
+
     return {"status": "ok", "cta": c}
+
 
 
 # -------------------------------
@@ -669,13 +691,18 @@ def api_apply_timings(session_id: str, smart: bool = False) -> Dict[str, Any]:
 
 
 
-def api_set_layout(mode: str) -> Dict[str, Any]:
+def api_set_layout(session: str, mode: str) -> Dict[str, Any]:
     try:
-        cfg = _load_config_for_mutation()
+        session = sanitize_session(session)
+
+        cfg = load_session_config(session)
         r = cfg.setdefault("render", {})
         r["layout_mode"] = mode
-        _save_config(cfg)
+
+        save_session_config(session, cfg)
+
         return {"status": "ok", "layout_mode": mode}
+
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
