@@ -810,8 +810,12 @@ async function loadSessionDropdown() {
             ddl.appendChild(opt);
         });
 
-        // highlight currently active session
+        // Highlight the active session
         ddl.value = getActiveSession();
+
+        // 🔥 Fix Chrome/desktop style reset after dynamic repopulation
+        ddl.classList.add("force-restyle");
+        setTimeout(() => ddl.classList.remove("force-restyle"), 0);
 
     } catch (err) {
         console.error("[SESSION] dropdown load failed:", err);

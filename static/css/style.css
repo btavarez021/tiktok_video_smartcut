@@ -1391,3 +1391,10 @@ h3 {
     transform: translateY(-4px);
     transition: opacity 0.3s, transform 0.3s;
 }
+
+/* Ensures desktop dropdown stays styled after JS updates */
+#sessionDropdown.force-restyle,
+#sessionDropdown.force-restyle option {
+    background-color: #1d1d1d !important;
+    color: #ffffff !important;
+}
