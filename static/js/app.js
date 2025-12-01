@@ -1557,12 +1557,37 @@ document.getElementById("sidebarCreateBtn")?.addEventListener("click", () => {
         return;
     }
 
-    setActiveSession(name);
+    async function createSidebarSession(name) {
+    const safe = sanitizeSessionName(name);
+
+    // 1. Tell backend to create the session folder
+    await fetch(`/api/session/${safe}`, { method: "POST" });
+
+    // 2. Switch locally
+    setActiveSession(safe);
+
+    // 3. Refresh sidebar dropdown + label
     sidebarLoadSessions();
     sidebarSyncActiveLabel();
 
-    sidebarToast(`Created & switched to “${name}”`);
+    // 4. Toast
+    sidebarToast(`Created & switched to “${safe}”`);
+}
+
+// Event listener
+document.getElementById("sidebarCreateBtn")?.addEventListener("click", () => {
+    const input = document.getElementById("sidebarNewSessionInput");
+    const raw = input.value.trim();
+    if (!raw) {
+        input.classList.add("shake");
+        setTimeout(() => input.classList.remove("shake"), 300);
+        return;
+    }
+
+    createSidebarSession(raw);
     input.value = "";
+});
+
 });
 
 /* Switch Session */
