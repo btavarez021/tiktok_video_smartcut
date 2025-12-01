@@ -57,28 +57,16 @@ function setActiveSession(name) {
     const safe = sanitizeSessionName(name);
     ACTIVE_SESSION = safe;
 
-    // persist
     try {
         localStorage.setItem("activeSession", ACTIVE_SESSION);
     } catch {}
 
-    // Update label
+    // update UI values without animations
     const label = document.getElementById("activeSessionLabel");
-    if (label) {
-        label.textContent = ACTIVE_SESSION;
-        label.classList.remove("session-active-flash");
-        void label.offsetWidth; // force reflow to restart animation
-        label.classList.add("session-active-flash");
-    }
+    if (label) label.textContent = ACTIVE_SESSION;
 
-    // highlight dropdown if switching also triggers update
     const ddl = document.getElementById("sessionDropdown");
-    if (ddl) {
-        ddl.value = ACTIVE_SESSION;
-        ddl.classList.remove("session-pulse");
-        void ddl.offsetWidth;
-        ddl.classList.add("session-pulse");
-    }
+    if (ddl) ddl.value = ACTIVE_SESSION;
 
     console.log("[SESSION] Active:", ACTIVE_SESSION);
 
@@ -90,6 +78,7 @@ function setActiveSession(name) {
     loadSessionDropdown();
     loadSessions();
 }
+
 
 
 // ================================
