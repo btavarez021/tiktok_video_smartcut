@@ -475,16 +475,18 @@ def edit_video(output_file: str = "output_tiktok_final.mp4", optimized: bool = F
 
     # AUTO ZOOM MODE (Option A)
     render_cfg = cfg.setdefault("render", {})
-    auto_enabled = render_cfg.get("auto_fg_scale", True)
+    # New v2 logic — respect fgscale_mode
+    fg_mode = render_cfg.get("fgscale_mode", "auto").lower()
 
-    if auto_enabled:
-        # compute zoom based on first clip (consistent aesthetic)
+    if fg_mode == "auto":
         example_clip = clips[0]["file"]
         auto_zoom = compute_auto_zoom(example_clip)
-
-        log_step(f"[AUTOZOOM] Calculated fgscale={auto_zoom:.3f}")
         render_cfg["fgscale"] = auto_zoom
-
+    else:
+        # Ensure manual has a usable number
+        if render_cfg.get("fgscale") is None:
+            render_cfg["fgscale"] = 1.10
+        log_step(f"[FGSCALE] Manual mode → using fgscale={render_cfg.get('fgscale')}")
 
     if not clips:
         raise RuntimeError("No clips defined in config.yml")
