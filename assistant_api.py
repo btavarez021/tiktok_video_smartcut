@@ -460,39 +460,48 @@ def api_get_config() -> Dict[str, Any]:
     if not os.path.exists(config_path):
         return {"yaml": "", "config": {}, "error": "config.yml not found"}
 
+    # Load base YAML
     with open(config_path, "r", encoding="utf-8") as f:
-        yaml_text = f.read()
+        base_text = f.read()
 
     try:
-        cfg = yaml.safe_load(yaml_text) or {}
-        yaml_text = yaml.safe_dump(cfg, sort_keys=False)
-    except Exception:
-        cfg = {}
+        base_cfg = yaml.safe_load(base_text) or {}
 
-    return {"yaml": yaml_text, "config": cfg}
+        # 🔥 Merge session overrides
+        merged = merge_session_config_into(base_cfg, session_id)
+
+        # Re-dump so UI sees updated values
+        yaml_text = yaml.safe_dump(merged, sort_keys=False)
+
+    except Exception as e:
+        log_error("[GET_CONFIG]", e)
+        return {"yaml": base_text, "config": base_cfg}
+
+    return {"yaml": yaml_text, "config": merged}
+
 
 
 def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
     try:
+        # Parse raw user YAML
         cfg = yaml.safe_load(yaml_text) or {}
         cfg = sanitize_yaml_filenames(cfg)
 
-        # Apply session overrides
-        session = request.args.get("session", "default")
-        session = sanitize_session(session)
-        cfg = merge_session_config_into(cfg, session)
-
+        session = sanitize_session(request.args.get("session", "default"))
         config_path = get_config_path(session)
+
+        # ❗ Write ONLY what the user edited
+        # Do NOT merge session overrides here
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
-
-        log_success("[SAVE_YAML]", "config.yml saved successfully")
+        log_success("[SAVE_YAML]", f"config.yml saved for session '{session}'")
         return {"status": "ok"}
 
     except Exception as e:
         log_error("[SAVE_YAML]", e)
         return {"status": "error", "error": str(e)}
+
 
 
 # -------------------------------
