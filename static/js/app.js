@@ -1685,8 +1685,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 3. Dropdown pulse
-    ddl.classList.add("session-ddl-pulse");
-    setTimeout(() => ddl.classList.remove("session-ddl-pulse"), 600);
+    const ddlWrapper = ddl.closest(".select-wrapper");
+    if (ddlWrapper) {
+        ddlWrapper.classList.add("session-ddl-pulse");
+        setTimeout(() => ddlWrapper.classList.remove("session-ddl-pulse"), 600);
+    }
+
 
     // 4. Toast
     showSessionToast(`Switched to “${selected}”`);
