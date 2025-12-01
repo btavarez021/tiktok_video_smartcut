@@ -3041,40 +3041,6 @@ h3 {
 }
 
 /* ============================================================
-   DESKTOP MODE
-   ============================================================ */
-@media (min-width: 769px) {
-
-    /* Hide floating button */
-    .mobile-session-btn {
-        display: none !important;
-    }
-
-    /* Keep sidebar sticky on desktop */
-    #sidebarSessionCard {
-        position: sticky;
-        top: 20px;
-
-        width: 100%;
-        max-height: none;
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 18px;
-        overflow-y: auto;
-
-        transform: none !important;
-        box-shadow: none;
-        z-index: auto;
-    }
-
-    /* No close button on desktop */
-    .mobile-close-btn {
-        display: none !important;
-    }
-}
-
-/* ============================================================
    MOBILE MODE
    ============================================================ */
 @media (max-width: 768px) {
