@@ -1349,7 +1349,7 @@ h3 {
 }
 
 /* Dropdown confirm pulse */
-.session-ddl-pulse {
+.select-wrapper.session-ddl-pulse {
     animation: ddlPulse 0.6s ease-out;
 }
 
