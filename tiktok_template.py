@@ -673,8 +673,9 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     cta_cfg = cfg.get("cta", {}) or {}
     cta_enabled = bool(cta_cfg.get("enabled", False))
     raw_cta_text = cta_cfg.get("text", "")
-    cta_text = esc(raw_cta_text)
+    cta_text = esc_cta(raw_cta_text)   # <-- FIXED
     cta_config_dur = float(cta_cfg.get("duration", 3.0))
+
 
     # CTA voice duration
     if cta_tts_track and isinstance(cta_tts_track, tuple):
