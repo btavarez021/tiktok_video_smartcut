@@ -479,10 +479,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     
     def wrap_cta_text(txt: str, max_chars=22) -> str:
-        """
-        Wrap CTA into multiple lines so drawtext never overflows.
-        Produces TikTok-style stacked text using '\n'.
-        """
         if not txt:
             return ""
 
@@ -491,7 +487,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         cur = ""
 
         for w in words:
-            # If adding the next word stays within limit
             if len(cur) + len(w) + (1 if cur else 0) <= max_chars:
                 cur += (" " + w if cur else w)
             else:
@@ -501,9 +496,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         if cur:
             lines.append(cur)
 
-        # Join into multi-line string
-        return "\\n".join(lines)
-
+        # REAL newlines — FFmpeg wants this BEFORE escaping
+        return "\n".join(lines)
 
     # -------------------------------
     # Build clip list (first, middle*, last)
