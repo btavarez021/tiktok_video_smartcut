@@ -646,8 +646,9 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     final_video_source = concat_output
 
     # ------------------------------------------------------------------
-    # 3. CTA VIDEO EXTENSION + CTA BLUR/TEXT (Smooth Option A)
+    # 3. CTA CONFIG + DURATION
     # ------------------------------------------------------------------
+    cta_cfg = cfg.get("cta", {}) or {}
     cta_enabled = cta_cfg.get("enabled", False)
     cta_text = esc(cta_cfg.get("text", ""))
     cta_config_dur = float(cta_cfg.get("duration", 3.0))
@@ -668,40 +669,35 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # CTA will be applied AFTER clips, but not padded yet
     cta_start_time = None
 
-
-    # -------------------------------------
-    # CTA VISUAL OVERLAY — FINAL CARD MODE
-    # -------------------------------------
     if cta_enabled and cta_text and cta_segment_len > 0:
 
-        # Get actual video length
-        try:
-            vid_total = float(
-                subprocess.check_output(
-                    [
-                        "ffprobe", "-v", "error",
-                        "-show_entries", "format=duration",
-                        "-of", "default=noprint_wrappers=1:nokey=1",
-                        final_video_source,
-                    ]
-                ).decode().strip()
-            )
-        except Exception:
-            vid_total = expected_total
+        # --- REAL total length of video before CTA ---
+        # Sum durations of the actual trimmed files (most accurate)
+        def ffprobe_duration(f):
+            try:
+                return float(subprocess.check_output([
+                    "ffprobe", "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    f
+                ]).decode().strip())
+            except:
+                return 0.0
 
-        # CTA occupies the final tail: [vid_total - len, vid_total]
-        cta_start = max(vid_total - cta_segment_len, 0.0)
-        cta_end = vid_total
-        cta_start_time = cta_start  # used later for CTA audio
+        # Real length = TRUE duration of the concatenated clips
+        real_total = sum(ffprobe_duration(f) for f in trimmed_files)
 
-        # Only apply if CTA window is meaningful
+        # CTA occupies final segment [real_total - cta_segment_len, real_total]
+        cta_start = max(real_total - cta_segment_len, 0.0)
+        cta_end = real_total
+        cta_start_time = cta_start  # For CTA audio
+
+        # Apply CTA blur only if meaningful
         if (cta_end - cta_start) > 0.05:
             blurred = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
 
-            # Fade length for blur
             fade_len = min(0.3, max(cta_segment_len * 0.5, 0.15))
 
-            # FFmpeg CTA overlay (blur + CTA text)
             filter_complex = (
                 f"[0:v]format=rgba,split=2[base][tmp];"
                 f"[tmp]boxblur=10:1,"
@@ -727,55 +723,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             ]
 
             log_step("[CTA] Applying smooth CTA blur + text…")
-            blur_proc = subprocess.run(
-                blur_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
+            subprocess.run(blur_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
             if os.path.exists(blurred) and os.path.getsize(blurred) > 150 * 1024:
                 final_video_source = blurred
             else:
                 log_step("[CTA] CTA blur failed → keeping original video.")
 
-
-    # -------------------------------------
-    # FINAL PADDING (AFTER CTA ONLY)
-    # -------------------------------------
-    # After CTA, ensure video lasts long enough for CTA or voiceover
-    try:
-        vid_total_after_cta = float(
-            subprocess.check_output(
-                [
-                    "ffprobe", "-v", "error",
-                    "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
-                    final_video_source,
-                ]
-            ).decode().strip()
-        )
-    except Exception:
-        vid_total_after_cta = expected_total
-
-    final_needed = expected_total + cta_segment_len
-
-    # Only pad AFTER CTA, so CTA is always at the REAL END
-    if final_needed > vid_total_after_cta + 0.05:
-        pad_len = final_needed - vid_total_after_cta
-        log_step(f"[FINAL PAD] Adding {pad_len:.2f}s freeze-frame after CTA…")
-
-        extended = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-        subprocess.run([
-            "ffmpeg", "-y",
-            "-i", final_video_source,
-            "-vf", f"tpad=stop_mode=clone:stop_duration={pad_len}",
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "22",
-            "-pix_fmt", "yuv420p",
-            extended,
-        ])
-
-        if os.path.exists(extended) and os.path.getsize(extended) > 150 * 1024:
-            final_video_source = extended
 
 
     # -------------------------------
@@ -802,7 +756,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         current_time += clip["duration"]
 
 
-    # CTA TTS: start exactly after the last clip (same as CTA blur window)
+    # CTA TTS must start when CTA blur starts
     if cta_tts_track and cta_enabled and cta_text:
         if isinstance(cta_tts_track, tuple):
             cta_path, _ = cta_tts_track
@@ -810,11 +764,15 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             cta_path = cta_tts_track
 
         if cta_path:
+            # Use actual CTA start position (real_total - CTA length)
+            start_time = cta_start_time if cta_start_time is not None else expected_total
+
             audio_inputs.append({
                 "path": cta_path,
-                "start": expected_total,   # aligns with CTA blur start
+                "start": start_time,
                 "volume": 1.0,
             })
+
 
     final_audio = None
 
