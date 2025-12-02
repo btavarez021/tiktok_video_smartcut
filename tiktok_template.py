@@ -791,8 +791,11 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             cta_path = cta_tts_track
 
         if cta_path:
-            # Use actual CTA start position (real_total - CTA length)
-            start_time = cta_start_time if cta_start_time is not None else expected_total
+            # CTA TTS must start AFTER last clip finishes (no overlapping)
+            tts_total_timeline = sum([clip["duration"] for clip in clips])
+
+            start_time = tts_total_timeline
+
 
             audio_inputs.append({
                 "path": cta_path,
