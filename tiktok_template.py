@@ -834,27 +834,36 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # ------------------------------------------------------------------
     log_step("[AUDIO] Building audio timeline…")
     audio_inputs = []
+
+    FIRST_TTS_DELAY = 0.25  # delay only for clip 1
+
+    # Build an accurate timeline of when each clip starts
     current_time = 0.0
+    clip_start_times = []
+    for clip in clips:
+        clip_start_times.append(current_time)
+        current_time += clip["duration"]
 
-    # Per-clip TTS aligned to each clip in sequence
-    FIRST_TTS_DELAY = 0.25  # delay for very first clip so audio player sync feels natural
-
+    audio_inputs = []
     last_tts_end = 0.0
 
+    # Now schedule per-clip TTS using clip_start_times[]
     for idx, clip in enumerate(clips):
         tts_entry = tts_tracks[idx] if idx < len(tts_tracks) else None
         if tts_entry and isinstance(tts_entry, tuple):
             tts_path, tts_dur = tts_entry
             if tts_path and tts_dur:
                 delay = FIRST_TTS_DELAY if idx == 0 else 0.0
-                start_ts = current_time + delay
+                start_ts = clip_start_times[idx] + delay
+
                 audio_inputs.append({
                     "path": tts_path,
                     "start": start_ts,
                     "volume": 1.0,
                 })
+
                 last_tts_end = max(last_tts_end, start_ts + float(tts_dur))
-        current_time += clip["duration"]
+
 
     # CTA TTS aligned with CTA tail (NO overlap with clip narration)
     if cta_tts_track and cta_enabled and raw_cta_text and cta_segment_len > 0.0:
@@ -865,7 +874,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             cta_voice_dur = None
 
         if cta_path and cta_segment_len > 0:
-            start_time = cta_start_time
+            start_time = actual_main_video_duration
             audio_inputs.append({
                 "path": cta_path,
                 "start": start_time,
@@ -975,7 +984,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             "-map", "1:a:0",
             "-c:v", "copy",
             "-c:a", "aac",
-            "-shortest", 
             final_output,
         ]
     else:
