@@ -1,8 +1,9 @@
-# tiktok_assistant.py — MOV/MP4 SAFE VERSION (Option A)
+# tiktok_assistant.py — MOV/MP4 SAFE VERSION (aligned with single config.yml per session)
 # - No upload_raw_file here
 # - No video_folder / edit_video imports
 # - S3 config comes from s3_config
 # - Only: analysis, YAML prompt, overlay, timings, filename sanitation
+# - Uses get_config_path(session) as the single source of truth
 
 import os
 import logging
@@ -16,6 +17,7 @@ from openai import OpenAI
 
 from assistant_log import log_step
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX  # shared S3 client + config
+from tiktok_template import get_config_path
 
 logger = logging.getLogger(__name__)
 
@@ -26,27 +28,6 @@ api_key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
 client: Optional[OpenAI] = OpenAI(api_key=api_key) if api_key else None
 
 TEXT_MODEL = "gpt-4.1-mini"
-
-# -----------------------------------------
-# Session-aware analysis cache folder
-# -----------------------------------------
-ANALYSIS_BASE_DIR = os.path.join(os.path.dirname(__file__), "video_analysis_cache")
-os.makedirs(ANALYSIS_BASE_DIR, exist_ok=True)
-
-def _session_cache_dir(session: str) -> str:
-    safe = session.replace(" ", "_").lower()
-    path = os.path.join(ANALYSIS_BASE_DIR, safe)
-    os.makedirs(path, exist_ok=True)
-    return path
-
-def save_analysis_result_session(session: str, filename: str, description: str) -> None:
-    folder = _session_cache_dir(session)
-    out_path = os.path.join(folder, filename + ".json")
-
-    payload = {"filename": filename, "description": description}
-
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2)
 
 
 # -----------------------------------------
@@ -89,7 +70,6 @@ def list_videos_from_s3(prefix: str, return_full_keys: bool = False):
     return files
 
 
-
 def download_s3_video(key: str) -> Optional[str]:
     """
     Download a single S3 object to a temp file and return its local path.
@@ -119,9 +99,6 @@ def normalize_video(src: str, dst: str) -> None:
     - Logs full ffmpeg stderr on failure
     - Logs success cleanly
     """
-
-    import subprocess
-    import os
 
     # Always force output to .mp4 (fix for incorrect .upload output)
     base = os.path.splitext(dst)[0]
@@ -265,93 +242,10 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
 
     return "\n".join(lines)
 
-SESSION_CONFIG_DIR = "session_configs"
-
-def ensure_session_config_dir():
-    os.makedirs(SESSION_CONFIG_DIR, exist_ok=True)
-
-
-def session_config_path(session: str) -> str:
-    ensure_session_config_dir()
-    safe = session.replace("/", "_")
-    return os.path.join(SESSION_CONFIG_DIR, f"{safe}.yml")
-
-
-def load_session_config(session: str) -> dict:
-    """
-    Load YAML config for a specific session (hotel).
-    If not found, return an empty default config.
-    """
-    ensure_session_config_dir()
-    path = session_config_path(session)
-
-    if not os.path.exists(path):
-        return {}  # brand new session, no config yet
-
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
-    except Exception:
-        return {}
-
-
-def save_session_config(session: str, cfg: dict):
-    """
-    Save YAML config for a specific session.
-    """
-    ensure_session_config_dir()
-    path = session_config_path(session)
-
-    with open(path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
-
-# =========================================
-# SESSION → GLOBAL CONFIG MERGER
-# =========================================
-def merge_session_config_into(cfg: dict, session: str) -> dict:
-    """
-    Merge session-specific settings (render, cta, tts, music, etc.)
-    into the base YAML config for UI preview and export.
-    """
-    try:
-        s_cfg = load_session_config(session)
-        if not isinstance(s_cfg, dict):
-            return cfg
-
-        # --- MERGE render ---
-        if "render" in s_cfg:
-            render = cfg.setdefault("render", {})
-            for k, v in s_cfg["render"].items():
-                render[k] = v
-
-        # --- MERGE CTA ---
-        if "cta" in s_cfg:
-            cta = cfg.setdefault("cta", {})
-            for k, v in s_cfg["cta"].items():
-                cta[k] = v
-
-        # --- MERGE TTS (if you store separate TTS keys) ---
-        if "tts" in s_cfg:
-            tts = cfg.setdefault("tts", {})
-            for k, v in s_cfg["tts"].items():
-                tts[k] = v
-
-        # --- MERGE MUSIC (if stored) ---
-        if "music" in s_cfg:
-            music = cfg.setdefault("music", {})
-            for k, v in s_cfg["music"].items():
-                music[k] = v
-
-        # Add more sections if needed later
-        return cfg
-
-    except Exception:
-        return cfg
 
 def _normalize_yaml_filename(name: str) -> str:
     """
-    Normalize filenames in YAML to basename + lowercase,
-    but DO NOT change the extension.
+    Normalize filenames in YAML to basename only.
     """
     if not name:
         return name
@@ -360,9 +254,8 @@ def _normalize_yaml_filename(name: str) -> str:
 
 def sanitize_yaml_filenames(cfg: dict) -> dict:
     """
-    Ensure YAML filenames are in a consistent form (basename + lowercase)
-    so they match the normalized video filenames in video_folder.
-    No extension conversion is done here.
+    Ensure YAML filenames are in a consistent form (basename only)
+    so they match the video filenames from S3.
     """
     if not isinstance(cfg, dict):
         return cfg
@@ -406,31 +299,23 @@ def _style_instructions(style: str) -> str:
 def apply_overlay(session: str, style: str, target: str = "all", filename: Optional[str] = None) -> None:
     """
     Apply overlay style (caption rewrite) for THIS session.
-    - Only rewrites text: fields
-    - Preserves layout_mode, fgscale, CTA, TTS, music, timing, etc.
-    - Saves new overlay style into render.overlay_style
+    - Only rewrites text fields
+    - Preserves layout_mode, fgscale, CTA, TTS, music, timing, etc. via prompt rules
+    - Reads and writes the SAME per-session config.yml (get_config_path)
     """
-
-    # ------------------------------------
-    # Load session YAML
-    # ------------------------------------
     try:
-        path = session_config_path(session)
-        if not os.path.exists(path):
+        config_path = get_config_path(session)
+        if not os.path.exists(config_path):
             return
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             original_text = f.read()
-
     except Exception:
         return
 
     if client is None:
         return
 
-    # ------------------------------------
-    # Build stronger prompt
-    # ------------------------------------
     prompt = f"""
 Rewrite ONLY the caption text fields ("text") inside this YAML.
 
@@ -457,7 +342,6 @@ STRICT RULES:
 - Keep all filenames EXACTLY the same.
 - Keep all durations EXACTLY the same.
 - Do NOT modify layout_mode, fgscale, tts, cta, music, or render settings.
-- Keep the YAML structure EXACTLY identical.
 - One sentence per clip (<150 chars).
 - No hashtags.
 - No quotes.
@@ -468,9 +352,6 @@ ORIGINAL YAML:
 Return ONLY valid YAML (no backticks).
 """.strip()
 
-    # ------------------------------------
-    # Call LLM
-    # ------------------------------------
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
@@ -485,39 +366,29 @@ Return ONLY valid YAML (no backticks).
         if not isinstance(cfg, dict):
             raise ValueError("Overlay returned invalid YAML")
 
-        # sanitize filenames
         cfg = sanitize_yaml_filenames(cfg)
 
     except Exception as e:
         logger.error(f"[OVERLAY] LLM error: {e}")
         return
 
-    # ------------------------------------
     # Tag overlay style inside config
-    # ------------------------------------
     render = cfg.setdefault("render", {})
     render["overlay_style"] = style
 
-    # ------------------------------------
-    # Merge session overrides BACK IN
-    # (keeps CTA, TTS, music, fgscale, layout_mode)
-    # ------------------------------------
-    cfg = merge_session_config_into(cfg, session)
-
-    # ------------------------------------
-    # Save final YAML
-    # ------------------------------------
+    # Save directly to this session's config.yml
     try:
-        save_session_config(session, cfg)
-        log_step(f"Overlay applied for session={session}, style={style}")
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
 
+        log_step(f"Overlay applied for session={session}, style={style}")
     except Exception as e:
         logger.error(f"[OVERLAY SAVE ERROR] {e}")
 
 
 def apply_smart_timings(session: str, pacing: str = "standard") -> None:
     """
-    Apply timing adjustments using LLM, while preserving ALL other session settings:
+    Apply timing adjustments using LLM, while preserving ALL other settings:
     - overlay text
     - layout_mode
     - fgscale + fgscale_mode
@@ -526,16 +397,13 @@ def apply_smart_timings(session: str, pacing: str = "standard") -> None:
     - CTA settings
     - clip order & file names
     """
-
     try:
-        path = session_config_path(session)
-        if not os.path.exists(path):
+        config_path = get_config_path(session)
+        if not os.path.exists(config_path):
             return
 
-        # Load original YAML (session-level)
-        with open(path, "r", encoding="utf-8") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             original_text = f.read()
-
     except Exception:
         return
 
@@ -548,9 +416,6 @@ def apply_smart_timings(session: str, pacing: str = "standard") -> None:
         else "Standard pacing: small duration optimizations only."
     )
 
-    # ----------------------------------------------------
-    # LLM prompt — STRICT RULES
-    # ----------------------------------------------------
     prompt = f"""
 You MUST ONLY modify the duration fields in this YAML.
 
@@ -576,11 +441,8 @@ ORIGINAL YAML:
 {original_text}
 
 Return ONLY VALID YAML (no backticks).
-"""
+""".strip()
 
-    # ----------------------------------------------------
-    # Call LLM
-    # ----------------------------------------------------
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
@@ -601,24 +463,15 @@ Return ONLY VALID YAML (no backticks).
         logger.error(f"[TIMINGS] YAML error: {e}")
         return
 
-    # ----------------------------------------------------
-    # Add timing mode tag
-    # ----------------------------------------------------
+    # Tag timing mode
     render = cfg.setdefault("render", {})
     render["timing_mode"] = pacing
 
-    # ----------------------------------------------------
-    # Merge session overrides BACK IN
-    # This keeps overlay, layout, fgscale, music, CTA, etc.
-    # ----------------------------------------------------
-    cfg = merge_session_config_into(cfg, session)
-
-    # ----------------------------------------------------
-    # Save final YAML
-    # ----------------------------------------------------
+    # Save directly to this session's config.yml
     try:
-        save_session_config(session, cfg)
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
+
         log_step(f"Smart timings applied for session={session} (mode={pacing})")
     except Exception as e:
         logger.error(f"[TIMINGS SAVE ERROR] {e}")
-
