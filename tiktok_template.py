@@ -762,6 +762,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 "x=(w-text_w)/2:"
                 "y=h*0.75"
             )
+            log_step(f"[CTA-FILTER] Using CTA filter:\n{cta_filter}")
 
             cta_cmd = [
                 "ffmpeg", "-y",
