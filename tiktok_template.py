@@ -479,12 +479,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         # 2. Escape single quotes
         t = t.replace("'", "\\'")
 
-        # 3. Escape percent
-        t = t.replace("%", "\\%")
+        # 3. Escape percent with TWO backslashes for the drawtext filter
+        t = t.replace("%", "\\\\%") # <-- Changed from one to two backslashes
 
         return t
-
-
 
 
     
