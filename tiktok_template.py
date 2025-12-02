@@ -487,6 +487,32 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         clips.append(collect(m))
     clips.append(collect(cfg["last_clip"], is_last=True))
 
+    clips = [collect(cfg["first_clip"])]
+    for m in cfg.get("middle_clips", []):
+        clips.append(collect(m))
+    clips.append(collect(cfg["last_clip"], is_last=True))
+
+    # --------------------------------------------------------
+    # SAFETY FIX — Remove accidental duplicates from YAML
+    # LLMs sometimes repeat a file unless it appears twice
+    # in uploaded S3 list. If YAML reuses the same filename
+    # more than once, remove the extra copies.
+    # --------------------------------------------------------
+    all_files = [c["file"] for c in clips]
+
+    if len(set(all_files)) < len(all_files):
+        log_step("[SAFETY] Removing duplicate clip entries from YAML…")
+
+        unique = []
+        seen = set()
+
+        for c in clips:
+            if c["file"] not in seen:
+                unique.append(c)
+                seen.add(c["file"])
+
+        clips = unique
+
     # --------------------------
     # Safety: ensure clip list exists
     # --------------------------
@@ -671,18 +697,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     if cta_enabled and cta_text and cta_segment_len > 0:
 
-        # --- REAL total length of video before CTA ---
-        # Sum durations of the actual trimmed files (most accurate)
-        def ffprobe_duration(f):
-            try:
-                return float(subprocess.check_output([
-                    "ffprobe", "-v", "error",
-                    "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
-                    f
-                ]).decode().strip())
-            except:
-                return 0.0
 
         # Real video length after concat (the true timeline we blur over)
         def ffprobe_duration_file(path):

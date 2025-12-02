@@ -1619,9 +1619,7 @@ h3 {
 
 /* Mobile-only overrides */
 @media (max-width: 520px) {
-    .download-btn,
-    #downloadBtn,
-    .export-download-btn {
+    #downloadArea .btn-download {
         display: block;
         width: 100%;
         max-width: 240px;
@@ -1643,9 +1641,7 @@ h3 {
         transition: background 0.2s ease, transform 0.15s ease;
     }
 
-    .download-btn:active,
-    #downloadBtn:active,
-    .export-download-btn:active {
+    #downloadArea .btn-download:active {
         transform: scale(0.97);
     }
 }
