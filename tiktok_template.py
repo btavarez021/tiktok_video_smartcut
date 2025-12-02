@@ -684,8 +684,21 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             except:
                 return 0.0
 
-        # Real length = TRUE duration of the concatenated clips
-        real_total = sum(ffprobe_duration(f) for f in trimmed_files)
+        # Real video length after concat (the true timeline we blur over)
+        def ffprobe_duration_file(path):
+            try:
+                return float(subprocess.check_output([
+                    "ffprobe", "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    path
+                ]).decode().strip())
+            except:
+                return 0.0
+
+        # This is the correct duration that CTA must use.
+        real_total = ffprobe_duration_file(final_video_source)
+
 
         # CTA occupies final segment [real_total - cta_segment_len, real_total]
         cta_start = max(real_total - cta_segment_len, 0.0)
