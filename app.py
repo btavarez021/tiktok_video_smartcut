@@ -5,7 +5,7 @@ import yaml
 from flask import Flask, jsonify, request, send_file, render_template
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from datetime import time
+import time
 # Import backend API helpers
 from assistant_log import status_log
 from assistant_api import (
