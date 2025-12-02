@@ -470,19 +470,14 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         if not text:
             return ""
 
-        # FFmpeg requires escaping in THIS strict order:
-        t = text
+        # Correct, FFmpeg-safe escaping for drawtext
+        t = text.replace("\\", "\\\\")   # escape backslashes
+        t = t.replace("'", "\\'")        # escape single quotes
+        t = t.replace("%", "\\%")        # escape percent → \%
 
-        # 1. Escape backslashes
-        t = t.replace("\\", "\\\\")
+    return t
 
-        # 2. Escape single quotes
-        t = t.replace("'", "\\'")
 
-        # 3. Escape percent with TWO backslashes for the drawtext filter
-        t = t.replace("%", "\\\\%") # <-- Changed from one to two backslashes
-
-        return t
 
 
     
