@@ -1370,16 +1370,28 @@ async function pollExportStatus(taskId) {
             const res = await fetch(`/api/export/status?task_id=${taskId}`);
             const data = await res.json();
 
+            // Export finished successfully
             if (data.status === "done") {
                 clearInterval(interval);
                 resolve(data.download_url);
             }
 
+            // Export was cancelled (update UI here)
             if (data.status === "cancelled") {
                 clearInterval(interval);
+
+                const statusEl = document.getElementById("exportStatus");
+                const cancelBtn = document.getElementById("cancelExportBtn");
+
+                statusEl.textContent = "❌ Export cancelled.";
+                cancelBtn.classList.add("hidden");
+
+                ACTIVE_EXPORT_TASK = null;
+
                 reject("Export cancelled.");
             }
 
+            // Export failed
             if (data.status === "error") {
                 clearInterval(interval);
                 reject(data.error);
@@ -1388,6 +1400,7 @@ async function pollExportStatus(taskId) {
         }, 2000);
     });
 }
+
 
 
 // ================================
