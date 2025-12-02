@@ -33,12 +33,10 @@ from assistant_api import (
     get_export_mode,
     set_export_mode,
     sanitize_session as backend_sanitize_session,
-    load_session_config,
-    save_session_config,
     run_export_task,   
     export_tasks      
 )
-
+from tiktok_template import get_config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 import threading
 
@@ -318,14 +316,21 @@ def api_music():
     file = data.get("file") or ""
     volume = float(data.get("volume", 0.25))
 
-    cfg = load_session_config(session)
-    r = cfg.setdefault("render", {})
+    config_path = get_config_path(session)
 
+    cfg = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+
+    r = cfg.setdefault("render", {})
     r["music_enabled"] = enabled
     r["music_file"] = file
     r["music_volume"] = volume
 
-    save_session_config(session, cfg)
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+
 
     return jsonify({"status": "ok"})
 
