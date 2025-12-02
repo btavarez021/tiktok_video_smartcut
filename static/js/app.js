@@ -917,9 +917,9 @@ async function applyOverlay() {
 
         console.log("[OVERLAY RESULT]", result);
 
-        setStatus("overlayStatus", "Overlay applied.", "success");
+        setStatus("overlayStatus", "Overlay applied.", "success", true);
 
-        // 🔥 Force-refresh YAML
+        // ALWAYS force-refresh config
         await loadConfigAndYaml();
 
     } catch (err) {
@@ -954,7 +954,7 @@ async function applyTiming(smart) {
                 session: getActiveSession(),
             }),
         });
-        setStatus("timingStatus", "Timings updated.", "success");
+        setStatus("timingStatus", "Timings updated.", "success", true);
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
@@ -1377,40 +1377,59 @@ async function startExport(sessionId) {
 async function pollExportStatus(taskId) {
     return new Promise((resolve, reject) => {
         const interval = setInterval(async () => {
+
             const res = await fetch(`/api/export/status?task_id=${taskId}`);
             const data = await res.json();
 
-            // Export finished successfully
+            const statusEl = document.getElementById("exportStatus");
+            const cancelBtn = document.getElementById("cancelExportBtn");
+            const exportBtn = document.getElementById("exportBtn");
+
+            // ------------------------------
+            // SUCCESS
+            // ------------------------------
             if (data.status === "done") {
                 clearInterval(interval);
+
+                cancelBtn.classList.add("hidden");
+                if (exportBtn) exportBtn.disabled = false;
+
                 resolve(data.download_url);
+                return;
             }
 
-            // Export was cancelled (update UI here)
+            // ------------------------------
+            // CANCELLED
+            // ------------------------------
             if (data.status === "cancelled") {
                 clearInterval(interval);
 
-                const statusEl = document.getElementById("exportStatus");
-                const cancelBtn = document.getElementById("cancelExportBtn");
-
                 statusEl.textContent = "❌ Export cancelled.";
                 cancelBtn.classList.add("hidden");
+                if (exportBtn) exportBtn.disabled = false;
 
                 ACTIVE_EXPORT_TASK = null;
 
                 reject("Export cancelled.");
+                return;
             }
 
-            // Export failed
+            // ------------------------------
+            // ERROR
+            // ------------------------------
             if (data.status === "error") {
                 clearInterval(interval);
-                reject(data.error);
+
+                cancelBtn.classList.add("hidden");
+                if (exportBtn) exportBtn.disabled = false;
+
+                reject(data.error || "Export error");
+                return;
             }
 
-        }, 2000);
+        }, 1500); // slightly faster polling = snappier UI
     });
 }
-
 
 
 // ================================
@@ -1571,15 +1590,22 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("cancelExportBtn")?.addEventListener("click", async () => {
     if (!ACTIVE_EXPORT_TASK) return;
 
-    document.getElementById("exportStatus").textContent = "⛔ Canceling export…";
+    const statusEl = document.getElementById("exportStatus");
+    const cancelBtn = document.getElementById("cancelExportBtn");
+
+    statusEl.textContent = "⛔ Canceling export…";
 
     await jsonFetch("/api/export/cancel", {
         method: "POST",
         body: JSON.stringify({ task_id: ACTIVE_EXPORT_TASK })
     });
 
+    // Do NOT hide the button yet — wait for poller to confirm
+    // Only clear your local task ID
+    // UI update happens inside pollExportStatus()
     ACTIVE_EXPORT_TASK = null;
 });
+
 
 
     document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () => {
