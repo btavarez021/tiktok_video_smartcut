@@ -707,6 +707,27 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     cta_cfg = cfg.get("cta", {}) or {}
     cta_enabled = bool(cta_cfg.get("enabled", False))
 
+    # --- INSERT FFPROBE HERE TO GET THE REAL DURATION ---
+
+    def get_video_duration(filename):
+        """Uses ffprobe to get the duration of a video file in seconds."""
+        # (You would place this function definition near the top of your script)
+        import json
+        import subprocess
+        cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", filename]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            return float(data['format']['duration'])
+        return None
+
+    # Get the precise length of the video file we just created
+    actual_main_video_duration = get_video_duration(final_video_source)
+    if actual_main_video_duration is None:
+        # Fallback to the estimated base_video_duration if ffprobe fails
+        actual_main_video_duration = base_video_duration 
+        log_step(f"[WARNING] Could not get exact duration via ffprobe. Using estimated total: {actual_main_video_duration:.2f}s")
+
     raw_cta_text = (cta_cfg.get("text") or "").strip()
     wrapped_cta = wrap_cta_text(raw_cta_text)
     cta_text_safe = esc_cta(wrapped_cta)
@@ -728,8 +749,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         cta_segment_len = max(cta_config_dur, cta_voice_dur, 1.0)
 
     # CTA tail starts AFTER clips
-    cta_start_time = concat_duration
-    total_video_duration = concat_duration + cta_segment_len
+    cta_start_time = actual_main_video_duration
+    total_video_duration = actual_main_video_duration + cta_segment_len
 
     # --- BUILD CTA TAIL ---
     if cta_enabled and raw_cta_text and cta_segment_len > 0.0:
@@ -799,7 +820,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
             if os.path.exists(full_with_cta) and os.path.getsize(full_with_cta) > 200 * 1024:
                 final_video_source = full_with_cta
-                total_video_duration = concat_duration + cta_segment_len
+                total_video_duration = actual_main_video_duration  + cta_segment_len
             else:
                 log_step("[CTA] CTA tail concat failed → keeping clips-only video.")
 
