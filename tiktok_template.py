@@ -465,6 +465,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             .replace("%", "\\%")
         )
 
+
     # -------------------------------
     # Build clip list (first, middle*, last)
     # -------------------------------
