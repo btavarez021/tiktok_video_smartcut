@@ -465,6 +465,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             .replace("%", "\\%")
         )
 
+    def esc_cta(text: str) -> str:
+        if text is None:
+            return ""
+        t = str(text)
+        t = t.replace("\\", "\\\\")
+        t = t.replace("'", r"\'")
+        return t
 
     # -------------------------------
     # Build clip list (first, middle*, last)
@@ -702,7 +709,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             # 2) Build a blurred, static CTA tail video from that frame
             cta_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
             # Safe CTA text for drawtext
-            cta_text_safe = esc(raw_cta_text)
+            cta_text_safe = esc_cta(raw_cta_text)
 
             cta_filter = (
                 f"format=rgba,"
