@@ -577,7 +577,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         if not tts_path or not tts_dur:
             continue
 
-        needed = float(tts_dur) + 0.35  # small safety padding
+        needed = float(tts_dur) + 1.0  # small safety padding
         if needed > clip["duration"]:
             log_step(
                 f"[A1a] Extending clip {i+1} "
