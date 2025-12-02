@@ -293,13 +293,12 @@ def api_export_cancel():
     task_id = data.get("task_id")
 
     if not task_id or task_id not in export_tasks:
-        return jsonify({"status": "error", "error": "Invalid task_id"}), 400
+        return jsonify({"error": "Invalid task_id"}), 400
 
     export_tasks[task_id]["cancel_requested"] = True
     export_tasks[task_id]["status"] = "cancelling"
 
-    return jsonify({"status": "ok"})
-
+    return jsonify({"status": "cancelling"})
 
 # ============================================================================
 # MUSIC
