@@ -470,12 +470,20 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         if not text:
             return ""
 
-        # Correct, FFmpeg-safe escaping for drawtext
-        t = text.replace("\\", "\\\\")   # escape backslashes
-        t = t.replace("'", "\\'")        # escape single quotes
-        t = t.replace("%", "\\%")        # escape percent → \%
+        # FFmpeg requires escaping in THIS strict order:
+        t = text
+
+        # 1. Escape backslashes
+        t = t.replace("\\", "\\\\")
+
+        # 2. Escape single quotes
+        t = t.replace("'", "\\'")
+
+        # 3. Escape percent with TWO backslashes for the drawtext filter
+        t = t.replace("%", "\\\\%") # <-- Changed to two backslashes
 
         return t
+
 
     
     def wrap_cta_text(txt: str, max_chars=22) -> str:
@@ -968,6 +976,18 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # -------------------------------
     final_output = os.path.abspath(os.path.join(BASE_DIR, output_file))
     mux_cmd = ["ffmpeg", "-y", "-i", final_video_source]
+    
+    # --- SAFETY CHECK FOR SHORT VIDEO / LONG AUDIO ---
+    # Probe the *actual* duration of the video file one last time
+    actual_final_video_duration = get_video_duration(final_video_source) # Reuse your get_video_duration function
+    
+    use_shortest_flag = False
+    if actual_final_video_duration and total_video_duration:
+        # If the actual video is significantly shorter than the duration we expected
+        # (which means the CTA failed to append correctly), trim the audio.
+        if actual_final_video_duration < (total_video_duration - 0.5): # 0.5s tolerance
+             use_shortest_flag = True
+
 
     if final_audio:
         mux_cmd += [
@@ -976,8 +996,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             "-map", "1:a:0",
             "-c:v", "copy",
             "-c:a", "aac",
-            final_output,
         ]
+        if use_shortest_flag:
+            log_step("[MUX-SAFETY] Video is shorter than expected duration. Using -shortest flag to prevent audio overlap.")
+            mux_cmd.append("-shortest")
+        
+        mux_cmd.append(final_output)
+
     else:
         mux_cmd += [
             "-c:v", "copy",
