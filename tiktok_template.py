@@ -5,7 +5,6 @@ import logging
 import subprocess
 import tempfile
 from typing import Dict, Any
-
 import yaml
 import numpy as np
 from PIL import Image, ImageFilter

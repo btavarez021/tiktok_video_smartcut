@@ -30,13 +30,27 @@ from tiktok_assistant import (
     download_s3_video,
     analyze_video,
     build_yaml_prompt,
-    save_analysis_result,
     sanitize_yaml_filenames,
+    apply_smart_timings
 )
 from tiktok_assistant import apply_overlay
-
+import threading
+import time
 
 logger = logging.getLogger(__name__)
+
+
+# ========== TASK REGISTRY ==========
+export_tasks = {}  
+# Structure:
+# export_tasks[task_id] = {
+#     "status": "pending" | "processing" | "done" | "error" | "cancelled",
+#     "download_url": None,
+#     "error": None,
+#     "cancel_requested": False,
+# }
+
+
 
 # -------------------------------
 # OpenAI client
@@ -44,12 +58,6 @@ logger = logging.getLogger(__name__)
 api_key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
 client = OpenAI(api_key=api_key) if api_key else None
 TEXT_MODEL = "gpt-4.1-mini"
-
-# -------------------------------
-# Analysis cache directory
-# -------------------------------
-ANALYSIS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "video_analysis_cache")
-os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
 
 # ==========================================
 # SESSION-SCOPED ANALYSIS CACHE (NEW SYSTEM)
@@ -94,20 +102,6 @@ def load_analysis_results_session(session: str) -> Dict[str, str]:
 
     return results
 
-
-# ==========================================
-# 🔥 LEGACY GLOBAL CACHE CLEANUP (RUNS ONCE)
-# ==========================================
-# Remove old-style "*.json" files that lived directly under video_analysis_cache/
-LEGACY_DIR = ANALYSIS_BASE_DIR  # same folder
-
-try:
-    # Delete only top-level stale JSONs (NOT subfolders!)
-    for f in glob.glob(os.path.join(LEGACY_DIR, "*.json")):
-        os.remove(f)
-except Exception as e:
-    print("[LEGACY CLEANUP] Skipped:", e)
-
 # -------------------------------
 # Export mode
 # -------------------------------
@@ -134,30 +128,6 @@ def sanitize_session(s: str) -> str:
         return "default"
     s = s.strip().lower().replace(" ", "_")
     return "".join(c for c in s if c.isalnum() or c == "_") or "default"
-
-
-# -------------------------------
-# Load all analysis results from disk
-# -------------------------------
-def load_all_analysis_results() -> Dict[str, str]:
-    results: Dict[str, str] = {}
-
-    if not os.path.isdir(ANALYSIS_CACHE_DIR):
-        return results
-
-    for path in glob.glob(os.path.join(ANALYSIS_CACHE_DIR, "*.json")):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            fname = data.get("filename")
-            desc = data.get("description")
-            if fname and desc:
-                results[fname] = desc
-        except Exception as e:
-            logger.error(f"[LOAD_ANALYSIS] failed for {path}: {e}")
-
-    return results
-
 
 # -------------------------------
 # Upload order (S3 JSON index)
@@ -554,21 +524,25 @@ def api_save_captions(text: str, session: str) -> Dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 # -------------------------------
-# EXPORT (global config, session-aware)
+# EXPORT 
 # -------------------------------
-def api_export(optimized: bool, session: str) -> Dict[str, Any]:
+def run_export_task(task_id: str, session: str, optimized: bool):
     try:
         session = sanitize_session(session)
-
-        # Per-session config path
         path = get_config_path(session)
+
+         # 🚨 CANCEL CHECK (1)
+        if export_tasks[task_id].get("cancel_requested"):
+            export_tasks[task_id]["status"] = "cancelled"
+            return
 
         if not os.path.exists(path):
             msg = f"config.yml not found for session '{session}'"
-            log_error("[EXPORT]", Exception(msg))
-            return {"status": "error", "error": msg}
+            export_tasks[task_id]["status"] = "error"
+            export_tasks[task_id]["error"] = msg
+            return
 
-        # 1. Load + merge session config
+        # Load and merge config
         try:
             with open(path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
@@ -580,34 +554,48 @@ def api_export(optimized: bool, session: str) -> Dict[str, Any]:
 
         except Exception as e:
             log_error("[EXPORT][SESSION MERGE]", e)
+        
+        # 🚨 CANCEL CHECK (2)
+        if export_tasks[task_id].get("cancel_requested"):
+            export_tasks[task_id]["status"] = "cancelled"
+            return
 
-        # 2. Render using the session-specific config
+        # Render video (VERY long step)
+        out_path = edit_video(session_id=session, optimized=optimized)
+
+
+        # Render video
         out_path = edit_video(session_id=session, optimized=optimized)
         if not out_path:
             raise RuntimeError("edit_video() returned no output path")
 
         filename = os.path.basename(out_path)
 
-        # 3. Upload to S3
+        # 🚨 CANCEL CHECK (3)
+        if export_tasks[task_id].get("cancel_requested"):
+            export_tasks[task_id]["status"] = "cancelled"
+            return
+
+        # Upload to S3
         prefix = EXPORT_PREFIX.rstrip("/")
-        export_key = clean_s3_key(f"{prefix}/{filename}")
+        export_key = clean_s3_key(f"{prefix}/{session}/{filename}")
 
         s3.upload_file(out_path, S3_BUCKET_NAME, export_key)
         log_step(f"[EXPORT] Uploaded to s3://{S3_BUCKET_NAME}/{export_key}")
 
+        # Signed URL
         url = generate_signed_download_url(export_key)
 
-        return {
-            "status": "ok",
-            "output_path": out_path,
-            "download_url": url,
-            "s3_key": export_key,
-            "local_filename": filename,
-        }
+        # Update task
+        export_tasks[task_id]["status"] = "done"
+        export_tasks[task_id]["download_url"] = url
+        export_tasks[task_id]["filename"] = filename
+        export_tasks[task_id]["s3_key"] = export_key
 
     except Exception as e:
         log_error("[EXPORT]", e)
-        return {"status": "error", "error": str(e)}
+        export_tasks[task_id]["status"] = "error"
+        export_tasks[task_id]["error"] = str(e)
 
 
 # -------------------------------
@@ -703,7 +691,6 @@ def api_apply_overlay(session_id: str, style: str) -> Dict[str, Any]:
 
 def api_apply_timings(session_id: str, smart: bool = False) -> Dict[str, Any]:
     try:
-        from tiktok_assistant import apply_smart_timings
 
         session_id = sanitize_session(session_id)
         pacing = "cinematic" if smart else "standard"

@@ -28,12 +28,25 @@ client: Optional[OpenAI] = OpenAI(api_key=api_key) if api_key else None
 TEXT_MODEL = "gpt-4.1-mini"
 
 # -----------------------------------------
-# Analysis Cache
+# Session-aware analysis cache folder
 # -----------------------------------------
-video_analyses_cache: Dict[str, str] = {}
+ANALYSIS_BASE_DIR = os.path.join(os.path.dirname(__file__), "video_analysis_cache")
+os.makedirs(ANALYSIS_BASE_DIR, exist_ok=True)
 
-ANALYSIS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "video_analysis_cache")
-os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
+def _session_cache_dir(session: str) -> str:
+    safe = session.replace(" ", "_").lower()
+    path = os.path.join(ANALYSIS_BASE_DIR, safe)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def save_analysis_result_session(session: str, filename: str, description: str) -> None:
+    folder = _session_cache_dir(session)
+    out_path = os.path.join(folder, filename + ".json")
+
+    payload = {"filename": filename, "description": description}
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
 
 
 # -----------------------------------------
@@ -334,32 +347,6 @@ def merge_session_config_into(cfg: dict, session: str) -> dict:
 
     except Exception:
         return cfg
-
-# -----------------------------------------
-# Save analysis to memory + disk
-# -----------------------------------------
-def save_analysis_result(key: str, desc: str) -> None:
-    """
-    Save analysis keyed by the basename of the video (lowercased),
-    preserving the original extension (.mov, .mp4, etc.).
-    """
-    base = os.path.basename(key)
-    key_norm = base.lower()
-
-    video_analyses_cache[key_norm] = desc
-
-    os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
-    file_path = os.path.join(ANALYSIS_CACHE_DIR, f"{key_norm}.json")
-
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(
-            {"filename": key_norm, "description": desc},
-            f,
-            indent=2,
-        )
-
-    log_step(f"Cached analysis for {key_norm}")
-
 
 def _normalize_yaml_filename(name: str) -> str:
     """

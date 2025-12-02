@@ -7,6 +7,9 @@ let previewPlaying = false;
 // 🔵 Active session (hotel / batch)
 let ACTIVE_SESSION = "default";
 
+let ACTIVE_EXPORT_TASK = null;
+
+
 // -------------------------
 // Session helpers
 // -------------------------
@@ -1347,97 +1350,81 @@ function initFgScaleUI() {
     updateFgScaleUI();
 }
 
+async function startExport(sessionId) {
+    // 1. Start export
+    const resp = await fetch("/api/export/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session: sessionId })
+    });
+
+    const { task_id } = await resp.json();
+
+    // 2. Poll for status
+    return pollExportStatus(task_id);
+}
+
+async function pollExportStatus(taskId) {
+    return new Promise((resolve, reject) => {
+        const interval = setInterval(async () => {
+            const res = await fetch(`/api/export/status?task_id=${taskId}`);
+            const data = await res.json();
+
+            if (data.status === "done") {
+                clearInterval(interval);
+                resolve(data.download_url);
+            }
+
+            if (data.status === "cancelled") {
+                clearInterval(interval);
+                reject("Export cancelled.");
+            }
+
+            if (data.status === "error") {
+                clearInterval(interval);
+                reject(data.error);
+            }
+
+        }, 2000);
+    });
+}
+
+
 // ================================
-// Step 5: Export
+// Step 5: EXPORT (Async)
 // ================================
 async function exportVideo() {
-    const exportStatus = document.getElementById("exportStatus");
-    const downloadArea = document.getElementById("downloadArea");
     const btn = document.getElementById("exportBtn");
-    if (!exportStatus || !downloadArea || !btn) return;
+    const cancelBtn = document.getElementById("cancelExportBtn");
+    const statusEl = document.getElementById("exportStatus");
 
-    const mode = document.querySelector('input[name="exportMode"]:checked')?.value;
-    const optimized = mode === "optimized";
-
-    setStatus(
-        "exportStatus",
-        optimized ? "Rendering (HQ)..." : "Rendering…",
-        "info",
-        false
-    );
-
-    downloadArea.innerHTML = "";
     btn.disabled = true;
+    cancelBtn.classList.remove("hidden");
+    statusEl.textContent = "⏳ Rendering… you can leave this page.";
 
     try {
-        const data = await jsonFetch("/api/export", {
+        const startResp = await jsonFetch("/api/export/start", {
             method: "POST",
-            body: JSON.stringify({
-                optimized,
-                session: getActiveSession(),
-            }),
+            body: JSON.stringify({ session: getActiveSession() })
         });
 
-        if (data.status !== "ok") {
-            throw new Error(data.error || "Unknown export error");
-        }
+        const taskId = startResp.task_id;
+        ACTIVE_EXPORT_TASK = taskId;
 
-        const downloadUrl = data.download_url;
-        const filename = data.local_filename || "export.mp4";
+        const downloadUrl = await pollExportStatus(taskId);
 
-        await new Promise((res) => setTimeout(res, 500));
+        cancelBtn.classList.add("hidden");
+        statusEl.innerHTML = `
+            ✅ Export complete<br>
+            <a href="${downloadUrl}" target="_blank">Download Video</a>
+        `;
 
-        if (downloadUrl) {
-            let ok = await probeUrl(downloadUrl);
-            if (!ok) {
-                for (let i = 0; i < 3; i++) {
-                    await new Promise((res) => setTimeout(res, 400));
-                    ok = await probeUrl(downloadUrl);
-                    if (ok) break;
-                }
-            }
-        }
-
-        setStatus("exportStatus", "Export complete!", "success");
-
-        if (downloadUrl) {
-            downloadArea.innerHTML = `
-                <div>✅ Video ready:</div>
-                <button id="directDownloadBtn" class="btn primary full">
-                    ⬇ Download ${filename}
-                </button>
-            `;
-
-            const directBtn = document.getElementById("directDownloadBtn");
-            if (directBtn) {
-                directBtn.onclick = () => safeDownload(downloadUrl, filename);
-            }
-        } else {
-            downloadArea.innerHTML = `
-                <div>⚠ Local file only (S3 upload missing):</div>
-                <button id="directLocalBtn" class="btn primary full">
-                    ⬇ Download ${filename}
-                </button>
-            `;
-            const localBtn = document.getElementById("directLocalBtn");
-            if (localBtn) {
-                localBtn.onclick = () =>
-                    safeDownload(
-                        `/api/download/${encodeURIComponent(filename)}`,
-                        filename
-                    );
-            }
-        }
     } catch (err) {
-        console.error(err);
-        setStatus(
-            "exportStatus",
-            `Error during export: ${err.message}`,
-            "error",
-            false
-        );
+        statusEl.textContent = "❌ " + err;
     } finally {
         btn.disabled = false;
+        ACTIVE_EXPORT_TASK = null;
+        cancelBtn.classList.add("hidden");
     }
 }
 
@@ -1557,6 +1544,20 @@ document.addEventListener("DOMContentLoaded", () => {
         sidebarSyncActiveLabel();
         sidebarToast(`Switched to “${ddl.value}”`);
     });
+
+    document.getElementById("cancelExportBtn")?.addEventListener("click", async () => {
+    if (!ACTIVE_EXPORT_TASK) return;
+
+    document.getElementById("exportStatus").textContent = "⛔ Canceling export…";
+
+    await jsonFetch("/api/export/cancel", {
+        method: "POST",
+        body: JSON.stringify({ task_id: ACTIVE_EXPORT_TASK })
+    });
+
+    ACTIVE_EXPORT_TASK = null;
+});
+
 
     document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () => {
         const session = getActiveSession();
