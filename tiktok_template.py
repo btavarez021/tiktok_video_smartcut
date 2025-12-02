@@ -975,6 +975,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             "-map", "1:a:0",
             "-c:v", "copy",
             "-c:a", "aac",
+            "-shortest", 
             final_output,
         ]
     else:
