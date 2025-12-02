@@ -482,21 +482,14 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     if "first_clip" not in cfg or "last_clip" not in cfg:
         raise RuntimeError("config.yml must contain first_clip and last_clip")
 
-    clips = [collect(cfg["first_clip"])]
-    for m in cfg.get("middle_clips", []):
-        clips.append(collect(m))
-    clips.append(collect(cfg["last_clip"], is_last=True))
-
-    clips = [collect(cfg["first_clip"])]
+    # ✅ build clips ONCE
+    clips: List[Dict[str, Any]] = [collect(cfg["first_clip"])]
     for m in cfg.get("middle_clips", []):
         clips.append(collect(m))
     clips.append(collect(cfg["last_clip"], is_last=True))
 
     # --------------------------------------------------------
     # SAFETY FIX — Remove accidental duplicates from YAML
-    # LLMs sometimes repeat a file unless it appears twice
-    # in uploaded S3 list. If YAML reuses the same filename
-    # more than once, remove the extra copies.
     # --------------------------------------------------------
     all_files = [c["file"] for c in clips]
 
@@ -534,10 +527,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         if render_cfg.get("fgscale") is None:
             render_cfg["fgscale"] = 1.10
         log_step(f"[FGSCALE] Manual mode → using fgscale={render_cfg.get('fgscale')}")
-
-
-    if not clips:
-        raise RuntimeError("No clips defined in config.yml")
 
     # ------------------------------------------------------------------
     # 0. TTS + CLIP DURATION EXTENSION (A1 + A1a)
@@ -587,7 +576,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     with open(trimlist, "w") as lf:
         for clip in clips:
             trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-            vf = "scale=1080:-2,setsar=1"
 
             # foreground scaling (read from YAML)
             render_cfg = cfg.get("render", {})
@@ -595,7 +583,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
             # clamp to safe values
             fg_scale = min(max(fg_scale, 1.0), 1.25)
-
 
             # ===== 1. BASE FG + BG chain (required for filter_complex) =====
             vf = (
@@ -624,14 +611,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 # No captions → just forward video
                 vf += ";[v1]copy[outv]"
 
-            # ===== 3. CORRECT FFmpeg invocation =====
             trim_cmd = [
                 "ffmpeg", "-y",
                 "-ss", str(clip["start"]),
                 "-i", clip["file"],
                 "-t", str(clip["duration"]),
-                "-filter_complex", vf,   # IMPORTANT
-                "-map", "[outv]",        # IMPORTANT
+                "-filter_complex", vf,
+                "-map", "[outv]",
                 "-c:v", "libx264",
                 "-preset", "veryfast",
                 "-crf", "20",
@@ -692,32 +678,14 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # Total duration of clips after extension
     expected_total = sum([clip["duration"] for clip in clips])
 
-    # CTA will be applied AFTER clips, but not padded yet
-    cta_start_time = None
+    # This is our single source of truth for CTA timing
+    cta_start_time: Optional[float] = None
 
-    if cta_enabled and cta_text and cta_segment_len > 0:
-
-
-        # Real video length after concat (the true timeline we blur over)
-        def ffprobe_duration_file(path):
-            try:
-                return float(subprocess.check_output([
-                    "ffprobe", "-v", "error",
-                    "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
-                    path
-                ]).decode().strip())
-            except:
-                return 0.0
-
-        # This is the correct duration that CTA must use.
-        real_total = ffprobe_duration_file(final_video_source)
-
-
-        # CTA occupies final segment [real_total - cta_segment_len, real_total]
-        cta_start = max(real_total - cta_segment_len, 0.0)
-        cta_end = real_total
-        cta_start_time = cta_start  # For CTA audio
+    if cta_enabled and cta_text and cta_segment_len > 0.0:
+        # 🚀 CTA starts AFTER all clips finish
+        cta_start_time = expected_total
+        cta_start = cta_start_time
+        cta_end = cta_start + cta_segment_len
 
         # Apply CTA blur only if meaningful
         if (cta_end - cta_start) > 0.05:
@@ -757,8 +725,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             else:
                 log_step("[CTA] CTA blur failed → keeping original video.")
 
-
-
     # -------------------------------
     # 4. AUDIO PIPELINE
     # -------------------------------
@@ -782,8 +748,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 })
         current_time += clip["duration"]
 
-
-    # CTA TTS must start when CTA blur starts
+    # CTA TTS must start when CTA blur starts (same start time)
     if cta_tts_track and cta_enabled and cta_text:
         if isinstance(cta_tts_track, tuple):
             cta_path, _ = cta_tts_track
@@ -791,18 +756,14 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             cta_path = cta_tts_track
 
         if cta_path:
-            # CTA TTS must start AFTER last clip finishes (no overlapping)
-            tts_total_timeline = sum([clip["duration"] for clip in clips])
-
-            start_time = tts_total_timeline
-
+            # 🚀 use the same CTA start time used for blur; fallback to expected_total
+            start_time = cta_start_time if cta_start_time is not None else expected_total
 
             audio_inputs.append({
                 "path": cta_path,
                 "start": start_time,
                 "volume": 1.0,
             })
-
 
     final_audio = None
 
