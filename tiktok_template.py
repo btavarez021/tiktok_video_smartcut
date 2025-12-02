@@ -475,10 +475,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         t = t.replace("'", "\\'")        # escape single quotes
         t = t.replace("%", "\\%")        # escape percent → \%
 
-    return t
-
-
-
+        return t
 
     
     def wrap_cta_text(txt: str, max_chars=22) -> str:
