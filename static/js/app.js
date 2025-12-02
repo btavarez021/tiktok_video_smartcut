@@ -1399,7 +1399,7 @@ async function pollExportStatus(taskId) {
                 if (box) {
                     box.innerHTML = `
                         <a href="${data.download_url}"
-                          class="export-download-btn"
+                          class="btn-download"
                           target="_blank"
                           download>
                             ⬇️ Download Export
@@ -1455,7 +1455,7 @@ async function pollExportStatus(taskId) {
 function showDownloadButton(url) {
     const area = document.getElementById("downloadArea");
     area.innerHTML = `
-        <button class="download-btn" onclick="window.open('${url}', '_blank')">
+        <button class="btn-download" onclick="window.open('${url}', '_blank')">
             ⬇️ Download Video
         </button>
     `;

@@ -490,6 +490,42 @@ textarea::-webkit-scrollbar-thumb,
     background: var(--ghost-hover);
 }
 
+/* Modern Download Button */
+.btn-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    background: var(--primary);
+    color: white;
+
+    padding: 12px 20px;
+    border: none;
+    border-radius: var(--radius);
+
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+
+    cursor: pointer;
+    text-decoration: none;
+
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    transition: background 0.25s ease, transform 0.15s ease, box-shadow 0.25s ease;
+}
+
+.btn-download:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+}
+
+.btn-download:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+}
+
+
 /* ---------------------------------------
    Range Slider
 ---------------------------------------- */
@@ -1081,18 +1117,6 @@ h3 {
     100% { transform: translateX(0); }
 }
 
-/* Session dropdown z-index fix */
-.session-bar {
-    position: relative;
-    z-index: 9999 !important;
-}
-
-/* MUST BE CLEAN (no position, no z-index) */
-#sessionDropdown {
-    position: static !important;
-    z-index: auto !important;
-}
-
 /* Drop step-card below session UI */
 .card,
 .step-card {
@@ -1539,20 +1563,6 @@ h3 {
         display: block !important;
     }
 }
-
-/* ===========================================
-   MOBILE SIDEBAR (slide-up panel)
-   =========================================== */
-
-    /* When JS adds `.open` → slide up */
-    #sidebarSessionCard.open {
-        bottom: 0;
-    }
-
-    /* Mobile close button ONLY on mobile */
-    .mobile-close-btn {
-        display: block !important;
-    }
 
 /* ===========================================================
    CLEAN STACKING FIX — MOBILE SIDEBAR SESSION MANAGER
