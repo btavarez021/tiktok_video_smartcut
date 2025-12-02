@@ -482,7 +482,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         # 3. Escape percent
         t = t.replace("%", "\\%")
 
-    return t
+        return t
 
 
 
