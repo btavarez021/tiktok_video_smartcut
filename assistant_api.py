@@ -9,7 +9,7 @@ import yaml
 from openai import OpenAI
 from flask import request
 from assistant_log import log_step, log_error, log_success
-from tiktok_template import edit_video, video_folder
+from tiktok_template import edit_video, video_folder,get_config_path
 from s3_config import (
     s3,
     S3_BUCKET_NAME,
@@ -22,10 +22,6 @@ from s3_config import (
 import shutil
 # Import ONLY non-circular functions from tiktok_assistant
 from tiktok_assistant import (
-    session_config_path,
-    merge_session_config_into,
-    load_session_config,
-    save_session_config,
     generate_signed_download_url,
     list_videos_from_s3,
     download_s3_video,
@@ -392,26 +388,22 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
         if not isinstance(cfg, dict):
             raise ValueError("LLM did not return valid YAML")
 
+        # Clean filenames (remove spaces, unicode, weird chars, etc.)
         cfg = sanitize_yaml_filenames(cfg)
 
+        # Defaults
         render = cfg.setdefault("render", {})
         if "layout_mode" not in render:
             render["layout_mode"] = "tiktok"
 
-        # --- NEW: ensure CTA duration exists ---
         cta = cfg.setdefault("cta", {})
         cta["duration"] = cta.get("duration", 3.0)
 
-
-        # NOTE: still using a single global config_path for now
-        # Apply session overrides (fgscale, etc.)
-        cfg = merge_session_config_into(cfg, session)
-
-        config_path = session_config_path(session)
+        # Save YAML directly — no merge!
+        config_path = get_config_path(session)
 
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
-
 
         log_success("[YAML]", "Generated and saved config.yml")
         return cfg
@@ -421,34 +413,28 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
         return {"error": str(e)}
 
 
+
 # -------------------------------
 # Config retrieval + saving (global)
 # -------------------------------
 def api_get_config() -> Dict[str, Any]:
     session_id = sanitize_session(request.args.get("session", "default"))
-    config_path = session_config_path(session_id)
+    config_path = get_config_path(session_id)
 
     if not os.path.exists(config_path):
         return {"yaml": "", "config": {}, "error": "config.yml not found"}
 
-    # Load base YAML
+    # Load YAML text
     with open(config_path, "r", encoding="utf-8") as f:
-        base_text = f.read()
+        yaml_text = f.read()
 
     try:
-        base_cfg = yaml.safe_load(base_text) or {}
-
-        # 🔥 Merge session overrides
-        merged = merge_session_config_into(base_cfg, session_id)
-
-        # Re-dump so UI sees updated values
-        yaml_text = yaml.safe_dump(merged, sort_keys=False)
-
+        cfg = yaml.safe_load(yaml_text) or {}
     except Exception as e:
         log_error("[GET_CONFIG]", e)
-        return {"yaml": base_text, "config": base_cfg}
+        return {"yaml": yaml_text, "config": {}}
 
-    return {"yaml": yaml_text, "config": merged}
+    return {"yaml": yaml_text, "config": cfg}
 
 
 
@@ -459,7 +445,7 @@ def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
         cfg = sanitize_yaml_filenames(cfg)
 
         session = sanitize_session(request.args.get("session", "default"))
-        config_path = session_config_path(session)
+        config_path = get_config_path(session)
 
         # ❗ Write ONLY what the user edited
         # Do NOT merge session overrides here
@@ -491,7 +477,7 @@ def api_get_captions() -> Dict[str, Any]:
 def api_save_captions(text: str, session: str) -> Dict[str, Any]:
     try:
         session = sanitize_session(session)
-        config_path = session_config_path(session)
+        config_path = get_config_path(session)
 
         # Load existing YAML
         with open(config_path, "r", encoding="utf-8") as f:
@@ -538,7 +524,7 @@ def api_save_captions(text: str, session: str) -> Dict[str, Any]:
 def run_export_task(task_id: str, session: str, optimized: bool):
     try:
         session = sanitize_session(session)
-        config_path = session_config_path(session)
+        config_path = get_config_path(session)
 
         # 🚨 If config does not exist
         if not os.path.exists(config_path):
@@ -553,19 +539,16 @@ def run_export_task(task_id: str, session: str, optimized: bool):
             return
 
         # ----------------------------------------------------
-        # Load + merge config BEFORE render
+        # Load config (NO MERGING ANYMORE)
         # ----------------------------------------------------
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
-
-            cfg = merge_session_config_into(cfg, session)
-
-            with open(config_path, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, sort_keys=False)
-
         except Exception as e:
-            log_error("[EXPORT][SESSION MERGE]", e)
+            log_error("[EXPORT][LOAD_CFG]", e)
+            export_tasks[task_id]["status"] = "error"
+            export_tasks[task_id]["error"] = "Failed to load config.yml"
+            return
 
         # 🚨 CANCEL CHECK (2)
         if export_tasks[task_id].get("cancel_requested"):
@@ -611,60 +594,60 @@ def run_export_task(task_id: str, session: str, optimized: bool):
         export_tasks[task_id]["status"] = "error"
         export_tasks[task_id]["error"] = str(e)
 
-
-
 # -------------------------------
 # TTS / CTA Settings (global)
 # -------------------------------
 
 def api_set_tts(session: str, enabled: bool, voice: str | None) -> Dict[str, Any]:
     session = sanitize_session(session)
+    config_path = get_config_path(session)
 
-    # Load the session-specific config
-    cfg = load_session_config(session)
+    cfg = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+
     r = cfg.setdefault("render", {})
-
-    # Apply TTS settings
     r["tts_enabled"] = bool(enabled)
 
     if voice:
         r["tts_voice"] = voice
 
-    # Save session config
-    save_session_config(session, cfg)
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
 
     return {"status": "ok", "render": r}
 
 
-def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool | None, duration: float | None = None) -> Dict[str, Any]:
+
+def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool | None, duration: float | None = None):
     session = sanitize_session(session)
+    config_path = get_config_path(session)
 
-    cfg = load_session_config(session)
+    cfg = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+
     c = cfg.setdefault("cta", {})
-
-    # Always set enabled
     c["enabled"] = bool(enabled)
 
-    # Update text if provided
     if text is not None:
         c["text"] = text
 
-    # Update voiceover if provided
     if voiceover is not None:
         c["voiceover"] = bool(voiceover)
 
-    # NEW: CTA duration
     if duration is not None:
         try:
             c["duration"] = float(duration)
         except:
             c["duration"] = 3.0
     else:
-        # Ensure duration exists
-        c["duration"] = c.get("duration", 3.0)
+        c.setdefault("duration", 3.0)
 
-    # Save final config
-    save_session_config(session, cfg)
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
 
     return {"status": "ok", "cta": c}
 
@@ -710,47 +693,41 @@ def api_apply_timings(session_id: str, smart: bool = False) -> Dict[str, Any]:
 
 
 def api_set_layout(session: str, mode: str) -> Dict[str, Any]:
-    try:
-        session = sanitize_session(session)
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
 
-        cfg = load_session_config(session)
-        r = cfg.setdefault("render", {})
-        r["layout_mode"] = mode
+    cfg = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
 
-        save_session_config(session, cfg)
+    r = cfg.setdefault("render", {})
+    r["layout_mode"] = mode
 
-        return {"status": "ok", "layout_mode": mode}
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
 
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
+    return {"status": "ok", "layout_mode": mode}
 
 
 def api_fgscale(session: str, fgscale_mode: str, fgscale: float | None) -> Dict[str, Any]:
-    """
-    Save foreground scale settings for a specific session.
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
 
-    fgscale_mode: "auto" or "manual"
-    fgscale: float value when manual, or None when auto.
-    """
-    try:
-        # Load session config
-        cfg = load_session_config(session)
-        render_cfg = cfg.get("render", {})
+    cfg = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
 
-        # Apply changes
-        render_cfg["fgscale_mode"] = fgscale_mode
-        render_cfg["fgscale"] = fgscale  # can be None
+    r = cfg.setdefault("render", {})
+    r["fgscale_mode"] = fgscale_mode
+    r["fgscale"] = fgscale
 
-        cfg["render"] = render_cfg
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
 
-        # Save updated config
-        save_session_config(session, cfg)
+    return {"status": "ok", "render": r}
 
-        log_success("[FGSCALE]", f"({session}) mode={fgscale_mode} value={fgscale}")
-        return {"status": "ok", "render": render_cfg}
-
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
 
 
 
