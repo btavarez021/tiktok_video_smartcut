@@ -404,34 +404,73 @@ def _style_instructions(style: str) -> str:
 
 
 def apply_overlay(session: str, style: str, target: str = "all", filename: Optional[str] = None) -> None:
+    """
+    Apply overlay style (caption rewrite) for THIS session.
+    - Only rewrites text: fields
+    - Preserves layout_mode, fgscale, CTA, TTS, music, timing, etc.
+    - Saves new overlay style into render.overlay_style
+    """
+
+    # ------------------------------------
+    # Load session YAML
+    # ------------------------------------
     try:
         path = session_config_path(session)
+        if not os.path.exists(path):
+            return
+
         with open(path, "r", encoding="utf-8") as f:
-            yaml_text = f.read()
+            original_text = f.read()
+
     except Exception:
         return
 
     if client is None:
         return
 
+    # ------------------------------------
+    # Build stronger prompt
+    # ------------------------------------
     prompt = f"""
-Rewrite ONLY the caption fields ("text") in this YAML.
+Rewrite ONLY the caption text fields ("text") inside this YAML.
 
-Style: {style}
+IMPORTANT:
+Below is a YAML structure. You must return the EXACT SAME structure.
+You may ONLY modify the values of fields named "text".
+Do NOT modify:
+- duration
+- start_time
+- file
+- render.*
+- cta.*
+- tts.*
+- music.*
+- fgscale or fgscale_mode
+- layout_mode
+
+Overlay style: {style}
 Instructions: {_style_instructions(style)}
 
-Rules:
-- Keep structure EXACTLY the same.
-- Only modify the text fields.
-- One sentence each (<150 chars).
+STRICT RULES:
+- Modify ONLY "text:" values.
+- Do NOT add or remove any clips.
+- Keep all filenames EXACTLY the same.
+- Keep all durations EXACTLY the same.
+- Do NOT modify layout_mode, fgscale, tts, cta, music, or render settings.
+- Keep the YAML structure EXACTLY identical.
+- One sentence per clip (<150 chars).
 - No hashtags.
+- No quotes.
 
-YAML:
-{yaml_text}
+ORIGINAL YAML:
+{original_text}
 
-Return ONLY YAML.
+Return ONLY valid YAML (no backticks).
 """.strip()
 
+    # ------------------------------------
+    # Call LLM
+    # ------------------------------------
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
@@ -446,21 +485,57 @@ Return ONLY YAML.
         if not isinstance(cfg, dict):
             raise ValueError("Overlay returned invalid YAML")
 
+        # sanitize filenames
         cfg = sanitize_yaml_filenames(cfg)
 
+    except Exception as e:
+        logger.error(f"[OVERLAY] LLM error: {e}")
+        return
+
+    # ------------------------------------
+    # Tag overlay style inside config
+    # ------------------------------------
+    render = cfg.setdefault("render", {})
+    render["overlay_style"] = style
+
+    # ------------------------------------
+    # Merge session overrides BACK IN
+    # (keeps CTA, TTS, music, fgscale, layout_mode)
+    # ------------------------------------
+    cfg = merge_session_config_into(cfg, session)
+
+    # ------------------------------------
+    # Save final YAML
+    # ------------------------------------
+    try:
         save_session_config(session, cfg)
         log_step(f"Overlay applied for session={session}, style={style}")
 
     except Exception as e:
-        logger.error(f"Overlay error: {e}")
-
+        logger.error(f"[OVERLAY SAVE ERROR] {e}")
 
 
 def apply_smart_timings(session: str, pacing: str = "standard") -> None:
+    """
+    Apply timing adjustments using LLM, while preserving ALL other session settings:
+    - overlay text
+    - layout_mode
+    - fgscale + fgscale_mode
+    - tts settings
+    - music settings
+    - CTA settings
+    - clip order & file names
+    """
+
     try:
         path = session_config_path(session)
+        if not os.path.exists(path):
+            return
+
+        # Load original YAML (session-level)
         with open(path, "r", encoding="utf-8") as f:
-            yaml_text = f.read()
+            original_text = f.read()
+
     except Exception:
         return
 
@@ -468,46 +543,82 @@ def apply_smart_timings(session: str, pacing: str = "standard") -> None:
         return
 
     pacing_desc = (
-        "Cinematic pacing: hook (2-4s), value shots (3-7s), ending (2-4s). Total <=60s."
+        "Cinematic pacing: hook (2–4s), value shots (3–7s), ending (2–4s). Keep total <= 60s."
         if pacing == "cinematic"
-        else "Standard pacing: small duration improvements only."
+        else "Standard pacing: small duration optimizations only."
     )
 
+    # ----------------------------------------------------
+    # LLM prompt — STRICT RULES
+    # ----------------------------------------------------
     prompt = f"""
-Adjust ONLY the numeric duration fields in this config.yml.
+You MUST ONLY modify the duration fields in this YAML.
 
-Pacing: {pacing}
-Rules:
-- Keep same structure.
-- Do NOT modify text or filenames.
-- Durations should be natural.
-- Total <= ~60 seconds.
+❗ DO NOT CHANGE anything else, including:
+- text captions
+- overlay style
+- layout_mode
+- fgscale_mode or fgscale
+- tts settings
+- music settings
+- cta fields (text, voiceover, enabled, duration)
+- filenames
+- clip order
+- start_time
+- any other keys
 
-Instructions: {pacing_desc}
+Pacing mode: "{pacing}"
 
-YAML:
-{yaml_text}
+Guidelines:
+{pacing_desc}
 
-Return ONLY YAML.
-""".strip()
+ORIGINAL YAML:
+{original_text}
 
+Return ONLY VALID YAML (no backticks).
+"""
+
+    # ----------------------------------------------------
+    # Call LLM
+    # ----------------------------------------------------
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
+            temperature=0.15,
         )
+
         new_yaml = (resp.choices[0].message.content or "").strip()
         new_yaml = new_yaml.replace("```yaml", "").replace("```", "").strip()
 
         cfg = yaml.safe_load(new_yaml)
         if not isinstance(cfg, dict):
-            raise ValueError("Timings returned invalid YAML")
+            raise ValueError("LLM returned invalid YAML")
 
         cfg = sanitize_yaml_filenames(cfg)
 
-        save_session_config(session, cfg)
-        log_step(f"Smart timings applied ({pacing}) for session={session}")
-
     except Exception as e:
-        logger.error(f"Timings error: {e}")
+        logger.error(f"[TIMINGS] YAML error: {e}")
+        return
+
+    # ----------------------------------------------------
+    # Add timing mode tag
+    # ----------------------------------------------------
+    render = cfg.setdefault("render", {})
+    render["timing_mode"] = pacing
+
+    # ----------------------------------------------------
+    # Merge session overrides BACK IN
+    # This keeps overlay, layout, fgscale, music, CTA, etc.
+    # ----------------------------------------------------
+    cfg = merge_session_config_into(cfg, session)
+
+    # ----------------------------------------------------
+    # Save final YAML
+    # ----------------------------------------------------
+    try:
+        save_session_config(session, cfg)
+        log_step(f"Smart timings applied for session={session} (mode={pacing})")
+    except Exception as e:
+        logger.error(f"[TIMINGS SAVE ERROR] {e}")
+

@@ -901,18 +901,27 @@ async function applyOverlay() {
     if (!styleSel || !statusEl) return;
 
     const style = styleSel.value || "travel_blog";
+
+    console.log("[OVERLAY] Applying:", style, "Session:", getActiveSession());
+
     setStatus("overlayStatus", `Applying overlay style “${style}”…`, "info");
 
     try {
-        await jsonFetch("/api/overlay", {
+        const result = await jsonFetch("/api/overlay", {
             method: "POST",
             body: JSON.stringify({
                 style,
                 session: getActiveSession(),
             }),
         });
+
+        console.log("[OVERLAY RESULT]", result);
+
         setStatus("overlayStatus", "Overlay applied.", "success");
+
+        // 🔥 Force-refresh YAML
         await loadConfigAndYaml();
+
     } catch (err) {
         console.error(err);
         setStatus(
@@ -922,6 +931,7 @@ async function applyOverlay() {
         );
     }
 }
+
 
 // Timings
 async function applyTiming(smart) {
