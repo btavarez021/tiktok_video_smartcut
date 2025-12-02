@@ -453,14 +453,16 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # Safe escape helper
     # -------------------------------
     def esc(text: str) -> str:
-        text = text.replace("%", "\\%")
-        if not text:
+        if text is None:
             return ""
         return (
-            text.replace("\\", "\\\\")
-                .replace("'", "\\'")
-                .replace(":", "\\:")
+            str(text)
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace(":", "\\:")
+            .replace("%", "\\%")
         )
+
 
     # -------------------------------
     # Build clip list
