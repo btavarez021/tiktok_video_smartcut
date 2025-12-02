@@ -564,15 +564,25 @@ input[type="range"] {
 /* ---------------------------------------
    Download Area
 ---------------------------------------- */
-.download-area {
-    margin-top: 12px;
-    font-size: 0.9rem;
+.export-download-btn {
+    display: inline-block;
+    background: var(--primary, #4f8bff);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: 0.2s ease;
+    margin-top: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.25);
 }
 
-.download-area a {
-    color: var(--primary);
-    font-weight: 600;
+.export-download-btn:hover {
+    background: var(--primary-hover, #6a9eff);
 }
+
+
 
 /* ---------------------------------------
    Chat

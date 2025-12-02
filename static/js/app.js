@@ -1394,9 +1394,24 @@ async function pollExportStatus(taskId) {
                 cancelBtn.classList.add("hidden");
                 if (exportBtn) exportBtn.disabled = false;
 
+                // Render styled download button
+                const box = document.getElementById("downloadArea");
+                if (box) {
+                    box.innerHTML = `
+                        <a href="${data.download_url}"
+                          class="export-download-btn"
+                          target="_blank"
+                          download>
+                            ⬇️ Download Export
+                        </a>
+                    `;
+                }
+
                 resolve(data.download_url);
                 return;
             }
+
+
 
             // ------------------------------
             // CANCELLED
