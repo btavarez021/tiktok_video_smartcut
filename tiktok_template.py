@@ -4,12 +4,11 @@ import os
 import logging
 import subprocess
 import tempfile
-from typing import Dict, Any
+from typing import Optional, List, Dict, Any
 import yaml
 import numpy as np
 from PIL import Image, ImageFilter
 import imageio_ffmpeg
-
 from assistant_log import log_step
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 
