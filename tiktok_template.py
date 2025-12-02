@@ -457,30 +457,33 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     def esc(text: str) -> str:
         if not text:
             return ""
+        # Correct, safe FFmpeg escaping
         return (
-            text.replace("\\", "\\\\")   # escape backslashes first
-                .replace("'", "\\'")     # escape single quotes
-                .replace(":", "\\:")     # escape colons
-                .replace("%", "\\%")     # escape % LAST
+            text.replace("\\", "\\\\")
+                .replace("'", "\\'")
+                .replace(":", "\\:")
+                .replace("%", "\\%")
         )
+
     
     def esc_cta(text: str) -> str:
-        """
-        Correct escaping for CTA text in FFmpeg drawtext.
-        Must escape backslashes, single quotes, and percent signs.
-        Must preserve REAL newlines.
-        """
         if not text:
             return ""
 
+        # FFmpeg requires escaping in THIS strict order:
         t = text
 
-        # Order matters greatly:
-        t = t.replace("\\", "\\\\")     # escape backslash FIRST
-        t = t.replace("'", "\\'")       # escape single quotes
-        t = t.replace("%", "%%")        # FFmpeg requires doubling for %
-        
-        return t
+        # 1. Escape backslashes
+        t = t.replace("\\", "\\\\")
+
+        # 2. Escape single quotes
+        t = t.replace("'", "\\'")
+
+        # 3. Escape percent
+        t = t.replace("%", "\\%")
+
+    return t
+
 
 
 
