@@ -1456,6 +1456,15 @@ async function pollExportStatus(taskId) {
     });
 }
 
+function showDownloadButton(url) {
+    const area = document.getElementById("downloadArea");
+    area.innerHTML = `
+        <button class="btn-download" onclick="window.open('${url}', '_blank')">
+            ⬇️ Download Video
+        </button>
+    `;
+}
+
 
 // ================================
 // Step 5: EXPORT (Async)
@@ -1470,30 +1479,40 @@ async function exportVideo() {
     statusEl.textContent = "⏳ Rendering… you can leave this page.";
 
     try {
-        const startResp = await jsonFetch("/api/export/start", {
-            method: "POST",
-            body: JSON.stringify({ session: getActiveSession() })
-        });
+    const startResp = await jsonFetch("/api/export/start", {
+        method: "POST",
+        body: JSON.stringify({ session: getActiveSession() })
+    });
 
-        const taskId = startResp.task_id;
-        ACTIVE_EXPORT_TASK = taskId;
+    const taskId = startResp.task_id;
+    ACTIVE_EXPORT_TASK = taskId;
 
-        const downloadUrl = await pollExportStatus(taskId);
+    const downloadUrl = await pollExportStatus(taskId);
 
-        cancelBtn.classList.add("hidden");
-        statusEl.innerHTML = `
-            ✅ Export complete<br>
-            <a href="${downloadUrl}" target="_blank">Download Video</a>
-        `;
+    cancelBtn.classList.add("hidden");
 
-    } catch (err) {
-        statusEl.textContent = "❌ " + err;
-    } finally {
-        btn.disabled = false;
-        ACTIVE_EXPORT_TASK = null;
-        cancelBtn.classList.add("hidden");
-    }
+    // ❗ Remove the Download Video <a> link
+    // OLD:
+    // statusEl.innerHTML = `
+    //    ✅ Export complete<br>
+    //    <a href="${downloadUrl}" target="_blank">Download Video</a>
+    // `;
+
+    // NEW:
+    statusEl.textContent = "✅ Export complete";
+
+    // 🔥 Show your nice styled button
+    showDownloadButton(downloadUrl);
+
+} catch (err) {
+    statusEl.textContent = "❌ " + err;
+} finally {
+    btn.disabled = false;
+    ACTIVE_EXPORT_TASK = null;
+    cancelBtn.classList.add("hidden");
 }
+}
+
 
 // ================================
 // Chat
