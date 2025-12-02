@@ -32,7 +32,6 @@ from assistant_api import (
     api_chat,
     get_export_mode,
     set_export_mode,
-    load_all_analysis_results,
     sanitize_session as backend_sanitize_session,
     load_session_config,
     save_session_config,
