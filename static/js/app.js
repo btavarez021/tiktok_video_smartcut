@@ -1416,18 +1416,22 @@ async function pollExportStatus(taskId) {
             // ------------------------------
             // CANCELLED
             // ------------------------------
+
             if (data.status === "cancelled") {
                 clearInterval(interval);
 
-                statusEl.textContent = "❌ Export cancelled.";
                 cancelBtn.classList.add("hidden");
                 if (exportBtn) exportBtn.disabled = false;
 
-                ACTIVE_EXPORT_TASK = null;
+                downloadArea.innerHTML = ""; // remove “canceling…” message
+                statusEl.textContent = "Export cancelled.";
+                statusEl.classList.remove("working");
+                statusEl.classList.add("error");
 
-                reject("Export cancelled.");
+                reject("cancelled");
                 return;
             }
+
 
             // ------------------------------
             // ERROR
@@ -1438,9 +1442,15 @@ async function pollExportStatus(taskId) {
                 cancelBtn.classList.add("hidden");
                 if (exportBtn) exportBtn.disabled = false;
 
-                reject(data.error || "Export error");
+                downloadArea.innerHTML = "";
+                statusEl.textContent = "Export failed.";
+                statusEl.classList.remove("working");
+                statusEl.classList.add("error");
+
+                reject(data.error || "error");
                 return;
             }
+
 
         }, 1500); // slightly faster polling = snappier UI
     });
