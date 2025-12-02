@@ -652,69 +652,29 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     cta_text = esc(cta_cfg.get("text", ""))
     cta_config_dur = float(cta_cfg.get("duration", 3.0))
 
-    # How long is the CTA VOICE actually?
+    # How long is CTA VOICE actually?
     if cta_tts_track and isinstance(cta_tts_track, tuple):
         _, cta_voice_dur = cta_tts_track
         cta_voice_dur = cta_voice_dur or 0.0
     else:
         cta_voice_dur = 0.0
 
-    # CTA segment length: enough for both configured duration + voice length
-    cta_segment_len = 0.0
-    if cta_enabled and cta_text:
-        cta_segment_len = max(cta_config_dur, cta_voice_dur)
+    # CTA duration = max(config, voiceover)
+    cta_segment_len = max(cta_config_dur, cta_voice_dur) if (cta_enabled and cta_text) else 0.0
 
-    # Total time of all clips (after extension)
+    # Total duration of clips after extension
     expected_total = sum([clip["duration"] for clip in clips])
 
-    # Full timeline should include CTA segment after clips (if enabled)
-    timeline_total = expected_total + cta_segment_len
+    # CTA will be applied AFTER clips, but not padded yet
+    cta_start_time = None
 
-    # Actual current video length
-    try:
-        actual_total = float(
-            subprocess.check_output(
-                [
-                    "ffprobe", "-v", "error",
-                    "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
-                    final_video_source,
-                ]
-            ).decode().strip()
-        )
-    except Exception:
-        actual_total = expected_total
-
-    # Pad video (freeze last frame) so it covers narration + CTA segment
-    if timeline_total > actual_total + 0.05:
-        pad_len = timeline_total - actual_total
-        log_step(f"[VIDEO EXTEND] Padding video {pad_len:.2f}s…")
-
-        extended = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-        pad_cmd = [
-            "ffmpeg", "-y",
-            "-i", final_video_source,
-            "-vf", f"tpad=stop_mode=clone:stop_duration={pad_len}",
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "22",
-            "-pix_fmt", "yuv420p",
-            extended,
-        ]
-
-        pad_proc = subprocess.run(pad_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if pad_proc.stderr:
-            log_step(f"[VIDEO EXTEND] stderr:\n{pad_proc.stderr}")
-
-        if os.path.exists(extended) and os.path.getsize(extended) > 150 * 1024:
-            final_video_source = extended
 
     # -------------------------------------
     # CTA VISUAL OVERLAY — FINAL CARD MODE
     # -------------------------------------
-    cta_start_time = None
-
     if cta_enabled and cta_text and cta_segment_len > 0:
+
+        # Get actual video length
         try:
             vid_total = float(
                 subprocess.check_output(
@@ -727,22 +687,21 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 ).decode().strip()
             )
         except Exception:
-            vid_total = timeline_total
+            vid_total = expected_total
 
-        # CTA occupies [vid_total - cta_segment_len, vid_total]
-        if vid_total > 0 and cta_segment_len > 0:
-            cta_start = max(vid_total - cta_segment_len, 0.0)
-            cta_end = vid_total
-            cta_start_time = cta_start
-        else:
-            log_step("[CTA] Invalid duration/length → skipping CTA blur.")
-            cta_start = None
-            cta_end = None
+        # CTA occupies the final tail: [vid_total - len, vid_total]
+        cta_start = max(vid_total - cta_segment_len, 0.0)
+        cta_end = vid_total
+        cta_start_time = cta_start  # used later for CTA audio
 
-        if cta_start is not None and (cta_end - cta_start) > 0.05:
+        # Only apply if CTA window is meaningful
+        if (cta_end - cta_start) > 0.05:
             blurred = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+
+            # Fade length for blur
             fade_len = min(0.3, max(cta_segment_len * 0.5, 0.15))
 
+            # FFmpeg CTA overlay (blur + CTA text)
             filter_complex = (
                 f"[0:v]format=rgba,split=2[base][tmp];"
                 f"[tmp]boxblur=10:1,"
@@ -762,21 +721,61 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 "-map", "[vout]",
                 "-c:v", "libx264",
                 "-preset", "veryfast",
-                "-crf", "22",
+                "-crf", 22,
                 "-pix_fmt", "yuv420p",
                 blurred,
             ]
 
             log_step("[CTA] Applying smooth CTA blur + text…")
             blur_proc = subprocess.run(
-                blur_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
+                blur_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
 
             if os.path.exists(blurred) and os.path.getsize(blurred) > 150 * 1024:
                 final_video_source = blurred
+            else:
+                log_step("[CTA] CTA blur failed → keeping original video.")
+
+
+    # -------------------------------------
+    # FINAL PADDING (AFTER CTA ONLY)
+    # -------------------------------------
+    # After CTA, ensure video lasts long enough for CTA or voiceover
+    try:
+        vid_total_after_cta = float(
+            subprocess.check_output(
+                [
+                    "ffprobe", "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    final_video_source,
+                ]
+            ).decode().strip()
+        )
+    except Exception:
+        vid_total_after_cta = expected_total
+
+    final_needed = expected_total + cta_segment_len
+
+    # Only pad AFTER CTA, so CTA is always at the REAL END
+    if final_needed > vid_total_after_cta + 0.05:
+        pad_len = final_needed - vid_total_after_cta
+        log_step(f"[FINAL PAD] Adding {pad_len:.2f}s freeze-frame after CTA…")
+
+        extended = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-i", final_video_source,
+            "-vf", f"tpad=stop_mode=clone:stop_duration={pad_len}",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "22",
+            "-pix_fmt", "yuv420p",
+            extended,
+        ])
+
+        if os.path.exists(extended) and os.path.getsize(extended) > 150 * 1024:
+            final_video_source = extended
 
 
     # -------------------------------
@@ -803,7 +802,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         current_time += clip["duration"]
 
 
-    # CTA TTS: start at the same time as CTA blur window (tail of video)
+    # CTA TTS: start exactly after the last clip (same as CTA blur window)
     if cta_tts_track and cta_enabled and cta_text:
         if isinstance(cta_tts_track, tuple):
             cta_path, _ = cta_tts_track
@@ -811,13 +810,9 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             cta_path = cta_tts_track
 
         if cta_path:
-            # ✅ Use CTA start time from video step if we computed it,
-            #    otherwise fall back to expected_total as a safe default.
-            start_time = cta_start_time if cta_start_time is not None else expected_total
-
             audio_inputs.append({
                 "path": cta_path,
-                "start": start_time,
+                "start": expected_total,   # aligns with CTA blur start
                 "volume": 1.0,
             })
 
