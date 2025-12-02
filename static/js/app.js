@@ -1412,23 +1412,23 @@ async function pollExportStatus(taskId) {
             }
 
             // ------------------------------
-            // CANCELLED (includes "cancelling")
+            // CANCELLED
             // ------------------------------
-            if (data.status === "cancelled" || data.status === "cancelling") {
+            if (data.status === "cancelled") {
                 clearInterval(interval);
 
+                // Reset UI
                 cancelBtn.classList.add("hidden");
                 if (exportBtn) exportBtn.disabled = false;
 
+                // Clear BOTH possible areas
                 downloadArea.innerHTML = "";
-                statusEl.textContent = "🛑 Export cancelled.";
-                statusEl.className = "status-text error"; // reset classes safely
+                statusEl.textContent = "";          // <-- THIS line fixes it
+                statusEl.className = "status-text"; // fully reset classes
 
                 reject("cancelled");
                 return;
             }
-
-
 
             // ------------------------------
             // ERROR

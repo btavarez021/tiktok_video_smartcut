@@ -794,17 +794,21 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     current_time = 0.0
 
     # Per-clip TTS aligned to each clip in sequence
+    FIRST_TTS_DELAY = 0.25  # adjust if needed: 0.20–0.35 feels perfect
+
     for idx, clip in enumerate(clips):
         tts_entry = tts_tracks[idx] if idx < len(tts_tracks) else None
         if tts_entry and isinstance(tts_entry, tuple):
             tts_path, tts_dur = tts_entry
             if tts_path:
+                delay = FIRST_TTS_DELAY if idx == 0 else 0.0
                 audio_inputs.append({
                     "path": tts_path,
-                    "start": current_time,
+                    "start": current_time + delay,
                     "volume": 1.0,
                 })
         current_time += clip["duration"]
+
 
     # CTA TTS: start exactly after the last clip (same as CTA blur window)
     if cta_tts_track and cta_enabled and cta_text:
