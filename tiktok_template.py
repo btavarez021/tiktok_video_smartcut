@@ -464,6 +464,20 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 .replace("%", "\\%")     # escape % LAST
         )
     
+    def esc_cta(text: str) -> str:
+        """
+        CTA-safe escaping for FFmpeg drawtext.
+        FFmpeg requires `%` → `%%` inside CTA text.
+        """
+        if not text:
+            return ""
+        t = text
+        t = t.replace("%", "%%")      # <-- required for CTA text
+        t = t.replace("'", r"\'")     # escape single quotes
+        t = t.replace("\\", "\\\\")   # escape backslashes
+        return t
+
+    
     def wrap_cta_text(txt: str, max_chars=22) -> str:
         """
         Wrap CTA into multiple lines so drawtext never overflows.
@@ -693,7 +707,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     raw_cta_text = (cta_cfg.get("text") or "").strip()
     wrapped_cta = wrap_cta_text(raw_cta_text)
-    cta_text_safe = esc(wrapped_cta)
+    cta_text_safe = esc_cta(wrapped_cta)
+
 
     # CTA config duration
     cta_config_dur = float(cta_cfg.get("duration", 3.0))
