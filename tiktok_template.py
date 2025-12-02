@@ -455,23 +455,41 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # Safe escape helper for drawtext
     # -------------------------------
     def esc(text: str) -> str:
-        if text is None:
+        if not text:
             return ""
         return (
-            str(text)
-            .replace("\\", "\\\\")
-            .replace("'", "\\'")
-            .replace(":", "\\:")
-            .replace("%", "\\%")
+            text.replace("\\", "\\\\")   # escape backslashes first
+                .replace("'", "\\'")     # escape single quotes
+                .replace(":", "\\:")     # escape colons
+                .replace("%", "\\%")     # escape % LAST
         )
-
-    def esc_cta(text: str) -> str:
-        if text is None:
+    
+    def wrap_cta_text(txt: str, max_chars=22) -> str:
+        """
+        Wrap CTA into multiple lines so drawtext never overflows.
+        Produces TikTok-style stacked text using '\n'.
+        """
+        if not txt:
             return ""
-        t = str(text)
-        t = t.replace("\\", "\\\\")
-        t = t.replace("'", r"\'")
-        return t
+
+        words = txt.split()
+        lines = []
+        cur = ""
+
+        for w in words:
+            # If adding the next word stays within limit
+            if len(cur) + len(w) + (1 if cur else 0) <= max_chars:
+                cur += (" " + w if cur else w)
+            else:
+                lines.append(cur)
+                cur = w
+
+        if cur:
+            lines.append(cur)
+
+        # Join into multi-line string
+        return "\\n".join(lines)
+
 
     # -------------------------------
     # Build clip list (first, middle*, last)
@@ -672,10 +690,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # ------------------------------------------------------------------
     cta_cfg = cfg.get("cta", {}) or {}
     cta_enabled = bool(cta_cfg.get("enabled", False))
-    raw_cta_text = cta_cfg.get("text", "")
-    cta_text = esc_cta(raw_cta_text)   # <-- FIXED
-    cta_config_dur = float(cta_cfg.get("duration", 3.0))
 
+    raw_cta_text = (cta_cfg.get("text") or "").strip()
+    wrapped_cta = wrap_cta_text(raw_cta_text)   # multi-line for safety
+    cta_text_safe = esc(wrapped_cta)           # escape %, quotes, etc.
+
+    # Configured CTA duration (seconds)
+    cta_config_dur = float(cta_cfg.get("duration", 3.0))
 
     # CTA voice duration
     if cta_tts_track and isinstance(cta_tts_track, tuple):
@@ -684,22 +705,22 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     else:
         cta_voice_dur = 0.0
 
-    # Effective CTA tail length
+    # Effective CTA tail length (must be > 0 to build a tail)
     cta_segment_len = 0.0
-    if cta_enabled and cta_text:
+    if cta_enabled and raw_cta_text:
         cta_segment_len = max(cta_config_dur, cta_voice_dur, 1.0)  # at least 1s
 
-    # We'll treat this as an APPENDED SEGMENT, not overlay inside clips
-    cta_start_time = concat_duration  # CTA tail starts AFTER all clips
+    # CTA tail starts AFTER all clips
+    cta_start_time = concat_duration
     total_video_duration = concat_duration + cta_segment_len
 
-    if cta_enabled and cta_text and cta_segment_len > 0.0:
+    if cta_enabled and raw_cta_text and cta_segment_len > 0.0:
         try:
             # 1) Grab a frame near the end of the clips video
             cta_frame = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
             grab_cmd = [
                 "ffmpeg", "-y",
-                "-sseof", "-0.1",  # last ~0.1s
+                "-sseof", "-0.1",    # last ~0.1s of the clips video
                 "-i", final_video_source,
                 "-vframes", "1",
                 cta_frame,
@@ -709,24 +730,64 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
             # 2) Build a blurred, static CTA tail video from that frame
             cta_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-            # Safe CTA text for drawtext
-            cta_text_safe = esc_cta(raw_cta_text)
 
+            # IMPORTANT: whole CTA tail is CTA, no need for enable=between(...)
             cta_filter = (
-                f"format=rgba,"
-                f"scale={TARGET_W}:{TARGET_H},"
-                f"boxblur=10:1,"
+                "format=rgba,"
+                "scale=1080:1920,"             # vertical canvas
+                "boxblur=10:1,"
                 f"drawtext=text='{cta_text_safe}':"
                 f"fontfile={fontfile}:"
-                f"fontcolor=white:"
-                f"fontsize=66:"
-                f"line_spacing=8:"
-                f"shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
-                f"text_shaping=1:"
-                f"box=1:boxcolor=0x00000066:boxborderw=30:"
-                f"x=(w-text_w)/2:"
-                f"y=h*0.75"          # MUCH more visible position
+                "fontcolor=white:"
+                "fontsize=66:"
+                "line_spacing=8:"
+                "shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
+                "text_shaping=1:"
+                "box=1:boxcolor=0x00000066:boxborderw=30:"
+                "x=(w-text_w)/2:"
+                "y=h*0.75"                     # nice lower position
             )
+
+            cta_cmd = [
+                "ffmpeg", "-y",
+                "-loop", "1", "-i", cta_frame,
+                "-t", str(cta_segment_len),
+                "-vf", cta_filter,
+                "-c:v", "libx264",
+                "-pix_fmt", "yuv420p",
+                cta_video,
+            ]
+            log_step("[CTA] Building CTA tail segment video…")
+            subprocess.run(cta_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+            # 3) Concatenate (clips video + CTA tail video)
+            concat2_list = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
+            with open(concat2_list, "w") as cf:
+                cf.write(f"file '{final_video_source}'\n")
+                cf.write(f"file '{cta_video}'\n")
+
+            full_with_cta = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+            concat2_cmd = [
+                "ffmpeg", "-y",
+                "-f", "concat", "-safe", "0",
+                "-i", concat2_list,
+                "-c:v", "libx264",
+                "-preset", "superfast" if optimized else "veryfast",
+                "-crf", "22",
+                "-pix_fmt", "yuv420p",
+                full_with_cta,
+            ]
+            log_step("[CTA] Appending CTA tail to main video…")
+            subprocess.run(concat2_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+            if os.path.exists(full_with_cta) and os.path.getsize(full_with_cta) > 200 * 1024:
+                final_video_source = full_with_cta
+                total_video_duration = concat_duration + cta_segment_len
+            else:
+                log_step("[CTA] CTA tail concat failed → keeping clips-only video.")
+        except Exception as e:
+            log_step(f"[CTA ERROR] Failed to build CTA tail: {e}")
+            # keep clips-only video; CTA TTS may still play  
 
 
 
