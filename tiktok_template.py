@@ -700,14 +700,26 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
             # 2) Build a blurred, static CTA tail video from that frame
             cta_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+            # Safe CTA text for drawtext
+            cta_text_safe = esc(raw_cta_text)
+
             cta_filter = (
+                f"format=rgba,"
                 f"scale={TARGET_W}:{TARGET_H},"
                 f"boxblur=10:1,"
-                f"drawtext=text='{cta_text}':"
+                f"drawtext=text='{cta_text_safe}':"
                 f"fontfile={fontfile}:"
-                f"fontcolor=white:fontsize=60:"
-                f"x=(w-text_w)/2:y=h-220"
+                f"fontcolor=white:"
+                f"fontsize=66:"
+                f"line_spacing=8:"
+                f"shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
+                f"text_shaping=1:"
+                f"box=1:boxcolor=0x00000066:boxborderw=30:"
+                f"x=(w-text_w)/2:"
+                f"y=h*0.75"          # MUCH more visible position
             )
+
+
 
             cta_cmd = [
                 "ffmpeg", "-y",
