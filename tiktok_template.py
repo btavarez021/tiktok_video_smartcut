@@ -721,7 +721,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 "-map", "[vout]",
                 "-c:v", "libx264",
                 "-preset", "veryfast",
-                "-crf", 22,
+                "-crf", "22",
                 "-pix_fmt", "yuv420p",
                 blurred,
             ]
