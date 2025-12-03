@@ -812,7 +812,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 "text_shaping=1:"
                 "box=1:boxcolor=0x00000066:boxborderw=30:"
                 "x=(w-text_w)/2:"
-                "y=h*0.75"
+                "y=h*0.75:"
             )
 
             cta_cmd = [
