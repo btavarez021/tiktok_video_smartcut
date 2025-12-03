@@ -740,7 +740,15 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     raw_cta_text = (cta_cfg.get("text") or "").strip()
     wrapped_cta = wrap_cta_text(raw_cta_text)
+
+    # Escape FFmpeg-sensitive characters
     cta_text_safe = esc_cta(wrapped_cta)
+
+    # RESTORE REAL NEWLINES (critical for ffmpeg drawtext)
+    cta_text_safe = cta_text_safe.replace("\\n", "\n")
+
+    log_step(f"[CTA-DEBUG-FINAL] cta_text_safe_real_newline = {repr(cta_text_safe)}")
+
 
     # -----------------------
     # DEBUG LOGGING FOR CTA
@@ -839,7 +847,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 "-pix_fmt", "yuv420p",
                 final_with_cta,
             ]
-            
+
             log_step("[CTA] Appending CTA tail…")
             proc2 = subprocess.run(
                 concat2_cmd,
