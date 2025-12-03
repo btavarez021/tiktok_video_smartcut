@@ -553,6 +553,25 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         clips.append(collect(m))
     clips.append(collect(cfg["last_clip"], is_last=True))
 
+    # -----------------------------------------
+    # GLOBAL CAPTION LAYOUT (used by BOTH clip captions + CTA captions)
+    # -----------------------------------------
+    if layout_mode == "tiktok":
+        max_chars = 20                # narrow TikTok wrapping
+        fontsize = 64
+        line_spacing = 12
+        boxborderw = 24
+        fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        y_expr = "(h * 0.55)"
+    else:
+        max_chars = 34                # classic overlay wider
+        fontsize = 52
+        line_spacing = 8
+        boxborderw = 20
+        fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        y_expr = "h-(text_h*1.8)-150"
+
+
     # Remove accidental duplicates by file
     all_files = [c["file"] for c in clips]
     if len(set(all_files)) < len(all_files):
@@ -664,21 +683,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # -------------------------------
     trimmed_files: List[str] = []
     trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
-
-    if layout_mode == "tiktok":
-        max_chars = 20           # narrower → avoids giant width
-        fontsize = 64
-        line_spacing = 12
-        boxborderw = 24          # thinner border
-        fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-        y_expr = "(h * 0.55)"
-    else:
-        max_chars = 34
-        fontsize = 52
-        line_spacing = 8
-        boxborderw = 20
-        fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-        y_expr = "h-(text_h*1.8)-150"
 
     with open(trimlist, "w") as lf:
         for clip in clips:
