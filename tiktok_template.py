@@ -491,23 +491,15 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         if not text:
             return ""
 
-        # FFmpeg requires escaping in THIS strict order:
         t = text
-
-        # 1. Escape backslashes
         t = t.replace("\\", "\\\\")
-
-        # 2. Escape single quotes
         t = t.replace("'", "\\'")
+        t = t.replace("%", "\\%")
 
-        # 3. Escape percent with TWO backslashes for the drawtext filter
-        t = t.replace("%", "\\\\%")
-
-        # 4. ESCAPE NEWLINES (THIS FIXES CTA DISAPPEARING)
+        # Correct: FFmpeg wants THIS form: \n   not \\n
         t = t.replace("\n", "\\n")
 
         return t
-
 
 
     
@@ -790,8 +782,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             ]
             log_step("[CTA] Extracting last frame…")
             subprocess.run(grab_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-            # 2. Build CTA tail clip from that frame
+            log_step(f"[CTA-DEBUG-FINAL-TEXT] sending to drawtext = {cta_text_safe}")
+            # 2. Build CTA tail clip from that frame    
             cta_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
             cta_filter = (
                 "format=rgba,"
@@ -837,18 +829,19 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 cf.write(f"file '{cta_video}'\n")
 
             final_with_cta = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+
             concat2_cmd = [
                 "ffmpeg", "-y",
                 "-f", "concat", "-safe", "0",
                 "-i", concat2_list,
                 "-c:v", "libx264",
-                "-preset", "superfast" if optimized else "veryfast",
-                "-crf", "22",
                 "-pix_fmt", "yuv420p",
                 final_with_cta,
+                "-movflags", "+faststart"
             ]
 
-            log_step("[CTA] Appending CTA tail…")
+
+            log_step(f"[CTA] Appending CTA tail → {final_with_cta}")
             proc2 = subprocess.run(
                 concat2_cmd,
                 stdout=subprocess.PIPE,
@@ -856,17 +849,35 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 text=True
             )
 
-            if proc2.stderr:
-                log_step(f"[CTA-CONCAT-FFMPEG] stderr:\n{proc2.stderr}")
-
-            # Validate CTA concatenated video
-            if os.path.exists(final_with_cta) and os.path.getsize(final_with_cta) > 200 * 1024:
-                log_step("[CTA] Tail concat SUCCESS")
-                final_video_source = final_with_cta
-                total_video_duration = concat_duration + cta_segment_len
-                cta_tail_success = True
+            if proc2.returncode != 0:
+                log_step(f"[CTA-CONCAT-ERROR] Exit code {proc2.returncode}")
+                log_step(f"[CTA-CONCAT-STDERR]\n{proc2.stderr}")
             else:
-                log_step("[CTA] Tail concat FAILED → keeping clips-only.")
+                log_step(f"[CTA-CONCAT-OK] CTA tail merged successfully.")
+
+            # HARD VALIDATION – must exist & must contain moov atom
+            if not os.path.exists(final_with_cta):
+                log_step("[CTA-CONCAT] CTA output file missing!")
+            elif os.path.getsize(final_with_cta) < 300_000:
+                log_step("[CTA-CONCAT] CTA output too small (<300KB). Corrupt.")
+            else:
+                try:
+                    # probe final output
+                    test_dur = float(subprocess.check_output(
+                        [
+                            "ffprobe", "-v", "error",
+                            "-show_entries", "format=duration",
+                            "-of", "default=noprint_wrappers=1:nokey=1",
+                            final_with_cta
+                        ]
+                    ).decode().strip())
+
+                    log_step(f"[CTA-CONCAT] Final CTA video duration OK: {test_dur:.2f}s")
+                    final_video_source = final_with_cta
+                    cta_tail_success = True
+                except Exception as e:
+                    log_step(f"[CTA-CONCAT] ffprobe failed: {e}")
+
 
 
 
