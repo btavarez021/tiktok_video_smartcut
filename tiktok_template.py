@@ -808,19 +808,22 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 "box=1:boxcolor=0x00000088:boxborderw=30:"
                 "borderw=2:bordercolor=0x000000:"
                 "x=(w-text_w)/2:"
-                "y=(h*0.72)"
+                "y=(h*0.72)[outv]"
             )
+
 
 
             cta_cmd = [
                 "ffmpeg", "-y",
                 "-loop", "1", "-i", cta_frame,
                 "-t", str(cta_segment_len),
-                "-vf", cta_filter,
+                "-filter_complex", cta_filter,
+                "-map", "[outv]",
                 "-c:v", "libx264",
                 "-pix_fmt", "yuv420p",
                 cta_video,
             ]
+
             log_step("[CTA] Building CTA tail clip…")
             proc = subprocess.run(cta_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             if proc.stderr:
