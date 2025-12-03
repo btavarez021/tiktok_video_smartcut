@@ -465,7 +465,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
         # REAL newline → DOUBLE BACKSLASH n   (\\n)
         # ABSOLUTELY do NOT convert to \n or literal n
-        t = t.replace("\n", r'\n')
+        t = t.replace("\n", r'\\\\n')
 
         return t
 
@@ -700,7 +700,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     # Wrap CTA text into multiple lines (TikTok style), 24 chars per line
     raw_cta_text = (cta_cfg.get("text") or "").strip()
-    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=28)
+    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=max_chars)
 
     # Escape for ffmpeg drawtext
     cta_text_safe = esc(wrapped_cta)
@@ -760,8 +760,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             # 2. Build CTA tail clip
             cta_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
             cta_filter = (
-                f"format=rgba,"
                 f"scale=1080:1920,"
+                f"format=rgba,"
                 f"boxblur=10:1,"
                 f"drawtext=text='{cta_text_final}':"
                 f"fontfile={cta_fontfile}:"
