@@ -423,12 +423,15 @@ def ensure_local_video(session_id: str, filename: str) -> str:
 # -----------------------------------------
 # Core export function: edit_video   (CTA INSIDE LAST CLIP, NO TAIL)
 # -----------------------------------------
+# -----------------------------------------
+# Core export function: edit_video   (WITH CTA BLUR+FADE TAIL)
+# -----------------------------------------
 def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
     """
     Build final TikTok-style video using a low-memory FFmpeg-only pipeline.
 
     - Per-clip TTS (narration) aligned to each clip duration
-    - CTA text overlaid INSIDE the last clip (no extra tail concat)
+    - Optional CTA segment APPENDED at the end (blurred last frame from last clip + CTA text)
     - Optional CTA TTS aligned with the CTA visual segment
     - Background music from YAML (music: { enabled, file, volume })
     """
@@ -456,16 +459,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
         # Escape backslashes FIRST
         t = t.replace("\\", "\\\\")
-
         # Escape single quotes
         t = t.replace("'", "\\'")
-
         # Escape percent (important)
         t = t.replace("%", "\\%")
-
-        # REAL newline → backslash+n for ffmpeg
-        # (subprocess passes arguments directly, so "\\n" is correct)
-        t = t.replace("\n", "\\n")
+        # REAL newline → \\n so ffmpeg renders multi-line text
+        # (Python "\n" → literal backslash+n for drawtext)
+        t = t.replace("\n", "\\\\n")
 
         return t
 
@@ -568,11 +568,19 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             )
             clip["duration"] = needed
 
-    # Duration of the *clips section* (entire video now)
+    # Duration of the *clips section* (before CTA tail)
     base_video_duration = sum(clip["duration"] for clip in clips)
 
+    # Precompute last-clip info for CTA background
+    last_clip = clips[-1]
+    last_clip_file_for_cta = last_clip["file"]
+    last_clip_start = last_clip["start"]
+    last_clip_duration = last_clip["duration"]
+    # Try to grab near the end of the last clip, but not before its start
+    cta_frame_time = max(last_clip_start + last_clip_duration - 0.1, last_clip_start)
+
     # -------------------------------
-    # 1. TRIM EACH CLIP (with captions & CTA on last clip)
+    # 1. TRIM EACH CLIP (with captions)
     # -------------------------------
     trimmed_files: List[str] = []
     trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
@@ -592,19 +600,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
         y_expr = "h-(text_h*1.8)-150"
 
-    #  CTA config (for overlay INSIDE last clip)
-    cta_enabled = bool(cta_cfg.get("enabled", False))
-    raw_cta_text = (cta_cfg.get("text") or "").strip()
-    cta_dur_cfg = float(cta_cfg.get("duration", 3.0) or 0.0)
-    if cta_dur_cfg < 0:
-        cta_dur_cfg = 0.0
-
-    # Wrap CTA text with same width as captions
-    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=max_chars) if raw_cta_text else ""
-    cta_text_safe = esc(wrapped_cta) if wrapped_cta else ""
-
-    log_step(f"[CTA-INLINE] enabled={cta_enabled}, raw={repr(raw_cta_text)}, wrapped={repr(wrapped_cta)}")
-
     with open(trimlist, "w") as lf:
         for clip in clips:
             trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
@@ -620,7 +615,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[v1]"
             )
 
-            # 2) Main per-clip captions → [v2]
+            # 2) Captions → drawtext on [v1]
             if clip["text"]:
                 wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
                 text_safe = esc(wrapped)
@@ -633,32 +628,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     f"text_shaping=1:"
                     f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
                     f"x=(w-text_w)/2:y={y_expr}:"
-                    f"fix_bounds=1:borderw=2:bordercolor=0x000000[v2]"
+                    f"fix_bounds=1:borderw=2:bordercolor=0x000000[outv]"
                 )
             else:
-                vf += ";[v1]copy[v2]"
-
-            # 3) CTA overlay INSIDE the last clip only, in the last few seconds
-            if clip.get("is_last") and cta_enabled and cta_text_safe and cta_dur_cfg > 0.0:
-                # CTA local start (seconds before end of last clip)
-                cta_local_start = max(clip["duration"] - cta_dur_cfg, 0.0)
-                cta_y_expr = "h*(0.78)"  # Option A: low, TikTok-style bottom area
-
-                vf += (
-                    f";[v2]drawtext=text='{cta_text_safe}':"
-                    f"fontfile={fontfile}:"
-                    f"fontcolor=white:fontsize={fontsize}:"
-                    f"line_spacing=10:"
-                    f"shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
-                    f"text_shaping=1:fix_bounds=1:"
-                    f"box=1:boxcolor=0x000000CC:boxborderw=40:"
-                    f"borderw=2:bordercolor=0x000000:"
-                    f"x=(w-text_w)/2:"
-                    f"y={cta_y_expr}:"
-                    f"enable='gte(t,{cta_local_start})'[outv]"
-                )
-            else:
-                vf += ";[v2]copy[outv]"
+                vf += ";[v1]copy[outv]"
 
             trim_cmd = [
                 "ffmpeg", "-y",
@@ -686,7 +659,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             lf.write(f"file '{trimmed_path}'\n")
 
     # -------------------------------
-    # 2. CONCAT CLIPS  (this is now the FINAL video, no CTA tail)
+    # 2. CONCAT CLIPS (no CTA yet)
     # -------------------------------
     concat_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
     concat_cmd = [
@@ -704,7 +677,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     final_video_source = concat_output
 
-    # Get ACTUAL concat duration (clips = whole timeline)
+    # Get ACTUAL concat duration (clips only)
     try:
         concat_duration = float(
             subprocess.check_output(
@@ -719,8 +692,173 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     except Exception:
         concat_duration = base_video_duration
 
-    # This is now the full video duration (no extra CTA tail)
-    total_video_duration = concat_duration
+    # -----------------------------------------
+    # Global CTA font (needed for CTA tail)
+    # -----------------------------------------
+    cta_fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
+    # ------------------------------------------------------------------
+    # 3. CTA CONFIG — blurred+fade tail from LAST CLIP (no old captions)
+    # ------------------------------------------------------------------
+    cta_cfg = cfg.get("cta", {}) or {}
+    cta_enabled = bool(cta_cfg.get("enabled", False))
+
+    # Wrap CTA text into multiple lines
+    raw_cta_text = (cta_cfg.get("text") or "").strip()
+    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=max_chars)
+    cta_text_safe = esc(wrapped_cta)
+
+    # DEBUG LOGS
+    log_step(f"[CTA-DEBUG] raw_cta_text: {repr(raw_cta_text)}")
+    log_step(f"[CTA-DEBUG] wrapped_cta (with real \\n): {repr(wrapped_cta)}")
+    log_step(f"[CTA-DEBUG] cta_text_safe (escaped for ffmpeg): {repr(cta_text_safe)}")
+
+    # CTA duration from config vs TTS
+    cta_config_dur = float(cta_cfg.get("duration", 3.0))
+
+    if cta_tts_track and isinstance(cta_tts_track, tuple):
+        _, cta_voice_dur = cta_tts_track
+        cta_voice_dur = cta_voice_dur or 0.0
+    else:
+        cta_voice_dur = 0.0
+
+    cta_segment_len = 0.0
+    if cta_enabled and raw_cta_text:
+        cta_segment_len = max(float(cta_config_dur or 1.5), float(cta_voice_dur or 0.0), 1.5)
+
+    cta_start_time = concat_duration
+    total_video_duration = concat_duration + cta_segment_len
+
+    cta_video = None
+    cta_tail_success = False
+
+    log_step(f"[CTA-CHECK] enabled={cta_enabled}, raw_text={repr(raw_cta_text)}, seg_len={cta_segment_len}")
+
+    # --- BUILD CTA TAIL (blur + fade from LAST CLIP, no captions) ---
+    if cta_enabled and raw_cta_text and cta_segment_len > 0.0:
+        try:
+            # 1. Extract frame from the LAST CLIP SOURCE (no captions baked in)
+            cta_frame = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+            grab_cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(cta_frame_time),
+                "-i", last_clip_file_for_cta,
+                "-vframes", "1",
+                cta_frame,
+            ]
+            log_step(f"[CTA] Extracting last-frame background from {last_clip_file_for_cta} at {cta_frame_time:.2f}s…")
+            proc_grab = subprocess.run(grab_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if proc_grab.stderr:
+                log_step(f"[CTA-FRAME-FFMPEG] stderr:\n{proc_grab.stderr}")
+
+            # 2. Build CTA tail clip with BLUR + FADE IN/OUT
+            cta_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+
+            fade_in = 0.5
+            fade_out = 0.4
+            fade_out_start = max(cta_segment_len - fade_out, fade_in + 0.1)
+
+            cta_filter = (
+                f"[0:v]scale=1080:1920,format=rgba,"
+                f"boxblur=10:1,"
+                f"fade=t=in:st=0:d={fade_in},"
+                f"fade=t=out:st={fade_out_start}:d={fade_out},"
+                f"drawtext=text='{cta_text_safe}':"
+                f"fontfile={cta_fontfile}:"
+                f"fontcolor=white:"
+                f"fontsize=66:"
+                f"line_spacing=10:"
+                f"shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
+                f"text_shaping=1:"
+                f"fix_bounds=1:"
+                f"box=1:boxcolor=0x00000088:boxborderw=30:"
+                f"borderw=2:bordercolor=0x000000:"
+                f"x=(w-text_w)/2:"
+                f"y=(h*0.70)"
+                f"[outv]"
+            )
+
+            log_step(f"[CTA-FILTER] {cta_filter}")
+
+            cta_cmd = [
+                "ffmpeg", "-y",
+                "-loop", "1", "-i", cta_frame,
+                "-t", str(cta_segment_len),
+                "-filter_complex", cta_filter,
+                "-map", "[outv]",
+                "-c:v", "libx264",
+                "-pix_fmt", "yuv420p",
+                cta_video,
+            ]
+
+            log_step("[CTA] Building CTA tail clip…")
+            proc = subprocess.run(cta_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if proc.stderr:
+                log_step(f"[CTA-FFMPEG] stderr:\n{proc.stderr}")
+
+            if proc.returncode != 0:
+                log_step(f"[CTA-FFMPEG] FAILED to build CTA clip! Exit code {proc.returncode}")
+                cta_tail_success = False
+                raise RuntimeError("CTA clip generation failed")
+
+            # 3. Concat clips + CTA
+            concat2_list = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
+            with open(concat2_list, "w") as cf:
+                cf.write(f"file '{final_video_source}'\n")
+                cf.write(f"file '{cta_video}'\n")
+
+            final_with_cta = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+
+            concat2_cmd = [
+                "ffmpeg", "-y",
+                "-f", "concat", "-safe", "0",
+                "-i", concat2_list,
+                "-c:v", "libx264",
+                "-pix_fmt", "yuv420p",
+                final_with_cta,
+                "-movflags", "+faststart"
+            ]
+
+            log_step(f"[CTA] Appending CTA tail → {final_with_cta}")
+            proc2 = subprocess.run(concat2_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if proc2.stderr:
+                log_step(f"[CTA-CONCAT-STDERR]\n{proc2.stderr}")
+
+            if proc2.returncode != 0:
+                log_step(f"[CTA-CONCAT-ERROR] Exit code {proc2.returncode}")
+            else:
+                log_step("[CTA-CONCAT-OK] CTA tail merged successfully.")
+
+            # Validate CTA output
+            if not os.path.exists(final_with_cta):
+                log_step("[CTA-CONCAT] CTA output file missing!")
+            elif os.path.getsize(final_with_cta) < 50_000:
+                log_step("[CTA-CONCAT] CTA output too small. Corrupt.")
+            else:
+                try:
+                    test_dur = float(subprocess.check_output(
+                        [
+                            "ffprobe", "-v", "error",
+                            "-show_entries", "format=duration",
+                            "-of", "default=noprint_wrappers=1:nokey=1",
+                            final_with_cta
+                        ]
+                    ).decode().strip())
+
+                    log_step(f"[CTA-CONCAT] Final CTA video duration OK: {test_dur:.2f}s")
+                    final_video_source = final_with_cta
+                    cta_tail_success = True
+
+                except Exception as e:
+                    log_step(f"[CTA-CONCAT] ffprobe failed: {e}")
+
+        except Exception as e:
+            log_step(f"[CTA ERROR] {e}")
+            cta_tail_success = False
+
+    # If CTA tail failed → disable CTA TTS to avoid overlap
+    if not cta_tail_success:
+        cta_tts_track = None
 
     # ------------------------------------------------------------------
     # 4. AUDIO PIPELINE — CLEAN, NO OVERLAP, ACCURATE TTS TIMELINE
@@ -732,7 +870,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     music_audio = None
 
     if music_cfg.get("enabled"):
-        # Build stretched/trimmed background music to full video length
         music_audio = _build_music_audio(cfg, total_video_duration)
 
     if music_audio:
@@ -753,21 +890,16 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     FIRST_TTS_DELAY = 0.25   # Only for clip 1 to avoid music player slow-start sync
     last_tts_end = 0.0
 
-    # -----------------------------------------
     # Build precise start time of EACH clip
-    # -----------------------------------------
     clip_start_times = []
     current_time = 0.0
     for clip in clips:
         clip_start_times.append(current_time)
         current_time += clip["duration"]
 
-    # -----------------------------------------
     # Per-clip TTS scheduling
-    # -----------------------------------------
     for idx, clip in enumerate(clips):
         tts_entry = tts_tracks[idx] if idx < len(tts_tracks) else None
-
         if not tts_entry or not isinstance(tts_entry, tuple):
             continue
 
@@ -775,25 +907,19 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         if not tts_path or not tts_dur:
             continue
 
-        # Apply the initial sync delay ONLY to clip 1
         delay = FIRST_TTS_DELAY if idx == 0 else 0.0
-
         start_ts = clip_start_times[idx] + delay
 
-        # Register this TTS track for mixing
         audio_inputs.append({
             "path": tts_path,
             "start": start_ts,
             "volume": 1.0,
         })
 
-        # Track where this TTS ends
         last_tts_end = max(last_tts_end, start_ts + float(tts_dur))
 
-    # -----------------------------------------
-    # CTA TTS scheduling — inline with last seconds of the video
-    # -----------------------------------------
-    if cta_tts_track and cta_enabled and raw_cta_text and cta_dur_cfg > 0.0:
+    # CTA TTS scheduling — ONLY if CTA tail succeeded
+    if cta_tail_success and cta_tts_track and cta_enabled and raw_cta_text and cta_segment_len > 0.0:
         if isinstance(cta_tts_track, tuple):
             cta_path, cta_dur = cta_tts_track
         else:
@@ -801,14 +927,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             cta_dur = 0.0
 
         if cta_path:
-            # CTA audio positioned so it fits into last cta_dur_cfg seconds
-            cta_start_nominal = max(total_video_duration - cta_dur_cfg, 0.0)
-            # Avoid overlapping with last narration
-            cta_start = max(cta_start_nominal, last_tts_end + 0.05)
+            cta_start = concat_duration
+            cta_start = max(cta_start, last_tts_end + 0.05)
+            start_ts = cta_start
 
             audio_inputs.append({
                 "path": cta_path,
-                "start": cta_start,
+                "start": start_ts,
                 "volume": 1.0,
             })
 
@@ -818,20 +943,18 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     final_audio = None
     if audio_inputs:
         narration_out = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
-
         cmd = ["ffmpeg", "-y"]
 
-        # Input files
+        # Inputs
         for inp in audio_inputs:
             cmd += ["-i", inp["path"]]
 
-        # Build the filter_complex chain
+        # filter_complex
         filter_parts = []
         mix_labels = []
 
         for idx, inp in enumerate(audio_inputs):
             delay_ms = int(round(inp["start"] * 1000))
-
             filter_parts.append(
                 f"[{idx}:a]adelay={delay_ms}|{delay_ms},volume={inp['volume']}[a{idx}]"
             )
@@ -851,9 +974,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             narration_out,
         ]
 
-        log_step("[AUDIO] Mixing TTS + music…")
+        log_step("[AUDIO] Mixing TTS/music tracks…")
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
         if proc.stderr:
             log_step(f"[AUDIO-FFMPEG] stderr:\n{proc.stderr}")
 
@@ -864,13 +986,12 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             final_audio = None
 
     # -------------------------------
-    # 6. FINAL MUX
+    # 6. FINAL MUX (SAFE, CTA-AWARE)
     # -------------------------------
     final_output = os.path.abspath(os.path.join(BASE_DIR, output_file))
 
     # Probe real duration of final video track
     actual_final_video_duration = get_video_duration(final_video_source)
-
     if actual_final_video_duration is None:
         log_step("[MUX-WARNING] Could not probe video duration, using fallback = total_video_duration")
         actual_final_video_duration = total_video_duration
@@ -878,8 +999,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         total_video_duration = actual_final_video_duration
 
     use_shortest = False
-
-    # Only enforce -shortest if we somehow know audio is WAY longer than the video
     if final_audio and actual_final_video_duration < (total_video_duration - 0.75):
         log_step(
             f"[MUX-SAFETY] Video ({actual_final_video_duration:.2f}s) shorter than "
@@ -887,33 +1006,21 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         )
         use_shortest = True
 
-    # -------------------------------
-    # Build FFmpeg mux command
-    # -------------------------------
     mux_cmd = ["ffmpeg", "-y"]
-
-    # Video input
     mux_cmd += ["-i", final_video_source]
 
-    # If audio exists → add as second input
     if final_audio:
         mux_cmd += ["-i", final_audio]
-
-        # Mapping
         mux_cmd += [
             "-map", "0:v:0",
             "-map", "1:a:0",
             "-c:v", "copy",
             "-c:a", "aac",
         ]
-
         if use_shortest:
             mux_cmd.append("-shortest")
-
         mux_cmd.append(final_output)
-
     else:
-        # No audio case
         mux_cmd += [
             "-c:v", "copy",
             final_output,
@@ -921,13 +1028,9 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     log_step("[MUX] Running final mux command…")
     mux_proc = subprocess.run(mux_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
     if mux_proc.stderr:
         log_step(f"[MUX-FFMPEG] stderr:\n{mux_proc.stderr}")
 
-    # -------------------------------
-    # Validation — ensure final MP4 is real
-    # -------------------------------
     if not os.path.exists(final_output) or os.path.getsize(final_output) < 200_000:
         raise RuntimeError(
             f"[MUX ERROR] Final output invalid or missing! ({final_output})"
