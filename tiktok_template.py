@@ -492,14 +492,21 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             return ""
 
         t = text
-        t = t.replace("\\", "\\\\")
+
+        # Escape backslashes first
+        t = t.replace("\\", "\\\\")     
+
+        # Escape single quotes
         t = t.replace("'", "\\'")
+
+        # Escape percent (FFmpeg sees % as format)
         t = t.replace("%", "\\%")
 
-        # Correct: FFmpeg wants THIS form: \n   not \\n
+        # 🔥 FFmpeg NEEDS double slash for literal newline:  \\n
         t = t.replace("\n", "\\\\n")
 
         return t
+
 
 
     
@@ -803,6 +810,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 "y=(h*0.72)"
                 "[outv]"
             )
+            log_step(f"[CTA-FILTER] {cta_filter}")
+
 
 
             cta_cmd = [
@@ -816,7 +825,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 cta_video,
             ]
 
-            log_step(f"[CTA-FILTER] {cta_filter}")
 
 
             log_step("[CTA] Building CTA tail clip…")
