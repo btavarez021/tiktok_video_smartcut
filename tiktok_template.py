@@ -783,6 +783,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             log_step("[CTA] Extracting last frame…")
             subprocess.run(grab_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             log_step(f"[CTA-DEBUG-FINAL-TEXT] sending to drawtext = {cta_text_safe}")
+            log_step(f"[CTA-FILTER] {cta_filter}")
             # 2. Build CTA tail clip from that frame    
             cta_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
             cta_filter = (
@@ -800,8 +801,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 "box=1:boxcolor=0x00000088:boxborderw=30:"
                 "borderw=2:bordercolor=0x000000:"
                 "x=(w-text_w)/2:"
-                "y=(h*0.72)[outv]"
+                "y=(h*0.72)"
+                "[outv]"
             )
+
 
 
 
@@ -918,8 +921,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             "volume": float(music_cfg.get("volume", 0.25)),
         })
 
-
-    audio_inputs = []
 
     FIRST_TTS_DELAY = 0.25   # Only for clip 1 to avoid music player slow-start sync
     last_tts_end = 0.0
