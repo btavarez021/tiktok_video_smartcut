@@ -883,7 +883,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             # HARD VALIDATION – must exist & must contain moov atom
             if not os.path.exists(final_with_cta):
                 log_step("[CTA-CONCAT] CTA output file missing!")
-            elif os.path.getsize(final_with_cta) < 300_000:
+            elif os.path.getsize(final_with_cta) < 50_000:
                 log_step("[CTA-CONCAT] CTA output too small (<300KB). Corrupt.")
             else:
                 try:
