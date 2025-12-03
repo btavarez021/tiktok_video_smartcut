@@ -424,45 +424,35 @@ def ensure_local_video(session_id: str, filename: str) -> str:
 
 def wrap_caption_px(text: str, max_width_px: int, fontfile: str, fontsize: int) -> str:
     """
-    Wraps text so no line exceeds max_width_px.
-    Uses ffprobe text measuring trick.
+    Approximate pixel-based wrapping using a chars-per-line heuristic.
+    We do NOT call ffprobe here (too flaky in some environments).
+
+    - max_width_px: desired width of the caption box in pixels
+    - fontsize: used to estimate how many characters fit per line
     """
     if not text:
         return ""
+
+    # Heuristic: each character ~ 0.55 * fontsize wide (rough estimate)
+    approx_chars_per_line = max(int(max_width_px / (fontsize * 0.55)), 8)
 
     words = text.split()
     lines = []
     current = ""
 
     for w in words:
-        test = (current + " " + w).strip()
-
-        # Measure width using ffmpeg
-        cmd = [
-            "ffprobe", "-v", "error",
-            "-f", "lavfi",
-            f"drawtext=text='{test}':fontfile={fontfile}:fontsize={fontsize}",
-            "-show_entries", "frame=pkt_size",
-            "-of", "default=nokey=1:noprint_wrappers=1"
-        ]
-
-        try:
-            out = subprocess.check_output(cmd).decode().strip()
-            width = int(out)  # proxy width measure
-        except:
-            width = 999999   # fallback
-
-        if width > max_width_px:
+        candidate = (current + " " + w).strip()
+        if len(candidate) > approx_chars_per_line and current:
+            # push current line, start new line with this word
             lines.append(current)
             current = w
         else:
-            current = test
+            current = candidate
 
     if current:
         lines.append(current)
 
     return "\n".join(lines)
-
 
 
 def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
@@ -725,47 +715,55 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 clip_dur = float(clip["duration"])
                 cta_start_rel = last_clip_cta_start_rel
 
-                # 1) Caption for early segment (t < cta_start_rel)
+                fade_out = 0.25       # caption fade duration
+                fade_in  = 0.25       # CTA fade duration
+
+                # -----------------------------------
+                # 1) CAPTION (t < CTA_START)
+                # -----------------------------------
                 if clip["text"]:
                     wrapped = wrap_caption_px(clip["text"], 900, fontfile, fontsize)
                     text_safe = esc(wrapped)
+
                     vf += (
                         f";[v1]drawtext=text='{text_safe}':"
-                        f"fontfile={fontfile}:"
-                        f"fontcolor=white:fontsize={fontsize}:"
-                        f"line_spacing={line_spacing}:"
-                        f"shadowcolor=0x000000:shadowx=3:shadowy=3:"
-                        f"text_shaping=1:"
-                        f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
-                        f"x=(w-text_w)/2:y={y_expr}:"
-                        f"fix_bounds=1:borderw=0:"
-                        f"enable='lt(t,{cta_start_rel})'"
+                        f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
+                        f"line_spacing={line_spacing}:shadowcolor=0x000000:shadowx=3:shadowy=3:"
+                        f"text_shaping=1:box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
+                        f"x=(w-text_w)/2:y={y_expr}:fix_bounds=1:borderw=0:"
+                        f"enable='lt(t,{cta_start_rel})',"
+                        # fade out ends exactly at CTA start
+                        f"fade=t=out:st={cta_start_rel - fade_out}:d={fade_out}"
                         f"[v2]"
                     )
                 else:
                     vf += ";[v1]copy[v2]"
 
-                # 2) CTA text on final segment (≥ cta_start_rel), slightly lower
+                # -----------------------------------
+                # 2) CTA + BLUR (t >= CTA_START)
+                # -----------------------------------
                 cta_y_expr = "(h*0.70)" if layout_mode == "tiktok" else "h-(text_h*1.5)-120"
+
                 vf += (
-                    f";[v2]drawtext=text='{cta_text_safe}':"
-                    f"fontfile={fontfile}:"
-                    f"fontcolor=white:fontsize={fontsize}:"
-                    f"line_spacing={line_spacing}:"
-                    f"shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
-                    f"text_shaping=1:"
-                    f"box=1:boxcolor=0x000000CC:boxborderw={boxborderw}:"
-                    f"x=(w-text_w)/2:y={cta_y_expr}:"
-                    f"fix_bounds=1:borderw=0:"
-                    f"enable='gte(t,{cta_start_rel})'"
+                    # Blur only during CTA window
+                    f";[v2]boxblur=10:1:enable='gte(t,{cta_start_rel})'[v3];"
+
+                    # CTA drawtext
+                    f"[v3]drawtext=text='{cta_text_safe}':"
+                    f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
+                    f"line_spacing={line_spacing}:shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
+                    f"text_shaping=1:box=1:boxcolor=0x000000CC:boxborderw={boxborderw}:"
+                    f"x=(w-text_w)/2:y={cta_y_expr}:fix_bounds=1:borderw=0:"
+                    f"enable='gte(t,{cta_start_rel})',"
+                    f"fade=t=in:st={cta_start_rel}:d={fade_in}"
                     f"[outv]"
                 )
 
                 log_step(
-                    f"[CTA-LAST-CLIP] clip_dur={clip_dur:.2f}, "
-                    f"cta_start_rel={cta_start_rel:.2f}, "
-                    f"visual_len={last_clip_cta_visual_len:.2f}"
+                    f"[CTA-LAST-CLIP-FINAL] caption→CTA: start_rel={cta_start_rel:.2f}, "
+                    f"fade_in={fade_in}, fade_out={fade_out}"
                 )
+
 
             trim_cmd = [
                 "ffmpeg", "-y",
