@@ -501,9 +501,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         t = t.replace("'", "\\'")
 
         # 3. Escape percent with TWO backslashes for the drawtext filter
-        t = t.replace("%", "\\\\%") # <-- Changed to two backslashes
+        t = t.replace("%", "\\\\%")
+
+        # 4. ESCAPE NEWLINES (THIS FIXES CTA DISAPPEARING)
+        t = t.replace("\n", "\\n")
 
         return t
+
 
 
     
@@ -737,6 +741,14 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     raw_cta_text = (cta_cfg.get("text") or "").strip()
     wrapped_cta = wrap_cta_text(raw_cta_text)
     cta_text_safe = esc_cta(wrapped_cta)
+
+    # -----------------------
+    # DEBUG LOGGING FOR CTA
+    # -----------------------
+    log_step(f"[CTA-DEBUG] raw_cta_text: {repr(raw_cta_text)}")
+    log_step(f"[CTA-DEBUG] wrapped_cta (with real \\n): {repr(wrapped_cta)}")
+    log_step(f"[CTA-DEBUG] cta_text_safe (escaped for ffmpeg): {repr(cta_text_safe)}")
+
 
     # CTA duration (either config or TTS length)
     cta_config_dur = float(cta_cfg.get("duration", 3.0))
