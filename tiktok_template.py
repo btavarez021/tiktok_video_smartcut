@@ -727,6 +727,9 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         # Fallback to the estimated base_video_duration if ffprobe fails
         actual_main_video_duration = base_video_duration 
         log_step(f"[WARNING] Could not get exact duration via ffprobe. Using estimated total: {actual_main_video_duration:.2f}s")
+    
+    # Add a final global safety buffer to the actual measured video duration
+    actual_main_video_duration += 0.25 # Add 0.25 seconds buffer
 
     raw_cta_text = (cta_cfg.get("text") or "").strip()
     wrapped_cta = wrap_cta_text(raw_cta_text)
