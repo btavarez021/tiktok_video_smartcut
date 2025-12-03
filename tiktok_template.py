@@ -801,13 +801,16 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 f"fontfile={cta_fontfile}:"
                 "fontcolor=white:"
                 "fontsize=66:"
-                "line_spacing=8:"
+                "line_spacing=10:"
                 "shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
                 "text_shaping=1:"
-                "box=1:boxcolor=0x00000066:boxborderw=30:"
+                "fix_bounds=1:"
+                "box=1:boxcolor=0x00000088:boxborderw=30:"
+                "borderw=2:bordercolor=0x000000:"
                 "x=(w-text_w)/2:"
-                "y=h*0.75:"
+                "y=(h*0.72)"
             )
+
 
             cta_cmd = [
                 "ffmpeg", "-y",
