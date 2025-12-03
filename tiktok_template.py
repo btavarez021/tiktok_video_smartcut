@@ -497,7 +497,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         t = t.replace("%", "\\%")
 
         # Correct: FFmpeg wants THIS form: \n   not \\n
-        t = t.replace("\n", "\\n")
+        t = t.replace("\n", "\\\\n")
 
         return t
 
