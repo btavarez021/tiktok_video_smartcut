@@ -763,7 +763,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # CTA tail length
     cta_segment_len = 0.0
     if cta_enabled and raw_cta_text:
-        cta_segment_len = max(cta_config_dur, cta_voice_dur, 1.0)
+        cta_segment_len = max(float(cta_config_dur or 1.5), float(cta_voice_dur or 0), 1.5)
 
     # CTA starts *exactly* at the end of the clipped video (concat before CTA)
     cta_start_time = concat_duration
@@ -772,8 +772,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     cta_video = None
     cta_tail_success = False
 
+    log_step(f"[CTA-CHECK] enabled={cta_enabled}, raw_text={repr(raw_cta_text)}, seg_len={cta_segment_len}")
     # --- BUILD CTA TAIL (ONLY if enabled and text exists) ---
     if cta_enabled and raw_cta_text and cta_segment_len > 0.0:
+
         try:
             # 1. Extract last frame of the main clips video
             cta_frame = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
