@@ -457,13 +457,20 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     def esc(text: str) -> str:
         if not text:
             return ""
-        # Correct, safe FFmpeg escaping
-        return (
-            text.replace("\\", "\\\\")
-                .replace("'", "\\'")
-                .replace(":", "\\:")
-                .replace("%", "\\%")
-        )
+
+        t = text
+
+        # 1. Escape backslashes FIRST
+        t = t.replace("\\", "\\\\")
+        # 2. Escape single quotes
+        t = t.replace("'", "\\'")
+        # 3. Escape percent
+        t = t.replace("%", "\\%")
+        # 4. 🔥 Escape NEWLINES (critical for CTA drawtext)
+        t = t.replace("\n", "\\n")
+
+        return t
+
     
     # -------------------------------
     # Small helper: probe video duration with ffprobe
