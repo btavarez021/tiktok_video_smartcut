@@ -783,7 +783,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             log_step("[CTA] Extracting last frame…")
             subprocess.run(grab_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             log_step(f"[CTA-DEBUG-FINAL-TEXT] sending to drawtext = {cta_text_safe}")
-            log_step(f"[CTA-FILTER] {cta_filter}")
             # 2. Build CTA tail clip from that frame    
             cta_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
             cta_filter = (
@@ -806,8 +805,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             )
 
 
-
-
             cta_cmd = [
                 "ffmpeg", "-y",
                 "-loop", "1", "-i", cta_frame,
@@ -818,6 +815,9 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 "-pix_fmt", "yuv420p",
                 cta_video,
             ]
+
+            log_step(f"[CTA-FILTER] {cta_filter}")
+
 
             log_step("[CTA] Building CTA tail clip…")
             proc = subprocess.run(cta_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
