@@ -434,8 +434,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     Build final TikTok-style video using a low-memory FFmpeg-only pipeline.
 
     - Per-clip TTS (narration) aligned to each clip duration
-    - Optional CTA shown on the *last clip* (no extra tail file)
-    - Optional CTA TTS aligned with the CTA visual segment
+    - CTA is shown on the *last clip* (no extra tail file)
+    - CTA TTS aligned with the CTA visual segment
     - Background music from YAML (music: { enabled, file, volume })
     """
     cfg = load_config_for_session(session_id)
@@ -455,22 +455,25 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # Safe escape helper for drawtext
     # -------------------------------
     def esc(text: str) -> str:
+        """
+        Escape for ffmpeg drawtext:
+        - keep literal \n for multi-line
+        - escape backslashes, quotes, and %
+        without turning \n into 'n' or '\\\\n'.
+        """
         if not text:
             return ""
 
-        t = text
+        # 1) Protect REAL newlines with a placeholder
+        t = text.replace("\n", "__NEWLINE__")
 
-        # Escape backslashes FIRST
+        # 2) Escape backslashes, single quotes, percent
         t = t.replace("\\", "\\\\")
-        # Escape single quotes
         t = t.replace("'", "\\'")
-        # Escape percent signs
         t = t.replace("%", "\\%")
 
-        # NEWLINE FIX:
-        # Convert REAL newlines → literal "\n" for ffmpeg.
-        # (ffmpeg wants backslash+n, NOT double-escaped)
-        t = t.replace("\n", r'\n')
+        # 3) Turn placeholders into literal '\n' sequences
+        t = t.replace("__NEWLINE__", r"\n")
 
         return t
 
@@ -573,20 +576,19 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             )
             clip["duration"] = needed
 
-    # Duration of the *clips section*
     base_video_duration = sum(clip["duration"] for clip in clips)
 
     # -----------------------------------------
-    # CTA CONFIG — we will draw CTA on *last clip*, not a tail
+    # CTA CONFIG — we draw CTA on *last clip*
     # -----------------------------------------
     cta_enabled = bool(cta_cfg.get("enabled", False))
     raw_cta_text = (cta_cfg.get("text") or "").strip()
 
-    # Use same wrapping as clip captions (TikTok vs classic)
+    # Slightly narrower captions for TikTok
     if layout_mode == "tiktok":
-        cta_max_chars = 22
+        cta_max_chars = 20
     else:
-        cta_max_chars = 38
+        cta_max_chars = 32
 
     wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=cta_max_chars) if raw_cta_text else ""
     cta_text_safe = esc(wrapped_cta) if wrapped_cta else ""
@@ -595,7 +597,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     log_step(f"[CTA-DEBUG] wrapped_cta: {repr(wrapped_cta)}")
     log_step(f"[CTA-DEBUG] cta_text_safe: {repr(cta_text_safe)}")
 
-    # CTA duration
     cta_config_dur = float(cta_cfg.get("duration", 3.0))
 
     # CTA voice (if generated)
@@ -605,9 +606,27 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     else:
         cta_voice_dur = 0.0
 
+    # "Logical" CTA length before we clamp visual part
     cta_segment_len = 0.0
     if cta_enabled and raw_cta_text:
         cta_segment_len = max(float(cta_config_dur or 1.5), float(cta_voice_dur or 0), 1.5)
+
+    # We'll decide CTA *visual* window on the last clip only.
+    last_clip_cta_start_rel: Optional[float] = None
+    last_clip_cta_visual_len: float = 0.0
+    if cta_enabled and raw_cta_text and cta_segment_len > 0.0:
+        last_clip = clips[-1]
+        clip_dur = float(last_clip["duration"])
+
+        # Visual CTA window: last ~1.0–1.2 seconds (never more)
+        last_clip_cta_visual_len = min(cta_segment_len, clip_dur, 1.2)
+        last_clip_cta_start_rel = max(clip_dur - last_clip_cta_visual_len, clip_dur * 0.75)
+
+        log_step(
+            f"[CTA-LAST-CLIP-SETUP] clip_dur={clip_dur:.2f}, "
+            f"visual_len={last_clip_cta_visual_len:.2f}, "
+            f"start_rel={last_clip_cta_start_rel:.2f}"
+        )
 
     # -------------------------------
     # 1. TRIM EACH CLIP (with captions + CTA on last)
@@ -616,17 +635,17 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
 
     if layout_mode == "tiktok":
-        max_chars = 22
-        fontsize = 68
-        line_spacing = 14
-        boxborderw = 55
+        max_chars = 20           # narrower → avoids giant width
+        fontsize = 64
+        line_spacing = 12
+        boxborderw = 24          # thinner border
         fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         y_expr = "(h * 0.55)"
     else:
-        max_chars = 38
-        fontsize = 54
+        max_chars = 34
+        fontsize = 52
         line_spacing = 8
-        boxborderw = 35
+        boxborderw = 20
         fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
         y_expr = "h-(text_h*1.8)-150"
 
@@ -648,7 +667,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             is_last = clip.get("is_last", False)
 
             # ----- NON-LAST CLIPS: normal caption -----
-            if not is_last or not (cta_enabled and raw_cta_text and cta_segment_len > 0.0 and cta_text_safe):
+            if not is_last or not (cta_enabled and raw_cta_text and last_clip_cta_start_rel is not None and cta_text_safe):
                 if clip["text"]:
                     wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
                     text_safe = esc(wrapped)
@@ -661,7 +680,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         f"text_shaping=1:"
                         f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
                         f"x=(w-text_w)/2:y={y_expr}:"
-                        f"fix_bounds=1:borderw=2:bordercolor=0x000000[outv]"
+                        f"fix_bounds=1:borderw=0:bordercolor=0x000000[outv]"
                     )
                 else:
                     vf += ";[v1]copy[outv]"
@@ -669,11 +688,9 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             # ----- LAST CLIP: caption first, then CTA at the end -----
             else:
                 clip_dur = float(clip["duration"])
-                cta_len = min(cta_segment_len, clip_dur)
-                # CTA starts near the end
-                cta_start = max(clip_dur - cta_len, clip_dur * 0.6)
+                cta_start_rel = last_clip_cta_start_rel
 
-                # 1) Caption on early part (t < cta_start)
+                # 1) Caption for early segment (t < cta_start_rel)
                 if clip["text"]:
                     wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
                     text_safe = esc(wrapped)
@@ -684,18 +701,16 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         f"line_spacing={line_spacing}:"
                         f"shadowcolor=0x000000:shadowx=3:shadowy=3:"
                         f"text_shaping=1:"
-                        f"box=1:boxcolor=0x000000AA:boxborderw=10:"   # <-- fixed
+                        f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
                         f"x=(w-text_w)/2:y={y_expr}:"
-                        f"fix_bounds=0:borderw=0:"                   # <-- fixed
-                        f"enable='lt(t,{cta_start})'"
+                        f"fix_bounds=1:borderw=0:"
+                        f"enable='lt(t,{cta_start_rel})'"
                         f"[v2]"
                     )
-                    
                 else:
                     vf += ";[v1]copy[v2]"
 
-                # 2) CTA text on final segment (t >= cta_start)
-                #    (we reuse TikTok-style box, slightly lower on screen)
+                # 2) CTA text on final segment (≥ cta_start_rel), slightly lower
                 cta_y_expr = "(h*0.70)" if layout_mode == "tiktok" else "h-(text_h*1.5)-120"
                 vf += (
                     f";[v2]drawtext=text='{cta_text_safe}':"
@@ -704,14 +719,18 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     f"line_spacing={line_spacing}:"
                     f"shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
                     f"text_shaping=1:"
-                    f"box=1:boxcolor=0x00000088:boxborderw=10:"     # <-- fixed
+                    f"box=1:boxcolor=0x000000CC:boxborderw={boxborderw}:"
                     f"x=(w-text_w)/2:y={cta_y_expr}:"
-                    f"fix_bounds=0:borderw=0:"                       # <-- fixed
-                    f"enable='gte(t,{cta_start})'"
+                    f"fix_bounds=1:borderw=0:"
+                    f"enable='gte(t,{cta_start_rel})'"
                     f"[outv]"
                 )
 
-                log_step(f"[CTA-LAST-CLIP] duration={clip_dur:.2f}, cta_len={cta_len:.2f}, cta_start={cta_start:.2f}")
+                log_step(
+                    f"[CTA-LAST-CLIP] clip_dur={clip_dur:.2f}, "
+                    f"cta_start_rel={cta_start_rel:.2f}, "
+                    f"visual_len={last_clip_cta_visual_len:.2f}"
+                )
 
             trim_cmd = [
                 "ffmpeg", "-y",
@@ -757,7 +776,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     final_video_source = concat_output
 
-    # Get ACTUAL concat duration (clips only)
     try:
         concat_duration = float(
             subprocess.check_output(
@@ -800,7 +818,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             "volume": float(music_cfg.get("volume", 0.25)),
         })
 
-    FIRST_TTS_DELAY = 0.25   # Only for clip 1 to avoid music player slow-start sync
+    FIRST_TTS_DELAY = 0.25
     last_tts_end = 0.0
 
     # Clip start times
@@ -832,8 +850,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
         last_tts_end = max(last_tts_end, start_ts + float(tts_dur))
 
-    # CTA TTS scheduling — aligned with last segment of last clip
-    if cta_tts_track and cta_enabled and raw_cta_text and cta_segment_len > 0.0:
+    # CTA TTS scheduling — align with last-clip visual CTA if present
+    if cta_tts_track and cta_enabled and raw_cta_text and cta_segment_len > 0.0 and last_clip_cta_start_rel is not None:
         if isinstance(cta_tts_track, tuple):
             cta_path, cta_dur = cta_tts_track
         else:
@@ -841,16 +859,23 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             cta_dur = 0.0
 
         if cta_path:
-            cta_len = min(cta_segment_len, total_video_duration)
-            cta_start = max(total_video_duration - cta_len, last_tts_end + 0.05)
+            last_clip_start_abs = clip_start_times[-1]
+            cta_start_abs = last_clip_start_abs + last_clip_cta_start_rel
+
+            # Just in case, don't start before all other TTS finished
+            cta_start_abs = max(cta_start_abs, last_tts_end + 0.05)
 
             audio_inputs.append({
                 "path": cta_path,
-                "start": cta_start,
+                "start": cta_start_abs,
                 "volume": 1.0,
             })
 
-            log_step(f"[CTA-AUDIO] start={cta_start:.2f}, len≈{cta_len:.2f}")
+            log_step(
+                f"[CTA-AUDIO] last_clip_start_abs={last_clip_start_abs:.2f}, "
+                f"start_abs={cta_start_abs:.2f}, "
+                f"visual_rel={last_clip_cta_start_rel:.2f}"
+            )
 
     # ------------------------------------------------------------------
     # MIX ALL AUDIO
