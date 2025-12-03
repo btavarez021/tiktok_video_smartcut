@@ -746,7 +746,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     # Wrap CTA text into multiple lines (TikTok style), 24 chars per line
     raw_cta_text = (cta_cfg.get("text") or "").strip()
-    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=24)
+    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=max_chars)
 
     # Escape for ffmpeg drawtext
     cta_text_safe = esc(wrapped_cta)
@@ -797,8 +797,9 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             log_step("[CTA] Extracting last frame…")
             subprocess.run(grab_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-            # Escape newlines AGAIN for FFmpeg literal \\n
-            cta_text_final = cta_text_safe.replace("\n", "\\n")
+            # CTA uses the EXACT SAME escaped text as clips
+            cta_text_final = cta_text_safe
+
 
             log_step(f"[CTA-DEBUG-FINAL-TEXT] sending to drawtext = {cta_text_final}")
 
