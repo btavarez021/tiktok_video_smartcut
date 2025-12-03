@@ -86,11 +86,6 @@ def _get_layout_mode(cfg: Dict[str, Any]) -> str:
 # Caption wrapping helper
 # -----------------------------------------
 def _wrap_caption(text: str, max_chars_per_line: int = 28) -> str:
-    """
-    Word-wrap caption into multiple lines so it stays inside frame width.
-    Returns a string with literal newlines, which ffmpeg drawtext will render
-    as multi-line text.
-    """
     text = (text or "").strip()
     if not text:
         return ""
@@ -100,17 +95,16 @@ def _wrap_caption(text: str, max_chars_per_line: int = 28) -> str:
     current = ""
 
     for w in words:
-        # +1 for space if current is not empty
         extra = 1 if current else 0
         if len(current) + len(w) + extra > max_chars_per_line:
             if current:
-                lines.append(current)
+                lines.append(current.rstrip())  # 🔥 prevent trailing space → “nwith”
             current = w
         else:
             current = f"{current} {w}".strip()
 
     if current:
-        lines.append(current)
+        lines.append(current.rstrip())  # 🔥 prevent “n...” bugs
 
     return "\n".join(lines)
 
@@ -460,16 +454,21 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
         t = text
 
-        # 1. Escape backslashes FIRST
+        # Escape backslashes FIRST
         t = t.replace("\\", "\\\\")
-        # 2. Escape single quotes
+
+        # Escape single quotes
         t = t.replace("'", "\\'")
-        # 3. Escape percent
+
+        # Escape percent (important)
         t = t.replace("%", "\\%")
-        # 4. 🔥 Escape NEWLINES (critical for CTA drawtext)
-        t = t.replace("\n", "\\n")
+
+        # REAL newline → DOUBLE BACKSLASH n   (\\n)
+        # ABSOLUTELY do NOT convert to \n or literal n
+        t = t.replace("\n", "\\\\n")
 
         return t
+
 
     
     # -------------------------------
@@ -492,52 +491,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         except Exception as e:
             log_step(f"[DURATION] ffprobe failed for {filename}: {e}")
             return None
-
-    
-    def esc_cta(text: str) -> str:
-        if not text:
-            return ""
-
-        t = text
-
-        # Escape backslashes first
-        t = t.replace("\\", "\\\\")     
-
-        # Escape single quotes
-        t = t.replace("'", "\\'")
-
-        # Escape percent (FFmpeg sees % as format)
-        t = t.replace("%", "\\%")
-
-        # 🔥 FFmpeg NEEDS double slash for literal newline:  \\n
-        t = t.replace("\n", "\\n")
-
-        return t
-
-
-
-    
-    def wrap_cta_text(txt: str, max_chars=22) -> str:
-        if not txt:
-            return ""
-
-        words = txt.split()
-        lines = []
-        cur = ""
-
-        for w in words:
-            if len(cur) + len(w) + (1 if cur else 0) <= max_chars:
-                cur += (" " + w if cur else w)
-            else:
-                lines.append(cur)
-                cur = w
-
-        if cur:
-            lines.append(cur)
-
-        # REAL newlines — FFmpeg wants this BEFORE escaping
-        return "\n".join(lines)
-
+        
     # -------------------------------
     # Build clip list (first, middle*, last)
     # -------------------------------
@@ -746,7 +700,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     # Wrap CTA text into multiple lines (TikTok style), 24 chars per line
     raw_cta_text = (cta_cfg.get("text") or "").strip()
-    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=max_chars)
+    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=28)
 
     # Escape for ffmpeg drawtext
     cta_text_safe = esc(wrapped_cta)
