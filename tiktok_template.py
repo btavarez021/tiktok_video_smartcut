@@ -465,7 +465,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
         # REAL newline → DOUBLE BACKSLASH n   (\\n)
         # ABSOLUTELY do NOT convert to \n or literal n
-        t = t.replace("\n", "\\\\n")
+        t = t.replace("\n", r'\n')
 
         return t
 
@@ -774,7 +774,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 f"box=1:boxcolor=0x00000088:boxborderw=30:"
                 f"borderw=2:bordercolor=0x000000:"
                 f"x=(w-text_w)/2:"
-                f"y=(h*0.72)"
+                f"y=(h*0.58)"
                 f"[outv]"
             )
 
