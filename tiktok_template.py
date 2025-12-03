@@ -422,13 +422,49 @@ def ensure_local_video(session_id: str, filename: str) -> str:
 
     return local_path
 
+def wrap_caption_px(text: str, max_width_px: int, fontfile: str, fontsize: int) -> str:
+    """
+    Wraps text so no line exceeds max_width_px.
+    Uses ffprobe text measuring trick.
+    """
+    if not text:
+        return ""
 
-# -----------------------------------------
-# Core export function: edit_video   (CTA INSIDE LAST CLIP, NO TAIL)
-# -----------------------------------------
-# -----------------------------------------
-# Core export function: edit_video   (CTA on last clip, no extra tail)
-# -----------------------------------------
+    words = text.split()
+    lines = []
+    current = ""
+
+    for w in words:
+        test = (current + " " + w).strip()
+
+        # Measure width using ffmpeg
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-f", "lavfi",
+            f"drawtext=text='{test}':fontfile={fontfile}:fontsize={fontsize}",
+            "-show_entries", "frame=pkt_size",
+            "-of", "default=nokey=1:noprint_wrappers=1"
+        ]
+
+        try:
+            out = subprocess.check_output(cmd).decode().strip()
+            width = int(out)  # proxy width measure
+        except:
+            width = 999999   # fallback
+
+        if width > max_width_px:
+            lines.append(current)
+            current = w
+        else:
+            current = test
+
+    if current:
+        lines.append(current)
+
+    return "\n".join(lines)
+
+
+
 def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
     """
     Build final TikTok-style video using a low-memory FFmpeg-only pipeline.
@@ -455,27 +491,22 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # Safe escape helper for drawtext
     # -------------------------------
     def esc(text: str) -> str:
-        """
-        Escape for ffmpeg drawtext:
-        - keep literal \n for multi-line
-        - escape backslashes, quotes, and %
-        without turning \n into 'n' or '\\\\n'.
-        """
         if not text:
             return ""
-
-        # 1) Protect REAL newlines with a placeholder
-        t = text.replace("\n", "__NEWLINE__")
-
-        # 2) Escape backslashes, single quotes, percent
-        t = t.replace("\\", "\\\\")
-        t = t.replace("'", "\\'")
-        t = t.replace("%", "\\%")
-
-        # 3) Turn placeholders into literal '\n' sequences
-        t = t.replace("__NEWLINE__", r"\n")
-
+        
+        # 1) Temporarily protect real newlines
+        t = text.replace("\n", "<<<NL>>>")
+        
+        # 2) Escape only characters FFmpeg needs escaped
+        t = t.replace("\\", "\\\\")     # ESCAPE backslashes
+        t = t.replace("'", "\\'")       # ESCAPE single quotes
+        t = t.replace("%", "\\%")       # ESCAPE % but KEEP newline intact
+        
+        # 3) Restore as literal \n (NOT double escaped)
+        t = t.replace("<<<NL>>>", r'\n')
+        
         return t
+
 
     # -------------------------------
     # Small helper: probe video duration with ffprobe
@@ -590,7 +621,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     else:
         cta_max_chars = 32
 
-    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=cta_max_chars) if raw_cta_text else ""
+    wrapped_cta = wrap_caption_px(raw_cta_text, 900, fontfile, fontsize) if raw_cta_text else ""
     cta_text_safe = esc(wrapped_cta) if wrapped_cta else ""
 
     log_step(f"[CTA-DEBUG] raw_cta_text: {repr(raw_cta_text)}")
@@ -669,7 +700,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             # ----- NON-LAST CLIPS: normal caption -----
             if not is_last or not (cta_enabled and raw_cta_text and last_clip_cta_start_rel is not None and cta_text_safe):
                 if clip["text"]:
-                    wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
+                    wrapped = wrap_caption_px(clip["text"], 900, fontfile, fontsize)
                     text_safe = esc(wrapped)
                     vf += (
                         f";[v1]drawtext=text='{text_safe}':"
@@ -692,7 +723,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
                 # 1) Caption for early segment (t < cta_start_rel)
                 if clip["text"]:
-                    wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
+                    wrapped = wrap_caption_px(clip["text"], 900, fontfile, fontsize)
                     text_safe = esc(wrapped)
                     vf += (
                         f";[v1]drawtext=text='{text_safe}':"
@@ -818,7 +849,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             "volume": float(music_cfg.get("volume", 0.25)),
         })
 
-    FIRST_TTS_DELAY = 0.25
+    FIRST_TTS_DELAY = 0.05
     last_tts_end = 0.0
 
     # Clip start times
