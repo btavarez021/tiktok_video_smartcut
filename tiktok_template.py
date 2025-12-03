@@ -826,7 +826,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 final_with_cta,
             ]
             log_step("[CTA] Appending CTA tail…")
-            subprocess.run(concat2_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
             # Validate CTA concatenated video
             if os.path.exists(final_with_cta) and os.path.getsize(final_with_cta) > 200 * 1024:
@@ -835,6 +834,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 cta_tail_success = True
             else:
                 log_step("[CTA] Tail concat failed → keeping clips-only.")
+
 
         except Exception as e:
             log_step(f"[CTA ERROR] {e}")
