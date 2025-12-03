@@ -503,7 +503,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         t = t.replace("%", "\\%")
 
         # 🔥 FFmpeg NEEDS double slash for literal newline:  \\n
-        t = t.replace("\n", "\\\\n")
+        t = t.replace("\n", "\\n")
 
         return t
 
