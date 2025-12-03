@@ -828,7 +828,21 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
 
             log_step("[CTA] Building CTA tail clip…")
+
             proc = subprocess.run(cta_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+            # ----------------------------------------------------
+            #  >>>>>>>>> INSERT THIS NEW CODE BLOCK HERE <<<<<<<<<
+            # ----------------------------------------------------
+            if proc.returncode != 0:
+                log_step(f"[CTA-FFMPEG] FAILED to build CTA clip! Exit code {proc.returncode}")
+                log_step(f"[CTA-FFMPEG] stderr:\n{proc.stderr}")
+                # Set cta_tail_success to False immediately and raise an exception 
+                # to jump to your 'except Exception as e' block below.
+                cta_tail_success = False 
+                raise RuntimeError("CTA video file was not generated successfully by FFmpeg.")
+            # ----------------------------------------------------
+
             if proc.stderr:
                 log_step(f"[CTA-FFMPEG] stderr:\n{proc.stderr}")
 
