@@ -884,6 +884,30 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # ------------------------------------------------------------------
     log_step("[AUDIO] Building audio timeline…")
 
+    # 🎵 Inject background music BEFORE TTS scheduling
+    music_cfg = cfg.get("music", {}) or {}
+    music_audio = None
+
+    if music_cfg.get("enabled"):
+        # Build stretched/trimmed background music
+        music_audio = _build_music_audio(cfg, total_video_duration)
+
+    if music_audio:
+        log_step(f"[AUDIO-MUSIC] Adding background music: {music_audio}")
+    else:
+        log_step("[AUDIO-MUSIC] No music added.")
+
+    audio_inputs = []
+
+    # Add music as the first layer if it exists
+    if music_audio:
+        audio_inputs.append({
+            "path": music_audio,
+            "start": 0.0,  # music always starts at 0
+            "volume": float(music_cfg.get("volume", 0.25)),
+        })
+
+
     audio_inputs = []
 
     FIRST_TTS_DELAY = 0.25   # Only for clip 1 to avoid music player slow-start sync
