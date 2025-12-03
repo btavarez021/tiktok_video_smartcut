@@ -722,6 +722,12 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     except Exception:
         concat_duration = base_video_duration
 
+    # -----------------------------------------
+    # Global CTA font (needed for CTA tail)
+    # -----------------------------------------
+    cta_fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
+    
     # ------------------------------------------------------------------
     # 3. CTA CONFIG — build CTA as a SEPARATE TAIL SEGMENT (CLEAN + SAFE)
     # ------------------------------------------------------------------
@@ -776,7 +782,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 "scale=1080:1920,"
                 "boxblur=10:1,"
                 f"drawtext=text='{cta_text_safe}':"
-                f"fontfile={fontfile}:"
+                f"fontfile={cta_fontfile}:"
                 "fontcolor=white:"
                 "fontsize=66:"
                 "line_spacing=8:"
@@ -797,7 +803,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 cta_video,
             ]
             log_step("[CTA] Building CTA tail clip…")
-            subprocess.run(cta_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            proc = subprocess.run(cta_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if proc.stderr:
+                log_step(f"[CTA-FFMPEG] stderr:\n{proc.stderr}")
+
 
             # 3. Concatenate clips + CTA tail together
             concat2_list = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
@@ -894,19 +903,20 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             cta_dur = 0.0
 
         if cta_path:
-            # CTA TTS must ALWAYS start at CTA tail start time.
-            # CTA tail ALWAYS begins AFTER the last clip.
-            start_ts = concat_duration
+            # CTA tail video always begins right after the last clip concat
+            cta_start = concat_duration
 
-            # Safety: force CTA to never overlap last clip TTS
-            if start_ts < last_tts_end:
-                start_ts = last_tts_end + 0.05
+            # Make 100% sure we don't overlap the last clip's TTS
+            cta_start = max(cta_start, last_tts_end + 0.05)
+
+            start_ts = cta_start
 
             audio_inputs.append({
                 "path": cta_path,
                 "start": start_ts,
                 "volume": 1.0,
             })
+
 
     # If CTA tail failed → CTA TTS is suppressed earlier
     # So no need to do anything else.
@@ -969,20 +979,26 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # -------------------------------
     final_output = os.path.abspath(os.path.join(BASE_DIR, output_file))
 
-    # Probe real duration of final video track
+        # Probe real duration of final video track
     actual_final_video_duration = get_video_duration(final_video_source)
 
     if actual_final_video_duration is None:
         log_step("[MUX-WARNING] Could not probe video duration, using fallback = total_video_duration")
         actual_final_video_duration = total_video_duration
+    else:
+        # Trust the real file duration for all later safety checks
+        total_video_duration = actual_final_video_duration
 
     use_shortest = False
 
-    # If the audio is longer than the real video (CTA tail failed or clipped),
-    # ensure FFmpeg trims audio to avoid invalid MP4.
-    if final_audio and actual_final_video_duration < (total_video_duration - 0.25):
-        log_step(f"[MUX-SAFETY] Video ({actual_final_video_duration:.2f}s) shorter than expected total ({total_video_duration:.2f}s). Enforcing -shortest.")
+    # Only enforce -shortest if we somehow know audio is WAY longer than the video
+    if final_audio and actual_final_video_duration < (total_video_duration - 0.75):
+        log_step(
+            f"[MUX-SAFETY] Video ({actual_final_video_duration:.2f}s) shorter than "
+            f"expected total ({total_video_duration:.2f}s). Enforcing -shortest."
+        )
         use_shortest = True
+
 
 
     # -------------------------------
