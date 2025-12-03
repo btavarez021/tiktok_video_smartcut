@@ -464,12 +464,14 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         t = t.replace("\\", "\\\\")
         # Escape single quotes
         t = t.replace("'", "\\'")
-        # Escape percent (important)
+        # Escape percent signs
         t = t.replace("%", "\\%")
 
-        # ⛔ DO NOT touch "\n" here.
-        # _wrap_caption already encodes line breaks as literal "\n"
-        # which is what ffmpeg drawtext expects.
+        # NEWLINE FIX:
+        # Convert REAL newlines → literal "\n" for ffmpeg.
+        # (ffmpeg wants backslash+n, NOT double-escaped)
+        t = t.replace("\n", r'\n')
+
         return t
 
     # -------------------------------
@@ -682,12 +684,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         f"line_spacing={line_spacing}:"
                         f"shadowcolor=0x000000:shadowx=3:shadowy=3:"
                         f"text_shaping=1:"
-                        f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
+                        f"box=1:boxcolor=0x000000AA:boxborderw=10:"   # <-- fixed
                         f"x=(w-text_w)/2:y={y_expr}:"
-                        f"fix_bounds=1:borderw=2:bordercolor=0x000000:"
+                        f"fix_bounds=0:borderw=0:"                   # <-- fixed
                         f"enable='lt(t,{cta_start})'"
                         f"[v2]"
                     )
+                    
                 else:
                     vf += ";[v1]copy[v2]"
 
@@ -701,10 +704,9 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     f"line_spacing={line_spacing}:"
                     f"shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
                     f"text_shaping=1:"
-                    f"fix_bounds=1:"
-                    f"box=1:boxcolor=0x00000088:boxborderw={boxborderw}:"
-                    f"borderw=2:bordercolor=0x000000:"
+                    f"box=1:boxcolor=0x00000088:boxborderw=10:"     # <-- fixed
                     f"x=(w-text_w)/2:y={cta_y_expr}:"
+                    f"fix_bounds=0:borderw=0:"                       # <-- fixed
                     f"enable='gte(t,{cta_start})'"
                     f"[outv]"
                 )
