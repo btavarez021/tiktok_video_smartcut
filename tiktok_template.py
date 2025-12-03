@@ -737,11 +737,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     cta_cfg = cfg.get("cta", {}) or {}
     cta_enabled = bool(cta_cfg.get("enabled", False))
 
+    # ✅ Use same logic as main captions
     raw_cta_text = (cta_cfg.get("text") or "").strip()
-    wrapped_cta = wrap_cta_text(raw_cta_text)
-
-    # Escape FFmpeg-sensitive characters
-    cta_text_safe = esc_cta(wrapped_cta)
+    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=24)
+    cta_text_safe = esc(wrapped_cta)
 
     # -----------------------
     # DEBUG LOGGING FOR CTA
@@ -749,6 +748,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     log_step(f"[CTA-DEBUG] raw_cta_text: {repr(raw_cta_text)}")
     log_step(f"[CTA-DEBUG] wrapped_cta (with real \\n): {repr(wrapped_cta)}")
     log_step(f"[CTA-DEBUG] cta_text_safe (escaped for ffmpeg): {repr(cta_text_safe)}")
+
 
 
     # CTA duration (either config or TTS length)
