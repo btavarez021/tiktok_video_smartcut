@@ -422,10 +422,13 @@ def ensure_local_video(session_id: str, filename: str) -> str:
 
     return local_path
 
-def wrap_caption_px(text: str, max_width_px: int, fontfile: str, fontsize: int) -> str:
+# -------------------------------
+# Simple, robust caption wrapper
+# -------------------------------
+def _wrap_caption(text: str, max_chars_per_line: int) -> str:
     """
-    Wrap text so each line fits within max_width_px.
-    Uses ffmpeg 'force_style=Fontsize=...' trick which returns real width.
+    Wrap text by character count so drawtext never runs super-wide.
+    This avoids captions stretching off-screen.
     """
     if not text:
         return ""
@@ -435,45 +438,13 @@ def wrap_caption_px(text: str, max_width_px: int, fontfile: str, fontsize: int) 
     current = ""
 
     for w in words:
-        test_line = (current + " " + w).strip()
-
-        # Ask ffmpeg exactly how wide this text would be
-        cmd = [
-            "ffmpeg", "-v", "error",
-            "-f", "lavfi",
-            f"color=c=black@0.0:s=1000x200,drawtext=text='{test_line}':"
-            f"fontfile={fontfile}:fontsize={fontsize}:x=0:y=0",
-            "-frames:v", "1",
-            "-vf", "crop=in_w:in_h",
-            "-f", "null", "-"
-        ]
-
-        # We capture stderr: FFmpeg prints calculated text bounding box there
-        try:
-            p = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-            _, err = p.communicate()
-            width = None
-
-            # Parse something like: "n:0 pts:0 .... w:812 h:93 ..."
-            for line in err.split("\n"):
-                if "w:" in line and "h:" in line:
-                    parts = line.strip().split()
-                    for part in parts:
-                        if part.startswith("w:"):
-                            width = int(part.replace("w:", ""))
-                            break
-                if width:
-                    break
-
-        except:
-            width = None
-
-        if width and width > max_width_px:
-            # too long → push current as a line and start a new line
+        if not current:
+            current = w
+        elif len(current) + 1 + len(w) <= max_chars_per_line:
+            current += " " + w
+        else:
             lines.append(current)
             current = w
-        else:
-            current = test_line
 
     if current:
         lines.append(current)
@@ -656,7 +627,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     else:
         cta_max_chars = 32
 
-    wrapped_cta = wrap_caption_px(raw_cta_text, 900, fontfile, fontsize) if raw_cta_text else ""
+    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=cta_max_chars) if raw_cta_text else ""
     cta_text_safe = esc(wrapped_cta) if wrapped_cta else ""
 
     log_step(f"[CTA-DEBUG] raw_cta_text: {repr(raw_cta_text)}")
@@ -720,7 +691,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             # ----- NON-LAST CLIPS: normal caption -----
             if not is_last or not (cta_enabled and raw_cta_text and last_clip_cta_start_rel is not None and cta_text_safe):
                 if clip["text"]:
-                    wrapped = wrap_caption_px(clip["text"], 900, fontfile, fontsize)
+                    wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
                     text_safe = esc(wrapped)
                     vf += (
                         f";[v1]drawtext=text='{text_safe}':"
@@ -737,17 +708,16 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     vf += ";[v1]copy[outv]"
 
             # ----- LAST CLIP: caption first, then CTA at the end -----
+                        # ----- LAST CLIP: caption first, then CTA at the end -----
             else:
                 clip_dur = float(clip["duration"])
                 cta_start = last_clip_cta_start_rel
-                fade_out = 0.25
-                fade_in  = 0.25
 
                 # ---------------------------------------------------------
-                # (1) CAPTION PHASE — draw until CTA start + fade out
+                # (1) CAPTION PHASE — draw until CTA start
                 # ---------------------------------------------------------
                 if clip["text"]:
-                    wrapped = wrap_caption_px(clip["text"], 900, fontfile, fontsize)
+                    wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
                     text_safe = esc(wrapped)
 
                     vf += (
@@ -762,27 +732,16 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 else:
                     vf += ";[v1]copy[v2]"
 
-
                 # ---------------------------------------------------------
-                # (2) SAFE BLUR SWITCH — NEVER produce black video
+                # (2) BLUR UNDER CTA — but NEVER make video black
+                #     boxblur with enable=... passes input when false
                 # ---------------------------------------------------------
-                # Create blurred version + clean version
                 vf += (
-                    f";[v2]split[v2a][v2b];"
-                    f"[v2a]boxblur=12:1[vblurred];"
-                    f"[v2b]copy[vclean];"
-
-                    # **blend** switches between clean → blurred
-                    # BEFORE CTA: A (clean)
-                    # DURING CTA: B (blurred)
-                    f"[vclean][vblurred]blend="
-                    f"all_expr='A*(lte(T,{cta_start})) + B*(gt(T,{cta_start}))'"
-                    f"[v3]"
+                    f";[v2]boxblur=12:1:enable='gte(t,{cta_start})'[v3]"
                 )
 
-
                 # ---------------------------------------------------------
-                # (3) CTA TEXT — fade in cleanly
+                # (3) CTA TEXT — only after CTA start
                 # ---------------------------------------------------------
                 cta_y_expr = "(h*0.70)" if layout_mode == "tiktok" else "h-(text_h*1.5)-120"
 
@@ -792,18 +751,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     f"line_spacing={line_spacing}:shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
                     f"text_shaping=1:box=1:boxcolor=0x000000CC:boxborderw={boxborderw}:"
                     f"x=(w-text_w)/2:y={cta_y_expr}:fix_bounds=1:borderw=0:"
-                    f"enable='gte(t,{cta_start})',"
-                    f"fade=t=in:st={cta_start}:d={fade_in}"
+                    f"enable='gte(t,{cta_start})'"
                     f"[outv]"
                 )
 
-
                 log_step(
-                    f"[CTA-LAST-CLIP-FINAL] caption→CTA clean, start={cta_start:.2f}, "
-                    f"fade_out={fade_out}, fade_in={fade_in}"
+                    f"[CTA-LAST-CLIP-SIMPLE] caption→CTA, start={cta_start:.2f}"
                 )
-
-
 
             trim_cmd = [
                 "ffmpeg", "-y",
