@@ -490,7 +490,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         t = t.replace("%", "\\%")       # ESCAPE % but KEEP newline intact
         
         # 3) Restore as literal \n (NOT double escaped)
-        t = t.replace("<<<NL>>>", r'\n')
+        t = t.replace("<<<NL>>>", "\n")
         
         return t
 
@@ -544,7 +544,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # GLOBAL CAPTION LAYOUT (used by BOTH clip captions + CTA captions)
     # -----------------------------------------
     if layout_mode == "tiktok":
-        max_chars = 20                # narrow TikTok wrapping
+        max_chars = 16               # narrow TikTok wrapping
         fontsize = 64
         line_spacing = 12
         boxborderw = 24
@@ -623,7 +623,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     # Slightly narrower captions for TikTok
     if layout_mode == "tiktok":
-        cta_max_chars = 20
+        cta_max_chars = 16
     else:
         cta_max_chars = 32
 
@@ -737,7 +737,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 #     boxblur with enable=... passes input when false
                 # ---------------------------------------------------------
                 vf += (
-                    f";[v2]boxblur=12:1:enable='gte(t,{cta_start})'[v3]"
+                    f";[v2]split[v2a][v2b];"
+                    f"[v2a]boxblur=12:1[v2blur];"
+                    f"[v2b][v2blur]overlay=0:0:enable='gte(t,{cta_start})'[v3]"
+
                 )
 
                 # ---------------------------------------------------------
