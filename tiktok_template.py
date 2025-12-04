@@ -578,14 +578,14 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         line_spacing = 12
         boxborderw = 24
         fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-        y_expr = "(h * 0.55)"
+        y_expr = "(h * 0.48)"
     else:
         max_chars = 34                # classic overlay wider
         fontsize = 52
         line_spacing = 8
         boxborderw = 20
         fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-        y_expr = "h-(text_h*1.8)-150"
+        y_expr = "h-(text_h*2.0)-200"
 
 
     # Remove accidental duplicates by file
@@ -744,7 +744,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 fade_in  = 0.25
 
                 # ---------------------------------------------------------
-                # (1) CAPTION PHASE
+                # (1) CAPTION PHASE — draw until CTA start + fade out
                 # ---------------------------------------------------------
                 if clip["text"]:
                     wrapped = wrap_caption_px(clip["text"], 900, fontfile, fontsize)
@@ -756,8 +756,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         f"line_spacing={line_spacing}:shadowcolor=0x000000:shadowx=3:shadowy=3:"
                         f"text_shaping=1:box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
                         f"x=(w-text_w)/2:y={y_expr}:fix_bounds=1:borderw=0:"
-                        f"enable='lt(t,{cta_start})'," 
-                        f"fade=t=out:st={cta_start - fade_out}:d={fade_out}"
+                        f"enable='lt(t,{cta_start})'"
                         f"[v2]"
                     )
                 else:
@@ -765,20 +764,25 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
 
                 # ---------------------------------------------------------
-                # (2) BLUR VIDEO ONLY during CTA window
-                # KEEP VIDEO visible at all times to prevent black screen
+                # (2) SAFE BLUR SWITCH — NEVER produce black video
                 # ---------------------------------------------------------
+                # Create blurred version + clean version
                 vf += (
                     f";[v2]split[v2a][v2b];"
-                    f"[v2a]boxblur=12:1:enable='gte(t,{cta_start})'[vblurred];"
+                    f"[v2a]boxblur=12:1[vblurred];"
                     f"[v2b]copy[vclean];"
-                    # merge: blurred when CTA active, clean otherwise
-                    f"[vclean][vblurred]overlay=0:0:enable='gte(t,{cta_start})'[v3]"
+
+                    # **blend** switches between clean → blurred
+                    # BEFORE CTA: A (clean)
+                    # DURING CTA: B (blurred)
+                    f"[vclean][vblurred]blend="
+                    f"all_expr='A*(lte(T,{cta_start})) + B*(gt(T,{cta_start}))'"
+                    f"[v3]"
                 )
 
 
                 # ---------------------------------------------------------
-                # (3) CTA TEXT — fade IN
+                # (3) CTA TEXT — fade in cleanly
                 # ---------------------------------------------------------
                 cta_y_expr = "(h*0.70)" if layout_mode == "tiktok" else "h-(text_h*1.5)-120"
 
@@ -792,6 +796,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     f"fade=t=in:st={cta_start}:d={fade_in}"
                     f"[outv]"
                 )
+
 
                 log_step(
                     f"[CTA-LAST-CLIP-FINAL] caption→CTA clean, start={cta_start:.2f}, "
