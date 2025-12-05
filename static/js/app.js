@@ -152,6 +152,17 @@ function sidebarSyncActiveLabel() {
 // ================================
 // Utility helpers
 // ================================
+
+function disableDownloadButton() {
+    const btn = document.getElementById("downloadLink");
+    if (!btn) return;
+
+    btn.classList.add("disabled");
+    btn.textContent = "Exporting…";
+    btn.removeAttribute("href");   // remove old link
+}
+
+
 function showSessionToast(msg) {
     const area = document.getElementById("sessionToastArea");
     if (!area) return;
@@ -1361,6 +1372,10 @@ function initFgScaleUI() {
 }
 
 async function startExport(sessionId) {
+
+    // 🔥 Disable button immediately when export starts
+    disableDownloadButton();
+
     // 1. Start export
     const resp = await fetch("/api/export/start", {
         method: "POST",
@@ -1389,63 +1404,68 @@ async function pollExportStatus(taskId) {
             // SUCCESS
             // ------------------------------
             if (data.status === "done") {
-                clearInterval(interval);
+              clearInterval(interval);
 
-                cancelBtn.classList.add("hidden");
-                if (exportBtn) exportBtn.disabled = false;
+              cancelBtn.classList.add("hidden");
+              if (exportBtn) exportBtn.disabled = false;
 
-                // Render styled download button
-                const box = document.getElementById("downloadArea");
-                if (box) {
-                    box.innerHTML = `
-                        <a href="${data.download_url}"
-                          class="btn-download"
-                          target="_blank"
-                          download>
-                            ⬇️ Download Export
-                        </a>
-                    `;
-                }
+              const box = document.getElementById("downloadArea");
+              if (box) {
+                  box.innerHTML = `
+                      <a id="downloadLink"
+                        href="${data.download_url}"
+                        class="btn-download"
+                        target="_blank"
+                        download>
+                          ⬇️ Download Export
+                      </a>
+                  `;
+              }
 
-                resolve(data.download_url);
-                return;
-            }
+              resolve(data.download_url);
+              return;
+          }
+
 
             // ------------------------------
             // CANCELLED
             // ------------------------------
             if (data.status === "cancelled") {
-                clearInterval(interval);
+              clearInterval(interval);
 
-                // Reset UI
-                cancelBtn.classList.add("hidden");
-                if (exportBtn) exportBtn.disabled = false;
+              cancelBtn.classList.add("hidden");
+              if (exportBtn) exportBtn.disabled = false;
 
-                // Clear BOTH possible areas
-                downloadArea.innerHTML = "";
-                statusEl.textContent = "";          // <-- THIS line fixes it
-                statusEl.className = "status-text"; // fully reset classes
+              const box = document.getElementById("downloadArea");
+              if (box) box.innerHTML = "";
 
-                reject("cancelled");
-                return;
-            }
+              statusEl.textContent = "";
+              statusEl.className = "status-text";
+
+              reject("cancelled");
+              return;
+          }
+
 
             // ------------------------------
             // ERROR
             // ------------------------------
             if (data.status === "error") {
-                clearInterval(interval);
+              clearInterval(interval);
 
-                cancelBtn.classList.add("hidden");
-                if (exportBtn) exportBtn.disabled = false;
+              cancelBtn.classList.add("hidden");
+              if (exportBtn) exportBtn.disabled = false;
 
-                downloadArea.innerHTML = "";
-                statusEl.textContent = "Export failed.";
-                statusEl.className = "status-text error";
+              const box = document.getElementById("downloadArea");
+              if (box) box.innerHTML = "";
 
-                reject(data.error || "error");
-                return;
-            }
+              statusEl.textContent = "Export failed.";
+              statusEl.className = "status-text error";
+
+              reject(data.error || "error");
+              return;
+          }
+
 
 
         }, 1500); // slightly faster polling = snappier UI
