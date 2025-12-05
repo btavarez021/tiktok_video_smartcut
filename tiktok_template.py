@@ -746,7 +746,11 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 # ---------------------------------------------------------
                 # (3) CTA TEXT — only after CTA start
                 # ---------------------------------------------------------
-                cta_y_expr = "(h*0.70)" if layout_mode == "tiktok" else "h-(text_h*1.5)-120"
+                if layout_mode == "tiktok":
+                    cta_y_expr = "(h * 0.70)"
+                else:
+                    cta_y_expr = "(h * 0.72)"   # safe for classic layout – always visible
+
 
                 vf += (
                     f";[v3]drawtext=text='{cta_text_safe}':"
