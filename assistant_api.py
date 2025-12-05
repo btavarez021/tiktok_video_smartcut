@@ -55,6 +55,23 @@ api_key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
 client = OpenAI(api_key=api_key) if api_key else None
 TEXT_MODEL = "gpt-4.1-mini"
 
+# -------------------------------
+# Helpers
+# -------------------------------
+def _load_config(session: str) -> dict:
+    """Load the session's config.yml safely."""
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
+    if not os.path.exists(config_path):
+        return {}
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+
 # ==========================================
 # SESSION-SCOPED ANALYSIS CACHE (NEW SYSTEM)
 # ==========================================
@@ -734,13 +751,40 @@ def api_fgscale(session: str, fgscale_mode: str, fgscale: float | None) -> Dict[
 # -------------------------------
 # Chat
 # -------------------------------
-def api_chat(message: str) -> Dict[str, Any]:
+def api_chat(message: str, session: str = "default") -> Dict[str, Any]:
+    session = sanitize_session(session)
+
     if not client:
         reply = f"(no OpenAI key) You said: {message}"
         log_error("[CHAT]", Exception("No OpenAI key"))
         return {"reply": reply}
 
-    prompt = f"You are a friendly TikTok travel assistant. User says:\n\n{message}"
+    # Load context
+    analyses = load_analysis_results_session(session)
+    cfg = _load_config(session)
+
+    # Build the smart contextual prompt
+    prompt = f"""
+            You are the user's TikTok video-editing assistant.
+            They are editing a hotel/travel reel using multiple vertical clips.
+
+            ### VIDEO CLIPS + AI ANALYSIS
+            {json.dumps(analyses, indent=2)}
+
+            ### CURRENT YAML CONFIG (do NOT modify unless asked)
+            {yaml.safe_dump(cfg, sort_keys=False)}
+
+            ### YOUR JOB
+            - Answer questions as an expert TikTok travel creator.
+            - Suggest better hooks, captions, CTAs, pacing ideas, and storytelling.
+            - Provide advice on improving scenes or captions based on the clip analyses.
+            - DO NOT modify YAML unless explicitly asked like:
+                "change the caption", "rewrite my CTA", "shorten clip 2"
+            - When asked to change something, ONLY describe what to change; do not output YAML.
+
+            User says:
+            {message}
+            """
 
     try:
         resp = client.chat.completions.create(
@@ -751,6 +795,9 @@ def api_chat(message: str) -> Dict[str, Any]:
         reply = (resp.choices[0].message.content or "").strip()
         log_success("[CHAT]", "Replied successfully")
         return {"reply": reply}
+
     except Exception as e:
         log_error("[CHAT]", e)
         return {"reply": f"Error: {e}"}
+
+
