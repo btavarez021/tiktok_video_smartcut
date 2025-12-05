@@ -1371,24 +1371,6 @@ function initFgScaleUI() {
     updateFgScaleUI();
 }
 
-async function startExport(sessionId) {
-
-    // 🔥 Disable button immediately when export starts
-    disableDownloadButton();
-
-    // 1. Start export
-    const resp = await fetch("/api/export/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session: sessionId })
-    });
-
-    const { task_id } = await resp.json();
-
-    // 2. Poll for status
-    return pollExportStatus(task_id);
-}
-
 async function pollExportStatus(taskId) {
     return new Promise((resolve, reject) => {
         const interval = setInterval(async () => {
@@ -1489,6 +1471,10 @@ async function exportVideo() {
     const btn = document.getElementById("exportBtn");
     const cancelBtn = document.getElementById("cancelExportBtn");
     const statusEl = document.getElementById("exportStatus");
+
+    // 🧼 Clear old download button immediately
+    const box = document.getElementById("downloadArea");
+    if (box) box.innerHTML = "";
 
     btn.disabled = true;
     cancelBtn.classList.remove("hidden");
