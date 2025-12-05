@@ -487,7 +487,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         # 2) Escape only characters FFmpeg needs escaped
         t = t.replace("\\", "\\\\")     # ESCAPE backslashes
         t = t.replace("'", "\\'")       # ESCAPE single quotes
-        t = t.replace("%", "\\%")       # ESCAPE % but KEEP newline intact
+        t = t.replace("%", "\\\\%") 
         
         # 3) Restore as literal \n (NOT double escaped)
         t = t.replace("<<<NL>>>", "\n")
