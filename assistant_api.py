@@ -9,7 +9,7 @@ import yaml
 from openai import OpenAI
 from flask import request
 from assistant_log import log_step, log_error, log_success
-from tiktok_template import config_path, edit_video, video_folder
+from tiktok_template import edit_video, video_folder,get_config_path
 from s3_config import (
     s3,
     S3_BUCKET_NAME,
@@ -22,19 +22,31 @@ from s3_config import (
 import shutil
 # Import ONLY non-circular functions from tiktok_assistant
 from tiktok_assistant import (
-    merge_session_config_into,
-    load_session_config,
-    save_session_config,
     generate_signed_download_url,
     list_videos_from_s3,
     download_s3_video,
     analyze_video,
     build_yaml_prompt,
-    save_analysis_result,
     sanitize_yaml_filenames,
+    apply_smart_timings
 )
+from tiktok_assistant import apply_overlay
+import time
 
 logger = logging.getLogger(__name__)
+
+
+# ========== TASK REGISTRY ==========
+export_tasks = {}  
+# Structure:
+# export_tasks[task_id] = {
+#     "status": "pending" | "processing" | "done" | "error" | "cancelled",
+#     "download_url": None,
+#     "error": None,
+#     "cancel_requested": False,
+# }
+
+
 
 # -------------------------------
 # OpenAI client
@@ -44,10 +56,21 @@ client = OpenAI(api_key=api_key) if api_key else None
 TEXT_MODEL = "gpt-4.1-mini"
 
 # -------------------------------
-# Analysis cache directory
+# Helpers
 # -------------------------------
-ANALYSIS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "video_analysis_cache")
-os.makedirs(ANALYSIS_CACHE_DIR, exist_ok=True)
+def _load_config(session: str) -> dict:
+    """Load the session's config.yml safely."""
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
+    if not os.path.exists(config_path):
+        return {}
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
 
 # ==========================================
 # SESSION-SCOPED ANALYSIS CACHE (NEW SYSTEM)
@@ -92,20 +115,6 @@ def load_analysis_results_session(session: str) -> Dict[str, str]:
 
     return results
 
-
-# ==========================================
-# 🔥 LEGACY GLOBAL CACHE CLEANUP (RUNS ONCE)
-# ==========================================
-# Remove old-style "*.json" files that lived directly under video_analysis_cache/
-LEGACY_DIR = ANALYSIS_BASE_DIR  # same folder
-
-try:
-    # Delete only top-level stale JSONs (NOT subfolders!)
-    for f in glob.glob(os.path.join(LEGACY_DIR, "*.json")):
-        os.remove(f)
-except Exception as e:
-    print("[LEGACY CLEANUP] Skipped:", e)
-
 # -------------------------------
 # Export mode
 # -------------------------------
@@ -132,30 +141,6 @@ def sanitize_session(s: str) -> str:
         return "default"
     s = s.strip().lower().replace(" ", "_")
     return "".join(c for c in s if c.isalnum() or c == "_") or "default"
-
-
-# -------------------------------
-# Load all analysis results from disk
-# -------------------------------
-def load_all_analysis_results() -> Dict[str, str]:
-    results: Dict[str, str] = {}
-
-    if not os.path.isdir(ANALYSIS_CACHE_DIR):
-        return results
-
-    for path in glob.glob(os.path.join(ANALYSIS_CACHE_DIR, "*.json")):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            fname = data.get("filename")
-            desc = data.get("description")
-            if fname and desc:
-                results[fname] = desc
-        except Exception as e:
-            logger.error(f"[LOAD_ANALYSIS] failed for {path}: {e}")
-
-    return results
-
 
 # -------------------------------
 # Upload order (S3 JSON index)
@@ -303,7 +288,10 @@ def _sync_s3_videos_to_local(session: str) -> List[str]:
     # Sync each file
     for key in keys:
         filename = os.path.basename(key)
-        local_path = os.path.join(video_folder, filename)
+        session_dir = os.path.join(video_folder, session)
+        os.makedirs(session_dir, exist_ok=True)
+        local_path = os.path.join(session_dir, filename)
+
 
         log_step(f"[SYNC] Checking cache for {filename}")
 
@@ -417,19 +405,22 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
         if not isinstance(cfg, dict):
             raise ValueError("LLM did not return valid YAML")
 
+        # Clean filenames (remove spaces, unicode, weird chars, etc.)
         cfg = sanitize_yaml_filenames(cfg)
 
+        # Defaults
         render = cfg.setdefault("render", {})
         if "layout_mode" not in render:
             render["layout_mode"] = "tiktok"
 
-        # NOTE: still using a single global config_path for now
-        # Apply session overrides (fgscale, etc.)
-        cfg = merge_session_config_into(cfg, session)
+        cta = cfg.setdefault("cta", {})
+        cta["duration"] = cta.get("duration", 3.0)
+
+        # Save YAML directly — no merge!
+        config_path = get_config_path(session)
 
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
-
 
         log_success("[YAML]", "Generated and saved config.yml")
         return cfg
@@ -439,48 +430,52 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
         return {"error": str(e)}
 
 
+
 # -------------------------------
 # Config retrieval + saving (global)
 # -------------------------------
 def api_get_config() -> Dict[str, Any]:
+    session_id = sanitize_session(request.args.get("session", "default"))
+    config_path = get_config_path(session_id)
+
     if not os.path.exists(config_path):
         return {"yaml": "", "config": {}, "error": "config.yml not found"}
 
+    # Load YAML text
     with open(config_path, "r", encoding="utf-8") as f:
         yaml_text = f.read()
 
     try:
         cfg = yaml.safe_load(yaml_text) or {}
-
-        # 🔥 Re-serialize cleaned config so UI sees the cleaned version
-        yaml_text = yaml.safe_dump(cfg, sort_keys=False)
-
-    except Exception:
-        cfg = {}
+    except Exception as e:
+        log_error("[GET_CONFIG]", e)
+        return {"yaml": yaml_text, "config": {}}
 
     return {"yaml": yaml_text, "config": cfg}
 
 
+
 def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
     try:
+        # Parse raw user YAML
         cfg = yaml.safe_load(yaml_text) or {}
         cfg = sanitize_yaml_filenames(cfg)
 
-        # Apply session overrides
-        session = request.args.get("session", "default")
-        session = sanitize_session(session)
-        cfg = merge_session_config_into(cfg, session)
+        session = sanitize_session(request.args.get("session", "default"))
+        config_path = get_config_path(session)
 
+        # ❗ Write ONLY what the user edited
+        # Do NOT merge session overrides here
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
-
-        log_success("[SAVE_YAML]", "config.yml saved successfully")
+        log_success("[SAVE_YAML]", f"config.yml saved for session '{session}'")
         return {"status": "ok"}
 
     except Exception as e:
         log_error("[SAVE_YAML]", e)
         return {"status": "error", "error": str(e)}
+
 
 
 # -------------------------------
@@ -496,30 +491,40 @@ def api_get_captions() -> Dict[str, Any]:
         return {"text": f.read()}
 
 
-def api_save_captions(text: str) -> Dict[str, Any]:
+def api_save_captions(text: str, session: str) -> Dict[str, Any]:
     try:
-        blocks = [b.strip() for b in text.split("\n\n") if b.strip()]
+        session = sanitize_session(session)
+        config_path = get_config_path(session)
 
+        # Load existing YAML
         with open(config_path, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
 
+        # Split caption blocks by blank lines
+        blocks = [b.strip() for b in text.split("\n\n") if b.strip()]
+
         idx = 0
+        # First clip
         if "first_clip" in cfg and idx < len(blocks):
             cfg["first_clip"]["text"] = blocks[idx]
             idx += 1
 
+        # Middle clips
         if "middle_clips" in cfg:
             for clip in cfg["middle_clips"]:
                 if idx < len(blocks):
                     clip["text"] = blocks[idx]
                     idx += 1
 
+        # Last clip
         if "last_clip" in cfg and idx < len(blocks):
             cfg["last_clip"]["text"] = blocks[idx]
 
+        # SAVE YAML CORRECTLY 🔥
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
+        # SAVE the caption editor text (global file)
         with open(_CAPTIONS_FILE, "w", encoding="utf-8") as f:
             f.write(text)
 
@@ -531,182 +536,255 @@ def api_save_captions(text: str) -> Dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 # -------------------------------
-# EXPORT (global config, session-aware)
+# EXPORT 
 # -------------------------------
-def api_export(optimized: bool = False, session: str = "default") -> Dict[str, Any]:
-    if not os.path.exists(config_path):
-        msg = "config.yml not found"
-        log_error("[EXPORT]", Exception(msg))
-        return {"status": "error", "error": msg}
-
+def run_export_task(task_id: str, session: str, optimized: bool):
     try:
-        mode = _EXPORT_MODE
-        log_step(f"[EXPORT] Rendering in {mode.upper()} mode (optimized={optimized})")
+        session = sanitize_session(session)
+        config_path = get_config_path(session)
 
-        # Inject session-specific overrides BEFORE rendering
+        # 🚨 If config does not exist
+        if not os.path.exists(config_path):
+            msg = f"config.yml not found for session '{session}'"
+            export_tasks[task_id]["status"] = "error"
+            export_tasks[task_id]["error"] = msg
+            return
+
+        # 🚨 CANCEL CHECK (1)
+        if export_tasks[task_id].get("cancel_requested"):
+            export_tasks[task_id]["status"] = "cancelled"
+            return
+
+        # ----------------------------------------------------
+        # Load config (NO MERGING ANYMORE)
+        # ----------------------------------------------------
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
-
-            # sanitize session coming from caller
-            session = sanitize_session(session)
-
-            # merge per-session config (fgscale, etc.)
-            cfg = merge_session_config_into(cfg, session)
-
-            with open(config_path, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, sort_keys=False)
-
         except Exception as e:
-            log_error("[EXPORT][SESSION MERGE]", e)
+            log_error("[EXPORT][LOAD_CFG]", e)
+            export_tasks[task_id]["status"] = "error"
+            export_tasks[task_id]["error"] = "Failed to load config.yml"
+            return
 
-        # Now render with merged config.yml
-        out_path = edit_video(optimized=optimized)
+        # 🚨 CANCEL CHECK (2)
+        if export_tasks[task_id].get("cancel_requested"):
+            export_tasks[task_id]["status"] = "cancelled"
+            return
+
+        # ----------------------------------------------------
+        # Render the video (long step)
+        # ----------------------------------------------------
+        out_path = edit_video(session_id=session, optimized=optimized)
         if not out_path:
             raise RuntimeError("edit_video() returned no output path")
 
-        log_step(f"[EXPORT] Finished rendering: {out_path}")
-
         filename = os.path.basename(out_path)
+
+        # 🚨 CANCEL CHECK (3)
+        if export_tasks[task_id].get("cancel_requested"):
+            export_tasks[task_id]["status"] = "cancelled"
+            return
+
+        # ----------------------------------------------------
+        # Upload to S3
+        # ----------------------------------------------------
         prefix = EXPORT_PREFIX.rstrip("/")
-        raw_key = f"{prefix}/{filename}"
-        export_key = clean_s3_key(raw_key)
+        export_key = clean_s3_key(f"{prefix}/{session}/{filename}")
 
         s3.upload_file(out_path, S3_BUCKET_NAME, export_key)
         log_step(f"[EXPORT] Uploaded to s3://{S3_BUCKET_NAME}/{export_key}")
 
+        # Signed URL
         url = generate_signed_download_url(export_key)
 
-        log_success("[EXPORT]", f"Completed and uploaded {filename}")
-        return {
-            "status": "ok",
-            "output_path": out_path,
-            "download_url": url,
-            "s3_key": export_key,
-            "local_filename": filename,
-        }
+        # ----------------------------------------------------
+        # Update Task Result
+        # ----------------------------------------------------
+        export_tasks[task_id]["status"] = "done"
+        export_tasks[task_id]["download_url"] = url
+        export_tasks[task_id]["filename"] = filename
+        export_tasks[task_id]["s3_key"] = export_key
 
     except Exception as e:
         log_error("[EXPORT]", e)
-        return {"status": "error", "error": str(e)}
-
-
+        export_tasks[task_id]["status"] = "error"
+        export_tasks[task_id]["error"] = str(e)
 
 # -------------------------------
 # TTS / CTA Settings (global)
 # -------------------------------
-def _load_config_for_mutation() -> dict:
-    if not os.path.exists(config_path):
-        return {}
-    with open(config_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
 
+def api_set_tts(session: str, enabled: bool, voice: str | None) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
 
-def _save_config(cfg: dict) -> None:
+    cfg = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+
+    r = cfg.setdefault("render", {})
+    r["tts_enabled"] = bool(enabled)
+
+    if voice:
+        r["tts_voice"] = voice
+
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
 
-
-def api_set_tts(enabled: bool, voice: str | None) -> Dict[str, Any]:
-    cfg = _load_config_for_mutation()
-    r = cfg.setdefault("render", {})
-    r["tts_enabled"] = bool(enabled)
-    if voice:
-        r["tts_voice"] = voice
-    _save_config(cfg)
     return {"status": "ok", "render": r}
 
 
-def api_set_cta(enabled: bool, text: str | None, voiceover: bool | None) -> Dict[str, Any]:
-    cfg = _load_config_for_mutation()
+
+def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool | None, duration: float | None = None):
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
+
+    cfg = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+
     c = cfg.setdefault("cta", {})
     c["enabled"] = bool(enabled)
+
     if text is not None:
         c["text"] = text
+
     if voiceover is not None:
         c["voiceover"] = bool(voiceover)
-    _save_config(cfg)
+
+    if duration is not None:
+        try:
+            c["duration"] = float(duration)
+        except:
+            c["duration"] = 3.0
+    else:
+        c.setdefault("duration", 3.0)
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+
     return {"status": "ok", "cta": c}
+
 
 
 # -------------------------------
 # Overlay + Timings + fg_scale
 # -------------------------------
-def api_apply_overlay(style: str) -> Dict[str, Any]:
+def api_apply_overlay(session_id: str, style: str) -> Dict[str, Any]:
     try:
-        from tiktok_assistant import apply_overlay
+        session_id = sanitize_session(session_id)
 
-        apply_overlay(style)
-        log_success("[OVERLAY]", f"Applied overlay style '{style}'")
-        return {"status": "ok", "style": style}
+        apply_overlay(session_id, style)
+
+        log_success("[OVERLAY]",
+                    f"Applied overlay style '{style}' for session '{session_id}'")
+
+        return {"status": "ok", "style": style, "session": session_id}
+
     except Exception as e:
         log_error("[OVERLAY]", e)
         return {"status": "error", "error": str(e)}
 
 
-def api_apply_timings(smart: bool = False) -> Dict[str, Any]:
-    from tiktok_assistant import apply_smart_timings
-
+def api_apply_timings(session_id: str, smart: bool = False) -> Dict[str, Any]:
     try:
+
+        session_id = sanitize_session(session_id)
         pacing = "cinematic" if smart else "standard"
-        apply_smart_timings(pacing)
-        log_success("[TIMINGS]", f"Applied '{smart}'")
-        return {"status": "ok", "pacing": pacing}
+
+        # Apply timings for THIS session's config
+        apply_smart_timings(session_id, pacing)
+
+        log_success("[TIMINGS]",
+                    f"Applied timings '{pacing}' for session '{session_id}'")
+
+        return {"status": "ok", "pacing": pacing, "session": session_id}
+
     except Exception as e:
         log_error("[TIMINGS]", e)
         return {"status": "error", "error": str(e)}
 
 
-def api_set_layout(mode: str) -> Dict[str, Any]:
-    try:
-        cfg = _load_config_for_mutation()
-        r = cfg.setdefault("render", {})
-        r["layout_mode"] = mode
-        _save_config(cfg)
-        return {"status": "ok", "layout_mode": mode}
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
+
+def api_set_layout(session: str, mode: str) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
+
+    cfg = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+
+    r = cfg.setdefault("render", {})
+    r["layout_mode"] = mode
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+
+    return {"status": "ok", "layout_mode": mode}
 
 
 def api_fgscale(session: str, fgscale_mode: str, fgscale: float | None) -> Dict[str, Any]:
-    """
-    Save foreground scale settings for a specific session.
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
 
-    fgscale_mode: "auto" or "manual"
-    fgscale: float value when manual, or None when auto.
-    """
-    try:
-        # Load session config
-        cfg = load_session_config(session)
-        render_cfg = cfg.get("render", {})
+    cfg = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
 
-        # Apply changes
-        render_cfg["fgscale_mode"] = fgscale_mode
-        render_cfg["fgscale"] = fgscale  # can be None
+    r = cfg.setdefault("render", {})
+    r["fgscale_mode"] = fgscale_mode
+    r["fgscale"] = fgscale
 
-        cfg["render"] = render_cfg
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
 
-        # Save updated config
-        save_session_config(session, cfg)
+    return {"status": "ok", "render": r}
 
-        log_success("[FGSCALE]", f"({session}) mode={fgscale_mode} value={fgscale}")
-        return {"status": "ok", "render": render_cfg}
-
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
 
 
 
 # -------------------------------
 # Chat
 # -------------------------------
-def api_chat(message: str) -> Dict[str, Any]:
+def api_chat(message: str, session: str = "default") -> Dict[str, Any]:
+    session = sanitize_session(session)
+
     if not client:
         reply = f"(no OpenAI key) You said: {message}"
         log_error("[CHAT]", Exception("No OpenAI key"))
         return {"reply": reply}
 
-    prompt = f"You are a friendly TikTok travel assistant. User says:\n\n{message}"
+    # Load context
+    analyses = load_analysis_results_session(session)
+    cfg = _load_config(session)
+
+    # Build the smart contextual prompt
+    prompt = f"""
+            You are the user's TikTok video-editing assistant.
+            They are editing a hotel/travel reel using multiple vertical clips.
+
+            ### VIDEO CLIPS + AI ANALYSIS
+            {json.dumps(analyses, indent=2)}
+
+            ### CURRENT YAML CONFIG (do NOT modify unless asked)
+            {yaml.safe_dump(cfg, sort_keys=False)}
+
+            ### YOUR JOB
+            - Answer questions as an expert TikTok travel creator.
+            - Suggest better hooks, captions, CTAs, pacing ideas, and storytelling.
+            - Provide advice on improving scenes or captions based on the clip analyses.
+            - DO NOT modify YAML unless explicitly asked like:
+                "change the caption", "rewrite my CTA", "shorten clip 2"
+            - When asked to change something, ONLY describe what to change; do not output YAML.
+
+            User says:
+            {message}
+            """
 
     try:
         resp = client.chat.completions.create(
@@ -717,6 +795,9 @@ def api_chat(message: str) -> Dict[str, Any]:
         reply = (resp.choices[0].message.content or "").strip()
         log_success("[CHAT]", "Replied successfully")
         return {"reply": reply}
+
     except Exception as e:
         log_error("[CHAT]", e)
         return {"reply": f"Error: {e}"}
+
+

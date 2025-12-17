@@ -7,6 +7,9 @@ let previewPlaying = false;
 // 🔵 Active session (hotel / batch)
 let ACTIVE_SESSION = "default";
 
+let ACTIVE_EXPORT_TASK = null;
+
+
 // -------------------------
 // Session helpers
 // -------------------------
@@ -149,6 +152,17 @@ function sidebarSyncActiveLabel() {
 // ================================
 // Utility helpers
 // ================================
+
+function disableDownloadButton() {
+    const btn = document.getElementById("downloadLink");
+    if (!btn) return;
+
+    btn.classList.add("disabled");
+    btn.textContent = "Exporting…";
+    btn.removeAttribute("href");   // remove old link
+}
+
+
 function showSessionToast(msg) {
     const area = document.getElementById("sessionToastArea");
     if (!area) return;
@@ -898,18 +912,27 @@ async function applyOverlay() {
     if (!styleSel || !statusEl) return;
 
     const style = styleSel.value || "travel_blog";
+
+    console.log("[OVERLAY] Applying:", style, "Session:", getActiveSession());
+
     setStatus("overlayStatus", `Applying overlay style “${style}”…`, "info");
 
     try {
-        await jsonFetch("/api/overlay", {
+        const result = await jsonFetch("/api/overlay", {
             method: "POST",
             body: JSON.stringify({
                 style,
                 session: getActiveSession(),
             }),
         });
-        setStatus("overlayStatus", "Overlay applied.", "success");
+
+        console.log("[OVERLAY RESULT]", result);
+
+        setStatus("overlayStatus", "Overlay applied.", "success", true);
+
+        // ALWAYS force-refresh config
         await loadConfigAndYaml();
+
     } catch (err) {
         console.error(err);
         setStatus(
@@ -919,6 +942,7 @@ async function applyOverlay() {
         );
     }
 }
+
 
 // Timings
 async function applyTiming(smart) {
@@ -941,7 +965,7 @@ async function applyTiming(smart) {
                 session: getActiveSession(),
             }),
         });
-        setStatus("timingStatus", "Timings updated.", "success");
+        setStatus("timingStatus", "Timings updated.", "success", true);
         await loadConfigAndYaml();
     } catch (err) {
         console.error(err);
@@ -1347,99 +1371,150 @@ function initFgScaleUI() {
     updateFgScaleUI();
 }
 
+async function pollExportStatus(taskId) {
+    return new Promise((resolve, reject) => {
+        const interval = setInterval(async () => {
+
+            const res = await fetch(`/api/export/status?task_id=${taskId}`);
+            const data = await res.json();
+
+            const statusEl = document.getElementById("exportStatus");
+            const cancelBtn = document.getElementById("cancelExportBtn");
+            const exportBtn = document.getElementById("exportBtn");
+
+            // ------------------------------
+            // SUCCESS
+            // ------------------------------
+            if (data.status === "done") {
+              clearInterval(interval);
+
+              cancelBtn.classList.add("hidden");
+              if (exportBtn) exportBtn.disabled = false;
+
+              const box = document.getElementById("downloadArea");
+              if (box) {
+                  box.innerHTML = `
+                      <a id="downloadLink"
+                        href="${data.download_url}"
+                        class="btn-download"
+                        target="_blank"
+                        download>
+                          ⬇️ Download Export
+                      </a>
+                  `;
+              }
+
+              resolve(data.download_url);
+              return;
+          }
+
+
+            // ------------------------------
+            // CANCELLED
+            // ------------------------------
+            if (data.status === "cancelled") {
+              clearInterval(interval);
+
+              cancelBtn.classList.add("hidden");
+              if (exportBtn) exportBtn.disabled = false;
+
+              const box = document.getElementById("downloadArea");
+              if (box) box.innerHTML = "";
+
+              statusEl.textContent = "";
+              statusEl.className = "status-text";
+
+              reject("cancelled");
+              return;
+          }
+
+
+            // ------------------------------
+            // ERROR
+            // ------------------------------
+            if (data.status === "error") {
+              clearInterval(interval);
+
+              cancelBtn.classList.add("hidden");
+              if (exportBtn) exportBtn.disabled = false;
+
+              const box = document.getElementById("downloadArea");
+              if (box) box.innerHTML = "";
+
+              statusEl.textContent = "Export failed.";
+              statusEl.className = "status-text error";
+
+              reject(data.error || "error");
+              return;
+          }
+
+
+
+        }, 1500); // slightly faster polling = snappier UI
+    });
+}
+
+function showDownloadButton(url) {
+    const area = document.getElementById("downloadArea");
+    area.innerHTML = `
+        <button class="btn-download" onclick="window.open('${url}', '_blank')">
+            ⬇️ Download Video
+        </button>
+    `;
+}
+
+
 // ================================
-// Step 5: Export
+// Step 5: EXPORT (Async)
 // ================================
 async function exportVideo() {
-    const exportStatus = document.getElementById("exportStatus");
-    const downloadArea = document.getElementById("downloadArea");
     const btn = document.getElementById("exportBtn");
-    if (!exportStatus || !downloadArea || !btn) return;
+    const cancelBtn = document.getElementById("cancelExportBtn");
+    const statusEl = document.getElementById("exportStatus");
 
-    const mode = document.querySelector('input[name="exportMode"]:checked')?.value;
-    const optimized = mode === "optimized";
+    // 🧼 Clear old download button immediately
+    const box = document.getElementById("downloadArea");
+    if (box) box.innerHTML = "";
 
-    setStatus(
-        "exportStatus",
-        optimized ? "Rendering (HQ)..." : "Rendering…",
-        "info",
-        false
-    );
-
-    downloadArea.innerHTML = "";
     btn.disabled = true;
+    cancelBtn.classList.remove("hidden");
+    statusEl.textContent = "⏳ Rendering… you can leave this page.";
 
     try {
-        const data = await jsonFetch("/api/export", {
-            method: "POST",
-            body: JSON.stringify({
-                optimized,
-                session: getActiveSession(),
-            }),
-        });
+    const startResp = await jsonFetch("/api/export/start", {
+        method: "POST",
+        body: JSON.stringify({ session: getActiveSession() })
+    });
 
-        if (data.status !== "ok") {
-            throw new Error(data.error || "Unknown export error");
-        }
+    const taskId = startResp.task_id;
+    ACTIVE_EXPORT_TASK = taskId;
 
-        const downloadUrl = data.download_url;
-        const filename = data.local_filename || "export.mp4";
+    const downloadUrl = await pollExportStatus(taskId);
 
-        await new Promise((res) => setTimeout(res, 500));
+    cancelBtn.classList.add("hidden");
 
-        if (downloadUrl) {
-            let ok = await probeUrl(downloadUrl);
-            if (!ok) {
-                for (let i = 0; i < 3; i++) {
-                    await new Promise((res) => setTimeout(res, 400));
-                    ok = await probeUrl(downloadUrl);
-                    if (ok) break;
-                }
-            }
-        }
+    // ❗ Remove the Download Video <a> link
+    // OLD:
+    // statusEl.innerHTML = `
+    //    ✅ Export complete<br>
+    //    <a href="${downloadUrl}" target="_blank">Download Video</a>
+    // `;
 
-        setStatus("exportStatus", "Export complete!", "success");
+    // NEW:
+    statusEl.textContent = "✅ Export complete";
 
-        if (downloadUrl) {
-            downloadArea.innerHTML = `
-                <div>✅ Video ready:</div>
-                <button id="directDownloadBtn" class="btn primary full">
-                    ⬇ Download ${filename}
-                </button>
-            `;
+    // 🔥 Show your nice styled button
+    showDownloadButton(downloadUrl);
 
-            const directBtn = document.getElementById("directDownloadBtn");
-            if (directBtn) {
-                directBtn.onclick = () => safeDownload(downloadUrl, filename);
-            }
-        } else {
-            downloadArea.innerHTML = `
-                <div>⚠ Local file only (S3 upload missing):</div>
-                <button id="directLocalBtn" class="btn primary full">
-                    ⬇ Download ${filename}
-                </button>
-            `;
-            const localBtn = document.getElementById("directLocalBtn");
-            if (localBtn) {
-                localBtn.onclick = () =>
-                    safeDownload(
-                        `/api/download/${encodeURIComponent(filename)}`,
-                        filename
-                    );
-            }
-        }
-    } catch (err) {
-        console.error(err);
-        setStatus(
-            "exportStatus",
-            `Error during export: ${err.message}`,
-            "error",
-            false
-        );
-    } finally {
-        btn.disabled = false;
-    }
+} catch (err) {
+    statusEl.textContent = "❌ " + err;
+} finally {
+    btn.disabled = false;
+    ACTIVE_EXPORT_TASK = null;
+    cancelBtn.classList.add("hidden");
 }
+}
+
 
 // ================================
 // Chat
@@ -1557,6 +1632,27 @@ document.addEventListener("DOMContentLoaded", () => {
         sidebarSyncActiveLabel();
         sidebarToast(`Switched to “${ddl.value}”`);
     });
+
+    document.getElementById("cancelExportBtn")?.addEventListener("click", async () => {
+    if (!ACTIVE_EXPORT_TASK) return;
+
+    const statusEl = document.getElementById("exportStatus");
+    const cancelBtn = document.getElementById("cancelExportBtn");
+
+    statusEl.textContent = "⛔ Canceling export…";
+
+    await jsonFetch("/api/export/cancel", {
+        method: "POST",
+        body: JSON.stringify({ task_id: ACTIVE_EXPORT_TASK })
+    });
+
+    // Do NOT hide the button yet — wait for poller to confirm
+    // Only clear your local task ID
+    // UI update happens inside pollExportStatus()
+    ACTIVE_EXPORT_TASK = null;
+});
+
+
 
     document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () => {
         const session = getActiveSession();
