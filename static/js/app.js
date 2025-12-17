@@ -99,6 +99,7 @@ function setActiveSession(name) {
     clearAnalysisUI();
     refreshAnalyses();
     loadConfigAndYaml();
+    refreshHookScore();
     loadSessionDropdown();
     loadSessions();
     sidebarLoadSessions();
@@ -683,6 +684,7 @@ async function generateYaml() {
         });
         setStatus("yamlStatus", "YAML generated!", "success");
         await loadConfigAndYaml();
+        await refreshHookScore();
     } catch (err) {
         console.error(err);
         setStatus(
@@ -737,6 +739,75 @@ async function saveYaml() {
     }
 }
 
+async function refreshHookScore() {
+    const captionsEl = document.getElementById("captionsText");
+
+    // 🚫 Do not score if captions are not visible or empty
+    if (!captionsEl || !captionsEl.value.trim()) {
+        return;
+    }
+
+    const scoreEl = document.getElementById("hookScoreValue");
+    const reasonsEl = document.getElementById("hookScoreReasons");
+    const hookEl = document.getElementById("hookScoreHook");
+    const statusEl = document.getElementById("hookScoreStatus");
+
+    if (!scoreEl || !reasonsEl || !hookEl) return;
+
+    try {
+        if (statusEl) statusEl.textContent = "Checking hook…";
+
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/hook_score?session=${session}`);
+
+        scoreEl.textContent = `${data.score ?? 0}/100`;
+        hookEl.textContent = data.hook || "(no first caption yet)";
+
+        const reasons = data.reasons || [];
+        reasonsEl.innerHTML = reasons.length
+            ? reasons.map(r => `<li>${r}</li>`).join("")
+            : `<li>Looks solid ✅</li>`;
+
+        if (statusEl) statusEl.textContent = "";
+    } catch (err) {
+        if (statusEl) statusEl.textContent = "Hook score unavailable.";
+        console.error("Hook score error:", err);
+    }
+}
+
+
+async function improveHook() {
+    const btn = document.getElementById("improveHookBtn");
+    const statusEl = document.getElementById("hookScoreStatus");
+    if (!btn) return;
+
+    btn.disabled = true;
+    if (statusEl) statusEl.textContent = "Improving hook…";
+
+    try {
+        const data = await jsonFetch("/api/hook_improve", {
+            method: "POST",
+            body: JSON.stringify({ session: getActiveSession() }),
+        });
+
+        if (data.status !== "ok") throw new Error(data.error || "failed");
+
+        // Reload captions UI and YAML preview so user sees change
+        await loadCaptionsFromYaml();
+        await loadConfigAndYaml();
+        await refreshHookScore();
+
+        if (statusEl) statusEl.textContent = "Hook improved ✅";
+        setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 1500);
+    } catch (err) {
+        console.error(err);
+        if (statusEl) statusEl.textContent = "Failed to improve hook.";
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+
 // ================================
 // Step 3: Captions
 // ================================
@@ -769,6 +840,7 @@ async function loadCaptionsFromYaml() {
         const data = await jsonFetch(`/api/config?session=${session}`);
         const cfg = data.config || {};
         captionsEl.value = buildCaptionsFromConfig(cfg);
+        await refreshHookScore();
         setStatus("captionsStatus", "Captions loaded.", "success");
     } catch (err) {
         console.error(err);
@@ -892,6 +964,7 @@ async function saveCaptions() {
         );
 
         await loadConfigAndYaml();
+        await refreshHookScore();
     } catch (err) {
         console.error(err);
         setStatus(
@@ -1781,6 +1854,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
+    document.getElementById("improveHookBtn")?.addEventListener("click", improveHook);
+
 
     // Legacy quick-switch for sessions (top bar)
     document.getElementById("switchSessionBtn")?.addEventListener("click", () => {

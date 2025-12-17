@@ -11,7 +11,7 @@ import tempfile
 import subprocess
 import json
 from typing import Dict, List, Optional
-
+import re
 import yaml
 from openai import OpenAI
 
@@ -83,6 +83,103 @@ def download_s3_video(key: str) -> Optional[str]:
     except Exception as e:
         log_step(f"[S3 DOWNLOAD ERROR] {e}")
         return None
+
+# -----------------------------------------
+# Hook Score
+#-------------------------------------------
+
+def extract_hook_text(cfg: dict) -> str:
+    """
+    Extract the first spoken sentence (hook) from config.yml.
+    Uses first_clip.text.
+    """
+    try:
+        return (cfg.get("first_clip", {}) or {}).get("text", "").strip()
+    except Exception:
+        return ""
+
+def score_hook_text(text: str) -> dict:
+    """
+    Score the hook text (first sentence) from 0–100.
+    Returns score + reasons.
+    """
+
+    import re
+
+def extract_hook_text(cfg: dict) -> str:
+    """Return first_clip.text as the hook."""
+    try:
+        return (cfg.get("first_clip", {}) or {}).get("text", "").strip()
+    except Exception:
+        return ""
+
+def _normalize_spaces(s: str) -> str:
+    return re.sub(r"\s+", " ", (s or "")).strip()
+
+def score_hook_text(text: str) -> dict:
+    """
+    Score hook from 0-100 with calm reasons (max 2).
+    Deterministic V1 (no LLM).
+    """
+    text = _normalize_spaces(text)
+    if not text:
+        return {"score": 0, "reasons": ["No opening sentence detected."]}
+
+    lower = text.lower()
+    words = lower.split()
+    wc = len(words)
+
+    score = 0
+    reasons = []
+
+    # 1) Clarity (0–30)
+    if any(k in lower for k in ["hotel", "room", "stay", "resort"]):
+        score += 30
+    elif any(k in lower for k in ["this place", "this spot", "this stay"]):
+        score += 15
+        reasons.append("Subject is vague; consider naming the hotel or location.")
+    else:
+        reasons.append("Opening doesn’t clearly say what’s being reviewed.")
+
+    # 2) Curiosity / tension (0–30)
+    curiosity_terms = ["surprised", "unexpected", "didn't expect", "but", "however", "until", "for one reason"]
+    if any(t in lower for t in curiosity_terms):
+        score += 30
+    else:
+        reasons.append("Opening lacks curiosity/tension (no open loop).")
+
+    # 3) Brevity (0–20)
+    if wc <= 12:
+        score += 20
+    elif wc <= 18:
+        score += 10
+        reasons.append("Opening sentence is a bit long.")
+    else:
+        reasons.append("Opening sentence is too long for a strong hook.")
+
+    # 4) Spoken safety (0–20)
+    filler_starters = {"so", "today", "we", "okay", "basically", "alright"}
+    if words and words[0] not in filler_starters:
+        score += 20
+    else:
+        reasons.append("Opening starts with filler words (hurts scroll-stop).")
+
+    return {"score": min(score, 100), "reasons": reasons[:2]}
+
+def improve_hook_text(original: str) -> str:
+    """
+    V1: simple rule-based improvement.
+    (We can upgrade to LLM later.)
+    """
+    original = _normalize_spaces(original)
+    if not original:
+        return original
+
+    # If it already has strong curiosity keyword, keep it
+    if any(k in original.lower() for k in ["surprised", "unexpected", "didn't expect", "for one reason"]):
+        return original
+
+    return "This hotel surprised me more than I expected."
 
 
 # -----------------------------------------

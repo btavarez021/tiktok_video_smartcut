@@ -28,7 +28,8 @@ from tiktok_assistant import (
     analyze_video,
     build_yaml_prompt,
     sanitize_yaml_filenames,
-    apply_smart_timings
+    apply_smart_timings,
+    extract_hook_text, score_hook_text, improve_hook_text
 )
 from tiktok_assistant import apply_overlay
 import time
@@ -114,6 +115,54 @@ def load_analysis_results_session(session: str) -> Dict[str, str]:
             logger.error(f"[LOAD_ANALYSIS][{session}] failed for {path}: {e}")
 
     return results
+
+# -----------------------------------------
+# Hook Score
+#-------------------------------------------
+
+def api_hook_score(session: str) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    cfg = _load_config(session)
+
+    hook = extract_hook_text(cfg)
+    result = score_hook_text(hook)
+
+    return {
+        "hook": hook,
+        "score": result["score"],
+        "reasons": result["reasons"],
+    }
+
+
+def api_improve_hook(session: str) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
+
+    if not os.path.exists(config_path):
+        return {"status": "error", "error": "config.yml not found"}
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+
+    hook = extract_hook_text(cfg)
+    new_hook = improve_hook_text(hook)
+
+    # Update first_clip.text only
+    cfg.setdefault("first_clip", {})
+    cfg["first_clip"]["text"] = new_hook
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+
+    # Return new score too
+    result = score_hook_text(new_hook)
+
+    return {
+        "status": "ok",
+        "hook": new_hook,
+        "score": result["score"],
+        "reasons": result["reasons"],
+    }
 
 # -------------------------------
 # Export mode

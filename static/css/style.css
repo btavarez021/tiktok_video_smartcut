@@ -1633,3 +1633,42 @@ h3 {
         transform: scale(0.97);
     }
 }
+
+
+.hook-score-card {
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #1a1a1b;
+    border: 1px solid #2e2e31;
+}
+
+.hook-score-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.hook-score-value {
+    font-weight: 600;
+    color: #6a9eff;
+}
+
+.hook-score-hook {
+    font-size: 0.9rem;
+    color: #e5e5e7;
+    margin-bottom: 6px;
+}
+
+.hook-score-reasons {
+    font-size: 0.8rem;
+    color: #9b9b9f;
+    margin: 0 0 6px 16px;
+}
+
+.hook-score-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}

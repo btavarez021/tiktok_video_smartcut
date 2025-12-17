@@ -34,7 +34,9 @@ from assistant_api import (
     set_export_mode,
     sanitize_session as backend_sanitize_session,
     run_export_task,   
-    export_tasks      
+    export_tasks,
+    api_hook_score,
+    api_improve_hook,   
 )
 from tiktok_template import get_config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -131,6 +133,22 @@ def api_move_upload_route():
 def api_delete_upload_route():
     data = request.get_json() or {}
     return jsonify(delete_upload_s3(key=data["key"]))
+
+# -----------------------------------------
+# Hook Score
+#-------------------------------------------
+
+@app.route("/api/hook_score", methods=["GET"])
+def route_hook_score():
+    session = sanitize_session(request.args.get("session", "default"))
+    return jsonify(api_hook_score(session))
+
+
+@app.route("/api/hook_improve", methods=["POST"])
+def route_hook_improve():
+    data = request.get_json(silent=True) or {}
+    session = sanitize_session(data.get("session", request.args.get("session", "default")))
+    return jsonify(api_improve_hook(session))
 
 
 # ============================================================================
