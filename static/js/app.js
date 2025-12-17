@@ -943,6 +943,48 @@ async function applyOverlay() {
     }
 }
 
+// Story Mode (v2.1)
+async function loadStoryModeFromYaml() {
+    const el = document.getElementById("storyModeEnabled");
+    if (!el) return;
+
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        const cfg = data.config || {};
+        const render = cfg.render || {};
+
+        el.checked = !!render.story_mode;
+    } catch (err) {
+        console.error("Failed loading story mode", err);
+    }
+}
+
+async function saveStoryMode(enabled) {
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        const cfg = data.config || {};
+
+        cfg.render = cfg.render || {};
+        cfg.render.story_mode = !!enabled;
+
+        const yamlText = jsyaml.dump(cfg);
+
+        await jsonFetch("/api/save_yaml", {
+            method: "POST",
+            body: JSON.stringify({
+                yaml: yamlText,
+                session: getActiveSession(),
+            }),
+        });
+
+        await loadConfigAndYaml();
+    } catch (err) {
+        console.error("Error saving story mode", err);
+    }
+}
+
 
 // Timings
 async function applyTiming(smart) {
@@ -1019,6 +1061,7 @@ async function saveLayoutMode() {
         setStatus("layoutStatus", "Error saving layout: " + err.message, "error");
     }
 }
+
 
 // TTS
 async function saveTtsSettings() {
@@ -1730,6 +1773,7 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshAnalyses();
     loadConfigAndYaml();
     loadLayoutFromYaml();
+    loadStoryModeFromYaml();
 
     // Accordion toggles
     document.querySelectorAll(".acc-header").forEach((btn) => {
@@ -1781,6 +1825,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
+
+    document.getElementById("storyModeEnabled")?.addEventListener("change", (e) => {
+        saveStoryMode(e.target.checked);
+    });
+
 
     // Legacy quick-switch for sessions (top bar)
     document.getElementById("switchSessionBtn")?.addEventListener("click", () => {
