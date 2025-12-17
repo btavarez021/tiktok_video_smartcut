@@ -741,18 +741,22 @@ async function saveYaml() {
 
 async function refreshHookScore() {
     const captionsEl = document.getElementById("captionsText");
-
-    // 🚫 Do not score if captions are not visible or empty
-    if (!captionsEl || !captionsEl.value.trim()) {
-        return;
-    }
-
+    const card = document.querySelector(".hook-score-card");
     const scoreEl = document.getElementById("hookScoreValue");
     const reasonsEl = document.getElementById("hookScoreReasons");
     const hookEl = document.getElementById("hookScoreHook");
     const statusEl = document.getElementById("hookScoreStatus");
+    const improveBtn = document.getElementById("improveHookBtn");
 
-    if (!scoreEl || !reasonsEl || !hookEl) return;
+    // 🚫 No captions → hide hook score entirely
+    if (!captionsEl || !captionsEl.value.trim()) {
+        if (card) card.classList.add("hidden");
+        return;
+    }
+
+    if (!card || !scoreEl || !reasonsEl || !hookEl) return;
+
+    card.classList.remove("hidden");
 
     try {
         if (statusEl) statusEl.textContent = "Checking hook…";
@@ -760,8 +764,28 @@ async function refreshHookScore() {
         const session = encodeURIComponent(getActiveSession());
         const data = await jsonFetch(`/api/hook_score?session=${session}`);
 
-        scoreEl.textContent = `${data.score ?? 0}/100`;
-        hookEl.textContent = data.hook || "(no first caption yet)";
+        const score = Number(data.score ?? 0);
+        scoreEl.textContent = `${score}/100`;
+        hookEl.textContent = data.hook || "(no opening caption yet)";
+
+        // Reset classes
+        card.classList.remove("good", "ok", "bad");
+        scoreEl.classList.remove("good", "ok", "bad");
+
+        // 🎨 Color logic
+        if (score >= 85) {
+            card.classList.add("good");
+            scoreEl.classList.add("good");
+            if (improveBtn) improveBtn.style.display = "none";
+        } else if (score >= 70) {
+            card.classList.add("ok");
+            scoreEl.classList.add("ok");
+            if (improveBtn) improveBtn.style.display = "inline-flex";
+        } else {
+            card.classList.add("bad");
+            scoreEl.classList.add("bad");
+            if (improveBtn) improveBtn.style.display = "inline-flex";
+        }
 
         const reasons = data.reasons || [];
         reasonsEl.innerHTML = reasons.length
@@ -770,8 +794,8 @@ async function refreshHookScore() {
 
         if (statusEl) statusEl.textContent = "";
     } catch (err) {
-        if (statusEl) statusEl.textContent = "Hook score unavailable.";
         console.error("Hook score error:", err);
+        if (statusEl) statusEl.textContent = "Hook score unavailable.";
     }
 }
 
