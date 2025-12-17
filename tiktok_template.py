@@ -527,26 +527,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     transition_type = transition_cfg.get("type", "fade")
     transition_duration = float(transition_cfg.get("duration", 0.4))
 
-    SUPPORTED_TRANSITIONS = {
-    "fade",
-    "wipeleft",
-    "wiperight",
-    "slideleft",
-    "slideright",
-    "smoothleft",
-    "smoothright",
-    "circlecrop",
-    "circleopen",
-    }
-
-    if transition_type not in SUPPORTED_TRANSITIONS:
-        log_step(
-            f"[STORY] Unsupported transition '{transition_type}', "
-            f"falling back to 'fade'"
-        )
-        transition_type = "fade"
-
-
     # -------------------------------
     # 5.2 — Clamp transition duration (safety)
     # -------------------------------
@@ -753,24 +733,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         # Visual CTA window: last ~1.0–1.2 seconds (never more)
         last_clip_cta_visual_len = min(cta_segment_len, clip_dur, 1.2)
         last_clip_cta_start_rel = max(clip_dur - last_clip_cta_visual_len, clip_dur * 0.75)
-
-        # -------------------------------
-        # 5.3 — CTA vs transition safety
-        # -------------------------------
-        if story_mode and last_clip_cta_start_rel is not None:
-            safe_start = max(
-                last_clip_cta_start_rel,
-                transition_duration + 0.15
-            )
-
-            if safe_start != last_clip_cta_start_rel:
-                log_step(
-                    f"[CTA-SAFETY] Adjusting CTA start "
-                    f"{last_clip_cta_start_rel:.2f}s → {safe_start:.2f}s"
-                )
-
-        last_clip_cta_start_rel = safe_start
-
+        
 
         log_step(
             f"[CTA-LAST-CLIP-SETUP] clip_dur={clip_dur:.2f}, "
