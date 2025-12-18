@@ -425,31 +425,31 @@ def ensure_local_video(session_id: str, filename: str) -> str:
 # -------------------------------
 # Simple, robust caption wrapper
 # -------------------------------
-# def _wrap_caption(text: str, max_chars_per_line: int) -> str:
-#     """
-#     Wrap text by character count so drawtext never runs super-wide.
-#     This avoids captions stretching off-screen.
-#     """
-#     if not text:
-#         return ""
+def _wrap_caption(text: str, max_chars_per_line: int) -> str:
+    """
+    Wrap text by character count so drawtext never runs super-wide.
+    This avoids captions stretching off-screen.
+    """
+    if not text:
+        return ""
 
-#     words = text.split()
-#     lines = []
-#     current = ""
+    words = text.split()
+    lines = []
+    current = ""
 
-#     for w in words:
-#         if not current:
-#             current = w
-#         elif len(current) + 1 + len(w) <= max_chars_per_line:
-#             current += " " + w
-#         else:
-#             lines.append(current)
-#             current = w
+    for w in words:
+        if not current:
+            current = w
+        elif len(current) + 1 + len(w) <= max_chars_per_line:
+            current += " " + w
+        else:
+            lines.append(current)
+            current = w
 
-#     if current:
-#         lines.append(current)
+    if current:
+        lines.append(current)
 
-#     return "\n".join(lines)
+    return "\n".join(lines)
 
 
 def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
