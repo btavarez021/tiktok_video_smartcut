@@ -38,7 +38,8 @@ from assistant_api import (
     api_hook_score,
     api_improve_hook,   
     api_story_flow_score,
-    api_improve_story_flow
+    api_improve_story_flow,
+    api_story_flow_improve
 )
 from tiktok_template import get_config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -157,6 +158,11 @@ def route_story_flow_score():
     session = sanitize_session(request.args.get("session", "default"))
     return jsonify(api_story_flow_score(session))
 
+@app.route("/api/story_flow_improve", methods=["POST"])
+def route_story_flow_improve():
+    data = request.get_json(silent=True) or {}
+    session = sanitize_session(data.get("session", "default"))
+    return jsonify(api_story_flow_improve(session))
 
 
 # ============================================================================

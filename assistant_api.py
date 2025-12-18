@@ -245,6 +245,88 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
             "score": 70,
             "reasons": ["Could not evaluate story flow."]
         }
+
+def api_story_flow_improve(session: str) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
+
+    if not os.path.exists(config_path):
+        return {"updated": False, "reason": "config.yml not found"}
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+
+    middle = cfg.get("middle_clips", [])
+    if not middle or len(middle) < 2:
+        return {
+            "updated": False,
+            "reason": "Not enough middle captions to improve flow."
+        }
+
+    texts = [c.get("text", "") for c in middle if c.get("text")]
+    if len(texts) < 2:
+        return {
+            "updated": False,
+            "reason": "Middle captions missing text."
+        }
+
+    if not client:
+        return {
+            "updated": False,
+            "reason": "AI unavailable."
+        }
+
+    prompt = f"""
+        Improve the narrative flow of these captions.
+
+        Rules:
+        - Do NOT rewrite the opening hook
+        - Do NOT add a CTA
+        - Improve pacing, transitions, and cohesion
+        - Keep tone consistent
+        - Same number of captions
+        - Return JSON ONLY
+
+        Captions:
+        {json.dumps(texts, indent=2)}
+
+        Return:
+        rewrites: list of strings
+        """
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+        )
+
+        content = resp.choices[0].message.content.strip()
+        result = json.loads(content)
+        rewrites = result.get("rewrites", [])
+
+        if len(rewrites) != len(middle):
+            return {
+                "updated": False,
+                "reason": "AI rewrite count mismatch."
+            }
+
+        # Apply rewrites
+        for i, text in enumerate(rewrites):
+            cfg["middle_clips"][i]["text"] = text
+
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
+
+        return {"updated": True}
+
+    except Exception as e:
+        log_error("[STORY_FLOW_IMPROVE]", e)
+        return {
+            "updated": False,
+            "reason": "Failed to improve story flow."
+        }
+
     
 # -----------------------------------------
 # Improve Story Flow (middle captions only)
