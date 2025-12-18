@@ -256,18 +256,27 @@ def api_story_flow_improve(session: str) -> Dict[str, Any]:
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
 
-    middle = cfg.get("middle_clips", [])
-    if not middle or len(middle) < 2:
-        return {
-            "updated": False,
-            "reason": "Not enough middle captions to improve flow."
-        }
+    # --------------------------------------------------
+    # Collect ALL captions AFTER the hook
+    # (middle clips + last clip)
+    # --------------------------------------------------
+    targets = []  # list of dict refs we will mutate
+    texts = []    # their text values
 
-    texts = [c.get("text", "") for c in middle if c.get("text")]
+    for clip in cfg.get("middle_clips", []):
+        if clip.get("text"):
+            targets.append(clip)
+            texts.append(clip["text"])
+
+    if cfg.get("last_clip", {}).get("text"):
+        targets.append(cfg["last_clip"])
+        texts.append(cfg["last_clip"]["text"])
+
+    # Need at least TWO captions to improve flow
     if len(texts) < 2:
         return {
             "updated": False,
-            "reason": "Middle captions missing text."
+            "reason": "Need at least 2 captions after the hook to improve story flow."
         }
 
     if not client:
@@ -276,23 +285,28 @@ def api_story_flow_improve(session: str) -> Dict[str, Any]:
             "reason": "AI unavailable."
         }
 
+    # --------------------------------------------------
+    # LLM prompt
+    # --------------------------------------------------
     prompt = f"""
-        Improve the narrative flow of these captions.
+Improve the narrative flow of these captions.
 
-        Rules:
-        - Do NOT rewrite the opening hook
-        - Do NOT add a CTA
-        - Improve pacing, transitions, and cohesion
-        - Keep tone consistent
-        - Same number of captions
-        - Return JSON ONLY
+Rules:
+- Do NOT rewrite the opening hook
+- Do NOT add or remove captions
+- Improve transitions, pacing, and cohesion
+- Preserve tone and intent
+- Keep captions concise
+- Return JSON ONLY
 
-        Captions:
-        {json.dumps(texts, indent=2)}
+Captions:
+{json.dumps(texts, indent=2)}
 
-        Return:
-        rewrites: list of strings
-        """
+Return:
+{{
+  "rewrites": ["caption 1", "caption 2", "..."]
+}}
+"""
 
     try:
         resp = client.chat.completions.create(
@@ -302,23 +316,33 @@ def api_story_flow_improve(session: str) -> Dict[str, Any]:
         )
 
         content = resp.choices[0].message.content.strip()
-        result = json.loads(content)
+
+        # Safe JSON extraction
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        result = json.loads(content[start:end])
+
         rewrites = result.get("rewrites", [])
 
-        if len(rewrites) != len(middle):
+        if len(rewrites) != len(targets):
             return {
                 "updated": False,
                 "reason": "AI rewrite count mismatch."
             }
 
-        # Apply rewrites
-        for i, text in enumerate(rewrites):
-            cfg["middle_clips"][i]["text"] = text
+        # --------------------------------------------------
+        # Apply rewrites IN PLACE
+        # --------------------------------------------------
+        for i, new_text in enumerate(rewrites):
+            targets[i]["text"] = new_text
 
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
-        return {"updated": True}
+        return {
+            "updated": True,
+            "count": len(rewrites)
+        }
 
     except Exception as e:
         log_error("[STORY_FLOW_IMPROVE]", e)
@@ -326,7 +350,6 @@ def api_story_flow_improve(session: str) -> Dict[str, Any]:
             "updated": False,
             "reason": "Failed to improve story flow."
         }
-
 
 
 # -------------------------------
