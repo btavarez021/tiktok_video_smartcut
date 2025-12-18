@@ -856,7 +856,7 @@ async function refreshStoryFlowScore() {
         .filter(Boolean);
 
     // Need at least: hook + 2 middle captions
-    if (blocks.length < 2) {
+    if (blocks.length < 3) {
         card.classList.add("hidden");
         return;
     }

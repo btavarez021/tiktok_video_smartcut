@@ -164,6 +164,85 @@ def api_improve_hook(session: str) -> Dict[str, Any]:
         "reasons": result["reasons"],
     }
 
+# -----------------------------------------
+# Story Flow Score
+# -----------------------------------------
+
+def api_story_flow_score(session: str) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    cfg = _load_config(session)
+
+    captions: List[str] = []
+
+    # Hook
+    if cfg.get("first_clip", {}).get("text"):
+        captions.append(cfg["first_clip"]["text"])
+
+    # Middle clips
+    for clip in cfg.get("middle_clips", []):
+        if clip.get("text"):
+            captions.append(clip["text"])
+
+    # CTA / last clip (ignored for scoring, but included for structure)
+    if cfg.get("last_clip", {}).get("text"):
+        captions.append(cfg["last_clip"]["text"])
+
+    # We ONLY score after the hook
+    middle = captions[1:]
+
+    if not middle:
+        return {
+            "score": 0,
+            "reasons": ["Not enough story captions to evaluate."]
+        }
+
+    if not client:
+        return {
+            "score": 70,
+            "reasons": ["AI unavailable — using default score."]
+        }
+
+    prompt = f"""
+                Score the narrative flow of these captions from 1–100.
+
+                Evaluate:
+                - pacing
+                - progression
+                - repetition
+                - clarity
+                - momentum
+
+                Captions:
+                {json.dumps(middle, indent=2)}
+
+                Return JSON ONLY with:
+                score: number
+                reasons: list of short bullet points
+                """
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+        )
+
+        content = resp.choices[0].message.content.strip()
+        result = json.loads(content)
+
+        return {
+            "score": int(result.get("score", 70)),
+            "reasons": result.get("reasons", []),
+        }
+
+    except Exception as e:
+        log_error("[STORY_FLOW]", e)
+        return {
+            "score": 70,
+            "reasons": ["Could not evaluate story flow."]
+        }
+
+
 # -------------------------------
 # Export mode
 # -------------------------------
