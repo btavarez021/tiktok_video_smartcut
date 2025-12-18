@@ -832,6 +832,9 @@ async function improveHook() {
     }
 }
 
+// Story Flow Score
+// Evaluates ONLY middle captions (excludes hook + CTA)
+// Read-only score to assess pacing & narrative progression
 
 async function refreshStoryFlowScore() {
     const captionsEl = document.getElementById("captionsText");
@@ -840,6 +843,12 @@ async function refreshStoryFlowScore() {
     const reasonsEl = document.getElementById("storyFlowReasons");
 
     if (!captionsEl || !card || !scoreEl || !reasonsEl) return;
+
+    if (!captionsEl.value.trim()) {
+        card.classList.add("hidden");
+        return;
+    }
+
 
     const blocks = captionsEl.value
         .split(/\n\s*\n/)
@@ -876,9 +885,12 @@ async function refreshStoryFlowScore() {
         }
 
         const reasons = data.reasons || [];
+        reasonsEl.innerHTML = ""; 
+
         reasonsEl.innerHTML = reasons.length
             ? reasons.map(r => `<li>${r}</li>`).join("")
             : `<li>Flow looks solid ✅</li>`;
+
     } catch (err) {
         console.error("Story flow score error:", err);
         card.classList.add("hidden");
