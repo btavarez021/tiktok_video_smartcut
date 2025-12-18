@@ -245,6 +245,103 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
             "score": 70,
             "reasons": ["Could not evaluate story flow."]
         }
+    
+# -----------------------------------------
+# Improve Story Flow (middle captions only)
+# -----------------------------------------
+
+def api_improve_story_flow(session: str) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
+
+    if not os.path.exists(config_path):
+        return {"status": "error", "error": "config.yml not found"}
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+
+    # Collect middle captions (exclude hook)
+    middle = []
+    for clip in cfg.get("middle_clips", []):
+        if clip.get("text"):
+            middle.append(clip["text"])
+
+    if cfg.get("last_clip", {}).get("text"):
+        middle.append(cfg["last_clip"]["text"])
+
+    if len(middle) < 2:
+        return {
+            "status": "ok",
+            "updated": False,
+            "reason": "Not enough captions to improve."
+        }
+
+    if not client:
+        return {
+            "status": "ok",
+            "updated": False,
+            "reason": "AI unavailable."
+        }
+
+    prompt = f"""
+            Rewrite these captions to improve story flow.
+
+            Goals:
+            - smoother transitions
+            - better pacing
+            - stronger narrative momentum
+            - preserve tone and intent
+            - do NOT add emojis
+            - do NOT make them longer than necessary
+
+            Captions:
+            {json.dumps(middle, indent=2)}
+
+            Return JSON ONLY:
+            {{
+            "captions": ["rewritten caption 1", "rewritten caption 2", ...]
+            }}
+            """
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+        )
+
+        result = json.loads(resp.choices[0].message.content)
+        rewritten = result.get("captions", [])
+
+        if not rewritten:
+            raise ValueError("No rewritten captions returned")
+
+        # Apply back to YAML
+        idx = 0
+        for clip in cfg.get("middle_clips", []):
+            if idx < len(rewritten):
+                clip["text"] = rewritten[idx]
+                idx += 1
+
+        if "last_clip" in cfg and idx < len(rewritten):
+            cfg["last_clip"]["text"] = rewritten[idx]
+
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
+
+        return {
+            "status": "ok",
+            "updated": True,
+            "captions": rewritten,
+        }
+
+    except Exception as e:
+        log_error("[IMPROVE_STORY_FLOW]", e)
+        return {
+            "status": "error",
+            "error": "Failed to improve story flow"
+        }
+
 
 
 # -------------------------------

@@ -37,7 +37,8 @@ from assistant_api import (
     export_tasks,
     api_hook_score,
     api_improve_hook,   
-    api_story_flow_score
+    api_story_flow_score,
+    api_improve_story_flow
 )
 from tiktok_template import get_config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -415,6 +416,12 @@ def route_fgscale_route():
             return jsonify({"status": "error", "error": "Invalid fgscale value"})
 
     return jsonify(api_fgscale(session, mode, fg))
+
+@app.route("/api/story_flow_improve", methods=["POST"])
+def route_story_flow_improve():
+    data = request.get_json(silent=True) or {}
+    session = sanitize_session(data.get("session", "default"))
+    return jsonify(api_improve_story_flow(session))
 
 
 # ============================================================================

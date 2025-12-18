@@ -832,6 +832,35 @@ async function improveHook() {
     }
 }
 
+const improveStoryFlowBtn = document.getElementById("improveStoryFlowBtn");
+const storyFlowStatus = document.getElementById("storyFlowStatus");
+
+if (improveStoryFlowBtn) {
+    improveStoryFlowBtn.addEventListener("click", async () => {
+        storyFlowStatus.textContent = "Improving story flow…";
+
+        try {
+            const res = await jsonFetch("/api/story_flow_improve", {
+                method: "POST",
+                body: JSON.stringify({ session: getActiveSession() })
+            });
+
+            if (res.updated) {
+                storyFlowStatus.textContent = "Story flow improved ✓";
+
+                // Reload captions + rescore
+                await loadCaptionsFromYaml();
+                await refreshStoryFlowScore();
+            } else {
+                storyFlowStatus.textContent = res.reason || "No changes made.";
+            }
+        } catch (e) {
+            console.error(e);
+            storyFlowStatus.textContent = "Failed to improve story flow.";
+        }
+    });
+}
+
 // Story Flow Score
 // Evaluates ONLY middle captions (excludes hook + CTA)
 // Read-only score to assess pacing & narrative progression
