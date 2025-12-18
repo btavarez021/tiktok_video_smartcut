@@ -410,77 +410,69 @@ def _style_instructions(style: str) -> str:
 def apply_overlay(
     session: str,
     style: str,
-    rewrite: bool = False,
+    rewrite: bool = True,
     target: str = "all",
-    filename: Optional[str] = None,
+    filename: Optional[str] = None
 ) -> None:
     """
-    Apply overlay style (caption rewrite) for THIS session.
-    - Only rewrites text fields
-    - Preserves layout_mode, fgscale, CTA, TTS, music, timing, etc. via prompt rules
-    - Reads and writes the SAME per-session config.yml (get_config_path)
-    """
-    try:
-        config_path = get_config_path(session)
-        if not os.path.exists(config_path):
-            return
+    Overlay handler.
 
+    rewrite = False → visual-only (no text rewrite)
+    rewrite = True  → rewrite caption text via LLM
+    """
+
+    config_path = get_config_path(session)
+    if not os.path.exists(config_path):
+        return
+
+    # -----------------------------------------
+    # Load original YAML
+    # -----------------------------------------
+    try:
         with open(config_path, "r", encoding="utf-8") as f:
             original_text = f.read()
-    except Exception:
+            cfg = yaml.safe_load(original_text) or {}
+    except Exception as e:
+        logger.error(f"[OVERLAY LOAD ERROR] {e}")
         return
-    
-    # -----------------------------
+
+    # -----------------------------------------
     # VISUAL-ONLY MODE (NO REWRITE)
-    # -----------------------------
+    # -----------------------------------------
     if not rewrite:
         try:
-            cfg = yaml.safe_load(original_text) or {}
             render = cfg.setdefault("render", {})
             render["overlay_style"] = style
 
             with open(config_path, "w", encoding="utf-8") as f:
                 yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
 
-            log_step(f"[OVERLAY] Visual-only applied (no rewrite), style={style}")
+            log_step(f"[OVERLAY] Visual-only applied (style={style})")
             return
         except Exception as e:
             logger.error(f"[OVERLAY VISUAL ERROR] {e}")
             return
 
-
+    # -----------------------------------------
+    # REWRITE MODE (LLM)
+    # -----------------------------------------
     if client is None:
         return
 
     prompt = f"""
 Rewrite ONLY the caption text fields ("text") inside this YAML.
 
-IMPORTANT:
-Below is a YAML structure. You must return the EXACT SAME structure.
-You may ONLY modify the values of fields named "text".
-Do NOT modify:
-- duration
-- start_time
-- file
-- render.*
-- cta.*
-- tts.*
-- music.*
-- fgscale or fgscale_mode
-- layout_mode
+STRICT RULES:
+- Modify ONLY "text:" values
+- Do NOT add/remove clips
+- Do NOT change duration, start_time, file
+- Do NOT change render, tts, music, cta, fgscale, layout
+- One sentence per clip
+- No hashtags
+- No quotes
 
 Overlay style: {style}
 Instructions: {_style_instructions(style)}
-
-STRICT RULES:
-- Modify ONLY "text:" values.
-- Do NOT add or remove any clips.
-- Keep all filenames EXACTLY the same.
-- Keep all durations EXACTLY the same.
-- Do NOT modify layout_mode, fgscale, tts, cta, music, or render settings.
-- One sentence per clip (<150 chars).
-- No hashtags.
-- No quotes.
 
 ORIGINAL YAML:
 {original_text}
@@ -495,31 +487,25 @@ Return ONLY valid YAML (no backticks).
             temperature=0.7,
         )
 
-        new_yaml = (resp.choices[0].message.content or "").strip()
-        new_yaml = new_yaml.replace("```yaml", "").replace("```", "").strip()
+        new_yaml = resp.choices[0].message.content.strip()
+        new_yaml = new_yaml.replace("```yaml", "").replace("```", "")
 
         cfg = yaml.safe_load(new_yaml)
         if not isinstance(cfg, dict):
-            raise ValueError("Overlay returned invalid YAML")
+            raise ValueError("Invalid YAML")
 
         cfg = sanitize_yaml_filenames(cfg)
 
-    except Exception as e:
-        logger.error(f"[OVERLAY] LLM error: {e}")
-        return
+        render = cfg.setdefault("render", {})
+        render["overlay_style"] = style
 
-    # Tag overlay style inside config
-    render = cfg.setdefault("render", {})
-    render["overlay_style"] = style
-
-    # Save directly to this session's config.yml
-    try:
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
 
-        log_step(f"Overlay applied for session={session}, style={style}")
+        log_step(f"[OVERLAY] Rewrite applied (style={style})")
+
     except Exception as e:
-        logger.error(f"[OVERLAY SAVE ERROR] {e}")
+        logger.error(f"[OVERLAY REWRITE ERROR] {e}")
 
 
 def apply_smart_timings(session: str, pacing: str = "standard") -> None:
