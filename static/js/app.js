@@ -748,75 +748,78 @@ async function saveYaml() {
 }
 
 async function refreshHookScore() {
-    const captionsEl = document.getElementById("captionsText");
-    const card = document.querySelector(".hook-score-card");
-    const scoreEl = document.getElementById("hookScoreValue");
-    const reasonsEl = document.getElementById("hookScoreReasons");
-    const hookEl = document.getElementById("hookScoreHook");
-    const statusEl = document.getElementById("hookScoreStatus");
-    const improveBtn = document.getElementById("improveHookBtn");
+  const captionsEl = document.getElementById("captionsText");
+  const card = document.querySelector(".hook-score-card");
+  const scoreEl = document.getElementById("hookScoreValue");
+  const reasonsEl = document.getElementById("hookScoreReasons");
+  const hookEl = document.getElementById("hookScoreHook");
+  const statusEl = document.getElementById("hookScoreStatus");
+  const improveBtn = document.getElementById("improveHookBtn");
 
-    // 🚫 No captions → hide hook score entirely
-    if (!captionsEl || !captionsEl.value.trim()) {
-        if (card) card.classList.add("hidden");
-        return;
-    }
+  // 🚫 No captions → hide hook score entirely
+  if (!captionsEl || !captionsEl.value.trim()) {
+    card?.classList.add("hidden");
+    return;
+  }
 
+  if (!card || !scoreEl || !reasonsEl || !hookEl) return;
+
+  card.classList.remove("hidden");
+
+  try {
+    if (statusEl) statusEl.textContent = "Checking hook…";
+
+    const session = encodeURIComponent(getActiveSession());
+    const data = await jsonFetch(`/api/hook_score?session=${session}`);
+
+    const score = Number(data.score ?? 0);
+
+    // -----------------------------
+    // 🔒 Story flow lock (NOW safe)
+    // -----------------------------
     const flowCard = document.querySelector(".story-flow-card");
     const lockedHint = document.getElementById("storyFlowLockedHint");
 
-    // 🔒 Lock story flow if hook is weak
     if (flowCard && lockedHint) {
       if (score < 60) {
         flowCard.classList.add("hidden");
         lockedHint.classList.remove("hidden");
       } else {
         lockedHint.classList.add("hidden");
+        flowCard.classList.remove("hidden");
       }
     }
 
+    updateImproveButtons(score, null);
 
-    if (!card || !scoreEl || !reasonsEl || !hookEl) return;
+    scoreEl.textContent = `${score}/100`;
+    hookEl.textContent = data.hook || "(no opening caption yet)";
 
-    card.classList.remove("hidden");
+    // Reset classes
+    card.classList.remove("good", "ok", "bad");
+    scoreEl.classList.remove("good", "ok", "bad");
 
-    try {
-        if (statusEl) statusEl.textContent = "Checking hook…";
-
-        const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/hook_score?session=${session}`);
-
-        const score = Number(data.score ?? 0);
-        updateImproveButtons(score, null);
-        scoreEl.textContent = `${score}/100`;
-        hookEl.textContent = data.hook || "(no opening caption yet)";
-
-        // Reset classes
-        card.classList.remove("good", "ok", "bad");
-        scoreEl.classList.remove("good", "ok", "bad");
-
-        // 🎨 Color logic
-        if (score >= 85) {
-            card.classList.add("good");
-            scoreEl.classList.add("good");
-        } else if (score >= 70) {
-            card.classList.add("ok");
-            scoreEl.classList.add("ok");
-        } else {
-            card.classList.add("bad");
-            scoreEl.classList.add("bad");
-        }
-
-        const reasons = data.reasons || [];
-        reasonsEl.innerHTML = reasons.length
-            ? reasons.map(r => `<li>${r}</li>`).join("")
-            : `<li>Looks solid ✅</li>`;
-
-        if (statusEl) statusEl.textContent = "";
-    } catch (err) {
-        console.error("Hook score error:", err);
-        if (statusEl) statusEl.textContent = "Hook score unavailable.";
+    if (score >= 85) {
+      card.classList.add("good");
+      scoreEl.classList.add("good");
+    } else if (score >= 70) {
+      card.classList.add("ok");
+      scoreEl.classList.add("ok");
+    } else {
+      card.classList.add("bad");
+      scoreEl.classList.add("bad");
     }
+
+    const reasons = data.reasons || [];
+    reasonsEl.innerHTML = reasons.length
+      ? reasons.map(r => `<li>${r}</li>`).join("")
+      : `<li>Looks solid ✅</li>`;
+
+    if (statusEl) statusEl.textContent = "";
+  } catch (err) {
+    console.error("Hook score error:", err);
+    if (statusEl) statusEl.textContent = "Hook score unavailable.";
+  }
 }
 
 
