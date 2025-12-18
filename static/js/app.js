@@ -822,6 +822,22 @@ async function refreshHookScore() {
   }
 }
 
+document.getElementById("previewStyleBtn")
+  .addEventListener("click", async () => {
+    const style = document.getElementById("captionStyleSelect").value;
+
+    await jsonFetch("/api/apply_overlay", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        style,
+        rewrite: false   // 🔑 VISUAL ONLY
+      })
+    });
+
+    await loadCaptionsFromYaml(); // 🔥 this makes it visible
+});
+
 
 async function improveHook() {
   const btn = document.getElementById("improveHookBtn");
