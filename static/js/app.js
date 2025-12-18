@@ -1086,6 +1086,38 @@ async function saveCaptions() {
     }
 }
 
+async function regenerateCaptionsFromClips() {
+  const captionsEl = document.getElementById("captionsText");
+  if (captionsEl && captionsEl.value.trim()) {
+    const ok = confirm(
+      "This will overwrite your current captions. Continue?"
+    );
+    if (!ok) return;
+  }
+
+  setStatus("captionsStatus", "Generating captions from clips…", "info");
+
+  try {
+    await jsonFetch("/api/generate_yaml", {
+      method: "POST",
+      body: JSON.stringify({ session: getActiveSession() }),
+    });
+
+    await loadCaptionsFromYaml();
+    await refreshHookScore();
+    await refreshStoryFlowScore();
+
+    setStatus("captionsStatus", "Captions generated ✓", "success");
+  } catch (err) {
+    setStatus(
+      "captionsStatus",
+      "Failed to generate captions.",
+      "error"
+    );
+  }
+}
+
+
 // ================================
 // Step 4: Overlay, timings, TTS, CTA, fg scale, music
 // ================================

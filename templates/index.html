@@ -304,6 +304,16 @@
             <!-- ================================
                  STEP 3
             ================================== -->
+            <div class="row">
+              <button class="btn secondary small" onclick="regenerateCaptionsFromClips()">
+                ✨ Generate captions from clips
+              </button>
+              <p class="hint-text">
+                Uses clip filenames and order to generate a new hook and captions.
+              </p>
+            </div>
+
+
             <section class="card step-card" id="step-3">
                 <div class="card-header">
                     <div class="session-tag">Session: <span class="sessionLabel"></span></div>
@@ -484,7 +494,7 @@
                             </label>
 
                             <select id="overlayStyle" class="select">
-                                <option value="ai_recommended">✨ AI Recommended (auto)</option>
+                                <option value="ai_recommended">✨ AI Visual Director (auto)</option>
                                 <option value="travel_blog">Travel blogger</option>
                                 <option value="punchy">Punchy & energetic</option>
                                 <option value="cinematic">Cinematic & moody</option>
