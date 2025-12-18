@@ -883,6 +883,16 @@ async function refreshStoryFlowScore() {
         .split(/\n\s*\n/)
         .map(b => b.trim())
         .filter(Boolean);
+    
+    const improveBtn = document.getElementById("improveStoryFlowBtn");
+
+    if (blocks.length < 3) {
+        card.classList.add("hidden");
+        if (improveBtn) improveBtn.disabled = true;
+        return;
+    }
+
+    if (improveBtn) improveBtn.disabled = false;
 
     // Need at least: hook + 2 middle captions
     if (blocks.length < 3) {
