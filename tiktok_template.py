@@ -425,31 +425,31 @@ def ensure_local_video(session_id: str, filename: str) -> str:
 # -------------------------------
 # Simple, robust caption wrapper
 # -------------------------------
-def _wrap_caption(text: str, max_chars_per_line: int) -> str:
-    """
-    Wrap text by character count so drawtext never runs super-wide.
-    This avoids captions stretching off-screen.
-    """
-    if not text:
-        return ""
+# def _wrap_caption(text: str, max_chars_per_line: int) -> str:
+#     """
+#     Wrap text by character count so drawtext never runs super-wide.
+#     This avoids captions stretching off-screen.
+#     """
+#     if not text:
+#         return ""
 
-    words = text.split()
-    lines = []
-    current = ""
+#     words = text.split()
+#     lines = []
+#     current = ""
 
-    for w in words:
-        if not current:
-            current = w
-        elif len(current) + 1 + len(w) <= max_chars_per_line:
-            current += " " + w
-        else:
-            lines.append(current)
-            current = w
+#     for w in words:
+#         if not current:
+#             current = w
+#         elif len(current) + 1 + len(w) <= max_chars_per_line:
+#             current += " " + w
+#         else:
+#             lines.append(current)
+#             current = w
 
-    if current:
-        lines.append(current)
+#     if current:
+#         lines.append(current)
 
-    return "\n".join(lines)
+#     return "\n".join(lines)
 
 
 def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
@@ -546,22 +546,75 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     clips.append(collect(cfg["last_clip"], is_last=True))
 
     # -----------------------------------------
+    # VISUAL STYLE PRESETS (caption look & feel)
+    # -----------------------------------------
+    STYLE_PRESETS = {
+        "punchy": {
+            "fontsize": 72,
+            "line_spacing": 6,
+            "box_opacity": "AA",
+            "y_expr": "(h * 0.42)",
+        },
+        "cinematic": {
+            "fontsize": 56,
+            "line_spacing": 16,
+            "box_opacity": "CC",
+            "y_expr": "(h * 0.55)",
+        },
+        "influencer": {
+            "fontsize": 64,
+            "line_spacing": 10,
+            "box_opacity": "AA",
+            "y_expr": "(h * 0.48)",
+        },
+        "travel_blog": {
+            "fontsize": 60,
+            "line_spacing": 12,
+            "box_opacity": "BB",
+            "y_expr": "(h * 0.50)",
+        },
+        "descriptive": {
+            "fontsize": 58,
+            "line_spacing": 8,
+            "box_opacity": "99",
+            "y_expr": "(h * 0.50)",
+        },
+        "ai_recommended": {
+            "fontsize": 64,
+            "line_spacing": 12,
+            "box_opacity": "AA",
+            "y_expr": "(h * 0.48)",
+        },
+    }
+
+    render_cfg = cfg.setdefault("render", {})
+
+    overlay_style = (render_cfg.get("overlay_style") or "ai_recommended").lower()
+    log_step(f"[OVERLAY] Visual style = {overlay_style}")
+
+
+    # -----------------------------------------
     # GLOBAL CAPTION LAYOUT (used by BOTH clip captions + CTA captions)
     # -----------------------------------------
+    preset = STYLE_PRESETS.get(overlay_style, STYLE_PRESETS["ai_recommended"])
+
     if layout_mode == "tiktok":
-        max_chars = 16               # narrow TikTok wrapping
-        fontsize = 64
-        line_spacing = 12
+        max_chars = 16
+        fontsize = preset["fontsize"]
+        line_spacing = preset["line_spacing"]
         boxborderw = 24
+        box_opacity = preset["box_opacity"]
         fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-        y_expr = "(h * 0.48)"
+        y_expr = preset["y_expr"]
     else:
-        max_chars = 34                # classic overlay wider
+        max_chars = 34
         fontsize = 52
         line_spacing = 8
         boxborderw = 20
+        box_opacity = "AA"
         fontfile = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
         y_expr = "h-(text_h*2.0)-200"
+
 
 
     # Remove accidental duplicates by file
@@ -582,7 +635,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # --------------------------
     # AUTO / MANUAL FG SCALE LOGIC
     # --------------------------
-    render_cfg = cfg.setdefault("render", {})
+
     fg_mode = str(render_cfg.get("fgscale_mode", "auto")).lower()
 
     if fg_mode == "auto":
@@ -706,7 +759,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         f"line_spacing={line_spacing}:"
                         f"shadowcolor=0x000000:shadowx=3:shadowy=3:"
                         f"text_shaping=1:"
-                        f"box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
+                        f"box=1:boxcolor=0x000000{box_opacity}:boxborderw={boxborderw}:"
                         f"x=(w-text_w)/2:y={y_expr}:"
                         f"fix_bounds=1:borderw=0:bordercolor=0x000000[outv]"
                     )
@@ -729,7 +782,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         f";[v1]drawtext=text='{text_safe}':"
                         f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
                         f"line_spacing={line_spacing}:shadowcolor=0x000000:shadowx=3:shadowy=3:"
-                        f"text_shaping=1:box=1:boxcolor=0x000000AA:boxborderw={boxborderw}:"
+                        f"text_shaping=1:box=1:boxcolor=0x000000{box_opacity}:boxborderw={boxborderw}:"
                         f"x=(w-text_w)/2:y={y_expr}:fix_bounds=1:borderw=0:"
                         f"enable='lt(t,{cta_start})'"
                         f"[v2]"
