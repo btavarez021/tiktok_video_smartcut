@@ -1125,8 +1125,8 @@ async function applyOverlay() {
 
         setStatus("overlayStatus", "Overlay applied.", "success", true);
 
-        // 🔄 Reload rewritten captions
-        await loadConfigAndYaml();
+        await loadCaptionsFromYaml();   // sync UI text
+        await loadConfigAndYaml();      // sync YAML preview
 
         // 🧠 Re-score narrative (overlay rewrites text)
         await refreshHookScore();
