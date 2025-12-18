@@ -822,27 +822,32 @@ async function refreshHookScore() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const previewBtn = document.getElementById("previewStyleBtn");
-  if (!previewBtn) return;
+document.getElementById("previewStyleBtn")?.addEventListener("click", async () => {
+  const style = document.getElementById("overlayStyle")?.value;
+  if (!style) return;
 
-  previewBtn.addEventListener("click", async () => {
-    const style = document.getElementById("captionStyleSelect")?.value;
-    if (!style) return;
+  setStatus("overlayStatus", "Previewing caption style…", "info");
 
-    await jsonFetch("/api/apply_overlay", {
+  try {
+    await jsonFetch("/api/overlay", {
       method: "POST",
       body: JSON.stringify({
         session: getActiveSession(),
         style,
-        rewrite: false   // 🔑 VISUAL ONLY
-      })
+        rewrite: false // 🔑 VISUAL ONLY
+      }),
     });
 
-    // 🔥 Makes the change visible immediately
+    // 🔥 This makes the visual change observable
     await loadCaptionsFromYaml();
-  });
+
+    setStatus("overlayStatus", "Preview applied (text unchanged)", "success");
+  } catch (err) {
+    console.error(err);
+    setStatus("overlayStatus", "Preview failed.", "error");
+  }
 });
+
 
 
 
