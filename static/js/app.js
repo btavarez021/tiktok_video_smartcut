@@ -807,45 +807,39 @@ async function refreshHookScore() {
 
 
 async function improveHook() {
-    const btn = document.getElementById("improveHookBtn");
-    const statusEl = document.getElementById("hookScoreStatus");
-    if (!btn) return;
+  const btn = document.getElementById("improveHookBtn");
+  const statusEl = document.getElementById("hookScoreStatus");
+  if (!btn) return;
 
-    btn.disabled = true;
-    if (statusEl) statusEl.textContent = "Improving hook…";
+  btn.disabled = true;
+  if (statusEl) statusEl.textContent = "Improving hook…";
 
-    try {
-        const data = await jsonFetch("/api/hook_improve", {
-            method: "POST",
-            body: JSON.stringify({ session: getActiveSession() }),
-        });
+  try {
+    const data = await jsonFetch("/api/hook_improve", {
+      method: "POST",
+      body: JSON.stringify({ session: getActiveSession() }),
+    });
 
-        if (data.status !== "ok") throw new Error(data.error || "failed");
+    if (data.status !== "ok") throw new Error(data.error || "failed");
 
-        // Reload captions UI and YAML preview so user sees change
-        await loadCaptionsFromYaml();
-        await loadConfigAndYaml();
-        await refreshHookScore();
+    // Reload captions + YAML
+    await loadCaptionsFromYaml();
+    await loadConfigAndYaml();
 
-        // Reset story flow — hook changed
-        const flowCard = document.querySelector(".story-flow-card");
-        if (flowCard) flowCard.classList.add("hidden");
+    // Re-score BOTH
+    await refreshHookScore();
+    await refreshStoryFlowScore();
 
-        const flowScore = document.getElementById("storyFlowScoreValue");
-        if (flowScore) flowScore.textContent = "–/100";
-
-        const flowReasons = document.getElementById("storyFlowReasons");
-        if (flowReasons) flowReasons.innerHTML = "";
-
-
-        if (statusEl) statusEl.textContent = "Hook improved ✅";
-        setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 1500);
-    } catch (err) {
-        console.error(err);
-        if (statusEl) statusEl.textContent = "Failed to improve hook.";
-    } finally {
-        btn.disabled = false;
-    }
+    if (statusEl) statusEl.textContent = "Hook improved ✅";
+    setTimeout(() => {
+      if (statusEl) statusEl.textContent = "";
+    }, 1500);
+  } catch (err) {
+    console.error(err);
+    if (statusEl) statusEl.textContent = "Failed to improve hook.";
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // Story Flow Score

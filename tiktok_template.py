@@ -465,13 +465,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     if not cfg:
         raise RuntimeError("config.yml missing or empty")
     
-    # -------------------------------
-    # 5.2 — Clamp transition duration (safety)
-    # -------------------------------
-    transition_duration = max(0.15, min(transition_duration, 0.6))
+    render = cfg.get("render", {})
 
+    log_step("[EXPORT] Using standard concat (no transitions)")
 
-    log_step("[EXPORT] Using standard concat (no story mode, no transitions)")
 
     layout_mode = _get_layout_mode(cfg)
     log_step(f"[EXPORT] Building low-memory FFmpeg timeline… (layout_mode={layout_mode})")
