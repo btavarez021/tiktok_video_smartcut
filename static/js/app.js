@@ -1125,8 +1125,12 @@ async function applyOverlay() {
 
         setStatus("overlayStatus", "Overlay applied.", "success", true);
 
-        // ALWAYS force-refresh config
+        // 🔄 Reload rewritten captions
         await loadConfigAndYaml();
+
+        // 🧠 Re-score narrative (overlay rewrites text)
+        await refreshHookScore();
+        await refreshStoryFlowScore();
 
     } catch (err) {
         console.error(err);
@@ -1137,6 +1141,7 @@ async function applyOverlay() {
         );
     }
 }
+
 
 // Timings
 async function applyTiming(smart) {
