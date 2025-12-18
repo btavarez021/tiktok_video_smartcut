@@ -187,13 +187,12 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
     if cfg.get("last_clip", {}).get("text"):
         captions.append(cfg["last_clip"]["text"])
 
-    # We ONLY score after the hook
     middle = captions[1:]
 
-    if not middle:
+    if len(middle) < 2:
         return {
             "score": 0,
-            "reasons": ["Not enough story captions to evaluate."]
+            "reasons": ["Add at least two captions after the hook to evaluate story flow."]
         }
 
     if not client:
@@ -228,7 +227,12 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
         )
 
         content = resp.choices[0].message.content.strip()
-        result = json.loads(content)
+
+        # Extract JSON safely
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        result = json.loads(content[start:end])
+
 
         return {
             "score": int(result.get("score", 70)),
