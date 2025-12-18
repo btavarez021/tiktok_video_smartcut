@@ -832,35 +832,6 @@ async function improveHook() {
     }
 }
 
-const improveStoryFlowBtn = document.getElementById("improveStoryFlowBtn");
-const storyFlowStatus = document.getElementById("storyFlowStatus");
-
-if (improveStoryFlowBtn) {
-    improveStoryFlowBtn.addEventListener("click", async () => {
-        storyFlowStatus.textContent = "Improving story flow…";
-
-        try {
-            const res = await jsonFetch("/api/story_flow_improve", {
-                method: "POST",
-                body: JSON.stringify({ session: getActiveSession() })
-            });
-
-            if (res.updated) {
-                storyFlowStatus.textContent = "Story flow improved ✓";
-
-                // Reload captions + rescore
-                await loadCaptionsFromYaml();
-                await refreshStoryFlowScore();
-            } else {
-                storyFlowStatus.textContent = res.reason || "No changes made.";
-            }
-        } catch (e) {
-            console.error(e);
-            storyFlowStatus.textContent = "Failed to improve story flow.";
-        }
-    });
-}
-
 // Story Flow Score
 // Evaluates ONLY middle captions (excludes hook + CTA)
 // Read-only score to assess pacing & narrative progression
@@ -1782,6 +1753,39 @@ document.addEventListener("DOMContentLoaded", () => {
                 : "▼ Show Parsed Preview";
         });
     }
+
+    document.getElementById("improveStoryFlowBtn")?.addEventListener("click", async () => {
+    const storyFlowStatus = document.getElementById("storyFlowStatus");
+    if (storyFlowStatus) {
+        storyFlowStatus.textContent = "Improving story flow…";
+    }
+
+    try {
+        const res = await jsonFetch("/api/story_flow_improve", {
+            method: "POST",
+            body: JSON.stringify({ session: getActiveSession() }),
+        });
+
+        if (res.updated) {
+            if (storyFlowStatus) {
+                storyFlowStatus.textContent = "Story flow improved ✓";
+            }
+
+            // Reload captions + re-score
+            await loadCaptionsFromYaml();
+            await refreshStoryFlowScore();
+        } else {
+            if (storyFlowStatus) {
+                storyFlowStatus.textContent = res.reason || "No changes made.";
+            }
+        }
+    } catch (err) {
+        console.error(err);
+        if (storyFlowStatus) {
+            storyFlowStatus.textContent = "Failed to improve story flow.";
+        }
+    }
+});
 
     // MOBILE SESSION PANEL
     const mobileSessionBtn = document.getElementById("mobileSessionBtn");
