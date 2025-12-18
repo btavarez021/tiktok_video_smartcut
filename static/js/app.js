@@ -154,6 +154,13 @@ function sidebarSyncActiveLabel() {
 // Utility helpers
 // ================================
 
+function getCaptionMode() {
+  return document.querySelector(
+    'input[name="captionMode"]:checked'
+  )?.value || "visual";
+}
+
+
 function disableDownloadButton() {
     const btn = document.getElementById("downloadLink");
     if (!btn) return;
@@ -1088,30 +1095,48 @@ async function applyOverlay() {
     if (!styleSel || !statusEl) return;
 
     const style = styleSel.value || "travel_blog";
+    const captionMode = getCaptionMode(); // 🔑 NEW
 
-    console.log("[OVERLAY] Applying:", style, "Session:", getActiveSession());
+    // ⚠️ Safety confirm if rewriting
+    if (captionMode === "rewrite") {
+        const ok = confirm(
+            "This will overwrite your current captions. Continue?"
+        );
+        if (!ok) return;
+    }
 
-    setStatus("overlayStatus", `Applying overlay style “${style}”…`, "info");
+    setStatus(
+        "overlayStatus",
+        `Applying overlay style “${style}”…`,
+        "info"
+    );
 
     try {
         const result = await jsonFetch("/api/overlay", {
             method: "POST",
             body: JSON.stringify({
                 style,
+                captionMode,               // 🔑 SEND MODE
                 session: getActiveSession(),
             }),
         });
 
-        console.log("[OVERLAY RESULT]", result);
+        if (captionMode === "visual" && result?.captions) {
+            console.warn("Blocked caption rewrite in visual-only mode");
+        }
+
 
         setStatus("overlayStatus", "Overlay applied.", "success", true);
 
-        await loadCaptionsFromYaml();   // sync UI text
-        await loadConfigAndYaml();      // sync YAML preview
+        // 🔒 ONLY reload captions if rewriting
+        if (captionMode === "rewrite") {
+            await loadCaptionsFromYaml();
+            await refreshHookScore();
+            await refreshStoryFlowScore();
+        }
 
-        // 🧠 Re-score narrative (overlay rewrites text)
-        await refreshHookScore();
-        await refreshStoryFlowScore();
+        // ✅ Always reload YAML preview
+        await loadConfigAndYaml();
 
     } catch (err) {
         console.error(err);
