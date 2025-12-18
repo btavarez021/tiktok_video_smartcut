@@ -822,9 +822,13 @@ async function refreshHookScore() {
   }
 }
 
-document.getElementById("previewStyleBtn")
-  .addEventListener("click", async () => {
-    const style = document.getElementById("captionStyleSelect").value;
+document.addEventListener("DOMContentLoaded", () => {
+  const previewBtn = document.getElementById("previewStyleBtn");
+  if (!previewBtn) return;
+
+  previewBtn.addEventListener("click", async () => {
+    const style = document.getElementById("captionStyleSelect")?.value;
+    if (!style) return;
 
     await jsonFetch("/api/apply_overlay", {
       method: "POST",
@@ -835,8 +839,11 @@ document.getElementById("previewStyleBtn")
       })
     });
 
-    await loadCaptionsFromYaml(); // 🔥 this makes it visible
+    // 🔥 Makes the change visible immediately
+    await loadCaptionsFromYaml();
+  });
 });
+
 
 
 async function improveHook() {
