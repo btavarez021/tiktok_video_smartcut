@@ -1162,12 +1162,7 @@ async function applyOverlay() {
     // Always reload YAML
     await loadConfigAndYaml();
 
-    // Only reload captions if rewrite was chosen
-    if (captionMode === "rewrite") {
-      await loadCaptionsFromYaml();
-      await refreshHookScore();
-      await refreshStoryFlowScore();
-    }
+    await loadCaptionsFromYaml(); // already refreshes scores
 
     setStatus(
       "overlayStatus",
@@ -1814,7 +1809,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    document.getElementById("improveStoryFlowBtn")?.addEventListener("click", async () => {
+  document.getElementById("improveStoryFlowBtn")?.addEventListener("click", async () => {
     const btn = document.getElementById("improveStoryFlowBtn");
     const status = document.getElementById("storyFlowStatus");
 
@@ -1822,27 +1817,30 @@ document.addEventListener("DOMContentLoaded", () => {
     if (status) status.textContent = "Improving story flow…";
 
     try {
-        const res = await jsonFetch("/api/story_flow_improve", {
-            method: "POST",
-            body: JSON.stringify({ session: getActiveSession() }),
-        });
+      const res = await jsonFetch("/api/story_flow_improve", {
+        method: "POST",
+        body: JSON.stringify({ session: getActiveSession() }),
+      });
 
-        if (res.updated) {
-            if (status) status.textContent = "Story flow improved ✓";
+      if (res.updated) {
+        if (status) status.textContent = "Story flow improved ✓";
 
-            await loadCaptionsFromYaml();
-            await refreshStoryFlowScore();
-        } else {
-            if (status) status.textContent = res.reason || "No changes made.";
-        }
+        // 🔥 UX IMPROVEMENT: auto-sync everything
+        await loadCaptionsFromYaml();
+        await loadConfigAndYaml();
+        await refreshHookScore();
+        await refreshStoryFlowScore();
+      } else {
+        if (status) status.textContent = res.reason || "No changes made.";
+      }
     } catch (err) {
-        console.error(err);
-        if (status) status.textContent = "Failed to improve story flow.";
+      console.error(err);
+      if (status) status.textContent = "Failed to improve story flow.";
     } finally {
-        // ✅ ALWAYS re-enable (success or failure)
-        if (btn) btn.disabled = false;
+      if (btn) btn.disabled = false;
     }
-});
+  });
+
 
 
     // MOBILE SESSION PANEL
