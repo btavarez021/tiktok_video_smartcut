@@ -841,6 +841,7 @@ async function refreshStoryFlowScore() {
     const card = document.querySelector(".story-flow-card");
     const scoreEl = document.getElementById("storyFlowScoreValue");
     const reasonsEl = document.getElementById("storyFlowReasons");
+    const improveBtn = document.getElementById("improveStoryFlowBtn");
 
     if (!captionsEl || !card || !scoreEl || !reasonsEl) return;
 
@@ -849,29 +850,20 @@ async function refreshStoryFlowScore() {
         return;
     }
 
-
     const blocks = captionsEl.value
         .split(/\n\s*\n/)
         .map(b => b.trim())
         .filter(Boolean);
-    
-    const improveBtn = document.getElementById("improveStoryFlowBtn");
 
+    // Need at least: hook + 2 middle captions
     if (blocks.length < 3) {
         card.classList.add("hidden");
         if (improveBtn) improveBtn.disabled = true;
         return;
     }
 
-    if (improveBtn) improveBtn.disabled = false;
-
-    // Need at least: hook + 2 middle captions
-    if (blocks.length < 3) {
-        card.classList.add("hidden");
-        return;
-    }
-
     card.classList.remove("hidden");
+    if (improveBtn) improveBtn.disabled = false;
 
     try {
         const session = encodeURIComponent(getActiveSession());
@@ -894,9 +886,18 @@ async function refreshStoryFlowScore() {
             scoreEl.classList.add("bad");
         }
 
-        const reasons = data.reasons || [];
-        reasonsEl.innerHTML = ""; 
+        // ✅ ADD THIS BLOCK RIGHT HERE
+        if (improveBtn) {
+            if (score >= 85) {
+                improveBtn.style.display = "none";   // hide when strong
+            } else {
+                improveBtn.style.display = "inline-flex";
+                improveBtn.disabled = false;
+            }
+        }
+        // ⬆️ END INSERT
 
+        const reasons = data.reasons || [];
         reasonsEl.innerHTML = reasons.length
             ? reasons.map(r => `<li>${r}</li>`).join("")
             : `<li>Flow looks solid ✅</li>`;
@@ -906,7 +907,6 @@ async function refreshStoryFlowScore() {
         card.classList.add("hidden");
     }
 }
-
 
 
 // ================================
@@ -1755,10 +1755,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     document.getElementById("improveStoryFlowBtn")?.addEventListener("click", async () => {
-    const storyFlowStatus = document.getElementById("storyFlowStatus");
-    if (storyFlowStatus) {
-        storyFlowStatus.textContent = "Improving story flow…";
-    }
+    const btn = document.getElementById("improveStoryFlowBtn");
+    const status = document.getElementById("storyFlowStatus");
+
+    if (btn) btn.disabled = true;
+    if (status) status.textContent = "Improving story flow…";
 
     try {
         const res = await jsonFetch("/api/story_flow_improve", {
@@ -1767,25 +1768,20 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         if (res.updated) {
-            if (storyFlowStatus) {
-                storyFlowStatus.textContent = "Story flow improved ✓";
-            }
+            if (status) status.textContent = "Story flow improved ✓";
 
-            // Reload captions + re-score
             await loadCaptionsFromYaml();
             await refreshStoryFlowScore();
         } else {
-            if (storyFlowStatus) {
-                storyFlowStatus.textContent = res.reason || "No changes made.";
-            }
+            if (status) status.textContent = res.reason || "No changes made.";
         }
     } catch (err) {
         console.error(err);
-        if (storyFlowStatus) {
-            storyFlowStatus.textContent = "Failed to improve story flow.";
-        }
+        if (status) status.textContent = "Failed to improve story flow.";
+        if (btn) btn.disabled = false; // re-enable on failure
     }
-});
+  });
+
 
     // MOBILE SESSION PANEL
     const mobileSessionBtn = document.getElementById("mobileSessionBtn");
