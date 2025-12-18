@@ -451,60 +451,6 @@ def _wrap_caption(text: str, max_chars_per_line: int) -> str:
 
     return "\n".join(lines)
 
-def concat_with_transitions(
-    clips: List[str],
-    durations: List[float],
-    transition: str,
-    transition_duration: float,
-) -> str:
-    """
-    Build a story-style video using FFmpeg xfade transitions.
-    """
-    assert len(clips) >= 2, "Story mode requires at least 2 clips"
-
-    inputs = []
-    for clip in clips:
-        inputs += ["-i", clip]
-
-    filters = []
-    offset = durations[0] - transition_duration
-    last_label = "[0:v]"
-
-    for i in range(1, len(clips)):
-        next_label = f"[{i}:v]"
-        out_label = f"[v{i}]"
-
-        filters.append(
-            f"{last_label}{next_label}"
-            f"xfade=transition={transition}:duration={transition_duration}:offset={offset}"
-            f"{out_label}"
-        )
-
-        last_label = out_label
-        offset += durations[i] - transition_duration
-
-    filter_complex = ";".join(filters)
-
-    out = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-
-    cmd = [
-        "ffmpeg", "-y",
-        *inputs,
-        "-filter_complex", filter_complex,
-        "-map", last_label,
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-crf", "22",
-        "-pix_fmt", "yuv420p",
-        out,
-    ]
-
-    log_step(f"[STORY] Running xfade concat ({transition})")
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    return out
-
-
 
 def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
     """
@@ -519,26 +465,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     if not cfg:
         raise RuntimeError("config.yml missing or empty")
     
-    render = cfg.get("render", {})
-
-    story_mode = bool(render.get("story_mode", False))
-
-    transition_cfg = render.get("transition", {}) or {}
-    transition_type = transition_cfg.get("type", "fade")
-    transition_duration = float(transition_cfg.get("duration", 0.4))
-
     # -------------------------------
     # 5.2 — Clamp transition duration (safety)
     # -------------------------------
     transition_duration = max(0.15, min(transition_duration, 0.6))
 
 
-    log_step(
-        f"[STORY] story_mode={story_mode}, "
-        f"transition={transition_type}, "
-        f"duration={transition_duration}"
-    )
-
+    log_step("[EXPORT] Using standard concat (no story mode, no transitions)")
 
     layout_mode = _get_layout_mode(cfg)
     log_step(f"[EXPORT] Building low-memory FFmpeg timeline… (layout_mode={layout_mode})")
@@ -870,72 +803,30 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # 2. CONCAT CLIPS
     # -------------------------------
 
-    if not story_mode:
-        # ---------------------------------
-        # HOTEL MODE (existing behavior)
-        # ---------------------------------
-        log_step("[CONCAT] Using standard concat (hotel mode)")
+    log_step("[CONCAT] Using standard concat")
 
-        concat_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-        concat_cmd = [
-            "ffmpeg", "-y",
-            "-f", "concat", "-safe", "0",
-            "-i", trimlist,
-            "-c:v", "libx264",
-            "-preset", "superfast" if optimized else "veryfast",
-            "-crf", "22",
-            "-pix_fmt", "yuv420p",
-            concat_output,
-        ]
+    concat_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+    concat_cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat", "-safe", "0",
+        "-i", trimlist,
+        "-c:v", "libx264",
+        "-preset", "superfast" if optimized else "veryfast",
+        "-crf", "22",
+        "-pix_fmt", "yuv420p",
+        concat_output,
+    ]
 
-        subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        final_video_source = concat_output
+    proc = subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if proc.stderr:
+        log_step(f"[CONCAT-FFMPEG] stderr:\n{proc.stderr}")
 
-    else:
-        # ---------------------------------
-        # STORY MODE (v2.1 — transitions)
-        # ---------------------------------
-        log_step(
-            f"[CONCAT] Story mode enabled "
-            f"(transition={transition_type}, duration={transition_duration})"
-        )
+    final_video_source = concat_output
 
-        clip_paths = trimmed_files
-        clip_durations = [c["duration"] for c in clips]
+    # ✅ always compute duration
+    total_video_duration = get_video_duration(final_video_source) or float(base_video_duration)
+    log_step(f"[DURATION] total_video_duration={total_video_duration:.2f}s")
 
-        min_clip_len = transition_duration + 0.25
-
-        for i, d in enumerate(clip_durations):
-            if d < min_clip_len:
-                log_step(
-                    f"[STORY-SAFETY] Extending clip {i+1} "
-                    f"from {d:.2f}s → {min_clip_len:.2f}s"
-                )
-                clip_durations[i] = min_clip_len
-
-
-        final_video_source = concat_with_transitions(
-            clips=clip_paths,
-            durations=clip_durations,
-            transition=transition_type,
-            transition_duration=transition_duration,
-        )
-
-        try:
-            concat_duration = float(
-                subprocess.check_output(
-                    [
-                        "ffprobe", "-v", "error",
-                        "-show_entries", "format=duration",
-                        "-of", "default=noprint_wrappers=1:nokey=1",
-                        final_video_source,
-                    ]
-                ).decode().strip()
-            )
-        except Exception:
-            concat_duration = base_video_duration
-
-        total_video_duration = concat_duration
 
     # ------------------------------------------------------------------
     # 4. AUDIO PIPELINE — CLEAN, NO OVERLAP, ACCURATE TTS TIMELINE

@@ -329,10 +329,10 @@
                     
                     <div class="row">
                       <button class="btn secondary small" onclick="regenerateCaptionsFromClips()">
-                        ✨ Generate captions from clips
+                        🔄 Regenerate captions from clips
                       </button>
                       <p class="hint-text">
-                        Uses clip filenames and order to generate a new hook and captions.
+                        Overwrites current captions using clip filenames and order.
                       </p>
                     </div>
                 </div>
@@ -462,7 +462,7 @@
                             🎨 Overlay & Timing
                             <span class="tooltip">ⓘ
                                 <span class="tooltiptext">
-                                    Overlay Style = how captions look/feel<br>
+                                    Overlay Style = how captions look and animate<br>
                                     Timing = pacing of clip switches<br>
                                     Cinematic = slower + smoother
                                 </span>
@@ -475,14 +475,14 @@
                                 Overlay Style
                                 <span class="tooltip">ⓘ
                                     <span class="tooltiptext">
-                                        Rewrites captions and applies visual style.<br>
-                                        AI Recommended adapts based on clip mood.
+                                        Captions are not rewritten unless you choose “Rewrite captions”<br>
+                                        AI Visual Director adapts visuals based on clip mood.
                                     </span>
                                 </span>
                             </h3>
 
                             <label class="field-label">
-                                Caption tone
+                                Overlay style preset
                                 <span class="tooltip">ⓘ
                                     <span class="tooltiptext">
                                         Travel Blog = warm<br>
@@ -504,6 +504,11 @@
                             </select>
 
                             <div class="caption-mode">
+                              <p class="hint-text">
+                                Visual-only keeps your captions exactly as written.<br>
+                                Rewrite mode adapts wording to match the selected style.
+                              </p>
+
                               <label>
                                 <input type="radio" name="captionMode" value="visual" checked />
                                 Visual only (recommended)
@@ -619,10 +624,11 @@
                             <div id="layoutStatus" class="status-text status-info"></div>
 
                             <p class="hint">
-                                • TikTok = bold centered captions<br>
-                                • Classic = subtle bottom captions<br>
-                                Stored in <code>render.layout_mode</code>
+                              • TikTok = bold centered captions<br>
+                              • Classic = subtle bottom captions<br>
+                              Affects placement only — text and style remain unchanged.
                             </p>
+
 
                         </div>
                     </div>

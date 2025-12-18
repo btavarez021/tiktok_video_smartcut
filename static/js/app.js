@@ -773,6 +773,7 @@ async function refreshHookScore() {
         const data = await jsonFetch(`/api/hook_score?session=${session}`);
 
         const score = Number(data.score ?? 0);
+        updateImproveButtons(score, null);
         scoreEl.textContent = `${score}/100`;
         hookEl.textContent = data.hook || "(no opening caption yet)";
 
@@ -784,15 +785,12 @@ async function refreshHookScore() {
         if (score >= 85) {
             card.classList.add("good");
             scoreEl.classList.add("good");
-            if (improveBtn) improveBtn.style.display = "none";
         } else if (score >= 70) {
             card.classList.add("ok");
             scoreEl.classList.add("ok");
-            if (improveBtn) improveBtn.style.display = "inline-flex";
         } else {
             card.classList.add("bad");
             scoreEl.classList.add("bad");
-            if (improveBtn) improveBtn.style.display = "inline-flex";
         }
 
         const reasons = data.reasons || [];
@@ -828,6 +826,17 @@ async function improveHook() {
         await loadCaptionsFromYaml();
         await loadConfigAndYaml();
         await refreshHookScore();
+
+        // Reset story flow — hook changed
+        const flowCard = document.querySelector(".story-flow-card");
+        if (flowCard) flowCard.classList.add("hidden");
+
+        const flowScore = document.getElementById("storyFlowScoreValue");
+        if (flowScore) flowScore.textContent = "–/100";
+
+        const flowReasons = document.getElementById("storyFlowReasons");
+        if (flowReasons) flowReasons.innerHTML = "";
+
 
         if (statusEl) statusEl.textContent = "Hook improved ✅";
         setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 1500);
@@ -877,6 +886,7 @@ async function refreshStoryFlowScore() {
         const data = await jsonFetch(`/api/story_flow_score?session=${session}`);
 
         const score = Number(data.score ?? 0);
+        updateImproveButtons(null, score);
         scoreEl.textContent = `${score}/100`;
 
         card.classList.remove("good", "ok", "bad");
@@ -893,17 +903,6 @@ async function refreshStoryFlowScore() {
             scoreEl.classList.add("bad");
         }
 
-        // ✅ ADD THIS BLOCK RIGHT HERE
-        if (improveBtn) {
-            if (score >= 85) {
-                improveBtn.style.display = "none";   // hide when strong
-            } else {
-                improveBtn.style.display = "inline-flex";
-                improveBtn.disabled = false;
-            }
-        }
-        // ⬆️ END INSERT
-
         const reasons = data.reasons || [];
         reasonsEl.innerHTML = reasons.length
             ? reasons.map(r => `<li>${r}</li>`).join("")
@@ -913,6 +912,19 @@ async function refreshStoryFlowScore() {
         console.error("Story flow score error:", err);
         card.classList.add("hidden");
     }
+}
+
+function updateImproveButtons(hookScore, storyScore) {
+  const hookBtn = document.getElementById("improveHookBtn");
+  const flowBtn = document.getElementById("improveStoryFlowBtn");
+
+  if (hookBtn && typeof hookScore === "number") {
+    hookBtn.classList.toggle("hidden", hookScore >= 85);
+  }
+
+  if (flowBtn && typeof storyScore === "number") {
+    flowBtn.classList.toggle("hidden", storyScore >= 80);
+  }
 }
 
 
@@ -1088,6 +1100,7 @@ async function saveCaptions() {
 
 async function regenerateCaptionsFromClips() {
   const captionsEl = document.getElementById("captionsText");
+
   if (captionsEl && captionsEl.value.trim()) {
     const ok = confirm(
       "This will overwrite your current captions. Continue?"
@@ -1105,15 +1118,18 @@ async function regenerateCaptionsFromClips() {
 
     await loadCaptionsFromYaml();
     await refreshHookScore();
-    await refreshStoryFlowScore();
 
-    setStatus("captionsStatus", "Captions generated ✓", "success");
-  } catch (err) {
+    // Hide story flow until hook is improved again
+    document.querySelector(".story-flow-card")?.classList.add("hidden");
+
     setStatus(
       "captionsStatus",
-      "Failed to generate captions.",
-      "error"
+      "New caption draft generated. Improve hook and story flow next.",
+      "success"
     );
+  } catch (err) {
+    console.error(err);
+    setStatus("captionsStatus", "Failed to generate captions.", "error");
   }
 }
 
@@ -1122,63 +1138,56 @@ async function regenerateCaptionsFromClips() {
 // Step 4: Overlay, timings, TTS, CTA, fg scale, music
 // ================================
 async function applyOverlay() {
-    const styleSel = document.getElementById("overlayStyle");
-    const statusEl = document.getElementById("overlayStatus");
-    if (!styleSel || !statusEl) return;
+  const styleSel = document.getElementById("overlayStyle");
+  const statusEl = document.getElementById("overlayStatus");
+  if (!styleSel || !statusEl) return;
 
-    const style = styleSel.value || "travel_blog";
-    const captionMode = getCaptionMode(); // 🔑 NEW
+  const style = styleSel.value || "travel_blog";
+  const captionMode =
+    document.querySelector('input[name="captionMode"]:checked')?.value ||
+    "visual";
 
-    // ⚠️ Safety confirm if rewriting
+  setStatus(
+    "overlayStatus",
+    captionMode === "rewrite"
+      ? "Applying overlay + rewriting captions…"
+      : "Applying visual overlay only…",
+    "info"
+  );
+
+  try {
+    await jsonFetch("/api/overlay", {
+      method: "POST",
+      body: JSON.stringify({
+        style,
+        session: getActiveSession(),
+        rewrite: captionMode === "rewrite", // 🔑 THIS IS THE KEY
+      }),
+    });
+
+    // Always reload YAML
+    await loadConfigAndYaml();
+
+    // Only reload captions if rewrite was chosen
     if (captionMode === "rewrite") {
-        const ok = confirm(
-            "This will overwrite your current captions. Continue?"
-        );
-        if (!ok) return;
+      await loadCaptionsFromYaml();
+      await refreshHookScore();
+      await refreshStoryFlowScore();
     }
 
     setStatus(
-        "overlayStatus",
-        `Applying overlay style “${style}”…`,
-        "info"
+      "overlayStatus",
+      captionMode === "rewrite"
+        ? "Overlay applied and captions updated ✓"
+        : "Overlay applied (captions unchanged) ✓",
+      "success"
     );
-
-    try {
-        const result = await jsonFetch("/api/overlay", {
-            method: "POST",
-            body: JSON.stringify({
-                style,
-                captionMode,               // 🔑 SEND MODE
-                session: getActiveSession(),
-            }),
-        });
-
-        if (captionMode === "visual" && result?.captions) {
-            console.warn("Blocked caption rewrite in visual-only mode");
-        }
-
-
-        setStatus("overlayStatus", "Overlay applied.", "success", true);
-
-        // 🔒 ONLY reload captions if rewriting
-        if (captionMode === "rewrite") {
-            await loadCaptionsFromYaml();
-            await refreshHookScore();
-            await refreshStoryFlowScore();
-        }
-
-        // ✅ Always reload YAML preview
-        await loadConfigAndYaml();
-
-    } catch (err) {
-        console.error(err);
-        setStatus(
-            "overlayStatus",
-            `Error applying overlay: ${err.message}`,
-            "error"
-        );
-    }
+  } catch (err) {
+    console.error(err);
+    setStatus("overlayStatus", "Failed to apply overlay.", "error");
+  }
 }
+
 
 
 // Timings
@@ -1835,9 +1844,11 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
         console.error(err);
         if (status) status.textContent = "Failed to improve story flow.";
-        if (btn) btn.disabled = false; // re-enable on failure
+    } finally {
+        // ✅ ALWAYS re-enable (success or failure)
+        if (btn) btn.disabled = false;
     }
-  });
+});
 
 
     // MOBILE SESSION PANEL
