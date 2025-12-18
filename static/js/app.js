@@ -685,6 +685,7 @@ async function generateYaml() {
         setStatus("yamlStatus", "YAML generated!", "success");
         await loadConfigAndYaml();
         await refreshHookScore();
+        await refreshStoryFlowScore();
     } catch (err) {
         console.error(err);
         setStatus(
@@ -832,6 +833,60 @@ async function improveHook() {
 }
 
 
+async function refreshStoryFlowScore() {
+    const captionsEl = document.getElementById("captionsText");
+    const card = document.querySelector(".story-flow-card");
+    const scoreEl = document.getElementById("storyFlowScoreValue");
+    const reasonsEl = document.getElementById("storyFlowReasons");
+
+    if (!captionsEl || !card || !scoreEl || !reasonsEl) return;
+
+    const blocks = captionsEl.value
+        .split(/\n\s*\n/)
+        .map(b => b.trim())
+        .filter(Boolean);
+
+    // Need at least: hook + 2 middle captions
+    if (blocks.length < 3) {
+        card.classList.add("hidden");
+        return;
+    }
+
+    card.classList.remove("hidden");
+
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/story_flow_score?session=${session}`);
+
+        const score = Number(data.score ?? 0);
+        scoreEl.textContent = `${score}/100`;
+
+        card.classList.remove("good", "ok", "bad");
+        scoreEl.classList.remove("good", "ok", "bad");
+
+        if (score >= 85) {
+            card.classList.add("good");
+            scoreEl.classList.add("good");
+        } else if (score >= 70) {
+            card.classList.add("ok");
+            scoreEl.classList.add("ok");
+        } else {
+            card.classList.add("bad");
+            scoreEl.classList.add("bad");
+        }
+
+        const reasons = data.reasons || [];
+        reasonsEl.innerHTML = reasons.length
+            ? reasons.map(r => `<li>${r}</li>`).join("")
+            : `<li>Flow looks solid ✅</li>`;
+    } catch (err) {
+        console.error("Story flow score error:", err);
+        card.classList.add("hidden");
+    }
+}
+
+
+
 // ================================
 // Step 3: Captions
 // ================================
@@ -865,6 +920,7 @@ async function loadCaptionsFromYaml() {
         const cfg = data.config || {};
         captionsEl.value = buildCaptionsFromConfig(cfg);
         await refreshHookScore();
+        await refreshStoryFlowScore();
         setStatus("captionsStatus", "Captions loaded.", "success");
     } catch (err) {
         console.error(err);
@@ -989,6 +1045,7 @@ async function saveCaptions() {
 
         await loadConfigAndYaml();
         await refreshHookScore();
+        await refreshStoryFlowScore();
     } catch (err) {
         console.error(err);
         setStatus(

@@ -1703,3 +1703,51 @@ h3 {
     max-width: 260px;
     line-height: 1.4;
 }
+
+/* ============================
+   Story Flow Score
+============================ */
+
+.story-flow-card {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #1a1a1b;
+    border: 1px solid #2e2e31;
+}
+
+.story-flow-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.story-flow-value {
+    font-weight: 600;
+}
+
+/* Color states */
+.story-flow-card.good {
+    border-color: #28d05d;
+}
+.story-flow-card.ok {
+    border-color: #f5c542;
+}
+.story-flow-card.bad {
+    border-color: #ff4d4d;
+}
+
+.story-flow-value.good { color: #28d05d; }
+.story-flow-value.ok { color: #f5c542; }
+.story-flow-value.bad { color: #ff4d4d; }
+
+.story-flow-reasons {
+    font-size: 0.8rem;
+    color: #9b9b9f;
+    margin: 0 0 0 16px;
+}
+
+.story-flow-card.hidden {
+    display: none;
+}
