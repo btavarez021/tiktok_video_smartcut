@@ -762,6 +762,20 @@ async function refreshHookScore() {
         return;
     }
 
+    const flowCard = document.querySelector(".story-flow-card");
+    const lockedHint = document.getElementById("storyFlowLockedHint");
+
+    // 🔒 Lock story flow if hook is weak
+    if (flowCard && lockedHint) {
+      if (score < 60) {
+        flowCard.classList.add("hidden");
+        lockedHint.classList.remove("hidden");
+      } else {
+        lockedHint.classList.add("hidden");
+      }
+    }
+
+
     if (!card || !scoreEl || !reasonsEl || !hookEl) return;
 
     card.classList.remove("hidden");

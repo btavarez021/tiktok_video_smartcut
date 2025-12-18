@@ -382,8 +382,10 @@ def route_overlay():
 
     style = data.get("style", "travel_blog")
     session_id = data.get("session", "default")
+    rewrite = bool(data.get("rewrite", False))
 
-    return jsonify(api_apply_overlay(session_id, style))
+    return jsonify(api_apply_overlay(session_id, style, rewrite))
+
 
 
 

@@ -407,7 +407,13 @@ def _style_instructions(style: str) -> str:
     }.get(style, "Friendly hotel travel tone.")
 
 
-def apply_overlay(session: str, style: str, target: str = "all", filename: Optional[str] = None) -> None:
+def apply_overlay(
+    session: str,
+    style: str,
+    rewrite: bool = False,
+    target: str = "all",
+    filename: Optional[str] = None,
+) -> None:
     """
     Apply overlay style (caption rewrite) for THIS session.
     - Only rewrites text fields
@@ -423,6 +429,25 @@ def apply_overlay(session: str, style: str, target: str = "all", filename: Optio
             original_text = f.read()
     except Exception:
         return
+    
+    # -----------------------------
+    # VISUAL-ONLY MODE (NO REWRITE)
+    # -----------------------------
+    if not rewrite:
+        try:
+            cfg = yaml.safe_load(original_text) or {}
+            render = cfg.setdefault("render", {})
+            render["overlay_style"] = style
+
+            with open(config_path, "w", encoding="utf-8") as f:
+                yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
+
+            log_step(f"[OVERLAY] Visual-only applied (no rewrite), style={style}")
+            return
+        except Exception as e:
+            logger.error(f"[OVERLAY VISUAL ERROR] {e}")
+            return
+
 
     if client is None:
         return

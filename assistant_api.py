@@ -910,20 +910,28 @@ def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool |
 # -------------------------------
 # Overlay + Timings + fg_scale
 # -------------------------------
-def api_apply_overlay(session_id: str, style: str) -> Dict[str, Any]:
+def api_apply_overlay(session_id: str, style: str, rewrite: bool) -> Dict[str, Any]:
     try:
         session_id = sanitize_session(session_id)
 
-        apply_overlay(session_id, style)
+        apply_overlay(session_id, style, rewrite=rewrite)
 
-        log_success("[OVERLAY]",
-                    f"Applied overlay style '{style}' for session '{session_id}'")
+        log_success(
+            "[OVERLAY]",
+            f"Applied overlay '{style}' (rewrite={rewrite}) for session '{session_id}'"
+        )
 
-        return {"status": "ok", "style": style, "session": session_id}
+        return {
+            "status": "ok",
+            "style": style,
+            "rewrite": rewrite,
+            "session": session_id,
+        }
 
     except Exception as e:
         log_error("[OVERLAY]", e)
         return {"status": "error", "error": str(e)}
+
 
 
 def api_apply_timings(session_id: str, smart: bool = False) -> Dict[str, Any]:
