@@ -309,6 +309,7 @@ def api_story_flow_improve(session: str) -> Dict[str, Any]:
                 - Improve flow by rephrasing sentences, not by adding connectors
                 - Use semantic transitions (energy shift, location change, mood progression)
                 - Keep captions concise and natural
+                - Avoid trivial synonym swaps; each rewrite should meaningfully improve flow
                 - Return JSON ONLY
 
                 Captions:
