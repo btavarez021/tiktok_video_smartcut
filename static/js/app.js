@@ -822,34 +822,6 @@ async function refreshHookScore() {
   }
 }
 
-document.getElementById("previewStyleBtn")?.addEventListener("click", async () => {
-  const style = document.getElementById("overlayStyle")?.value;
-  if (!style) return;
-
-  setStatus("overlayStatus", "Previewing caption style…", "info");
-
-  try {
-    await jsonFetch("/api/overlay", {
-      method: "POST",
-      body: JSON.stringify({
-        session: getActiveSession(),
-        style,
-        rewrite: false // 🔑 VISUAL ONLY
-      }),
-    });
-
-    // 🔥 This makes the visual change observable
-    await loadCaptionsFromYaml();
-
-    setStatus("overlayStatus", "Preview applied (text unchanged)", "success");
-  } catch (err) {
-    console.error(err);
-    setStatus("overlayStatus", "Preview failed.", "error");
-  }
-});
-
-
-
 
 async function improveHook() {
   const btn = document.getElementById("improveHookBtn");
