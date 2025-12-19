@@ -1858,56 +1858,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.addEventListener("click", async (e) => {
-  if (e.target?.id !== "previewStyleBtn") return;
-
-  console.log("[UI] Apply Caption Style clicked");
-
-  const btn = e.target;
-  const style = document.getElementById("overlayStyle")?.value;
-
-  if (!style) {
-    alert("Select an overlay style first");
-    return;
-  }
-
-  btn.disabled = true;
-
-  setStatus(
-    "overlayStatus",
-    "Applying caption style (text only)…",
-    "info"
-  );
-
-  try {
-    await jsonFetch("/api/overlay", {
-      method: "POST",
-      body: JSON.stringify({
-        session: getActiveSession(),
-        style,
-        rewrite: false // TEXT STYLE ONLY
-      }),
-    });
-
-    await loadConfigAndYaml();
-
-    setStatus(
-      "overlayStatus",
-      `Caption style applied: ${style.replaceAll("_", " ")}`,
-      "success"
-    );
-  } catch (err) {
-    console.error(err);
-    setStatus(
-      "overlayStatus",
-      "Failed to apply caption style.",
-      "error"
-    );
-  } finally {
-    btn.disabled = false;
-  }
-});
-
 
     // MOBILE SESSION PANEL
     const mobileSessionBtn = document.getElementById("mobileSessionBtn");
