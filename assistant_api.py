@@ -290,24 +290,25 @@ def api_story_flow_improve(session: str) -> Dict[str, Any]:
     # LLM prompt
     # --------------------------------------------------
     prompt = f"""
-Improve the narrative flow of these captions.
+                Improve the narrative flow of these captions.
 
-Rules:
-- Do NOT rewrite the opening hook
-- Do NOT add or remove captions
-- Improve transitions, pacing, and cohesion
-- Preserve tone and intent
-- Keep captions concise
-- Return JSON ONLY
+                Rules:
+                - Do NOT rewrite the opening hook
+                - Do NOT add or remove captions
+                - Do NOT add sequence words like "then", "next", or "finally"
+                - Improve flow by rephrasing sentences, not by adding connectors
+                - Use semantic transitions (energy shift, location change, mood progression)
+                - Keep captions concise and natural
+                - Return JSON ONLY
 
-Captions:
-{json.dumps(texts, indent=2)}
+                Captions:
+                {json.dumps(texts, indent=2)}
 
-Return:
-{{
-  "rewrites": ["caption 1", "caption 2", "..."]
-}}
-"""
+                Return:
+                {{
+                "rewrites": ["caption 1", "caption 2", "..."]
+                }}
+                """
 
     try:
         resp = client.chat.completions.create(
