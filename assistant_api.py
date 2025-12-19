@@ -205,12 +205,21 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
     prompt = f"""
                 Score the narrative flow of these captions from 1–100.
 
-                Evaluate:
-                - pacing
-                - progression
-                - repetition
-                - clarity
-                - momentum
+                Important context:
+                These captions may represent a short-form influencer highlight reel,
+                not a traditional story. Do NOT require a strict beginning–middle–end
+                arc to score well.
+
+                Evaluate positively if:
+                - Captions feel cohesive as part of the same experience
+                - There is a natural progression (arrival → enjoyment → wind-down)
+                - Transitions feel logical even if topics change
+                - Tone and energy feel consistent
+
+                Evaluate negatively if:
+                - Captions feel random or disconnected
+                - Order feels confusing
+                - Experiences contradict each other
 
                 Captions:
                 {json.dumps(middle, indent=2)}
@@ -219,6 +228,7 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
                 score: number
                 reasons: list of short bullet points
                 """
+
 
     try:
         resp = client.chat.completions.create(
