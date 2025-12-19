@@ -823,8 +823,11 @@ async function refreshHookScore() {
 }
 
 document.getElementById("previewStyleBtn")?.addEventListener("click", async () => {
+  const btn = document.getElementById("previewStyleBtn");
   const style = document.getElementById("overlayStyle")?.value;
-  if (!style) return;
+  if (!style || !btn) return;
+
+  btn.disabled = true;
 
   setStatus(
     "overlayStatus",
@@ -856,8 +859,11 @@ document.getElementById("previewStyleBtn")?.addEventListener("click", async () =
       "Failed to apply caption style.",
       "error"
     );
+  } finally {
+    btn.disabled = false;
   }
 });
+
 
 
 async function improveHook() {
