@@ -822,6 +822,43 @@ async function refreshHookScore() {
   }
 }
 
+document.getElementById("previewStyleBtn")?.addEventListener("click", async () => {
+  const style = document.getElementById("overlayStyle")?.value;
+  if (!style) return;
+
+  setStatus(
+    "overlayStatus",
+    "Applying caption style (text only)…",
+    "info"
+  );
+
+  try {
+    await jsonFetch("/api/overlay", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        style,
+        rewrite: false // TEXT STYLE ONLY
+      }),
+    });
+
+    await loadConfigAndYaml();
+
+    setStatus(
+      "overlayStatus",
+      `Caption style applied: ${style.replaceAll("_", " ")}`,
+      "success"
+    );
+  } catch (err) {
+    console.error(err);
+    setStatus(
+      "overlayStatus",
+      "Failed to apply caption style.",
+      "error"
+    );
+  }
+});
+
 
 async function improveHook() {
   const btn = document.getElementById("improveHookBtn");
