@@ -4,6 +4,7 @@ import os
 import json
 import glob
 import logging
+import re
 from typing import Dict, Any, List
 import yaml
 from openai import OpenAI
@@ -727,50 +728,57 @@ def api_get_captions() -> Dict[str, Any]:
     with open(_CAPTIONS_FILE, "r", encoding="utf-8") as f:
         return {"text": f.read()}
 
-
 def api_save_captions(text: str, session: str) -> Dict[str, Any]:
     try:
         session = sanitize_session(session)
         config_path = get_config_path(session)
 
-        # Load existing YAML
         with open(config_path, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
 
-        # Split caption blocks by blank lines
-        blocks = [b.strip() for b in text.split("\n\n") if b.strip()]
+        # 🔥 Robust block split
+        blocks = [
+            b.strip()
+            for b in re.split(r"\n\s*\n", text)
+            if b.strip()
+        ]
 
         idx = 0
+
         # First clip
-        if "first_clip" in cfg and idx < len(blocks):
+        if cfg.get("first_clip") and idx < len(blocks):
             cfg["first_clip"]["text"] = blocks[idx]
             idx += 1
 
         # Middle clips
-        if "middle_clips" in cfg:
-            for clip in cfg["middle_clips"]:
-                if idx < len(blocks):
-                    clip["text"] = blocks[idx]
-                    idx += 1
+        for clip in cfg.get("middle_clips", []):
+            if idx < len(blocks):
+                clip["text"] = blocks[idx]
+                idx += 1
 
         # Last clip
-        if "last_clip" in cfg and idx < len(blocks):
+        if cfg.get("last_clip") and idx < len(blocks):
             cfg["last_clip"]["text"] = blocks[idx]
 
-        # SAVE YAML CORRECTLY 🔥
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
-        # SAVE the caption editor text (global file)
         with open(_CAPTIONS_FILE, "w", encoding="utf-8") as f:
             f.write(text)
 
-        log_success("[CAPTIONS]", "Captions updated")
-        return {"status": "ok", "text": text, "config": cfg}
+        log_success("[CAPTIONS]", f"Saved {len(blocks)} caption block(s)")
+
+        return {
+            "status": "ok",
+            "count": len(blocks),
+            "text": text,
+            "config": cfg,
+        }
 
     except Exception as e:
         log_error("[CAPTIONS]", e)
         return {"status": "error", "error": str(e)}
+
 
 # -------------------------------
 # EXPORT 
