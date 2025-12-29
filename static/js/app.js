@@ -1162,8 +1162,6 @@ function updateRewriteWarning() {
 document.querySelectorAll('input[name="captionRewriteMode"]')
   .forEach(el => el.addEventListener("change", updateRewriteWarning));
 
-updateRewriteWarning(); // initial state
-
 
 // ================================
 // Step 4: Overlay, timings, TTS, CTA, fg scale, music
@@ -2093,6 +2091,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Load initial on entering Step 4
     loadCaptionMode();   
+
+    updateRewriteWarning(); // initial state
     
     // Load initial on entering Step 4
     addStepEnterHandler(4, loadCaptionMode);
