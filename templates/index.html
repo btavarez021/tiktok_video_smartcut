@@ -499,7 +499,7 @@
                                     Caption Mode
                                 </label>
 
-                                <select id="captionMode" class="select">
+                                <select id="captionModeSelect" class="select">
                                     <option value="all">All Clips (default)</option>
                                     <option value="first_only">Hook Only — first clip only</option>
                                     <option value="none">No visible captions</option>
@@ -539,18 +539,21 @@
                             </select>
 
                             <div class="caption-mode">
+                                <div id="rewriteWarning" class="status-text status-warning hidden" style="margin-top:8px;">
+                                    ✍️ Rewrite Mode is ON — captions will be changed when you apply overlay
+                                </div>
                               <p class="hint-text">
                                 Visual-only keeps your captions exactly as written.<br>
                                 Rewrite mode adapts wording to match the selected style.
                               </p>
 
                               <label>
-                                <input type="radio" name="captionMode" value="visual" checked />
+                                <input type="radio" name="captionRewriteMode" value="visual" checked />
                                 Visual only (recommended)
                               </label>
 
                               <label>
-                                <input type="radio" name="captionMode" value="rewrite" />
+                                <input type="radio" name="captionRewriteMode" value="rewrite" />
                                 Rewrite captions to match style
                               </label>
                             </div>

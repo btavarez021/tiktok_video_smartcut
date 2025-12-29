@@ -1751,3 +1751,8 @@ h3 {
 .story-flow-card.hidden {
     display: none;
 }
+
+.status-warning {
+    color: #ffcc00;
+    font-weight: 600;
+}

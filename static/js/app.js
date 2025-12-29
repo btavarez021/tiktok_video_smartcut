@@ -154,11 +154,6 @@ function sidebarSyncActiveLabel() {
 // Utility helpers
 // ================================
 
-function getCaptionMode() {
-  return document.getElementById("captionMode")?.value || "all";
-}
-
-
 function disableDownloadButton() {
     const btn = document.getElementById("downloadLink");
     if (!btn) return;
@@ -1159,6 +1154,21 @@ async function regenerateCaptionsFromClips() {
   }
 }
 
+function updateRewriteWarning() {
+    const mode = document.querySelector('input[name="captionRewriteMode"]:checked')?.value;
+    const warning = document.getElementById("rewriteWarning");
+
+    if (!warning) return;
+
+    if (mode === "rewrite") warning.classList.remove("hidden");
+    else warning.classList.add("hidden");
+}
+
+document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {
+    el.addEventListener("change", updateRewriteWarning);
+});
+
+
 
 // ================================
 // Step 4: Overlay, timings, TTS, CTA, fg scale, music
@@ -1169,46 +1179,48 @@ async function applyOverlay() {
   if (!styleSel || !statusEl) return;
 
   const style = styleSel.value || "travel_blog";
-  const captionMode =
-    document.querySelector('input[name="captionMode"]:checked')?.value ||
+
+  // 🔥 New split controls
+  const rewriteMode =
+    document.querySelector('input[name="captionRewriteMode"]:checked')?.value ||
     "visual";
 
+  // UI status messaging
   setStatus(
     "overlayStatus",
-    captionMode === "rewrite"
+    rewriteMode === "rewrite"
       ? "Applying overlay + rewriting captions…"
       : "Applying visual overlay only…",
     "info"
   );
 
   try {
+    // 🔥 Backend will now receive correct rewrite flag
     await jsonFetch("/api/overlay", {
       method: "POST",
       body: JSON.stringify({
         style,
         session: getActiveSession(),
-        rewrite: captionMode === "rewrite", // 🔑 THIS IS THE KEY
+        rewrite: rewriteMode === "rewrite",    // ⬅ your replacement line
       }),
     });
 
-    // Always reload YAML
     await loadConfigAndYaml();
-
-    await loadCaptionsFromYaml(); // already refreshes scores
+    await loadCaptionsFromYaml();
 
     setStatus(
       "overlayStatus",
-      captionMode === "rewrite"
-        ? "Overlay applied and captions updated ✓"
-        : "Overlay applied (captions unchanged) ✓",
+      rewriteMode === "rewrite"
+        ? "Overlay applied + captions rewritten ✓"
+        : "Overlay applied without rewriting ✓",
       "success"
     );
+
   } catch (err) {
     console.error(err);
     setStatus("overlayStatus", "Failed to apply overlay.", "error");
   }
 }
-
 
 
 // Timings
@@ -1244,17 +1256,28 @@ async function applyTiming(smart) {
     }
 }
 
+function getRewriteMode(){
+  return document.querySelector('input[name="captionRewriteMode"]:checked')?.value || "visual";
+}
+
+
+function getCaptionMode(){
+  return document.getElementById("captionModeSelect")?.value || "all";
+}
+
 async function loadCaptionMode() {
     const session = getActiveSession();
     const resp = await fetch(`/api/config?session=${session}`);
     const data = await resp.json();
 
     const mode = data.config?.render?.captions_mode || "all";
-    document.getElementById("captionMode").value = mode;
+
+    document.getElementById("captionModeSelect").value = mode;
 }
 
+
 async function saveCaptionMode() {
-    const mode = document.getElementById("captionMode").value;
+    const mode = getCaptionMode();
     const session = getActiveSession();
 
     setStatus("captionModeStatus", "Saving...", "info");
