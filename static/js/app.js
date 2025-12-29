@@ -2120,9 +2120,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
 
-    addStepEnterHandler(4, loadCaptionMode);
-
-
     // Accordion toggles
     document.querySelectorAll(".acc-header").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -2179,23 +2176,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 // Step 4 Rewrite Mode Init
 // ================================
 addStepEnterHandler(4, async () => {
-
     console.log("STEP 4 OPEN → initializing rewrite controls");
 
-    // Load rewrite mode from YAML
-    await loadRewriteMode();     // selects correct radio on enter
+    await loadCaptionMode();   // reload caption mode from YAML
+    await loadRewriteMode();   // reload rewrite mode from YAML
+    updateRewriteWarning();
 
-    // Attach radio button listener *once per step-open*
     document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {
-        el.removeEventListener("change", updateRewriteWarning); // prevent duplicates
+        el.removeEventListener("change", updateRewriteWarning);
         el.addEventListener("change", updateRewriteWarning);
     });
-
-    // Update banner using loaded value
-    updateRewriteWarning();
 });
-
-
 
 
     // Legacy quick-switch for sessions (top bar)
