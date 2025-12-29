@@ -1850,7 +1850,7 @@ async function sendChat() {
 // ================================
 // Init wiring
 // ================================
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     // Load stored session
     try {
         const stored = localStorage.getItem("activeSession");
@@ -2065,16 +2065,12 @@ document.addEventListener("DOMContentLoaded", () => {
     loadMusicTracks();
     loadMusicSettingsFromYaml();
 
-    // YAML + analyses
+    // YAML + analyses (LOAD YAML FIRST)
+    await loadConfigAndYaml();        // ⬅ make sure config.yml is present
     refreshAnalyses();
-    loadConfigAndYaml();
     loadLayoutFromYaml();
+    await loadCaptionMode();          // ⬅ NOW it can read captions_mode
 
-    // Load initial on entering Step 4
-    loadCaptionMode();   
-    
-    // Load initial on entering Step 4
-    addStepEnterHandler(4, loadCaptionMode);
 
     // Accordion toggles
     document.querySelectorAll(".acc-header").forEach((btn) => {
