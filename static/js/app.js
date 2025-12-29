@@ -1857,13 +1857,6 @@ async function loadRewriteMode() {
     updateRewriteWarning(); // make banner match loaded state
 }
 
-document.querySelectorAll('input[name="captionRewriteMode"]')
-    .forEach(el => el.addEventListener("change", updateRewriteWarning));
-
-updateRewriteWarning(); // run once AFTER rewriting mode is loaded
-
-
-
 
 // ================================
 // Chat
@@ -2121,8 +2114,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Load caption + rewrite mode from YAML/session
     loadCaptionMode();
-    await loadRewriteMode();          // ⚠ make this async safe
-    updateRewriteWarning();           // 🔥 this must run AFTER rewrite mode loads
 
     //----------------------------------------------
     // 🔥 add this block RIGHT HERE
@@ -2186,6 +2177,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
     document.getElementById("improveHookBtn")?.addEventListener("click", improveHook);
+
+    // When entering Step 4 — load rewrite mode + attach listener
+    addStepEnterHandler(4, async () => {
+        await loadRewriteMode();     // checks YAML → selects correct radio
+        updateRewriteWarning();      // show/hide banner properly
+
+        // attach events ONCE when step open
+        document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el =>
+            el.addEventListener("change", updateRewriteWarning)
+        );
+    });
+
 
 
     // Legacy quick-switch for sessions (top bar)
