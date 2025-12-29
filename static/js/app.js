@@ -1168,6 +1168,9 @@ document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {
     el.addEventListener("change", updateRewriteWarning);
 });
 
+updateRewriteWarning();  // <<< THIS makes it correct on first load
+
+
 
 
 // ================================
