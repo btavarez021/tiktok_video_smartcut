@@ -1157,14 +1157,11 @@ async function regenerateCaptionsFromClips() {
 function updateRewriteWarning() {
     const mode = document.querySelector('input[name="captionRewriteMode"]:checked')?.value;
     const warning = document.getElementById("rewriteWarning");
-
-    if (!warning) {
-        console.warn("rewriteWarning element missing");
-        return; // ⛔ prevents crash
-    }
+    if (!warning) return console.warn("rewriteWarning element missing");
 
     warning.classList.toggle("hidden", mode !== "rewrite");
 }
+
 
 
 
@@ -1843,19 +1840,15 @@ async function exportVideo() {
 
 
 async function loadRewriteMode() {
-    try {
-        const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
+    const data = await jsonFetch(`/api/config?session=${getActiveSession()}`);
+    const mode = data.config?.render?.rewrite_mode || "visual";
 
-        const mode = data.config?.render?.rewrite_mode || "visual";
-        const radio = document.querySelector(`input[name="captionRewriteMode"][value="${mode}"]`);
-        if (radio) radio.checked = true;
-    } catch (err) {
-        console.warn("rewrite mode load skipped", err);
-    }
+    const radio = document.querySelector(`input[name="captionRewriteMode"][value="${mode}"]`);
+    if (radio) radio.checked = true;
 
-    updateRewriteWarning(); // make banner match loaded state
+    updateRewriteWarning();  // Reflect state visually
 }
+
 
 
 // ================================
@@ -2178,16 +2171,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
     document.getElementById("improveHookBtn")?.addEventListener("click", improveHook);
 
-    // When entering Step 4 — load rewrite mode + attach listener
-    addStepEnterHandler(4, async () => {
-        await loadRewriteMode();     // checks YAML → selects correct radio
-        updateRewriteWarning();      // show/hide banner properly
+    // ================================
+// Step 4 Rewrite Mode Init
+// ================================
+addStepEnterHandler(4, async () => {
 
-        // attach events ONCE when step open
-        document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el =>
-            el.addEventListener("change", updateRewriteWarning)
-        );
+    console.log("STEP 4 OPEN → initializing rewrite controls");
+
+    // Load rewrite mode from YAML
+    await loadRewriteMode();     // selects correct radio on enter
+
+    // Attach radio button listener *once per step-open*
+    document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {
+        el.removeEventListener("change", updateRewriteWarning); // prevent duplicates
+        el.addEventListener("change", updateRewriteWarning);
     });
+
+    // Update banner using loaded value
+    updateRewriteWarning();
+});
+
 
 
 
