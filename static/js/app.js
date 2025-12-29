@@ -1156,21 +1156,13 @@ async function regenerateCaptionsFromClips() {
 
 function updateRewriteWarning() {
     const mode = document.querySelector('input[name="captionRewriteMode"]:checked')?.value;
-    const warning = document.getElementById("rewriteWarning");
-
-    if (!warning) return;
-
-    if (mode === "rewrite") warning.classList.remove("hidden");
-    else warning.classList.add("hidden");
+    document.getElementById("rewriteWarning").classList.toggle("hidden", mode !== "rewrite");
 }
 
-document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {
-    el.addEventListener("change", updateRewriteWarning);
-});
+document.querySelectorAll('input[name="captionRewriteMode"]')
+  .forEach(el => el.addEventListener("change", updateRewriteWarning));
 
-updateRewriteWarning();  // <<< THIS makes it correct on first load
-
-
+updateRewriteWarning(); // initial state
 
 
 // ================================
@@ -1183,45 +1175,41 @@ async function applyOverlay() {
 
   const style = styleSel.value || "travel_blog";
 
-  // 🔥 New split controls
-  const rewriteMode =
-    document.querySelector('input[name="captionRewriteMode"]:checked')?.value ||
-    "visual";
+  // 👈 THIS decides if LLM rewrites or not
+  const rewriteMode = document.querySelector('input[name="captionRewriteMode"]:checked')?.value || "visual";
 
-  // UI status messaging
   setStatus(
-    "overlayStatus",
-    rewriteMode === "rewrite"
-      ? "Applying overlay + rewriting captions…"
-      : "Applying visual overlay only…",
-    "info"
+      "overlayStatus",
+      rewriteMode === "rewrite"
+          ? "Applying overlay + rewriting captions…"
+          : "Applying visual overlay only…",
+      "info"
   );
 
   try {
-    // 🔥 Backend will now receive correct rewrite flag
-    await jsonFetch("/api/overlay", {
-      method: "POST",
-      body: JSON.stringify({
-        style,
-        session: getActiveSession(),
-        rewrite: rewriteMode === "rewrite",    // ⬅ your replacement line
-      }),
-    });
+      await jsonFetch("/api/overlay", {
+          method: "POST",
+          body: JSON.stringify({
+              style,
+              session: getActiveSession(),
+              rewrite: rewriteMode === "rewrite",   // ✔ correct boolean
+          })
+      });
 
-    await loadConfigAndYaml();
-    await loadCaptionsFromYaml();
+      await loadConfigAndYaml();
+      await loadCaptionsFromYaml();
 
-    setStatus(
-      "overlayStatus",
-      rewriteMode === "rewrite"
-        ? "Overlay applied + captions rewritten ✓"
-        : "Overlay applied without rewriting ✓",
-      "success"
-    );
+      setStatus(
+          "overlayStatus",
+          rewriteMode === "rewrite"
+              ? "Overlay applied + captions rewritten ✓"
+              : "Overlay applied without rewriting ✓",
+          "success"
+      );
 
   } catch (err) {
-    console.error(err);
-    setStatus("overlayStatus", "Failed to apply overlay.", "error");
+      console.error(err);
+      setStatus("overlayStatus", "Failed to apply overlay.", "error");
   }
 }
 
