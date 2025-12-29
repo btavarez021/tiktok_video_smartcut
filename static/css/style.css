@@ -1756,3 +1756,8 @@ h3 {
     color: #ffcc00;
     font-weight: 600;
 }
+
+/* Force-hide helper class */
+.hidden {
+    display: none !important;
+}
