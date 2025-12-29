@@ -1260,13 +1260,6 @@ async function saveCaptionMode() {
     }
 }
 
-// Attach button handler
-document.getElementById("saveCaptionModeBtn")
-    .addEventListener("click", saveCaptionMode);
-
-// Load initial on entering Step 4
-addStepEnterHandler(4, loadCaptionMode);
-
 
 // Layout Mode (TikTok / Classic)
 async function loadLayoutFromYaml() {
@@ -2024,6 +2017,10 @@ document.addEventListener("DOMContentLoaded", () => {
         loadSessionDropdown();
     });
 
+    // Attach button handler
+    document.getElementById("saveCaptionModeBtn")
+        .addEventListener("click", saveCaptionMode);
+
     document.getElementById("refreshSessionsBtn")?.addEventListener("click", loadSessions);
 
     // Stepper & logs
@@ -2055,6 +2052,12 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshAnalyses();
     loadConfigAndYaml();
     loadLayoutFromYaml();
+
+    // Load initial on entering Step 4
+    loadCaptionMode();   
+    
+    // Load initial on entering Step 4
+    addStepEnterHandler(4, loadCaptionMode);
 
     // Accordion toggles
     document.querySelectorAll(".acc-header").forEach((btn) => {
