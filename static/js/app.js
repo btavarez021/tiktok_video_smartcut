@@ -2108,14 +2108,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Load caption + rewrite mode from YAML/session
     loadCaptionMode();
 
-    //----------------------------------------------
-    // 🔥 add this block RIGHT HERE
-    //----------------------------------------------
-    document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el =>
-        el.addEventListener("change", updateRewriteWarning)
-    );
-    //----------------------------------------------
-
     addStepEnterHandler(4, loadCaptionMode);
 
 
