@@ -1834,6 +1834,23 @@ async function exportVideo() {
 }
 
 
+async function loadRewriteMode() {
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+
+        const mode = data.config?.render?.rewrite_mode || "visual";
+        const radio = document.querySelector(`input[name="captionRewriteMode"][value="${mode}"]`);
+        if (radio) radio.checked = true;
+    } catch (err) {
+        console.warn("rewrite mode load skipped", err);
+    }
+
+    updateRewriteWarning(); // make banner match loaded state
+}
+
+
+
 // ================================
 // Chat
 // ================================
@@ -1890,6 +1907,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 : "▼ Show Parsed Preview";
         });
     }
+
+
 
   document.getElementById("improveStoryFlowBtn")?.addEventListener("click", async () => {
     const btn = document.getElementById("improveStoryFlowBtn");
@@ -2088,7 +2107,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Load caption mode on load and when entering Step 4
     loadCaptionMode();
+    loadRewriteMode();             //  <--- add this line
     addStepEnterHandler(4, loadCaptionMode);
+
 
     // ---------------------------------------------
     // 🔥 CAPTION REWRITE RADIO LOGIC GOES HERE
