@@ -811,7 +811,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 # ---------------------------------------------------------
                 # (1) CAPTION PHASE — draw until CTA start
                 # ---------------------------------------------------------
-                if clip["text"]:
+                if allow_caption and clip["text"]:
                     wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
                     text_safe = esc(wrapped)
 
@@ -826,6 +826,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     )
                 else:
                     vf += ";[v1]copy[v2]"
+
 
                 # ---------------------------------------------------------
                 # (2) BLUR UNDER CTA — but NEVER make video black
