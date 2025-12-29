@@ -1257,29 +1257,33 @@ async function saveCaptionMode() {
     const mode = document.getElementById("captionMode").value;
     const session = getActiveSession();
 
-    const resp = await fetch("/api/captions_mode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session, mode })
-    });
-    const data = await resp.json();
+    setStatus("captionModeStatus", "Saving...", "info");
 
-    const statusEl = document.getElementById("captionModeStatus");
-    if (data.status === "ok") {
-        statusEl.textContent = `Saved → ${mode}`;
-        statusEl.classList.remove("status-error");
-        statusEl.classList.add("status-success");
+    try {
+        const resp = await fetch("/api/captions_mode", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session, mode })
+        });
+        const data = await resp.json();
 
-        // 🔥 immediately reload config so UI reflects new state
-        await loadConfigAndYaml();
-        await loadCaptionMode();
-    } else {
-        statusEl.textContent = data.error || "Error saving mode";
-        statusEl.classList.add("status-error");
+        if (data.status === "ok") {
+            // 🔥 Confirm visually
+            setStatus("captionModeStatus", `Saved → ${mode}`, "success");
+
+            // 🔄 Update live state instantly — no manual refresh required anymore
+            await loadConfigAndYaml();
+            await loadCaptionMode();
+            refreshAnalyses?.();   // optional if your UI uses it
+        } else {
+            setStatus("captionModeStatus", data.error || "Error saving", "error");
+        }
+
+    } catch (err) {
+        console.error(err);
+        setStatus("captionModeStatus", "Save failed", "error");
     }
 }
-
-
 
 // Layout Mode (TikTok / Classic)
 async function loadLayoutFromYaml() {
