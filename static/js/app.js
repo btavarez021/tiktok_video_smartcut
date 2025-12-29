@@ -1849,6 +1849,12 @@ async function loadRewriteMode() {
     updateRewriteWarning(); // make banner match loaded state
 }
 
+document.querySelectorAll('input[name="captionRewriteMode"]')
+    .forEach(el => el.addEventListener("change", updateRewriteWarning));
+
+updateRewriteWarning(); // run once AFTER rewriting mode is loaded
+
+
 
 
 // ================================
@@ -1883,7 +1889,7 @@ async function sendChat() {
 // ================================
 // Init wiring
 // ================================
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     // Load stored session
     try {
         const stored = localStorage.getItem("activeSession");
@@ -2105,19 +2111,13 @@ document.addEventListener("DOMContentLoaded", () => {
     loadConfigAndYaml();
     loadLayoutFromYaml();
 
-    // Load caption mode on load and when entering Step 4
+    // Load caption + rewrite mode from YAML/session
     loadCaptionMode();
-    loadRewriteMode();             //  <--- add this line
+    await loadRewriteMode();          // ⚠ make this async safe
+    updateRewriteWarning();           // 🔥 this must run AFTER rewrite mode loads
+
     addStepEnterHandler(4, loadCaptionMode);
 
-
-    // ---------------------------------------------
-    // 🔥 CAPTION REWRITE RADIO LOGIC GOES HERE
-    // ---------------------------------------------
-    document.querySelectorAll('input[name="captionRewriteMode"]')
-        .forEach(el => el.addEventListener("change", updateRewriteWarning));
-
-    updateRewriteWarning(); // initial UI state
 
     // Accordion toggles
     document.querySelectorAll(".acc-header").forEach((btn) => {
