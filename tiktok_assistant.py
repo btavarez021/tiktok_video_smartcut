@@ -316,7 +316,7 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
         "  layout_mode: tiktok",
         "  fgscale_mode: auto",
         "  fgscale: null",
-        "  story_mode: false",
+        "  captions_mode: all",
         "  transition:",
         "    type: fade",
         "    duration: 0.4",
@@ -501,6 +501,7 @@ Return ONLY valid YAML (no backticks).
         cfg = sanitize_yaml_filenames(cfg)
 
         render = cfg.setdefault("render", {})
+        render.setdefault("captions_mode", "all")
         render["overlay_style"] = style
 
         with open(config_path, "w", encoding="utf-8") as f:
