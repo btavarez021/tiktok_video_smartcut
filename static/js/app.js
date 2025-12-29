@@ -2106,14 +2106,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Accordion toggles
-    document.querySelectorAll(".acc-header").forEach((btn) => {
-        btn.addEventListener("click", () => {
-            const sec = btn.parentElement;
-            sec.classList.toggle("open");
-        });
-    });
-
     // Export-mode → auto caption layout
     document.querySelectorAll('input[name="exportMode"]').forEach((radio) => {
         radio.addEventListener("change", (e) => {
