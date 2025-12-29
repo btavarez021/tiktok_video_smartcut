@@ -1156,8 +1156,16 @@ async function regenerateCaptionsFromClips() {
 
 function updateRewriteWarning() {
     const mode = document.querySelector('input[name="captionRewriteMode"]:checked')?.value;
-    document.getElementById("rewriteWarning").classList.toggle("hidden", mode !== "rewrite");
+    const warning = document.getElementById("rewriteWarning");
+
+    if (!warning) {
+        console.warn("rewriteWarning element missing");
+        return; // ⛔ prevents crash
+    }
+
+    warning.classList.toggle("hidden", mode !== "rewrite");
 }
+
 
 
 // ================================
@@ -2115,6 +2123,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     loadCaptionMode();
     await loadRewriteMode();          // ⚠ make this async safe
     updateRewriteWarning();           // 🔥 this must run AFTER rewrite mode loads
+
+    //----------------------------------------------
+    // 🔥 add this block RIGHT HERE
+    //----------------------------------------------
+    document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el =>
+        el.addEventListener("change", updateRewriteWarning)
+    );
+    //----------------------------------------------
 
     addStepEnterHandler(4, loadCaptionMode);
 
