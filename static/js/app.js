@@ -158,6 +158,7 @@ function getCaptionMode() {
   return document.getElementById("captionMode")?.value || "all";
 }
 
+
 function disableDownloadButton() {
     const btn = document.getElementById("downloadLink");
     if (!btn) return;
@@ -1268,11 +1269,16 @@ async function saveCaptionMode() {
         statusEl.textContent = `Saved → ${mode}`;
         statusEl.classList.remove("status-error");
         statusEl.classList.add("status-success");
+
+        // 🔥 immediately reload config so UI reflects new state
+        await loadConfigAndYaml();
+        await loadCaptionMode();
     } else {
         statusEl.textContent = data.error || "Error saving mode";
         statusEl.classList.add("status-error");
     }
 }
+
 
 
 // Layout Mode (TikTok / Classic)
@@ -1847,7 +1853,7 @@ async function sendChat() {
 // ================================
 // Init wiring
 // ================================
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
     // Load stored session
     try {
         const stored = localStorage.getItem("activeSession");
@@ -2062,12 +2068,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     loadMusicTracks();
     loadMusicSettingsFromYaml();
 
-    // YAML + analyses (LOAD YAML FIRST)
-    await loadConfigAndYaml();        // ⬅ make sure config.yml is present
+    // YAML + analyses
     refreshAnalyses();
+    loadConfigAndYaml();
     loadLayoutFromYaml();
-    await loadCaptionMode();          // ⬅ NOW it can read captions_mode
 
+    // Load initial on entering Step 4
+    loadCaptionMode();   
+    
+    // Load initial on entering Step 4
+    addStepEnterHandler(4, loadCaptionMode);
 
     // Accordion toggles
     document.querySelectorAll(".acc-header").forEach((btn) => {
