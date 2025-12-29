@@ -117,6 +117,33 @@ def load_analysis_results_session(session: str) -> Dict[str, str]:
 
     return results
 
+
+# -------------------------------
+# CAPTIONS MODE (global render controls)
+# -------------------------------
+def api_set_captions_mode(session: str, mode: str) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    config_path = get_config_path(session)
+
+    if mode not in ("all", "first_only", "none"):
+        return {"status": "error", "error": "Invalid captions_mode"}
+
+    cfg = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+
+    r = cfg.setdefault("render", {})
+    r.setdefault("captions_mode", "all")  # fallback if missing
+    r["captions_mode"] = mode            # update to selected
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+
+    log_step(f"[CAPTIONS_MODE] {session} -> {mode}")
+    return {"status": "ok", "captions_mode": mode}
+
+
 # -----------------------------------------
 # Hook Score
 #-------------------------------------------

@@ -1229,6 +1229,45 @@ async function applyTiming(smart) {
     }
 }
 
+async function loadCaptionMode() {
+    const session = getActiveSession();
+    const resp = await fetch(`/api/config?session=${session}`);
+    const data = await resp.json();
+
+    const mode = data.config?.render?.captions_mode || "all";
+    document.getElementById("captionMode").value = mode;
+}
+
+async function saveCaptionMode() {
+    const mode = document.getElementById("captionMode").value;
+    const session = getActiveSession();
+
+    const resp = await fetch("/api/captions_mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session, mode })
+    });
+    const data = await resp.json();
+
+    const statusEl = document.getElementById("captionModeStatus");
+    if (data.status === "ok") {
+        statusEl.textContent = `Saved → ${mode}`;
+        statusEl.classList.remove("status-error");
+        statusEl.classList.add("status-success");
+    } else {
+        statusEl.textContent = data.error || "Error saving mode";
+        statusEl.classList.add("status-error");
+    }
+}
+
+// Attach button handler
+document.getElementById("saveCaptionModeBtn")
+    .addEventListener("click", saveCaptionMode);
+
+// Load initial on entering Step 4
+addStepEnterHandler(4, loadCaptionMode);
+
+
 // Layout Mode (TikTok / Classic)
 async function loadLayoutFromYaml() {
     const sel = document.getElementById("layoutMode");

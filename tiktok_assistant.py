@@ -435,6 +435,10 @@ def apply_overlay(
     except Exception as e:
         logger.error(f"[OVERLAY LOAD ERROR] {e}")
         return
+    
+    # 🔥 Add this block RIGHT HERE — ensures default captions_mode exists
+    render = cfg.setdefault("render", {})
+    render.setdefault("captions_mode", "all")  # Default for old sessions
 
     # -----------------------------------------
     # VISUAL-ONLY MODE (NO REWRITE)

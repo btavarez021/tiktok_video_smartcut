@@ -465,7 +465,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     if not cfg:
         raise RuntimeError("config.yml missing or empty")
     
-    render = cfg.get("render", {})
+    render = cfg.setdefault("render", {})
+    render.setdefault("captions_mode", "all")   # backfill protection
 
     log_step("[EXPORT] Using standard concat (no transitions)")
 
@@ -747,24 +748,47 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
             is_last = clip.get("is_last", False)
 
-            # ----- NON-LAST CLIPS: normal caption -----
+            # =========================
+            # CAPTION MODE (global)
+            # =========================
+            caption_mode = (render_cfg.get("captions_mode") or "all").lower()
+            log_step(f"[CAPTIONS] mode={caption_mode}")
+
+
+            # ---------------------------------------------
+            # CAPTION RULES (NEW)
+            # ---------------------------------------------
+            # Show captions only if:
+            # - captions_mode="all"
+            # - captions_mode="first_only" and clip_index == 0
+            # - captions_mode="none" → never show clip captions
+            # CTA logic still runs on last clip normally
+
+            clip_index = clips.index(clip)  # safe index resolution
+
+            allow_caption = False
+            if caption_mode == "all":
+                allow_caption = True
+            elif caption_mode == "first_only" and clip_index == 0:
+                allow_caption = True
+            elif caption_mode == "none":
+                allow_caption = False
+
+            # -------------- NON-LAST + caption/NO-caption -------------
             if not is_last or not (cta_enabled and raw_cta_text and last_clip_cta_start_rel is not None and cta_text_safe):
-                if clip["text"]:
+                if allow_caption and clip["text"]:
                     wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
                     text_safe = esc(wrapped)
                     vf += (
                         f";[v1]drawtext=text='{text_safe}':"
-                        f"fontfile={fontfile}:"
-                        f"fontcolor=white:fontsize={fontsize}:"
-                        f"line_spacing={line_spacing}:"
-                        f"shadowcolor=0x000000:shadowx=3:shadowy=3:"
-                        f"text_shaping=1:"
-                        f"box=1:boxcolor=0x000000{box_opacity}:boxborderw={boxborderw}:"
-                        f"x=(w-text_w)/2:y={y_expr}:"
-                        f"fix_bounds=1:borderw=0:bordercolor=0x000000[outv]"
+                        f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
+                        f"line_spacing={line_spacing}:shadowcolor=0x000000:shadowx=3:shadowy=3:"
+                        f"text_shaping=1:box=1:boxcolor=0x000000{box_opacity}:boxborderw={boxborderw}:"
+                        f"x=(w-text_w)/2:y={y_expr}:fix_bounds=1:borderw=0:bordercolor=0x000000[outv]"
                     )
                 else:
                     vf += ";[v1]copy[outv]"
+
 
             # ----- LAST CLIP: caption first, then CTA at the end -----
             else:

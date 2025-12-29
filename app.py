@@ -243,6 +243,14 @@ def route_save_captions():
     text = data.get("text", "")
     return jsonify(api_save_captions(text, session))
 
+@app.route("/api/captions_mode", methods=["POST"])
+def route_captions_mode():
+    data = request.get_json() or {}
+    session = sanitize_session(data.get("session", "default"))
+    mode = data.get("mode", "all")
+    from assistant_api import api_set_captions_mode
+    return jsonify(api_set_captions_mode(session, mode))
+
 
 # ============================================================================
 # TTS / CTA

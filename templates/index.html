@@ -494,6 +494,23 @@
 
                             <label class="field-label">
                                 Overlay style preset
+                                <h3 style="margin-top: 18px;">Caption Usage</h3>
+                                <label class="field-label">
+                                    Caption Mode
+                                </label>
+
+                                <select id="captionMode" class="select">
+                                    <option value="all">All Clips (default)</option>
+                                    <option value="first_only">Hook Only — first clip only</option>
+                                    <option value="none">No visible captions</option>
+                                </select>
+
+                                <button id="saveCaptionModeBtn" class="btn ghost small" style="margin-top:8px;">
+                                    💾 Save caption mode
+                                </button>
+
+                                <div id="captionModeStatus" class="status-text status-info"></div>
+
                                 <span class="tooltip">ⓘ
                                     <span class="tooltiptext">
                                         Travel Blog = warm<br>
