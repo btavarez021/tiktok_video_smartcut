@@ -159,6 +159,19 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
     # -----------------------------------------
     for idx, clip in enumerate(clips):
         text = clip.get("text", "").strip()
+
+        # ---------------------------------------------
+        # 🔥 CAPTIONS_MODE controls narration too
+        # ---------------------------------------------
+        caption_mode = (cfg.get("render", {}).get("captions_mode") or "all").lower()
+
+        # Skip TTS for clips without captions
+        if caption_mode == "none" or (caption_mode == "first_only" and idx > 0):
+            log_step(f"[TTS] Skipping narration on clip {idx+1} due to captions_mode={caption_mode}")
+            tts_files.append(None)
+            continue
+
+        
         if not text:
             tts_files.append(None)
             continue
