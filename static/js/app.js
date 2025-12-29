@@ -2108,6 +2108,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Load caption + rewrite mode from YAML/session
     loadCaptionMode();
 
+    // ================================
+    // Load Caption + Rewrite Mode From YAML
+    // ================================
+    await loadRewriteMode();     // selects radio based on config.yml
+    updateRewriteWarning();      // show/hide banner accordingly
+
+    // Activate radio toggles
+    document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {
+        el.addEventListener("change", updateRewriteWarning);
+    });
+
+
     addStepEnterHandler(4, loadCaptionMode);
 
 
