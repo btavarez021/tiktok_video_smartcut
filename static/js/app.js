@@ -1159,9 +1159,6 @@ function updateRewriteWarning() {
     document.getElementById("rewriteWarning").classList.toggle("hidden", mode !== "rewrite");
 }
 
-document.querySelectorAll('input[name="captionRewriteMode"]')
-  .forEach(el => el.addEventListener("change", updateRewriteWarning));
-
 
 // ================================
 // Step 4: Overlay, timings, TTS, CTA, fg scale, music
@@ -2089,13 +2086,25 @@ document.addEventListener("DOMContentLoaded", () => {
     loadConfigAndYaml();
     loadLayoutFromYaml();
 
-    // Load initial on entering Step 4
-    loadCaptionMode();   
-
-    updateRewriteWarning(); // initial state
-    
-    // Load initial on entering Step 4
+    // Load caption mode on load and when entering Step 4
+    loadCaptionMode();
     addStepEnterHandler(4, loadCaptionMode);
+
+    // ---------------------------------------------
+    // 🔥 CAPTION REWRITE RADIO LOGIC GOES HERE
+    // ---------------------------------------------
+    document.querySelectorAll('input[name="captionRewriteMode"]')
+        .forEach(el => el.addEventListener("change", updateRewriteWarning));
+
+    updateRewriteWarning(); // initial UI state
+
+    // Accordion toggles
+    document.querySelectorAll(".acc-header").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const sec = btn.parentElement;
+            sec.classList.toggle("open");
+        });
+    });
 
     // Accordion toggles
     document.querySelectorAll(".acc-header").forEach((btn) => {
