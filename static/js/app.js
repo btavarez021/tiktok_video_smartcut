@@ -859,6 +859,23 @@ async function improveHook() {
   }
 }
 
+// ================================
+// Step Enter Handler (Fix Missing Function)
+// ================================
+function addStepEnterHandler(stepNumber, callback) {
+    const stepCard = document.querySelector(`.step-card:nth-of-type(${stepNumber})`);
+    if (!stepCard) return;
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) callback();
+        });
+    }, { threshold: 0.4 });
+
+    observer.observe(stepCard);
+}
+
+
 // Story Flow Score
 // Evaluates ONLY middle captions (excludes hook + CTA)
 // Read-only score to assess pacing & narrative progression
