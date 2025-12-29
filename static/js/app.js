@@ -155,11 +155,8 @@ function sidebarSyncActiveLabel() {
 // ================================
 
 function getCaptionMode() {
-  return document.querySelector(
-    'input[name="captionMode"]:checked'
-  )?.value || "visual";
+  return document.getElementById("captionMode")?.value || "all";
 }
-
 
 function disableDownloadButton() {
     const btn = document.getElementById("downloadLink");
