@@ -1806,10 +1806,7 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     object-fit: cover;
 }
 
-/* allow preview to extend beyond section */
-.acc-body {
-    overflow: visible !important;
-}
+
 
 /* === FIX PREVIEW STACKING AND SPACING === */
 #overlayPreviewMock {
@@ -1834,6 +1831,51 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     z-index: 2;                /* lower than preview overlay */
 }
 
+/* ===== Phone Preview Behavior Fix ===== */
+#overlayPreviewWrapper {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    margin-top:20px;
+}
+
+/* Phone mock */
 #overlayPreviewMock {
-    z-index: 9999 !important;  /* absolutely top layer */
+    width:260px;
+    height:480px;
+    border-radius:22px;
+    overflow:hidden;
+    background:#000;
+    border:2px solid rgba(255,255,255,.10);
+    box-shadow:0 0 25px rgba(0,0,0,.5);
+    position:relative;
+    z-index:5;              /* high enough for visibility, not to overlap UI */
+}
+
+/* Content inside */
+#overlayPreviewBox {
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:10px;
+    font-size:14px;
+    color:white;
+    opacity:.8;
+}
+
+/* Buttons under phone */
+.preview-actions {
+    display:flex;
+    gap:12px;
+    margin-top:14px;
+}
+
+/* Restore accordion behavior */
+.acc-body {
+    overflow:hidden;       /* normal again */
+    padding-bottom:20px;
 }
