@@ -2374,6 +2374,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         previewOverlay("fast");   // 🔥 use the shared preview function
     });
 
+    document.getElementById("previewFast")?.addEventListener("click", () => previewOverlay("fast"));
+    document.getElementById("previewFull")?.addEventListener("click", () => previewOverlay("full"));
+
+
 
 // BUTTON EVENTS
 document.getElementById("previewFast")?.addEventListener("click", () => previewOverlay("fast"));
