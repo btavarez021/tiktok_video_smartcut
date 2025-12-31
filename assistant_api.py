@@ -1112,7 +1112,11 @@ def generate_overlay_preview(session_id: str, style: str) -> str:
     from PIL import Image, ImageDraw, ImageFont
 
     cfg = _load_config(session_id)
+    print(f"[PREVIEW] loaded config keys: {list(cfg.keys()) if cfg else 'NO CONFIG FOUND'}")
+
     text = cfg.get("first_clip", {}).get("text", "") or "No captions found"
+
+    print(f"[PREVIEW] first clip text: {text[:60]}")
 
     # style fallback
     preset = STYLE_PRESETS.get(style, STYLE_PRESETS["ai_recommended"])

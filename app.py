@@ -415,19 +415,19 @@ def overlay_preview():
     session = sanitize_session(data.get("session", "default"))
     style   = data.get("style", "ai_recommended").lower()
 
+    print(f"\n=== OVERLAY PREVIEW CALL === session={session} style={style}")
+
     try:
-        # If you want FAST, visual-only mock preview:
         img_b64 = generate_overlay_preview(session, style)
-
-        # Or if you want to use style presets with box, wrapping, etc:
-        # result = api_overlay_preview(session, style)
-        # return jsonify(result)
-
+        print("=== PREVIEW SUCCESS ===")
         return jsonify({"image": f"data:image/png;base64,{img_b64}"})
 
     except Exception as e:
-        print("[OVERLAY_PREVIEW_ERROR]", e)
+        import traceback
+        print("\n=== PREVIEW ERROR TRACE ===")
+        traceback.print_exc()        # <—— Shows real error in Render logs
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route("/api/timings", methods=["POST"])
