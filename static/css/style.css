@@ -1823,3 +1823,17 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     max-height: 1000px;
     margin-bottom: 14px;       /* prevents giant gaps */
 }
+
+#overlayPreviewMock,
+#overlayPreviewBox {
+    pointer-events: auto !important;
+}
+
+.card,
+.step-card {
+    z-index: 2;                /* lower than preview overlay */
+}
+
+#overlayPreviewMock {
+    z-index: 9999 !important;  /* absolutely top layer */
+}
