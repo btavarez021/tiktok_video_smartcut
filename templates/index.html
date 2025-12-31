@@ -587,21 +587,25 @@
                                     <span class="micro-tag micro-yellow">Changes Text</span>
                                 </label>
 
-                                <!-- 🔥 New mini controls aligned with rewrite -->
+                                <!-- 🔥 Inline preview controls -->
                                 <div style="display:flex;gap:10px;margin-top:10px;">
-                                    <button id="previewStyleBtn" class="btn small blue">🖼 Style Preview</button>
-                                    
-                                    <!-- ⬇ ADD TITLE HERE (hover tooltip) -->
-                                    <button id="previewRewriteBtn" 
-                                            class="btn small ghost" 
-                                            title="Preview how captions will sound in your chosen style — without overwriting original">
+
+                                    <button id="previewStyleBtn" 
+                                            class="btn secondary small"
+                                            title="Preview style overlay position, font, size & placement">
+                                        🖼 Style Preview
+                                    </button>
+
+                                    <button id="previewRewriteBtn"
+                                            class="btn ghost small"
+                                            title="Preview rewritten captions without applying changes">
                                         👀 Rewrite Preview
                                     </button>
 
                                 </div>
 
-
                                 <div id="previewContainer" style="margin-top:10px;"></div>
+
 
 
 
