@@ -8,9 +8,14 @@ import re
 from typing import Dict, Any, List
 import yaml
 from openai import OpenAI
+import base64
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+
 from flask import request
 from assistant_log import log_step, log_error, log_success
-from tiktok_template import edit_video, video_folder,get_config_path
+from tiktok_template import edit_video, video_folder,get_config_path, STYLE_PRESETS
+
 from s3_config import (
     s3,
     S3_BUCKET_NAME,
@@ -1056,16 +1061,12 @@ def api_apply_overlay(session_id: str, style: str, rewrite: bool) -> Dict[str, A
 # OVERLAY PREVIEW (IMAGE MOCK)
 # ================================
 def api_overlay_preview(session: str, style: str) -> dict:
-    import base64
-    from io import BytesIO
-    from PIL import Image, ImageDraw, ImageFont
-
+    
     session = sanitize_session(session)
     cfg = _load_config(session)
     first = cfg.get("first_clip",{}).get("text","")
 
-    # 🔥 load style preset safely
-    from tiktok_template import STYLE_PRESETS   # <- needed import
+
 
     style = (style or "ai_recommended").lower()
     preset = STYLE_PRESETS.get(style, STYLE_PRESETS["ai_recommended"])
@@ -1098,6 +1099,48 @@ def api_overlay_preview(session: str, style: str) -> dict:
 
     return {"image": "data:image/png;base64,"+encoded}
 
+# ================================
+# Preview Render (no rewrite applied)
+# ================================
+def generate_overlay_preview(session_id: str, style: str) -> str:
+    """
+    Returns base64 PNG preview frame for caption overlay visual testing
+    """
+
+    from io import BytesIO
+    import base64
+    from PIL import Image, ImageDraw, ImageFont
+
+    cfg = _load_config(session_id)
+    text = cfg.get("first_clip", {}).get("text", "") or "No captions found"
+
+    # style fallback
+    preset = STYLE_PRESETS.get(style, STYLE_PRESETS["ai_recommended"])
+    fontsize = preset.get("fontsize", 72)
+
+    img = Image.new("RGB", (1080,1920), (10,10,10))
+    draw = ImageDraw.Draw(img)
+
+    # Try multiple font locations for Render flexibility
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", fontsize)
+    except:
+        font = ImageFont.load_default()
+
+    # quick wrapping
+    wrapped = "\n".join(text[i:i+22] for i in range(0,len(text),22))
+    w,h = draw.multiline_textsize(wrapped, font=font, spacing=8)
+
+    x = (1080 - w)//2
+    y = 1450  # where captions normally render
+
+    draw.text((x,y), wrapped, fill="white", font=font, stroke_width=4, stroke_fill="black")
+
+    # export PNG → base64
+    buff = BytesIO()
+    img.save(buff, format="PNG")
+
+    return base64.b64encode(buff.getvalue()).decode()
 
 
 

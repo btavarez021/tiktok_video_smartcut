@@ -417,6 +417,22 @@ def route_overlay_preview():
 
     return jsonify(api_overlay_preview(session, style))
 
+from assistant_api import generate_overlay_preview   # 👈 import function
+
+@app.route("/api/overlay_preview", methods=["POST"])
+def overlay_preview():
+    data = request.get_json() or {}
+    session = sanitize_session(data.get("session", "default"))
+    style = data.get("style", "ai_recommended").lower()
+
+    try:
+        img_b64 = generate_overlay_preview(session, style)
+        return jsonify({"image": f"data:image/png;base64,{img_b64}"})
+
+    except Exception as e:
+        print("[Preview error]", e)
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/timings", methods=["POST"])
 def route_timings():
