@@ -588,10 +588,21 @@
                                 </label>
 
                                 <!-- 🔥 New mini controls aligned with rewrite -->
-                                <div style="margin:6px 0 10px 0;display:flex;gap:8px;flex-wrap:wrap;">
-                                    <button id="previewStyleBtn" class="btn-xs blue">🖼 Style Preview</button>
-                                    <button id="previewRewriteBtn" class="btn-xs ghost">👀 Rewrite Preview</button>
+                                <div style="display:flex;gap:10px;margin-top:10px;">
+                                    <button id="previewStyleBtn" class="btn small blue">🖼 Style Preview</button>
+                                    
+                                    <!-- ⬇ ADD TITLE HERE (hover tooltip) -->
+                                    <button id="previewRewriteBtn" 
+                                            class="btn small ghost" 
+                                            title="Preview how captions will sound in your chosen style — without overwriting original">
+                                        👀 Rewrite Preview
+                                    </button>
+
                                 </div>
+
+
+                                <div id="previewContainer" style="margin-top:10px;"></div>
+
 
 
 
@@ -614,9 +625,6 @@
                             <button id="applyOverlayBtn" class="btn secondary">✨ Apply overlay & caption style</button>
                             <div id="overlayStatus" class="hint-text"></div>
 
-                            <button id="previewRewriteBtn" class="btn ghost small" style="margin-top:4px;">
-                                👀 Preview rewrite changes
-                            </button>
 
                             <div id="rewritePreviewModal" class="modal hidden">
                             <div class="modal-content">
