@@ -150,6 +150,70 @@ function sidebarSyncActiveLabel() {
     el.textContent = getActiveSession();
 }
 
+
+function getOverlayStyle() {
+    return (document.getElementById("overlayStyle")?.value || "ai_recommended").toLowerCase();
+}
+
+// ===============================
+// 🔥 Overlay Preview System
+// ===============================
+async function previewOverlay(mode = "fast") {
+    const session = getActiveSession();
+    const box = document.getElementById("overlayPreviewBox");
+    if (!box) return;
+
+    box.innerHTML = "⏳ generating preview…";
+
+    try {
+        let res;
+
+        if (mode === "fast") {
+            res = await jsonFetch("/api/overlay_preview", {
+                method: "POST",
+                body: JSON.stringify({
+                    session,
+                    style: getOverlayStyle()
+                }),
+            });
+        } else {
+            // Full: apply overlay first, then preview
+            await jsonFetch("/api/overlay", {
+                method: "POST",
+                body: JSON.stringify({
+                    session,
+                    style: getOverlayStyle(),
+                    rewrite: false
+                }),
+            });
+
+            res = await jsonFetch("/api/overlay_preview", {
+                method: "POST",
+                body: JSON.stringify({
+                    session,
+                    style: getOverlayStyle()
+                }),
+            });
+        }
+
+        if (res?.image) {
+            box.innerHTML = "";
+            const img = document.createElement("img");
+            img.src = res.image;
+            img.style.width = "100%";
+            img.style.height = "100%";
+            img.style.objectFit = "cover";
+            box.appendChild(img);
+        } else {
+            box.innerHTML = "⚠ No preview returned.";
+        }
+    } catch (e) {
+        console.error(e);
+        box.innerHTML = "❌ Preview failed — check logs.";
+    }
+}
+
+
 // ================================
 // Utility helpers
 // ================================
@@ -189,22 +253,6 @@ async function probeUrl(url) {
         return false;
     }
 }
-
-document.getElementById("previewStyleBtn")?.addEventListener("click", async ()=>{
-    const style=document.getElementById("overlayStyle").value
-    const session=getActiveSession()
-
-    const r=await fetch("/api/overlay_preview",{
-        method:"POST",
-        headers:{ "Content-Type":"application/json"},
-        body:JSON.stringify({session,style})
-    }).then(r=>r.json())
-
-    if(r.image){
-        document.getElementById("previewContainer").innerHTML=
-        `<img src="${r.image}" style="width:260px;border-radius:12px;margin-top:10px;">`
-    }
-})
 
 
 function toggleUploadManager() {
@@ -2320,24 +2368,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         previewRewrite();
     });
 
-    // STYLE PREVIEW — add this here inside DOMContentLoaded
-    document.getElementById("previewStyleBtn")?.addEventListener("click", async () => {
-        console.log("STYLE PREVIEW CLICKED"); // Debug log
-
-        const style = document.getElementById("overlayStyle")?.value || "default";
-        const session = getActiveSession();
-
-        const r = await fetch("/api/overlay_preview", {
-            method:"POST",
-            headers:{ "Content-Type":"application/json" },
-            body:JSON.stringify({ session, style })
-        }).then(r=>r.json());
-
-        if(r.image){
-            document.getElementById("previewContainer").innerHTML =
-            `<img src="${r.image}" style="width:260px;border-radius:12px;margin-top:10px;">`;
-        }
+    // STYLE PREVIEW — inside DOMContentLoaded
+    document.getElementById("previewStyleBtn")?.addEventListener("click", () => {
+        console.log("STYLE PREVIEW CLICKED");
+        previewOverlay("fast");   // 🔥 use the shared preview function
     });
+
+    // Buttons under the phone mock in the UI
+    document.getElementById("previewFast")?.addEventListener("click", () => {
+        previewOverlay("fast");
+    });
+
+    document.getElementById("previewFull")?.addEventListener("click", () => {
+        previewOverlay("full");
+    });
+
+    // Auto-refresh preview when style changes
+    const overlayStyleSelect = document.getElementById("overlayStyle");
+    if (overlayStyleSelect) {
+        overlayStyleSelect.addEventListener("change", () => {
+            previewOverlay("fast");
+        });
+    }
+
 
 
 // Watch live typing unlock rewrite mode
