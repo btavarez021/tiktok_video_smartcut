@@ -1023,6 +1023,30 @@ function updateImproveButtons(hookScore, storyScore) {
   }
 }
 
+    // ================================
+    // Disable Rewrite Mode if no captions exist
+    // ================================
+    function updateRewriteModeAvailability() {
+    const text = document.getElementById("captionsText")?.value.trim();
+    const rewriteRadio = document.querySelector('input[name="captionRewriteMode"][value="rewrite"]');
+    const captionBox = document.querySelector(".caption-mode");
+
+    if (!rewriteRadio) return;
+
+    const hasText = text && text.length > 3;
+
+    // enable/disable rewrite mode + fade
+    rewriteRadio.disabled = !hasText;
+    rewriteRadio.parentElement.style.opacity = hasText ? "1" : "0.4";
+
+    // 🔥 Highlight box when rewrite ON + captions exist
+    if (hasText && rewriteRadio.checked) {
+        captionBox?.classList.add("rewrite-hot");
+    } else {
+        captionBox?.classList.remove("rewrite-hot");
+    }
+}
+
 
 // ================================
 // Step 3: Captions
@@ -2315,31 +2339,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-
-
-    // ================================
-    // Disable Rewrite Mode if no captions exist
-    // ================================
-    function updateRewriteModeAvailability() {
-    const text = document.getElementById("captionsText")?.value.trim();
-    const rewriteRadio = document.querySelector('input[name="captionRewriteMode"][value="rewrite"]');
-    const captionBox = document.querySelector(".caption-mode");
-
-    if (!rewriteRadio) return;
-
-    const hasText = text && text.length > 3;
-
-    // enable/disable rewrite mode + fade
-    rewriteRadio.disabled = !hasText;
-    rewriteRadio.parentElement.style.opacity = hasText ? "1" : "0.4";
-
-    // 🔥 Highlight box when rewrite ON + captions exist
-    if (hasText && rewriteRadio.checked) {
-        captionBox?.classList.add("rewrite-hot");
-    } else {
-        captionBox?.classList.remove("rewrite-hot");
-    }
-}
 
 // Watch live typing unlock rewrite mode
 document.getElementById("captionsText")?.addEventListener("input", updateRewriteModeAvailability);
