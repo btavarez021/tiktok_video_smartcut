@@ -1842,3 +1842,26 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     max-height:1200px;
     margin-bottom:16px;
 }
+
+/* ===== FINAL FIX — KEEP PREVIEW ABOVE OTHER SECTIONS ===== */
+
+#overlayPreviewWrapper {
+    position: relative;
+    z-index: 50; /* enough to float within accordion but not block UI */
+}
+
+#overlayPreviewMock {
+    z-index: 55; /* phone above content */
+}
+
+.preview-actions {
+    position: relative;
+    z-index: 60; /* ensures buttons always clickable */
+}
+
+/* Ensure nothing underneath overlaps upward */
+.acc-section {
+    position: relative;
+    z-index: 1;
+}
+
