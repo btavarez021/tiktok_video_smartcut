@@ -464,6 +464,64 @@ def _wrap_caption(text: str, max_chars_per_line: int) -> str:
 
     return "\n".join(lines)
 
+# -----------------------------------------
+# Enhanced Caption Style Presets 🚀
+# -----------------------------------------
+STYLE_PRESETS = {
+    "punchy": {
+        "fontsize": 78,             # big & loud
+        "line_spacing": 4,
+        "box_opacity": "CC",        # stronger contrast
+        "y_expr": "(h * 0.40)",
+        "accent_color": "yellow",   # for future highlight pass
+        "emoji_boost": True         # 🔥 if emojis present = spacing tweaked
+    },
+
+    "cinematic": {
+        "fontsize": 54,
+        "line_spacing": 18,
+        "box_opacity": "DD",        # soft, elegant opacity
+        "y_expr": "(h * 0.60)",
+        "font_color": "white",
+        "shadow_strength": 0.85     # deeper shadow for film look
+    },
+
+    "influencer": {
+        "fontsize": 66,
+        "line_spacing": 10,
+        "box_opacity": "AA",
+        "y_expr": "(h * 0.48)",
+        "bubble": True,             # future bubble background mode
+        "emoji_boost": True
+    },
+
+    "travel_blog": {
+        "fontsize": 62,
+        "line_spacing": 14,
+        "box_opacity": "BB",
+        "y_expr": "(h * 0.52)",
+        "serif_hint": False,
+        "tone": "warm"
+    },
+
+    "descriptive": {
+        "fontsize": 58,
+        "line_spacing": 10,
+        "box_opacity": "66",        # subtle background
+        "y_expr": "(h * 0.49)",
+        "tone": "neutral",
+        "emoji_boost": False
+    },
+
+    "ai_recommended": {
+        "fontsize": 68,             # Balanced modern hero style
+        "line_spacing": 12,
+        "box_opacity": "BB",
+        "y_expr": "(h * 0.46)",
+        "accent_color": "teal",
+        "smart_balance": True       # perfect for 90% of cases
+    },
+}
 
 def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
     """
@@ -558,66 +616,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     for m in cfg.get("middle_clips", []):
         clips.append(collect(m))
     clips.append(collect(cfg["last_clip"], is_last=True))
-
-    # -----------------------------------------
-    # Enhanced Caption Style Presets 🚀
-    # -----------------------------------------
-    STYLE_PRESETS = {
-        "punchy": {
-            "fontsize": 78,             # big & loud
-            "line_spacing": 4,
-            "box_opacity": "CC",        # stronger contrast
-            "y_expr": "(h * 0.40)",
-            "accent_color": "yellow",   # for future highlight pass
-            "emoji_boost": True         # 🔥 if emojis present = spacing tweaked
-        },
-
-        "cinematic": {
-            "fontsize": 54,
-            "line_spacing": 18,
-            "box_opacity": "DD",        # soft, elegant opacity
-            "y_expr": "(h * 0.60)",
-            "font_color": "white",
-            "shadow_strength": 0.85     # deeper shadow for film look
-        },
-
-        "influencer": {
-            "fontsize": 66,
-            "line_spacing": 10,
-            "box_opacity": "AA",
-            "y_expr": "(h * 0.48)",
-            "bubble": True,             # future bubble background mode
-            "emoji_boost": True
-        },
-
-        "travel_blog": {
-            "fontsize": 62,
-            "line_spacing": 14,
-            "box_opacity": "BB",
-            "y_expr": "(h * 0.52)",
-            "serif_hint": False,
-            "tone": "warm"
-        },
-
-        "descriptive": {
-            "fontsize": 58,
-            "line_spacing": 10,
-            "box_opacity": "66",        # subtle background
-            "y_expr": "(h * 0.49)",
-            "tone": "neutral",
-            "emoji_boost": False
-        },
-
-        "ai_recommended": {
-            "fontsize": 68,             # Balanced modern hero style
-            "line_spacing": 12,
-            "box_opacity": "BB",
-            "y_expr": "(h * 0.46)",
-            "accent_color": "teal",
-            "smart_balance": True       # perfect for 90% of cases
-        },
-    }
-
 
     render_cfg = cfg.setdefault("render", {})
 
