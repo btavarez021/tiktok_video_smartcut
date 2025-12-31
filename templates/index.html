@@ -361,6 +361,31 @@
                     </label>
 
                     <textarea id="captionsText" class="textarea" rows="12"></textarea>
+
+                    <!-- =========================================================
+                        Caption Generation Modes — INSERT BELOW CAPTION TEXT AREA
+                    ============================================================= -->
+                    <div class="caption-mode-generator card-subsection" style="margin-top:16px;">
+                        <h3>🧠 Caption Variants Generator</h3>
+                        <p class="hint-text">Select modes and generate multiple caption rewrites at once.</p>
+
+                        <div class="checkbox-grid">
+                            <label><input type="checkbox" id="mode_rewrite"> Rewrite captions</label>
+                            <label><input type="checkbox" id="mode_hook"> Improve Hook</label>
+                            <label><input type="checkbox" id="mode_punchy"> Punchy & energetic</label>
+                            <label><input type="checkbox" id="mode_story"> Storytelling</label>
+                            <label><input type="checkbox" id="mode_influencer"> Influencer voice</label>
+                        </div>
+
+                        <button id="generateVariantsBtn" class="btn secondary small" style="margin-top:10px;">
+                            ⚡ Generate Caption Variants
+                        </button>
+
+                        <div id="variantsOutput" class="variants-output"></div>
+                    </div>
+                    <!-- ======================================================= -->
+
+
                     <!-- Hook Score -->
                     <div class="hook-score-card">
                         <div class="hook-score-header">

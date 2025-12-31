@@ -852,6 +852,51 @@ async function improveHook() {
   }
 }
 
+async function generateCaptionVariants() {
+    const modes = {
+        rewrite: document.getElementById("mode_rewrite").checked,
+        hook: document.getElementById("mode_hook").checked,
+        punchy: document.getElementById("mode_punchy").checked,
+        story: document.getElementById("mode_story").checked,
+        influencer: document.getElementById("mode_influencer").checked,
+    };
+
+    const session = getActiveSession();
+    const res = await fetch("/api/variants", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ session, modes })
+    });
+
+    const data = await res.json();
+    const box = document.getElementById("variantsOutput");
+    box.innerHTML = "";
+
+    data.variants.forEach((text, i) => {
+        box.innerHTML += `
+        <div class="variantCard">
+            <h4>Version ${i+1}</h4>
+            <pre style="white-space:pre-wrap">${text}</pre>
+            <button onclick="applyCaptionVariant(\`${text.replace(/`/g,'\\`')}\`)">Use This</button>
+        </div>`;
+    });
+}
+
+// =============================================
+// Helper: Apply selected generated caption text
+// =============================================
+function applyCaptionVariant(text) {
+    const el = document.getElementById("captionsText");
+    if (!el) return;
+    el.value = text;
+
+    // Optional nice extras:
+    refreshHookScore();        // re-score hook immediately
+    refreshStoryFlowScore();   // re-score story flow
+    setStatus("captionsStatus", "Caption applied ✓", "success");
+}
+
+
 // ================================
 // Step Enter Handler (Fix Missing Function)
 // ================================
@@ -2171,6 +2216,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
     document.getElementById("improveHookBtn")?.addEventListener("click", improveHook);
+    
+    // 🔥 INSERT NEW EVENT LISTENER RIGHT BELOW THIS
+    document.getElementById("generateVariantsBtn")?.addEventListener("click", generateCaptionVariants);
 
     // ================================
 // Step 4 Rewrite Mode Init

@@ -231,6 +231,18 @@ def route_save_yaml_route():
 # ============================================================================
 # CAPTIONS
 # ============================================================================
+
+@app.route("/api/variants", methods=["POST"])
+def route_variants():
+    data = request.get_json() or {}
+
+    session = sanitize_session(data.get("session", "default"))
+    modes = data.get("modes", {})
+
+    from assistant_api import api_generate_variants
+    return jsonify(api_generate_variants(session, modes))
+
+
 @app.route("/api/get_captions", methods=["GET"])
 def route_get_captions():
     return jsonify(api_get_captions())

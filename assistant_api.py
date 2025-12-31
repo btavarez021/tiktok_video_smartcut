@@ -761,6 +761,71 @@ def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
 _CAPTIONS_FILE = os.path.join(os.path.dirname(__file__), "captions.txt")
 
 
+# ============================================================
+# Caption Variants Generator  🔥 (Rewrite / Punchy / Story etc.)
+# ============================================================
+def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    cfg = _load_config(session)
+
+    # Collect captions from YAML (same approach as save/load)
+    captions = []
+
+    if cfg.get("first_clip", {}).get("text"):
+        captions.append(cfg["first_clip"]["text"])
+
+    for clip in cfg.get("middle_clips", []):
+        if clip.get("text"):
+            captions.append(clip["text"])
+
+    if cfg.get("last_clip", {}).get("text"):
+        captions.append(cfg["last_clip"]["text"])
+
+    base = "\n\n".join(captions).strip()
+    if not base:
+        return {"variants": ["⚠ No captions found in YAML. Generate or import captions first."]}
+
+    style_prompts = {
+        "rewrite":     "Rewrite captions clean and natural.",
+        "hook":        "Improve opening hook only, keep rest similar.",
+        "punchy":      "Rewrite punchy, energetic TikTok creator style.",
+        "story":       "Rewrite more storytelling, emotional progress.",
+        "influencer":  "Rewrite as confident influencer talking to camera.",
+    }
+
+    variants = [base]  # original included for reference
+
+    # Generate one variant per checked mode
+    for style, enabled in modes.items():
+        if enabled and style in style_prompts:
+            resp = client.chat.completions.create(
+                model=TEXT_MODEL,
+                messages=[
+                    {"role": "system", "content": "Rewrite captions in blocks separated by blank lines. Keep same number of blocks."},
+                    {"role": "user", "content": f"Original:\n{base}\n\nRewrite style: {style_prompts[style]}"},
+                ]
+            )
+            variants.append(resp.choices[0].message.content.strip())
+
+    # Combo magic ✨ (auto mixes modes for advanced results)
+    if modes.get("rewrite") and modes.get("punchy"):
+        r = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[{"role": "user", "content": f"Rewrite punchy + clear:\n{base}"}]
+        )
+        variants.append(r.choices[0].message.content.strip())
+
+    if modes.get("rewrite") and modes.get("story"):
+        r = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[{"role": "user", "content": f"Rewrite storytelling + smooth:\n{base}"}]
+        )
+        variants.append(r.choices[0].message.content.strip())
+
+    return {"variants": variants[:7]}  # max 7 to keep UI manageable
+
+
+
 def api_get_captions() -> Dict[str, Any]:
     if not os.path.exists(_CAPTIONS_FILE):
         return {"text": ""}
