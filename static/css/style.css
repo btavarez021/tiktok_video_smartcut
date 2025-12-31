@@ -1787,49 +1787,6 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     transition: .25s ease;
 }
 
-
-#overlayPreviewWrapper {
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    margin-top:20px;
-}
-
-/* Phone mock */
-#overlayPreviewMock {
-    width:260px;
-    height:480px;
-    border-radius:22px;
-    overflow:hidden;
-    background:#000;
-    border:2px solid rgba(255,255,255,.10);
-    box-shadow:0 0 25px rgba(0,0,0,.5);
-    position:relative;
-    z-index:5;
-}
-
-/* Content inside */
-#overlayPreviewBox {
-    position:absolute;
-    inset:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    text-align:center;
-    padding:10px;
-    font-size:14px;
-    color:white;
-    opacity:.8;
-}
-
-/* Buttons */
-.preview-actions {
-    display:flex;
-    gap:12px;
-    margin-top:14px;
-}
-
 /* Accordion — final correct version */
 .acc-body {
     overflow:hidden;
@@ -1843,21 +1800,52 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     margin-bottom:16px;
 }
 
-/* ===== FINAL FIX — KEEP PREVIEW ABOVE OTHER SECTIONS ===== */
-
+/* FINAL STABLE PHONE PREVIEW LAYOUT — NO OVERLAYS, FLOWS NATURALLY */
 #overlayPreviewWrapper {
-    position: relative;
-    z-index: 50; /* enough to float within accordion but not block UI */
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin-top:18px;
+    margin-bottom:18px;
 }
 
 #overlayPreviewMock {
-    z-index: 55; /* phone above content */
+    width:260px;
+    height:480px;
+    border-radius:22px;
+    background:#000;
+    overflow:hidden;
+    border:2px solid rgba(255,255,255,.15);
+    box-shadow:0 0 22px rgba(0,0,0,.55);
+}
+
+#overlayPreviewBox {
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    font-size:14px;
+    padding:10px;
 }
 
 .preview-actions {
-    position: relative;
-    z-index: 60; /* ensures buttons always clickable */
+    display:flex;
+    gap:10px;
+    margin-top:14px;
+    width:auto;
+    justify-content:center;
 }
+
+/* Accordion stays normal + flows around preview */
+.acc-section.open .acc-body {
+    max-height:1400px;
+    overflow:visible;
+    padding-bottom:24px;  /* gives breathing room for preview buttons */
+}
+
 
 /* Ensure nothing underneath overlaps upward */
 .acc-section {
