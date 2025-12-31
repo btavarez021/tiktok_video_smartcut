@@ -560,46 +560,64 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     clips.append(collect(cfg["last_clip"], is_last=True))
 
     # -----------------------------------------
-    # VISUAL STYLE PRESETS (caption look & feel)
+    # Enhanced Caption Style Presets 🚀
     # -----------------------------------------
     STYLE_PRESETS = {
         "punchy": {
-            "fontsize": 72,
-            "line_spacing": 6,
-            "box_opacity": "AA",
-            "y_expr": "(h * 0.42)",
+            "fontsize": 78,             # big & loud
+            "line_spacing": 4,
+            "box_opacity": "CC",        # stronger contrast
+            "y_expr": "(h * 0.40)",
+            "accent_color": "yellow",   # for future highlight pass
+            "emoji_boost": True         # 🔥 if emojis present = spacing tweaked
         },
+
         "cinematic": {
-            "fontsize": 56,
-            "line_spacing": 16,
-            "box_opacity": "CC",
-            "y_expr": "(h * 0.55)",
+            "fontsize": 54,
+            "line_spacing": 18,
+            "box_opacity": "DD",        # soft, elegant opacity
+            "y_expr": "(h * 0.60)",
+            "font_color": "white",
+            "shadow_strength": 0.85     # deeper shadow for film look
         },
+
         "influencer": {
-            "fontsize": 64,
+            "fontsize": 66,
             "line_spacing": 10,
             "box_opacity": "AA",
             "y_expr": "(h * 0.48)",
+            "bubble": True,             # future bubble background mode
+            "emoji_boost": True
         },
+
         "travel_blog": {
-            "fontsize": 60,
-            "line_spacing": 12,
+            "fontsize": 62,
+            "line_spacing": 14,
             "box_opacity": "BB",
-            "y_expr": "(h * 0.50)",
+            "y_expr": "(h * 0.52)",
+            "serif_hint": False,
+            "tone": "warm"
         },
+
         "descriptive": {
             "fontsize": 58,
-            "line_spacing": 8,
-            "box_opacity": "99",
-            "y_expr": "(h * 0.50)",
+            "line_spacing": 10,
+            "box_opacity": "66",        # subtle background
+            "y_expr": "(h * 0.49)",
+            "tone": "neutral",
+            "emoji_boost": False
         },
+
         "ai_recommended": {
-            "fontsize": 64,
+            "fontsize": 68,             # Balanced modern hero style
             "line_spacing": 12,
-            "box_opacity": "AA",
-            "y_expr": "(h * 0.48)",
+            "box_opacity": "BB",
+            "y_expr": "(h * 0.46)",
+            "accent_color": "teal",
+            "smart_balance": True       # perfect for 90% of cases
         },
     }
+
 
     render_cfg = cfg.setdefault("render", {})
 

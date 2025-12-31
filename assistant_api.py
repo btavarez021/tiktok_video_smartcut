@@ -1019,6 +1019,7 @@ def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool |
 
 
 
+
 # -------------------------------
 # Overlay + Timings + fg_scale
 # -------------------------------
@@ -1049,6 +1050,54 @@ def api_apply_overlay(session_id: str, style: str, rewrite: bool) -> Dict[str, A
     except Exception as e:
         log_error("[OVERLAY]", e)
         return {"status": "error", "error": str(e)}
+    
+
+# ================================
+# OVERLAY PREVIEW (IMAGE MOCK)
+# ================================
+def api_overlay_preview(session: str, style: str) -> dict:
+    import base64
+    from io import BytesIO
+    from PIL import Image, ImageDraw, ImageFont
+
+    session = sanitize_session(session)
+    cfg = _load_config(session)
+    first = cfg.get("first_clip",{}).get("text","")
+
+    # 🔥 load style preset safely
+    from tiktok_template import STYLE_PRESETS   # <- needed import
+
+    style = (style or "ai_recommended").lower()
+    preset = STYLE_PRESETS.get(style, STYLE_PRESETS["ai_recommended"])
+
+    fontsize = preset.get("fontsize", 64)
+    y_expr = preset.get("y_expr", "(h*0.50)")
+    h = 1920  # for eval
+
+    try:
+        y = eval(y_expr)  # y position inside preset
+    except:
+        y = h * 0.50
+
+    img = Image.new("RGB", (1080,1920), (0,0,0))
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", fontsize)
+
+    # wrap text 20 chars per line
+    wrapped = "\n".join(first[i:i+20] for i in range(0, len(first), 20))
+
+    text_w, text_h = draw.multiline_textsize(wrapped, font=font, spacing=12)
+    x = (1080-text_w)/2
+
+    draw.text((x,y), wrapped, fill="white", font=font, spacing=12,
+              stroke_width=4, stroke_fill="black")
+
+    buff = BytesIO()
+    img.save(buff, format="PNG")
+    encoded = base64.b64encode(buff.getvalue()).decode()
+
+    return {"image": "data:image/png;base64,"+encoded}
+
 
 
 

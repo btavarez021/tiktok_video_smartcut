@@ -190,6 +190,23 @@ async function probeUrl(url) {
     }
 }
 
+document.getElementById("previewStyleBtn")?.addEventListener("click", async ()=>{
+    const style=document.getElementById("overlayStyle").value
+    const session=getActiveSession()
+
+    const r=await fetch("/api/overlay_preview",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json"},
+        body:JSON.stringify({session,style})
+    }).then(r=>r.json())
+
+    if(r.image){
+        document.getElementById("previewContainer").innerHTML=
+        `<img src="${r.image}" style="width:260px;border-radius:12px;margin-top:10px;">`
+    }
+})
+
+
 function toggleUploadManager() {
     const content = document.getElementById("uploadManagerContent");
     const icon = document.getElementById("uploadManagerToggle");

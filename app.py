@@ -407,6 +407,15 @@ def route_overlay():
     return jsonify(api_apply_overlay(session_id, style, rewrite))
 
 
+@app.route("/api/overlay_preview", methods=["POST"])
+def route_overlay_preview():
+    from assistant_api import api_overlay_preview
+
+    data = request.get_json() or {}
+    session = sanitize_session(data.get("session","default"))
+    style = data.get("style","ai_recommended")
+
+    return jsonify(api_overlay_preview(session, style))
 
 
 @app.route("/api/timings", methods=["POST"])

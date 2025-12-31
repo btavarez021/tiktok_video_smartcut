@@ -587,6 +587,12 @@
                                     <span class="micro-tag micro-yellow">Changes Text</span>
                                 </label>
 
+                                <!-- 🔥 New mini controls aligned with rewrite -->
+                                <div style="margin:6px 0 10px 0;display:flex;gap:8px;flex-wrap:wrap;">
+                                    <button id="previewStyleBtn" class="btn-xs blue">🖼 Style Preview</button>
+                                    <button id="previewRewriteBtn" class="btn-xs ghost">👀 Rewrite Preview</button>
+                                </div>
+
 
 
                                 <p class="hint-text" style="margin-top:8px; opacity:0.85;">
@@ -601,9 +607,10 @@
 
                             </div>
 
+                            <!-- Preview output area -->
+                            <div id="previewContainer" style="margin-top:8px;"></div>    
 
-
-
+                            
                             <button id="applyOverlayBtn" class="btn secondary">✨ Apply overlay & caption style</button>
                             <div id="overlayStatus" class="hint-text"></div>
 
