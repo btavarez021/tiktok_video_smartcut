@@ -2290,6 +2290,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         previewRewrite();
     });
 
+    // STYLE PREVIEW — add this here inside DOMContentLoaded
+    document.getElementById("previewStyleBtn")?.addEventListener("click", async () => {
+        console.log("STYLE PREVIEW CLICKED"); // Debug log
+
+        const style = document.getElementById("overlayStyle")?.value || "default";
+        const session = getActiveSession();
+
+        const r = await fetch("/api/overlay_preview", {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body:JSON.stringify({ session, style })
+        }).then(r=>r.json());
+
+        if(r.image){
+            document.getElementById("previewContainer").innerHTML =
+            `<img src="${r.image}" style="width:260px;border-radius:12px;margin-top:10px;">`;
+        }
+    });
+
+
 
     // ================================
     // Disable Rewrite Mode if no captions exist
