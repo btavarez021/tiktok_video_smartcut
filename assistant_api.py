@@ -1133,7 +1133,16 @@ def generate_overlay_preview(session_id: str, style: str) -> str:
 
     # quick wrapping
     wrapped = "\n".join(text[i:i+22] for i in range(0,len(text),22))
-    w,h = draw.multiline_textsize(wrapped, font=font, spacing=8)
+    # Cross-compatible text measurement
+    try:
+        # New Pillow API
+        bbox = draw.multiline_textbbox((0,0), wrapped, font=font, spacing=8)
+        w = bbox[2] - bbox[0]
+        h = bbox[3] - bbox[1]
+    except:
+        # Older versions fallback
+        w, h = draw.textsize(wrapped, font=font)
+
 
     x = (1080 - w)//2
     y = 1450  # where captions normally render
