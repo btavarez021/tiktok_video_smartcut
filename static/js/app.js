@@ -1309,6 +1309,34 @@ document.getElementById("cancelRewriteBtn")?.addEventListener("click", ()=>{
 // button trigger
 document.getElementById("previewRewriteBtn")?.addEventListener("click", previewRewrite);
 
+async function previewRewrite() {
+    const session = getActiveSession();
+    const rewriteActive = document.querySelector('input[name="captionRewriteMode"][value="rewrite"]')?.checked;
+
+    if (!rewriteActive) {
+        alert("Enable Rewrite Mode first to preview changes.");
+        return;
+    }
+
+    const res = await jsonFetch("/api/variants", {
+        method: "POST",
+        body: JSON.stringify({
+            session,
+            modes: { rewrite: true }     // preview uses rewrite only
+        }),
+    });
+
+    const variants = res.variants || [];
+
+    // UI panel or modal popup preview
+    showRewritePreview(variants[0], variants[1]); // orig vs rewrite
+}
+
+function showRewritePreview(original, rewritten) {
+    const msg = `Original:\n\n${original}\n\n---\n\nRewrite Preview:\n\n${rewritten}`;
+    alert(msg);     // basic now — later we replace with nice UI popup
+}
+
 // Timings
 async function applyTiming(smart) {
     const statusEl = document.getElementById("timingStatus");
