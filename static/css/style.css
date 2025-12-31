@@ -816,7 +816,7 @@ h3 {
 }
 
 /* ---------------------------------------
-   Accordion (Step 4)
+   Accordion (Step 4) — Final merged version
 ---------------------------------------- */
 .accordion .acc-header {
     width: 100%;
@@ -832,6 +832,7 @@ h3 {
     margin-bottom: 6px;
 }
 
+/* DEFAULT CLOSED */
 .acc-body {
     max-height: 0;
     overflow: hidden;
@@ -840,16 +841,23 @@ h3 {
     margin-left: 6px;
     margin-bottom: 0;
     border-left: 2px solid transparent;
-    transition: max-height 0.35s ease, opacity 0.25s ease, margin-bottom 0.25s ease, border-left-color 0.25s ease;
+    transition:
+        max-height .35s ease,
+        opacity .35s ease,
+        margin-bottom .35s ease,
+        border-left-color .35s ease;
 }
 
+/* OPEN STATE */
 .acc-section.open .acc-body {
-    max-height: 1000px;
+    max-height: 1400px;            /* more room for preview */
+    overflow: visible;             /* allow preview to fully show */
     opacity: 1;
-    padding: 12px 4px 20px 4px;
+    padding: 12px 4px 24px 4px;     /* space below preview buttons */
     margin-bottom: 16px;
     border-left-color: #444;
 }
+
 
 /* Optional subtle indicator on open */
 .acc-section.open .acc-header {
@@ -1787,19 +1795,6 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     transition: .25s ease;
 }
 
-/* Accordion — final correct version */
-.acc-body {
-    overflow:hidden;
-    max-height:0;
-    margin-bottom:0;
-    transition:max-height .35s ease, opacity .25s ease;
-}
-.acc-section.open .acc-body {
-    overflow:visible;
-    max-height:1200px;
-    margin-bottom:16px;
-}
-
 /* FINAL STABLE PHONE PREVIEW LAYOUT — NO OVERLAYS, FLOWS NATURALLY */
 #overlayPreviewWrapper {
     width:100%;
@@ -1838,14 +1833,6 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     width:auto;
     justify-content:center;
 }
-
-/* Accordion stays normal + flows around preview */
-.acc-section.open .acc-body {
-    max-height:1400px;
-    overflow:visible;
-    padding-bottom:24px;  /* gives breathing room for preview buttons */
-}
-
 
 /* Ensure nothing underneath overlaps upward */
 .acc-section {
