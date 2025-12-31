@@ -1271,30 +1271,6 @@ async function applyOverlay() {
   }
 }
 
-// ================================
-// 🔥 Rewrite Preview Modal Logic
-// ================================
-async function previewRewrite() {
-    const original = document.getElementById("captionsText").value.trim();
-    if (!original) return alert("No captions to rewrite.");
-
-    const session = getActiveSession();
-    const data = await jsonFetch("/api/overlay", {
-        method:"POST",
-        body:JSON.stringify({
-            session,
-            style:getStyle(),   // you already have this in applyOverlay
-            rewrite:true,
-            preview:true
-        })
-    });
-
-    document.getElementById("diffOriginal").textContent = original;
-    document.getElementById("diffRewritten").textContent = data.preview || "(No difference)";
-
-    document.getElementById("rewritePreviewModal").classList.remove("hidden");
-}
-
 // confirm
 document.getElementById("confirmRewriteBtn")?.addEventListener("click", async ()=>{
     document.getElementById("rewritePreviewModal").classList.add("hidden");
