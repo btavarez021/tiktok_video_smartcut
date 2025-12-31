@@ -38,7 +38,9 @@ from assistant_api import (
     api_hook_score,
     api_improve_hook,   
     api_story_flow_score,
-    api_story_flow_improve
+    api_story_flow_improve,
+    api_overlay_preview, 
+    generate_overlay_preview
 )
 from tiktok_template import get_config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -408,29 +410,23 @@ def route_overlay():
 
 
 @app.route("/api/overlay_preview", methods=["POST"])
-def route_overlay_preview():
-    from assistant_api import api_overlay_preview
-
-    data = request.get_json() or {}
-    session = sanitize_session(data.get("session","default"))
-    style = data.get("style","ai_recommended")
-
-    return jsonify(api_overlay_preview(session, style))
-
-from assistant_api import generate_overlay_preview   # 👈 import function
-
-@app.route("/api/overlay_preview", methods=["POST"])
 def overlay_preview():
     data = request.get_json() or {}
     session = sanitize_session(data.get("session", "default"))
-    style = data.get("style", "ai_recommended").lower()
+    style   = data.get("style", "ai_recommended").lower()
 
     try:
+        # If you want FAST, visual-only mock preview:
         img_b64 = generate_overlay_preview(session, style)
+
+        # Or if you want to use style presets with box, wrapping, etc:
+        # result = api_overlay_preview(session, style)
+        # return jsonify(result)
+
         return jsonify({"image": f"data:image/png;base64,{img_b64}"})
 
     except Exception as e:
-        print("[Preview error]", e)
+        print("[OVERLAY_PREVIEW_ERROR]", e)
         return jsonify({"error": str(e)}), 500
 
 

@@ -1055,9 +1055,15 @@ async function loadCaptionsFromYaml() {
         const session = encodeURIComponent(getActiveSession());
         const data = await jsonFetch(`/api/config?session=${session}`);
         const cfg = data.config || {};
+
         captionsEl.value = buildCaptionsFromConfig(cfg);
+
+        // 🔥 Enable Rewrite mode immediately (no typing required)
+        updateRewriteModeAvailability();
+
         await refreshHookScore();
         await refreshStoryFlowScore();
+
         setStatus("captionsStatus", "Captions loaded.", "success");
     } catch (err) {
         console.error(err);
