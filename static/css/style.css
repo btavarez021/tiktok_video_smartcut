@@ -1810,3 +1810,16 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 .acc-body {
     overflow: visible !important;
 }
+
+/* === FIX PREVIEW STACKING AND SPACING === */
+#overlayPreviewMock {
+    position: relative;
+    z-index: 999;              /* brings phone mock above accordions */
+}
+
+/* keep accordion spacing normal again */
+.acc-body {
+    overflow: visible !important;
+    max-height: 1000px;
+    margin-bottom: 14px;       /* prevents giant gaps */
+}
