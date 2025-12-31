@@ -1840,3 +1840,31 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     z-index: 1;
 }
 
+/* ===========================================
+   FIX CAPTION ACCORDION + PREVIEW STACKING
+   =========================================== */
+
+/* Let accordion content expand naturally */
+.acc-body {
+    position: relative;
+    z-index: 2;                     /* sits ABOVE phone preview */
+}
+
+/* Phone preview + buttons stay visible & clickable */
+#overlayPreviewWrapper,
+.preview-actions {
+    position: relative;
+    z-index: 10;                    /* on top of accordion below */
+}
+
+/* Never let phone preview overlap outside container */
+#overlayPreviewWrapper {
+    margin-bottom: 24px;            /* spacing before next accordion */
+}
+
+/* BONUS: prevent content above from clipping preview */
+.acc-section.open .acc-body {
+    overflow: visible !important;
+}
+
+
