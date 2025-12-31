@@ -311,7 +311,7 @@
                     <div class="session-tag">Session: <span class="sessionLabel"></span></div>
 
                     <h2>
-                        Step 3 · Edit Captions
+                        Step 3 · Edit Captions <span style="opacity:.65;font-size:.8em;">✍️ Content Editing</span>
                         <span class="tooltip">ⓘ
                             <span class="tooltiptext">
                                 Captions are mapped to clips in order:<br>
@@ -469,7 +469,7 @@
                     <div class="session-tag">Session: <span class="sessionLabel"></span></div>
 
                     <h2>
-                        Step 4 · Style, Voice & Timing
+                        Step 4 · Style, Voice & Timing <span style="opacity:.65;font-size:.8em;">🎨 Styling & Export</span>
                         <span class="tooltip">ⓘ
                             <span class="tooltiptext">
                                 Choose how your final reel should look, sound, and feel.<br>
@@ -564,31 +564,76 @@
                             </select>
 
                             <div class="caption-mode">
-                                
-                              <p class="hint-text">
-                                Visual-only keeps your captions exactly as written.<br>
-                                Rewrite mode adapts wording to match the selected style.
-                              </p>
 
-                              <label>
-                                <input type="radio" name="captionRewriteMode" value="visual" checked />
-                                Visual only (recommended)
-                              </label>
+                                <p class="hint-text" style="margin-bottom:10px; opacity:0.85;">
+                                    ⬇ Choose how captions behave during style apply ⬇
+                                </p>
 
-                              <label>
-                                <input type="radio" name="captionRewriteMode" value="rewrite" />
-                                Rewrite captions to match style
-                              </label>
-                              
-                              <div id="rewriteWarning" class="status-text status-warning hidden" style="margin-top:8px;">
-                                    ✍️ Rewrite Mode is ON — captions will be changed when you apply overlay
+                                <label class="caption-reset-label">
+                                    <input type="radio" name="captionRewriteMode" value="visual" checked />
+                                    Visual Only (no text changes)
+                                    <span class="tooltip">ⓘ
+                                        <span class="tooltiptext">Applies style + overlay only. Your caption text stays exactly the same.</span>
+                                    </span>
+                                    <span class="micro-tag micro-green">Safe</span>
+                                </label>
+
+                                <label class="caption-reset-label" style="margin-top:6px;display:block;">
+                                    <input type="radio" name="captionRewriteMode" value="rewrite" />
+                                    Rewrite captions to match style (changes wording)
+                                    <span class="tooltip">ⓘ
+                                        <span class="tooltiptext">AI rewrites sentence tone + rhythm to match your chosen style.</span>
+                                    </span>
+                                    <span class="micro-tag micro-yellow">Changes Text</span>
+                                </label>
+
+
+
+                                <p class="hint-text" style="margin-top:8px; opacity:0.85;">
+                                    <b>Step-3 = Write & rewrite caption text.</b><br>
+                                    <b>Step-4 = Style & render visual output.</b><br>
+                                    Rewrite here is optional & only applies when overlay is applied.
+                                </p>
+
+                                <div id="rewriteWarning" class="status-text status-warning hidden" style="margin-top:8px;">
+                                    ✍️ Rewrite Mode ON — captions will be transformed to match selected style.
                                 </div>
 
                             </div>
 
 
+
+
                             <button id="applyOverlayBtn" class="btn secondary">✨ Apply overlay & caption style</button>
                             <div id="overlayStatus" class="hint-text"></div>
+
+                            <button id="previewRewriteBtn" class="btn ghost small" style="margin-top:4px;">
+                                👀 Preview rewrite changes
+                            </button>
+
+                            <div id="rewritePreviewModal" class="modal hidden">
+                            <div class="modal-content">
+                                <h3>Rewrite Preview</h3>
+                                <p class="muted">Compare text before applying:</p>
+
+                                <div class="diff-box">
+                                    <div>
+                                        <h4>Original</h4>
+                                        <pre id="diffOriginal"></pre>
+                                    </div>
+                                    <div>
+                                        <h4>Rewritten</h4>
+                                        <pre id="diffRewritten"></pre>
+                                    </div>
+                                </div>
+
+                                <div class="row" style="margin-top:10px;">
+                                    <button id="confirmRewriteBtn" class="btn primary small">Apply rewrite</button>
+                                    <button id="cancelRewriteBtn" class="btn secondary small">Keep original</button>
+                                </div>
+                            </div>
+                            </div>
+
 
                             <h3>
                                 Timings

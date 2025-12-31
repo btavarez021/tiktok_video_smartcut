@@ -1024,6 +1024,12 @@ def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool |
 # -------------------------------
 def api_apply_overlay(session_id: str, style: str, rewrite: bool) -> Dict[str, Any]:
     try:
+
+        if rewrite:
+            cfg = _load_config(session_id)
+            if not cfg.get("first_clip",{}).get("text"):
+                return {"status":"error","error":"No captions to rewrite"}
+
         session_id = sanitize_session(session_id)
 
         apply_overlay(session_id, style, rewrite=rewrite)

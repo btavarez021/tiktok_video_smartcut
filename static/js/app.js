@@ -809,6 +809,19 @@ async function refreshHookScore() {
       : `<li>Looks solid ✅</li>`;
 
     if (statusEl) statusEl.textContent = "";
+    // ================================
+    // ⚠ Soft Warning: Low Hook + Rewrite Mode Active
+    // ================================
+    const rewriteActive = document.querySelector('input[name="captionRewriteMode"][value="rewrite"]')?.checked;
+
+    if (score < 60 && rewriteActive) {
+        setStatus(
+            "overlayStatus",
+            "⚠ Hook is weak — rewrite may hurt clarity. Improve Hook first for best results.",
+            "warning"
+        );
+    }
+
   } catch (err) {
     console.error("Hook score error:", err);
     if (statusEl) statusEl.textContent = "Hook score unavailable.";
@@ -1258,6 +1271,43 @@ async function applyOverlay() {
   }
 }
 
+// ================================
+// 🔥 Rewrite Preview Modal Logic
+// ================================
+async function previewRewrite() {
+    const original = document.getElementById("captionsText").value.trim();
+    if (!original) return alert("No captions to rewrite.");
+
+    const session = getActiveSession();
+    const data = await jsonFetch("/api/overlay", {
+        method:"POST",
+        body:JSON.stringify({
+            session,
+            style:getStyle(),   // you already have this in applyOverlay
+            rewrite:true,
+            preview:true
+        })
+    });
+
+    document.getElementById("diffOriginal").textContent = original;
+    document.getElementById("diffRewritten").textContent = data.preview || "(No difference)";
+
+    document.getElementById("rewritePreviewModal").classList.remove("hidden");
+}
+
+// confirm
+document.getElementById("confirmRewriteBtn")?.addEventListener("click", async ()=>{
+    document.getElementById("rewritePreviewModal").classList.add("hidden");
+    applyOverlay(true); // calls overlay rewrite for real
+});
+
+// cancel
+document.getElementById("cancelRewriteBtn")?.addEventListener("click", ()=>{
+    document.getElementById("rewritePreviewModal").classList.add("hidden");
+});
+
+// button trigger
+document.getElementById("previewRewriteBtn")?.addEventListener("click", previewRewrite);
 
 // Timings
 async function applyTiming(smart) {
@@ -2216,25 +2266,57 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
     document.getElementById("improveHookBtn")?.addEventListener("click", improveHook);
-    
-    // 🔥 INSERT NEW EVENT LISTENER RIGHT BELOW THIS
-    document.getElementById("generateVariantsBtn")?.addEventListener("click", generateCaptionVariants);
 
     // ================================
-// Step 4 Rewrite Mode Init
-// ================================
-addStepEnterHandler(4, async () => {
-    console.log("STEP 4 OPEN → initializing rewrite controls");
+    // Disable Rewrite Mode if no captions exist
+    // ================================
+    function updateRewriteModeAvailability() {
+    const text = document.getElementById("captionsText")?.value.trim();
+    const rewriteRadio = document.querySelector('input[name="captionRewriteMode"][value="rewrite"]');
+    const captionBox = document.querySelector(".caption-mode");
 
-    await loadCaptionMode();   // reload caption mode from YAML
-    await loadRewriteMode();   // reload rewrite mode from YAML
-    updateRewriteWarning();
+    if (!rewriteRadio) return;
 
-    document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {
-        el.removeEventListener("change", updateRewriteWarning);
-        el.addEventListener("change", updateRewriteWarning);
+    const hasText = text && text.length > 3;
+
+    // enable/disable rewrite mode + fade
+    rewriteRadio.disabled = !hasText;
+    rewriteRadio.parentElement.style.opacity = hasText ? "1" : "0.4";
+
+    // 🔥 Highlight box when rewrite ON + captions exist
+    if (hasText && rewriteRadio.checked) {
+        captionBox?.classList.add("rewrite-hot");
+    } else {
+        captionBox?.classList.remove("rewrite-hot");
+    }
+}
+
+// Watch live typing unlock rewrite mode
+document.getElementById("captionsText")?.addEventListener("input", updateRewriteModeAvailability);
+
+// Generate variants (unchanged)
+document.getElementById("generateVariantsBtn")?.addEventListener("click", generateCaptionVariants);
+
+// Run once after load
+updateRewriteModeAvailability();
+
+
+
+    // ================================
+    // Step 4 Rewrite Mode Init
+    // ================================
+    addStepEnterHandler(4, async () => {
+        console.log("STEP 4 OPEN → initializing rewrite controls");
+
+        await loadCaptionMode();   // reload caption mode from YAML
+        await loadRewriteMode();   // reload rewrite mode from YAML
+        updateRewriteWarning();
+
+        document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {
+            el.removeEventListener("change", updateRewriteWarning);
+            el.addEventListener("change", updateRewriteWarning);
+        });
     });
-});
 
 
     // Legacy quick-switch for sessions (top bar)
