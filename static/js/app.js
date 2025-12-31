@@ -1282,9 +1282,6 @@ document.getElementById("cancelRewriteBtn")?.addEventListener("click", ()=>{
     document.getElementById("rewritePreviewModal").classList.add("hidden");
 });
 
-// button trigger
-document.getElementById("previewRewriteBtn")?.addEventListener("click", previewRewrite);
-
 async function previewRewrite() {
     const session = getActiveSession();
     const rewriteActive = document.querySelector('input[name="captionRewriteMode"][value="rewrite"]')?.checked;
@@ -2270,6 +2267,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
     document.getElementById("improveHookBtn")?.addEventListener("click", improveHook);
+    // PREVIEW REWRITE — must be inside DOMContentLoaded so button exists
+    document.getElementById("previewRewriteBtn")?.addEventListener("click", () => {
+        console.log("Preview Rewrite CLICKED"); // Debug check
+        previewRewrite();
+    });
+
 
     // ================================
     // Disable Rewrite Mode if no captions exist
