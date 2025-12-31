@@ -1786,3 +1786,30 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     border-radius: 6px;
     transition: .25s ease;
 }
+
+
+#overlayPreviewMock {
+    max-width: 100%;
+    width: 260px;              /* sweet spot for phone mock */
+    margin: 0 auto;            /* centers it */
+}
+
+#overlayPreviewBox img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#overlayPreviewContainer,
+#overlayPreviewMock {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+@media (max-width: 900px) { /* mobile responsive */
+    #overlayPreviewMock {
+        width: 200px;
+        height: 350px;
+    }
+}
