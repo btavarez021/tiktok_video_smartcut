@@ -2374,6 +2374,49 @@ document.addEventListener("DOMContentLoaded", async () => {
         previewOverlay("fast");   // 🔥 use the shared preview function
     });
 
+
+// BUTTON EVENTS
+document.getElementById("previewFast")?.addEventListener("click", () => previewOverlay("fast"));
+document.getElementById("previewFull")?.addEventListener("click", () => previewOverlay("full"));
+document.getElementById("previewStyleBtn")?.addEventListener("click", () => previewOverlay("fast")); // button you already have
+
+
+
+// 🎨 Full preview — applies overlay first, then generates image
+document.getElementById("previewFull")?.addEventListener("click", async () => {
+    const session = getActiveSession();
+    const style = overlayStyleSelect.value;
+    overlayBox.innerHTML = "Applying & rendering preview…";
+
+    try {
+        // apply overlay style (no rewrite)
+        await fetch("/api/overlay", {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body:JSON.stringify({ session, style, rewrite:false })
+        });
+
+        // then preview it visually
+        const res = await fetch("/api/overlay_preview", {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body:JSON.stringify({ session, style })
+        }).then(r=>r.json());
+
+        if(res.image){
+            overlayBox.innerHTML =
+            `<img src="${res.image}" style="width:100%;height:100%;object-fit:cover;">`;
+        } else {
+            overlayBox.innerHTML = "Preview failed";
+        }
+
+    } catch(e){
+        overlayBox.innerHTML = "Preview failed";
+        console.error(e);
+    }
+});
+
+
     // Buttons under the phone mock in the UI
     document.getElementById("previewFast")?.addEventListener("click", () => {
         previewOverlay("fast");
