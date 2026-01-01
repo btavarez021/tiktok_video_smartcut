@@ -501,104 +501,113 @@
                         <div class="acc-body">
 
                             <!-- ====================== CAPTION STYLE ====================== -->
-                            <div class="style-section">
-
-                                <h3>
-                                    Caption Style
-                                    <span class="tooltip">ⓘ
-                                        <span class="tooltiptext">
-                                            Controls visual style only — font, shadow, tone, emphasis.<br>
-                                            Does not change timing or rewrite your words.
-                                        </span>
+                            <h3 class="style-secion">
+                                Caption Style
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Visual styling only — fonts, casing, spacing, animation.<br>
+                                        Does not rewrite or alter wording unless "Rewrite" is enabled.
                                     </span>
-                                </h3>
+                                </span>
+                            </h3>
 
-                                <label class="field-label">
-                                    Overlay Style Preset
-                                </label>
-
-                                <select id="overlayStyle" class="select">
-                                    <option value="ai_recommended">✨ AI Caption Director (auto)</option>
-                                    <option value="travel_blog">Travel Blogger</option>
-                                    <option value="punchy">Punchy & Bold</option>
-                                    <option value="cinematic">Cinematic & Moody</option>
-                                    <option value="descriptive">Literal & Informational</option>
-                                    <option value="influencer">Influencer Voice</option>
-                                </select>
-
-                            </div>
+                            <label class="field-label">Overlay Style Preset</label>
+                            <select id="overlayStyle" class="select">
+                                <option value="ai_recommended">✨ AI Caption Director (auto)</option>
+                                <option value="travel_blog">Travel blogger</option>
+                                <option value="punchy">Punchy & energetic</option>
+                                <option value="cinematic">Cinematic & moody</option>
+                                <option value="descriptive">Literal & descriptive</option>
+                                <option value="influencer">Influencer voice</option>
+                            </select>
+                            <button id="saveOverlayStyle" class="btn ghost small" style="margin-top:8px;">💾 Save Style</button>
 
 
                             <!-- ====================== CAPTION USAGE ====================== -->
-                            <div class="usage-section" style="margin-top:22px;">
-
-                                <h3>
-                                    Caption Usage
-                                    <span class="tooltip">ⓘ
-                                        <span class="tooltiptext">
-                                            Where captions appear:<br>
-                                            • All clips<br>
-                                            • First clip only (hero hook + b-roll)<br>
-                                            • None (clean visuals)
-                                        </span>
+                            <h3 class="usage-secion">
+                                Caption Usage
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Decide which clips display captions.<br>
+                                        • All = subtitles on all clips<br>
+                                        • First Only = hook clip only<br>
+                                        • None = clean cinematic visuals
                                     </span>
-                                </h3>
+                                </span>
+                            </h3>
 
-                                <label class="field-label">Caption Mode</label>
-                                <select id="captionModeSelect" class="select">
-                                    <option value="all">All Clips (recommended)</option>
-                                    <option value="first_only">Hook Only — Clip #1</option>
-                                    <option value="none">No Captions</option>
-                                </select>
-
-                                <button id="saveCaptionModeBtn" class="btn ghost small" style="margin-top:8px;">💾 Save</button>
-                                <div id="captionModeStatus" class="status-text status-info"></div>
-
-                            </div>
+                            <label class="field-label">Caption Mode</label>
+                            <select id="captionModeSelect" class="select">
+                                <option value="all">All Clips (recommended)</option>
+                                <option value="first_only">Hook Only</option>
+                                <option value="none">No Captions</option>
+                            </select>
+                            <button id="saveCaptionModeBtn" class="btn ghost small" style="margin-top:8px;">💾 Save Mode</button>
 
 
                             <!-- ====================== REWRITE BEHAVIOR ====================== -->
-                            <div class="rewrite-section" style="margin-top:26px;">
-
-                                <h3>
-                                    Rewrite Behavior
-                                    <span class="tooltip">ⓘ
-                                        <span class="tooltiptext">
-                                            ✍ Visual only → keeps original wording<br>
-                                            🔥 Rewrite → AI rewrites captions to match style<br>
-                                            Use preview before applying.
-                                        </span>
+                            <h3 class="rewrite-secion">
+                                Rewrite Behavior
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Visual only = safe styling no text change.<br>
+                                        Rewrite = AI transforms tone to match preset.
                                     </span>
-                                </h3>
+                                </span>
+                            </h3>
 
-                                <label class="caption-reset-label">
-                                    <input type="radio" name="captionRewriteMode" value="visual" checked />
-                                    Visual Only — No wording changes
-                                    <span class="micro-tag micro-green">Safe</span>
-                                </label>
+                            <label class="caption-reset-label">
+                                <input type="radio" name="captionRewriteMode" value="visual" checked/>
+                                Visual Only — No wording changes <span class="micro-tag micro-green">Safe</span>
+                            </label>
 
-                                <label class="caption-reset-label" style="margin-top:8px;display:block;">
-                                    <input type="radio" name="captionRewriteMode" value="rewrite" />
-                                    Rewrite captions to match style
-                                    <span class="micro-tag micro-yellow">Changes Text</span>
-                                </label>
+                            <label class="caption-reset-label" style="display:block;margin-top:6px;">
+                                <input type="radio" name="captionRewriteMode" value="rewrite"/>
+                                Rewrite captions to match style <span class="micro-tag micro-yellow">Changes Text</span>
+                            </label>
 
-                                <div style="display:flex;gap:12px;margin-top:12px;">
-                                    <button id="previewStyleBtn" class="btn secondary small">🖼 Style Preview</button>
-                                    <button id="previewRewriteBtn" class="btn ghost small">👀 Rewrite Preview</button>
-                                </div>
-
-                                <p class="hint-text" style="margin-top:8px;">
-                                    Step-3 edits content → Step-4 styles visually.<br>
-                                    Use rewrite preview to compare before applying permanently.
-                                </p>
-
-                                <div id="rewriteWarning" class="status-text status-warning hidden" style="margin-top:8px;">
-                                    ✍ Rewrite Mode ON — text may change significantly
-                                </div>
-
+                            <div style="display:flex;gap:10px;margin-top:10px;">
+                                <button id="previewStyleBtn" class="btn secondary small">🖼 Style Preview</button>
+                                <button id="previewRewriteBtn" class="btn ghost small">👀 Rewrite Preview</button>
                             </div>
 
+
+                            <!-- ====================== LIVE MOCK PREVIEW ====================== -->
+                            <h4 style="text-align:center;margin-top:26px;margin-bottom:10px;">Live Overlay Preview</h4>
+                            <div id="overlayPreviewWrapper">
+                                <div id="overlayPreviewMock">
+                                    <div id="overlayPreviewBox">Preview loads here…</div>
+                                </div>
+                                <div class="preview-actions">
+                                    <button id="previewFast" class="btn small">⚡ Fast Preview</button>
+                                    <button id="previewFull" class="btn small ghost">🎥 Full Preview</button>
+                                </div>
+                            </div>
+
+
+                            <!-- APPLY BUTTON -->
+                            <button id="applyOverlayBtn" class="btn secondary full" style="margin-top:20px;">
+                                ✨ Apply overlay & caption style
+                            </button>
+
+
+                            <!-- ====================== TIMINGS ====================== -->
+                            <h3 style="margin-top:28px;">
+                                Timings
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Standard = fast scroll-catch pacing.<br>
+                                        Cinematic = slower emotional pacing.
+                                    </span>
+                                </span>
+                            </h3>
+
+                            <div class="row">
+                                <button id="applyStandardTimingBtn" class="btn ghost small">⏱ Standard</button>
+                                <button id="applyCinematicTimingBtn" class="btn ghost small">🎬 Cinematic</button>
+                            </div>
+
+                        </div>
 
 
                             <!-- ====================== CAPTION VISUAL PREVIEW PHONE MOCK ====================== -->

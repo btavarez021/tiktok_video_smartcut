@@ -1897,9 +1897,14 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     }
 }
 
-.style-section, .usage-section, .rewrite-section {
-    margin-bottom:18px;
+/* --- Step-4 UI spacing helpers --- */
+.style-section,
+.usage-section,
+.rewrite-section {
+    margin-bottom: 18px;
 }
+
 #overlayPreviewWrapper {
-    margin-top:18px !important;
+    margin-top: 18px !important;
+    margin-bottom: 24px !important;
 }
