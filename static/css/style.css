@@ -1867,4 +1867,33 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     overflow: visible !important;
 }
 
+/* ============================
+   MOBILE PREVIEW FIX
+   Keeps preview + buttons inside accordion flow
+   ============================ */
+@media (max-width: 900px) {
+
+    #overlayPreviewWrapper {
+        width: 100%;
+        max-width: 300px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    #overlayPreviewMock {
+        width: 100%;
+        height: 440px; /* slightly shorter for mobile so it fits */
+    }
+
+    .preview-actions {
+        position: relative;
+        z-index: 50;        /* ALWAYS above next accordion */
+        margin-bottom: 18px;
+    }
+
+    /* Make accordion scroll naturally instead of collapsing preview upward */
+    .acc-section.open .acc-body {
+        max-height: none;
+    }
+}
 
