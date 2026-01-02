@@ -9,6 +9,9 @@ let ACTIVE_SESSION = "default";
 
 let ACTIVE_EXPORT_TASK = null;
 
+let suppressNextPreview = false;
+
+
 
 // -------------------------
 // Session helpers
@@ -1353,8 +1356,9 @@ async function applyOverlay() {
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
 
-    // 🔥 REFRESH LIVE PREVIEW
+    suppressNextPreview = true;
     await previewOverlay("fast");
+
 
     setStatus(
     "overlayStatus",
@@ -2395,28 +2399,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
 
-// BUTTON EVENTS
-document.getElementById("previewFast")?.addEventListener("click", () => previewOverlay("fast"));
-document.getElementById("previewFull")?.addEventListener("click", () => previewOverlay("full"));
-document.getElementById("previewStyleBtn")?.addEventListener("click", () => previewOverlay("fast")); // button you already have
+    // BUTTON EVENTS
+    document.getElementById("previewFast")?.addEventListener("click", () => previewOverlay("fast"));
+    document.getElementById("previewFull")?.addEventListener("click", () => previewOverlay("full"));
+    document.getElementById("previewStyleBtn")?.addEventListener("click", () => previewOverlay("fast")); // button you already have
 
-
-    // Buttons under the phone mock in the UI
-    document.getElementById("previewFast")?.addEventListener("click", () => {
-        previewOverlay("fast");
-    });
-
-    document.getElementById("previewFull")?.addEventListener("click", () => {
-        previewOverlay("full");
-    });
 
     // Auto-refresh preview when style changes
     const overlayStyleSelect = document.getElementById("overlayStyle");
     if (overlayStyleSelect) {
         overlayStyleSelect.addEventListener("change", () => {
+            if (suppressNextPreview) {
+                suppressNextPreview = false;
+                return;
+            }
             previewOverlay("fast");
         });
     }
+
 
 
 
