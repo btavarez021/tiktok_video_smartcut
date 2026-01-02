@@ -495,10 +495,9 @@
                                 Rewrite mode changes wording.<br>
                                 Timing affects pacing.
                             </span>
-                            </span>    
+                            </span>
                         </button>
 
-                        <!-- ✅ THIS WAS MISSING -->
                         <div class="acc-body">
 
                             <!-- 1️⃣ REWRITE BEHAVIOR -->
@@ -521,6 +520,16 @@
                             <!-- 2️⃣ CAPTION STYLE -->
                             <h3 class="style-section">Caption Style</h3>
 
+                            <label class="field-label">Overlay Style Preset</label>
+                            <select id="overlayStyle" class="select">
+                            <option value="ai_recommended">✨ AI Caption Director (auto)</option>
+                            <option value="travel_blog">Travel blogger</option>
+                            <option value="punchy">Punchy + Energetic</option>
+                            <option value="cinematic">Cinematic & Moody</option>
+                            <option value="descriptive">Literal Descriptive</option>
+                            <option value="influencer">Influencer Voice</option>
+                            </select>
+
                             <button id="saveOverlayStyle" class="btn ghost small">💾 Save Style</button>
                             <div id="overlayStyleStatus" class="status-text"></div>
 
@@ -529,19 +538,37 @@
                             <!-- 3️⃣ CAPTION USAGE -->
                             <h3 class="usage-section">Caption Usage</h3>
 
-                            <select id="captionModeSelect" class="select">...</select>
+                            <label class="field-label">Caption Mode</label>
+                            <select id="captionModeSelect" class="select">
+                            <option value="all">All Clips (recommended)</option>
+                            <option value="first_only">Hook Only</option>
+                            <option value="none">No Captions</option>
+                            </select>
+
                             <button id="saveCaptionModeBtn" class="btn ghost small">💾 Save Mode</button>
                             <div id="captionModeStatus" class="status-text"></div>
 
                             <hr class="soft-divider">
 
                             <!-- 4️⃣ LIVE PREVIEW -->
-                            <div id="overlayPreviewWrapper">
-                            ...
+                            <div id="overlayPreviewWrapper" style="text-align:center;margin-top:24px;">
+
+                            <h4 style="opacity:.75;margin-bottom:8px;">Live Overlay Preview</h4>
+
+                            <div id="overlayPreviewMock">
+                                <div id="overlayPreviewBox">
+                                Preview loads here…
+                                </div>
+                            </div>
+
+                            <div class="preview-actions" style="margin-top:12px;">
+                                <button id="previewFast" class="btn small">⚡ Fast Preview</button>
+                                <button id="previewFull" class="btn small ghost">🎥 Full Preview</button>
+                            </div>
                             </div>
 
                             <!-- 5️⃣ APPLY -->
-                            <button id="applyOverlayBtn" class="btn secondary full">
+                            <button id="applyOverlayBtn" class="btn secondary full" style="margin-top:24px;">
                             ✨ Apply Overlay & Style
                             </button>
 
@@ -551,12 +578,17 @@
 
                             <!-- 6️⃣ TIMING -->
                             <h3>Timings</h3>
-                            <button id="applyStandardTimingBtn">⏱ Standard</button>
-                            <button id="applyCinematicTimingBtn">🎬 Cinematic</button>
+
+                            <div class="row">
+                            <button id="applyStandardTimingBtn" class="btn ghost small">⏱ Standard</button>
+                            <button id="applyCinematicTimingBtn" class="btn ghost small">🎬 Cinematic</button>
+                            </div>
+
                             <div id="timingStatus" class="hint-text"></div>
 
-                        </div> <!-- ✅ END acc-body -->
-                        </div> <!-- END acc-section -->
+                        </div>
+                        </div>
+
 
 
                             
