@@ -23,6 +23,30 @@ if not hasattr(Image, "ANTIALIAS"):
 os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
 
 logger = logging.getLogger(__name__)
+import re
+
+# -----------------------------------------
+# Emoji stripping (FFmpeg drawtext safe)
+# -----------------------------------------
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"  # emoticons
+    "\U0001F300-\U0001F5FF"  # symbols & pictographs
+    "\U0001F680-\U0001F6FF"  # transport & map
+    "\U0001F700-\U0001F77F"
+    "\U0001F780-\U0001F7FF"
+    "\U0001F800-\U0001F8FF"
+    "\U0001F900-\U0001F9FF"
+    "\U0001FA00-\U0001FAFF"
+    "\u2600-\u26FF"
+    "\u2700-\u27BF"
+    "]+",
+    flags=re.UNICODE
+)
+
+def strip_emojis(text: str) -> str:
+    return _EMOJI_RE.sub("", text or "").strip()
+
 
 # -----------------------------------------
 # Paths / Globals
@@ -80,37 +104,6 @@ def _get_layout_mode(cfg: Dict[str, Any]) -> str:
     if mode not in ("tiktok", "classic"):
         mode = "tiktok"
     return mode
-
-
-# -----------------------------------------
-# Caption wrapping helper
-# -----------------------------------------
-def _wrap_caption(text: str, max_chars_per_line: int = 28) -> str:
-    text = (text or "").strip()
-    if not text:
-        return ""
-
-    words = text.split()
-    lines = []
-    current = ""
-
-    for w in words:
-        extra = 1 if current else 0
-        if len(current) + len(w) + extra > max_chars_per_line:
-            if current:
-                lines.append(current.rstrip())
-            current = w
-        else:
-            current = f"{current} {w}".strip()
-
-    if current:
-        lines.append(current.rstrip())
-
-    # 🔑 KEY CHANGE: use *literal* "\n" sequences, not real newlines
-    # This avoids the "citynviews" bug and plays nice with ffmpeg.
-    return r"\n".join(lines)
-
-
 
 # -----------------------------------------
 # TTS generation
@@ -715,8 +708,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     else:
         cta_max_chars = 32
 
-    wrapped_cta = _wrap_caption(raw_cta_text, max_chars_per_line=cta_max_chars) if raw_cta_text else ""
+    clean_cta = strip_emojis(raw_cta_text) if raw_cta_text else ""
+    wrapped_cta = _wrap_caption(clean_cta, max_chars_per_line=cta_max_chars) if clean_cta else ""
     cta_text_safe = esc(wrapped_cta) if wrapped_cta else ""
+
 
     log_step(f"[CTA-DEBUG] raw_cta_text: {repr(raw_cta_text)}")
     log_step(f"[CTA-DEBUG] wrapped_cta: {repr(wrapped_cta)}")
@@ -806,7 +801,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             # -------------- NON-LAST + caption/NO-caption -------------
             if not is_last or not (cta_enabled and raw_cta_text and last_clip_cta_start_rel is not None and cta_text_safe):
                 if allow_caption and clip["text"]:
-                    wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
+                    clean_text = strip_emojis(clip["text"])
+                    wrapped = _wrap_caption(clean_text, max_chars_per_line=max_chars)
                     text_safe = esc(wrapped)
                     vf += (
                         f";[v1]drawtext=text='{text_safe}':"
@@ -828,8 +824,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 # (1) CAPTION PHASE — draw until CTA start
                 # ---------------------------------------------------------
                 if allow_caption and clip["text"]:
-                    wrapped = _wrap_caption(clip["text"], max_chars_per_line=max_chars)
+                    clean_text = strip_emojis(clip["text"])
+                    wrapped = _wrap_caption(clean_text, max_chars_per_line=max_chars)
                     text_safe = esc(wrapped)
+
 
                     vf += (
                         f";[v1]drawtext=text='{text_safe}':"

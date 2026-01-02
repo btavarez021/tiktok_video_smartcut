@@ -221,6 +221,15 @@ async function previewOverlay(mode = "fast") {
 // Utility helpers
 // ================================
 
+// ================================
+// Emoji-safe overlay text helper
+// ================================
+function stripEmojis(text) {
+  if (!text) return text;
+  return text.replace(/[\p{Extended_Pictographic}]/gu, "").trim();
+}
+
+
 function disableDownloadButton() {
     const btn = document.getElementById("downloadLink");
     if (!btn) return;
@@ -1380,6 +1389,7 @@ async function applyOverlay() {
               style,
               session: getActiveSession(),
               rewrite: rewriteMode === "rewrite",   // ✔ correct boolean
+              overlay_text_override: overlaySafeText   // 🔥 NEW
           })
       });
 

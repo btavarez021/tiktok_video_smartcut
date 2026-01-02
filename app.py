@@ -406,8 +406,17 @@ def route_overlay():
     session_id = data.get("session", "default")
     rewrite = bool(data.get("rewrite", False))
 
-    return jsonify(api_apply_overlay(session_id, style, rewrite))
+    # ✅ NEW: optional emoji-safe overlay text
+    overlay_text_override = data.get("overlay_text_override")
 
+    return jsonify(
+        api_apply_overlay(
+            session_id,
+            style,
+            rewrite,
+            overlay_text_override
+        )
+    )
 
 @app.route("/api/overlay_preview", methods=["POST"])
 def overlay_preview():

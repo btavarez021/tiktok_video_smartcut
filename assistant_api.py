@@ -77,6 +77,16 @@ def _load_config(session: str) -> dict:
             return yaml.safe_load(f) or {}
     except Exception:
         return {}
+    
+# ================================
+# Emoji-safe text helper
+# ================================
+def strip_emojis(text: str) -> str:
+    if not text:
+        return text
+    # Remove emojis & pictographs (Unicode-safe)
+    return re.sub(r"[\U00010000-\U0010ffff]", "", text).strip()
+
 
 
 # ==========================================
@@ -1028,7 +1038,13 @@ def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool |
 # -------------------------------
 # Overlay + Timings + fg_scale
 # -------------------------------
-def api_apply_overlay(session_id: str, style: str, rewrite: bool) -> Dict[str, Any]:
+def api_apply_overlay(
+    session_id: str,
+    style: str,
+    rewrite: bool,
+    overlay_text_override: str | None = None
+) -> Dict[str, Any]:
+
     try:
 
         if rewrite:
@@ -1038,7 +1054,15 @@ def api_apply_overlay(session_id: str, style: str, rewrite: bool) -> Dict[str, A
 
         session_id = sanitize_session(session_id)
 
-        apply_overlay(session_id, style, rewrite=rewrite)
+        safe_text = strip_emojis(overlay_text_override) if overlay_text_override else None
+
+        apply_overlay(
+            session_id,
+            style,
+            rewrite=rewrite,
+            text_override=safe_text
+        )
+
 
         log_success(
             "[OVERLAY]",
