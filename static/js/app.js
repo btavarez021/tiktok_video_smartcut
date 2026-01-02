@@ -180,24 +180,18 @@ async function previewOverlay(mode = "fast") {
                 }),
             });
         } else {
-            // Full: apply overlay first, then preview
-            await jsonFetch("/api/overlay", {
-                method: "POST",
-                body: JSON.stringify({
-                    session,
-                    style: getOverlayStyle(),
-                    rewrite: false
-                }),
-            });
+    // Full preview is STILL READ-ONLY
+    // It just asks for a higher-quality preview image
 
-            res = await jsonFetch("/api/overlay_preview", {
-                method: "POST",
-                body: JSON.stringify({
-                    session,
-                    style: getOverlayStyle()
-                }),
-            });
-        }
+    res = await jsonFetch("/api/overlay_preview", {
+        method: "POST",
+        body: JSON.stringify({
+            session,
+            style: getOverlayStyle(),
+            quality: "full"   // optional hint to backend
+        }),
+    });
+}
 
         if (res?.image) {
             box.innerHTML = "";
@@ -2390,10 +2384,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("STYLE PREVIEW CLICKED");
         previewOverlay("fast");   // 🔥 use the shared preview function
     });
-
-    document.getElementById("previewFast")?.addEventListener("click", () => previewOverlay("fast"));
-    document.getElementById("previewFull")?.addEventListener("click", () => previewOverlay("full"));
-
 
 
 // BUTTON EVENTS
