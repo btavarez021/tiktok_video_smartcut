@@ -1349,16 +1349,20 @@ async function applyOverlay() {
           })
       });
 
-      await loadConfigAndYaml();
-      await loadCaptionsFromYaml();
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
 
-      setStatus(
-          "overlayStatus",
-          rewriteMode === "rewrite"
-              ? "Overlay applied + captions rewritten ✓"
-              : "Overlay applied without rewriting ✓",
-          "success"
-      );
+    // 🔥 REFRESH LIVE PREVIEW
+    await previewOverlay("fast");
+
+    setStatus(
+    "overlayStatus",
+    rewriteMode === "rewrite"
+        ? "Overlay applied + captions rewritten ✓"
+        : "Overlay applied without rewriting ✓",
+    "success"
+);
+
 
   } catch (err) {
       console.error(err);
@@ -2353,15 +2357,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         .getElementById("applyCinematicTimingBtn")
         ?.addEventListener("click", () => applyTiming(true));
 
-    document.getElementById("saveOverlayStyle")?.addEventListener("click", () => {
+    document.getElementById("saveOverlayStyle")?.addEventListener("click", async () => {
     const style = document.getElementById("overlayStyle")?.value || "default";
 
     setStatus(
         "overlayStyleStatus",
-        `✔ Overlay style saved (${style})`,
+        `✔ Overlay style selected (${style})`,
         "success"
-        );
+    );
+
+    // 🔥 Preview immediately
+    await previewOverlay("fast");
     });
+
 
 
     document.getElementById("saveTtsBtn")?.addEventListener("click", saveTtsSettings);
