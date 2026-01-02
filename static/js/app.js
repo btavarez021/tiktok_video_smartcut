@@ -1389,7 +1389,6 @@ async function applyOverlay() {
               style,
               session: getActiveSession(),
               rewrite: rewriteMode === "rewrite",   // ✔ correct boolean
-              overlay_text_override: overlaySafeText   // 🔥 NEW
           })
       });
 
