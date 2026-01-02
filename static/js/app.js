@@ -886,15 +886,30 @@ async function refreshHookScore() {
         setStatus(
             "overlayStatus",
             "⚠ Hook is weak — rewrite may hurt clarity. Improve Hook first for best results.",
-            "warning"
-        );
+            "warning",
+            false   // ⛔ do NOT auto-hide
+            );
+
     }
+
+    if (score >= 60) {
+        clearOverlayWarning();
+        }
+
 
   } catch (err) {
     console.error("Hook score error:", err);
     if (statusEl) statusEl.textContent = "Hook score unavailable.";
   }
 }
+
+function clearOverlayWarning() {
+  const el = document.getElementById("overlayStatus");
+  if (!el) return;
+  el.textContent = "";
+  el.className = "status-text";
+}
+
 
 
 async function improveHook() {
@@ -1089,6 +1104,11 @@ function updateImproveButtons(hookScore, storyScore) {
     // enable/disable rewrite mode + fade
     rewriteRadio.disabled = !hasText;
     rewriteRadio.parentElement.style.opacity = hasText ? "1" : "0.4";
+
+    if (!hasText) {
+        clearOverlayWarning();
+        }
+
 
     // 🔥 Highlight box when rewrite ON + captions exist
     if (hasText && rewriteRadio.checked) {
@@ -1304,6 +1324,9 @@ async function regenerateCaptionsFromClips() {
       "New caption draft generated. Improve hook and story flow next.",
       "success"
     );
+
+    clearOverlayWarning();
+
   } catch (err) {
     console.error(err);
     setStatus("captionsStatus", "Failed to generate captions.", "error");
@@ -1385,6 +1408,16 @@ document.getElementById("confirmRewriteBtn")?.addEventListener("click", async ()
 document.getElementById("cancelRewriteBtn")?.addEventListener("click", ()=>{
     document.getElementById("rewritePreviewModal").classList.add("hidden");
 });
+
+document
+  .querySelector('input[name="captionRewriteMode"][value="visual"]')
+  ?.addEventListener("change", clearOverlayWarning);
+
+  document
+  .querySelector('input[name="captionRewriteMode"][value="rewrite"]')
+  ?.addEventListener("change", refreshHookScore);
+
+
 
 async function previewRewrite() {
     const session = getActiveSession();
