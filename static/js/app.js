@@ -880,17 +880,24 @@ async function refreshHookScore() {
     // ================================
     // ⚠ Soft Warning: Low Hook + Rewrite Mode Active
     // ================================
-    const rewriteActive = document.querySelector('input[name="captionRewriteMode"][value="rewrite"]')?.checked;
+    const rewriteRadio = document.querySelector(
+        'input[name="captionRewriteMode"][value="rewrite"]'
+        );
 
-    if (score < 60 && rewriteActive) {
-        setStatus(
-            "overlayStatus",
-            "⚠ Hook is weak — rewrite may hurt clarity. Improve Hook first for best results.",
-            "warning",
-            false   // ⛔ do NOT auto-hide
+        const rewriteSelected = rewriteRadio?.checked;
+        const rewriteEnabled = rewriteRadio && !rewriteRadio.disabled;
+
+        if (score < 60 && rewriteEnabled) {
+            setStatus(
+                "overlayStatus",
+                rewriteSelected
+                    ? "⚠ Hook is weak — rewrite may hurt clarity. Improve Hook first."
+                    : "⚠ Hook is weak. Fix it before using Rewrite for best results.",
+                "warning",
+                false
             );
+        }
 
-    }
 
     if (score >= 60) {
         clearOverlayWarning();
