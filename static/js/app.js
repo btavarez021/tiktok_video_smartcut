@@ -2353,6 +2353,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         .getElementById("applyCinematicTimingBtn")
         ?.addEventListener("click", () => applyTiming(true));
 
+    document.getElementById("saveOverlayStyle")?.addEventListener("click", () => {
+    const style = document.getElementById("overlayStyle")?.value || "default";
+
+    setStatus(
+        "overlayStyleStatus",
+        `✔ Overlay style saved (${style})`,
+        "success"
+        );
+    });
+
+
     document.getElementById("saveTtsBtn")?.addEventListener("click", saveTtsSettings);
     document.getElementById("saveCtaBtn")?.addEventListener("click", saveCtaSettings);
     document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
