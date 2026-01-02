@@ -490,181 +490,73 @@
                         <button class="acc-header">
                             ✍️ Captions & Timing
                             <span class="tooltip">ⓘ
-                                <span class="tooltiptext">
-                                    Overlay Style = fonts/size/animation<br>
-                                    Timing = clip pacing<br>
-                                    Cinematic = slower + smoother
-                                </span>
+                            <span class="tooltiptext">
+                                Overlay style controls fonts and animation.<br>
+                                Rewrite mode changes wording.<br>
+                                Timing affects pacing.
                             </span>
+                            </span>    
                         </button>
 
-                        <!-- ===============================
-                            1️⃣ REWRITE BEHAVIOR (DECISION)
-                        ================================ -->
-                        <h3 class="rewrite-section">
-                        Rewrite Behavior
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                            Visual Only → styles only<br>
-                            Rewrite → AI rewrites caption tone
-                            </span>
-                        </span>
-                        </h3>
+                        <!-- ✅ THIS WAS MISSING -->
+                        <div class="acc-body">
 
-                        <label class="caption-reset-label">
-                        <input type="radio" name="captionRewriteMode" value="visual" checked>
-                        Visual Only (No wording change)
-                        </label>
+                            <!-- 1️⃣ REWRITE BEHAVIOR -->
+                            <h3 class="rewrite-section">Rewrite Behavior</h3>
 
-                        <label class="caption-reset-label" style="margin-top:6px;display:block">
-                        <input type="radio" name="captionRewriteMode" value="rewrite">
-                        Rewrite captions to match style
-                        </label>
+                            <label class="caption-reset-label">
+                            <input type="radio" name="captionRewriteMode" value="visual" checked>
+                            Visual Only (No wording change)
+                            </label>
 
-                        <div id="rewriteWarning"
-                            class="status-text status-warning"
-                            style="margin:8px 0; display:none;">
-                        </div>
+                            <label class="caption-reset-label">
+                            <input type="radio" name="captionRewriteMode" value="rewrite">
+                            Rewrite captions to match style
+                            </label>
 
-                        <hr class="soft-divider">
+                            <div id="rewriteWarning" class="status-text status-warning hidden"></div>
 
-                        <!-- ===============================
-                            2️⃣ CAPTION STYLE (LOOK)
-                        ================================ -->
-                        <h3 class="style-section">
-                        Caption Style
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                            Pure styling — fonts + animation.<br>
-                            No rewrite unless rewrite mode is on.
-                            </span>
-                        </span>
-                        </h3>
+                            <hr class="soft-divider">
 
-                        <label class="field-label">Overlay Style Preset</label>
-                        <select id="overlayStyle" class="select">
-                        <option value="ai_recommended">✨ AI Caption Director (auto)</option>
-                        <option value="travel_blog">Travel blogger</option>
-                        <option value="punchy">Punchy + Energetic</option>
-                        <option value="cinematic">Cinematic & Moody</option>
-                        <option value="descriptive">Literal Descriptive</option>
-                        <option value="influencer">Influencer Voice</option>
-                        </select>
+                            <!-- 2️⃣ CAPTION STYLE -->
+                            <h3 class="style-section">Caption Style</h3>
 
-                        <button id="saveOverlayStyle"
-                                class="btn ghost small"
-                                style="margin-top:8px">
-                        💾 Save Style
-                        </button>
+                            <button id="saveOverlayStyle" class="btn ghost small">💾 Save Style</button>
+                            <div id="overlayStyleStatus" class="status-text"></div>
 
-                        <div id="overlayStyleStatus"
-                            class="status-text"
-                            style="margin-top:6px;"></div>
+                            <hr class="soft-divider">
 
-                        <hr class="soft-divider">
+                            <!-- 3️⃣ CAPTION USAGE -->
+                            <h3 class="usage-section">Caption Usage</h3>
 
-                        <!-- ===============================
-                            3️⃣ CAPTION USAGE (WHERE)
-                        ================================ -->
-                        <h3 class="usage-section">
-                        Caption Usage
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                            Where captions appear.<br>
-                            Recommended: All Clips.
-                            </span>
-                        </span>
-                        </h3>
+                            <select id="captionModeSelect" class="select">...</select>
+                            <button id="saveCaptionModeBtn" class="btn ghost small">💾 Save Mode</button>
+                            <div id="captionModeStatus" class="status-text"></div>
 
-                        <label class="field-label">Caption Mode</label>
-                        <select id="captionModeSelect" class="select">
-                        <option value="all">All Clips (recommended)</option>
-                        <option value="first_only">Hook Only</option>
-                        <option value="none">No Captions</option>
-                        </select>
+                            <hr class="soft-divider">
 
-                        <button id="saveCaptionModeBtn"
-                                class="btn ghost small"
-                                style="margin-top:8px">
-                        💾 Save Mode
-                        </button>
-
-                        <div id="captionModeStatus"
-                            class="status-text"
-                            style="margin-top:6px;"></div>
-
-                        <hr class="soft-divider">
-
-                        <!-- ===============================
-                            4️⃣ LIVE PREVIEW (CONFIRM)
-                        ================================ -->
-                        <div id="overlayPreviewWrapper"
-                            style="margin-top:26px;text-align:center;">
-
-                        <h4 style="opacity:.75;margin-bottom:8px;">
-                            Live Overlay Preview
-                        </h4>
-
-                        <div id="overlayPreviewMock">
-                            <div id="overlayPreviewBox">
-                            Preview loads here…
+                            <!-- 4️⃣ LIVE PREVIEW -->
+                            <div id="overlayPreviewWrapper">
+                            ...
                             </div>
-                        </div>
 
-                        <div class="preview-actions"
-                            style="margin-top:12px;
-                                    display:flex;
-                                    gap:10px;
-                                    justify-content:center;">
-                            <button id="previewFast" class="btn small">
-                            ⚡ Fast Preview
-                            </button>
-                            <button id="previewFull" class="btn small ghost">
-                            🎥 Full Preview
-                            </button>
-                        </div>
-                        </div>
-
-                        <!-- ===============================
-                            5️⃣ APPLY (COMMIT)
-                        ================================ -->
-                        <button id="applyOverlayBtn"
-                                class="btn secondary full"
-                                style="margin-top:24px">
+                            <!-- 5️⃣ APPLY -->
+                            <button id="applyOverlayBtn" class="btn secondary full">
                             ✨ Apply Overlay & Style
-                        </button>
+                            </button>
 
-                        <div id="overlayStatus" class="status-text" style="margin-top:8px;"></div>
+                            <div id="overlayStatus" class="status-text"></div>
 
+                            <hr class="soft-divider">
 
-                        <hr class="soft-divider">
+                            <!-- 6️⃣ TIMING -->
+                            <h3>Timings</h3>
+                            <button id="applyStandardTimingBtn">⏱ Standard</button>
+                            <button id="applyCinematicTimingBtn">🎬 Cinematic</button>
+                            <div id="timingStatus" class="hint-text"></div>
 
-                        <!-- ===============================
-                            6️⃣ TIMING (PACE)
-                        ================================ -->
-                        <h3 style="margin-top:28px;">
-                        Timings
-                        <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                            Standard = faster pacing<br>
-                            Cinematic = smooth + slow
-                            </span>
-                        </span>
-                        </h3>
-
-                        <div class="row">
-                        <button id="applyStandardTimingBtn"
-                                class="btn ghost small">
-                            ⏱ Standard
-                        </button>
-
-                        <button id="applyCinematicTimingBtn"
-                                class="btn ghost small">
-                            🎬 Cinematic
-                        </button>
-                        </div>
-
-                        <div id="timingStatus" class="hint-text"></div>
+                        </div> <!-- ✅ END acc-body -->
+                        </div> <!-- END acc-section -->
 
 
                             
