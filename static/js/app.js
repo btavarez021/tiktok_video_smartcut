@@ -1322,6 +1322,7 @@ function updateRewriteWarning() {
 // Step 4: Overlay, timings, TTS, CTA, fg scale, music
 // ================================
 async function applyOverlay() {
+    console.log("APPLY OVERLAY CLICKED")
   const styleSel = document.getElementById("overlayStyle");
   const statusEl = document.getElementById("overlayStatus");
   if (!styleSel || !statusEl) return;
