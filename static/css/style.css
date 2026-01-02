@@ -1806,6 +1806,7 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 }
 
 #overlayPreviewMock {
+    position: relative;         
     width:260px;
     height:480px;
     border-radius:22px;
@@ -1815,16 +1816,20 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     box-shadow:0 0 22px rgba(0,0,0,.55);
 }
 
+
 #overlayPreviewBox {
-    position:absolute;
-    inset:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    color:#fff;
-    font-size:14px;
-    padding:10px;
+    position: absolute;
+    inset: 0;
+    z-index: 2;                 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    padding: 10px;
+    pointer-events: none;  
 }
+
 
 .preview-actions {
     display:flex;

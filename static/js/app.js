@@ -203,6 +203,9 @@ async function previewOverlay(mode = "fast") {
             img.style.width = "100%";
             img.style.height = "100%";
             img.style.objectFit = "cover";
+            img.style.position = "absolute";
+            img.style.zIndex = "3";
+
             box.appendChild(img);
         } else {
             box.innerHTML = "⚠ No preview returned.";
