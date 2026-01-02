@@ -1054,13 +1054,10 @@ def api_apply_overlay(
 
         session_id = sanitize_session(session_id)
 
-        safe_text = strip_emojis(overlay_text_override) if overlay_text_override else None
-
         apply_overlay(
             session_id,
             style,
-            rewrite=rewrite,
-            text_override=safe_text
+            rewrite=rewrite
         )
 
 
