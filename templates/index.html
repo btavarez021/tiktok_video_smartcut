@@ -546,7 +546,18 @@
                             <!-- 2️⃣ CAPTION STYLE -->
                             <h3 class="style-section">Caption Style</h3>
 
-                            <label class="field-label">Overlay Style Preset</label>
+                            <label class="field-label">
+                            Overlay Style Preset
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext tooltip-wide">
+                                Controls <b>visual tone & caption energy</b>.<br><br>
+
+                                <b>Punchy</b> and <b>Influencer</b> styles may generate emojis for energy.<br>
+                                Emojis are optimized for <b>voice + pacing</b> and may not always render visually.
+                                </span>
+                            </span>
+                            </label>
+
                             <select id="overlayStyle" class="select">
                             <option value="ai_recommended">✨ AI Caption Director (auto)</option>
                             <option value="travel_blog">Travel blogger</option>
@@ -671,19 +682,17 @@
 
                             <h3>CTA</h3>
 
-                            <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Emojis are allowed here, but may be simplified in the final video for compatibility.
-                            </span>
-                            </span>
-
-
                             <div class="checkbox-row">
                                 <input type="checkbox" id="ctaEnabled" />
                                 <label for="ctaEnabled">Enable CTA overlay</label>
                             </div>
 
                             <label class="field-label">CTA text</label>
+                            <span class="tooltip">ⓘ
+                            <span class="tooltiptext">
+                                Emojis are allowed here, but may be simplified in the final video for compatibility.
+                            </span>
+                            </span>
                             <input id="ctaText" class="input" placeholder="Tap to book with today’s deals 🔗" />
 
                             <div class="checkbox-row">

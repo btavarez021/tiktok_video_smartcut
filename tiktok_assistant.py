@@ -87,25 +87,6 @@ def download_s3_video(key: str) -> Optional[str]:
 # -----------------------------------------
 # Hook Score
 #-------------------------------------------
-
-def extract_hook_text(cfg: dict) -> str:
-    """
-    Extract the first spoken sentence (hook) from config.yml.
-    Uses first_clip.text.
-    """
-    try:
-        return (cfg.get("first_clip", {}) or {}).get("text", "").strip()
-    except Exception:
-        return ""
-
-def score_hook_text(text: str) -> dict:
-    """
-    Score the hook text (first sentence) from 0–100.
-    Returns score + reasons.
-    """
-
-    import re
-
 def extract_hook_text(cfg: dict) -> str:
     """Return first_clip.text as the hook."""
     try:
@@ -135,11 +116,18 @@ def score_hook_text(text: str) -> dict:
     # 1) Clarity (0–30)
     if any(k in lower for k in ["hotel", "room", "stay", "resort"]):
         score += 30
+
+    # Brand name clarity (e.g. "Le Meridien", "Four Seasons")
+    elif re.search(r"\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)+\b", text):
+        score += 20
+
     elif any(k in lower for k in ["this place", "this spot", "this stay"]):
         score += 15
         reasons.append("Subject is vague; consider naming the hotel or location.")
+
     else:
         reasons.append("Opening doesn’t clearly say what’s being reviewed.")
+
 
     # 2) Curiosity / tension (0–30)
     curiosity_terms = ["surprised", "unexpected", "didn't expect", "but", "however", "until", "for one reason"]
@@ -393,7 +381,7 @@ def sanitize_yaml_filenames(cfg: dict) -> dict:
 def _style_instructions(style: str) -> str:
     style = style.lower()
     return {
-        "punchy": "Direct, energetic, short, with optional emojis.",
+        "punchy": "Direct, energetic, short, punchy wording. No emojis.",
         "cinematic": "Atmospheric, slow, cinematic wording.",
         "descriptive": "Literal descriptions of what is on screen.",
         "influencer": "First-person energetic influencer tone.",
@@ -474,6 +462,7 @@ STRICT RULES:
 - One sentence per clip
 - No hashtags
 - No quotes
+- DO NOT modify cta.text
 
 Overlay style: {style}
 Instructions: {_style_instructions(style)}
