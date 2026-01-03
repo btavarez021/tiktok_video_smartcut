@@ -368,11 +368,15 @@
                     ============================================================= -->
                     <div class="caption-mode-generator card-subsection" style="margin-top:16px;">
                         <h3>🧠 Caption Variants Generator</h3>
-                        <p class="hint-text">Select modes and generate multiple caption rewrites at once.</p>
-                        <p class="hint-text">You can combine multiple modes for blended rewrites.</p>
                         <p class="hint-text subtle">
-                        Tip: Start with Hook + Storytelling, then add Punchy if needed.
+                        Select one or more modes to generate multiple caption options.<br>
+                        Each mode produces a separate rewrite — nothing is overwritten automatically.
                         </p>
+                        <p class="hint-text subtle">
+                        Recommended flow: Improve Hook → Storytelling → Punchy (optional)
+                        </p>
+
+
 
 
                         <div class="checkbox-grid">
@@ -407,6 +411,10 @@
                             </strong>
 
                             <span id="hookScoreValue" class="hook-score-value">–/100</span>
+                            <p class="hint-text subtle">
+                            Only the <b>first caption</b> affects this score.
+                            </p>
+
                         </div>
 
                         <div id="hookScoreHook" class="hook-score-hook">
@@ -425,7 +433,8 @@
 
                     <!-- Story Flow Score -->
                      <div id="storyFlowLockedHint" class="hint-text hidden">
-                      🔒 Improve the opening hook to unlock story flow scoring.
+                      🔒 Improve the opening hook to unlock story flow scoring.<br>
+                      Only captions after the hook are evaluated.
                     </div>
 
                     <div class="story-flow-card hidden">
@@ -508,7 +517,17 @@
                         <div class="acc-body">
 
                             <!-- 1️⃣ REWRITE BEHAVIOR -->
-                            <h3 class="rewrite-section">Rewrite Behavior</h3>
+                            <h3 class="rewrite-section">
+                            Rewrite Behavior
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext tooltip-wide">
+                                <b>Visual Only</b> changes fonts, layout, and animation only.<br><br>
+                                <b>Rewrite captions</b> lets AI reword your captions to match the selected style.<br><br>
+                                💡 Use Step 3 if you want to control wording manually.
+                                </span>
+                            </span>
+                            </h3>
+
 
                             <label class="caption-reset-label">
                             <input type="radio" name="captionRewriteMode" value="visual" checked>
@@ -545,7 +564,18 @@
                             <!-- 3️⃣ CAPTION USAGE -->
                             <h3 class="usage-section">Caption Usage</h3>
 
-                            <label class="field-label">Caption Mode</label>
+                            <label class="field-label">
+                            Caption Mode
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext">
+                                Controls <b>where captions appear</b>, not what they say.<br><br>
+                                • All Clips → captions on every clip<br>
+                                • Hook Only → first clip only<br>
+                                • None → no captions shown
+                                </span>
+                            </span>
+                            </label>
+
                             <select id="captionModeSelect" class="select">
                             <option value="all">All Clips (recommended)</option>
                             <option value="first_only">Hook Only</option>
@@ -561,7 +591,11 @@
                             <div id="overlayPreviewWrapper" style="text-align:center;margin-top:24px;">
 
                             <h4 style="opacity:.75;margin-bottom:8px;">Live Overlay Preview</h4>
-                            <p class="hint-text">Preview shows visual styling only. Final captions are applied when you click “Apply”.</p>
+                            <p class="hint-text">
+                            Preview shows <b>visual styling only</b> (font, layout, animation).<br>
+                            Caption wording updates only after clicking <b>Apply Overlay & Style</b>.
+                            </p>
+
 
                             <div id="overlayPreviewMock">
                                 <div id="overlayPreviewBox">
@@ -636,6 +670,13 @@
                             <div id="ttsStatus" class="status-text status-info"></div>
 
                             <h3>CTA</h3>
+
+                            <span class="tooltip">ⓘ
+                            <span class="tooltiptext">
+                                Emojis are allowed here, but may be simplified in the final video for compatibility.
+                            </span>
+                            </span>
+
 
                             <div class="checkbox-row">
                                 <input type="checkbox" id="ctaEnabled" />
