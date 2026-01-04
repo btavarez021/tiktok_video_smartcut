@@ -910,6 +910,31 @@
           </section>
 
               <!-- Live Log -->
+
+            <section class="card log-card">
+            <div class="card-header log-header">
+                <div>
+                <h2>Live Log</h2>
+                <p class="card-subtitle">
+                    Shows backend actions: S3, ffmpeg, AI usage, export.
+                </p>
+                </div>
+
+                <!-- Log Controls -->
+                <div class="log-controls">
+                <label class="checkbox-row">
+                    <input type="checkbox" id="autoScrollLogs" checked />
+                    Auto-scroll
+                </label>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <pre id="statusLog" class="log-view"></pre>
+            </div>
+            </section>
+
+
             <section class="card log-card">
                 <div class="card-header">
                     <h2>Live Log</h2>

@@ -106,13 +106,14 @@ function setActiveSession(name) {
     loadSessionDropdown();
     loadSessions();
     sidebarLoadSessions();
-}
 
-document.querySelectorAll('.session-tag').forEach(tag => {
-  tag.classList.remove('pulse-once');
-  void tag.offsetWidth; // force reflow
-  tag.classList.add('pulse-once');
-});
+    document.querySelectorAll('.session-tag').forEach(tag => {
+    tag.classList.remove('pulse-once');
+    void tag.offsetWidth;
+    tag.classList.add('pulse-once');
+    });
+
+}
 
 
 // =========================================
@@ -400,17 +401,30 @@ function initStepper() {
 let statusLogTimer = null;
 
 async function refreshStatusLog() {
-    try {
-        const data = await jsonFetch("/api/status");
-        const log = data.status_log || [];
-        const el = document.getElementById("statusLog");
-        if (!el) return;
-        el.textContent = log.join("\n");
-        el.scrollTop = el.scrollHeight;
-    } catch {
-        // silent
+  try {
+    const data = await jsonFetch("/api/status");
+    const log = data.status_log || [];
+    const el = document.getElementById("statusLog");
+    const autoScroll = document.getElementById("autoScrollLogs")?.checked;
+
+    if (!el) return;
+
+    const wasAtBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+
+    el.textContent = log.join("\n");
+
+    // ✅ Only scroll if:
+    // - Auto-scroll is ON
+    // - User was already near the bottom
+    if (autoScroll && wasAtBottom) {
+      el.scrollTop = el.scrollHeight;
     }
+  } catch {
+    // silent
+  }
 }
+
 
 function startStatusLogPolling() {
     if (statusLogTimer) clearInterval(statusLogTimer);
@@ -2334,6 +2348,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Stepper & logs
     initStepper();
     startStatusLogPolling();
+
+    // ================================
+    // Live Log: disable auto-scroll on user interaction
+    // ================================
+    const logEl = document.getElementById("statusLog");
+    const autoScrollToggle = document.getElementById("autoScrollLogs");
+
+    if (logEl && autoScrollToggle) {
+    const disableAutoScroll = () => {
+        autoScrollToggle.checked = false;
+    };
+
+    logEl.addEventListener("wheel", disableAutoScroll);
+    logEl.addEventListener("mousedown", disableAutoScroll);
+    logEl.addEventListener("touchstart", disableAutoScroll); // mobile-safe
+    }
+
+
 
     // Sliders / fg-scale UI
     initFgScaleSlider();

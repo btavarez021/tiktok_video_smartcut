@@ -2015,3 +2015,20 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 .pulse-once {
   animation: sessionTagGlow 1.2s ease-out 1;
 }
+
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.log-controls {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.log-controls input {
+  margin-right: 4px;
+}
+
