@@ -108,6 +108,13 @@ function setActiveSession(name) {
     sidebarLoadSessions();
 }
 
+document.querySelectorAll('.session-tag').forEach(tag => {
+  tag.classList.remove('pulse-once');
+  void tag.offsetWidth; // force reflow
+  tag.classList.add('pulse-once');
+});
+
+
 // =========================================
 // SIDEBAR SESSION MANAGER v2
 // =========================================

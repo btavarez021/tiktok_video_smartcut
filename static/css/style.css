@@ -1953,3 +1953,65 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     0 0 6px rgba(0, 200, 255, 0.35),
     0 0 14px rgba(0, 200, 255, 0.2);
 }
+
+/* ============================
+   Active Session Header Glow
+============================ */
+
+.active-session-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 4px 10px;
+  border-radius: 999px;
+
+  font-size: 0.85rem;
+  font-weight: 500;
+
+  color: #bfefff;
+  background: rgba(0, 180, 255, 0.08);
+
+  box-shadow:
+    0 0 6px rgba(0, 180, 255, 0.35),
+    0 0 14px rgba(0, 180, 255, 0.20);
+
+  animation: sessionTagGlow 3.5s ease-in-out infinite;
+}
+
+.active-session-tag .sessionLabel {
+  font-weight: 600;
+  color: #e6f8ff;
+}
+
+/* Gentle pulse */
+@keyframes sessionTagGlow {
+  0% {
+    box-shadow:
+      0 0 4px rgba(0, 180, 255, 0.25),
+      0 0 10px rgba(0, 180, 255, 0.15);
+  }
+  50% {
+    box-shadow:
+      0 0 10px rgba(0, 180, 255, 0.45),
+      0 0 22px rgba(0, 180, 255, 0.30);
+  }
+  100% {
+    box-shadow:
+      0 0 4px rgba(0, 180, 255, 0.25),
+      0 0 10px rgba(0, 180, 255, 0.15);
+  }
+}
+
+.active-session-tag::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38d9ff;
+  box-shadow: 0 0 6px rgba(56, 217, 255, 0.9);
+}
+
+.pulse-once {
+  animation: sessionTagGlow 1.2s ease-out 1;
+}
