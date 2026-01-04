@@ -1913,3 +1913,43 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     margin-top: 18px !important;
     margin-bottom: 24px !important;
 }
+
+
+/* ============================
+   Active Session Glow
+============================ */
+
+.active-session {
+  position: relative;
+  border: 1px solid rgba(0, 200, 255, 0.35);
+  box-shadow:
+    0 0 8px rgba(0, 200, 255, 0.25),
+    0 0 18px rgba(0, 200, 255, 0.15);
+  animation: sessionGlow 3.5s ease-in-out infinite;
+}
+
+@keyframes sessionGlow {
+  0% {
+    box-shadow:
+      0 0 6px rgba(0, 200, 255, 0.20),
+      0 0 14px rgba(0, 200, 255, 0.10);
+  }
+  50% {
+    box-shadow:
+      0 0 12px rgba(0, 200, 255, 0.40),
+      0 0 26px rgba(0, 200, 255, 0.22);
+  }
+  100% {
+    box-shadow:
+      0 0 6px rgba(0, 200, 255, 0.20),
+      0 0 14px rgba(0, 200, 255, 0.10);
+  }
+}
+
+.active-session-name {
+  font-weight: 600;
+  color: #9fe8ff;
+  text-shadow:
+    0 0 6px rgba(0, 200, 255, 0.35),
+    0 0 14px rgba(0, 200, 255, 0.2);
+}
