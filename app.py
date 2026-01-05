@@ -158,6 +158,16 @@ def api_delete_upload_route():
     data = request.get_json() or {}
     return jsonify(delete_upload_s3(key=data["key"]))
 
+# =====================================================================
+# CLIP LABELS (GET + POST)
+# =====================================================================
+
+@app.route("/api/labels", methods=["GET"])
+def api_get_labels_route():
+    session = sanitize_session(request.args.get("session", "default"))
+    return jsonify({"labels": load_labels(session)})
+
+
 @app.route("/api/labels", methods=["POST"])
 def api_set_label():
     data = request.get_json() or {}
