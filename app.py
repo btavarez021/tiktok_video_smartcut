@@ -272,6 +272,21 @@ def route_save_yaml_route():
 
     return jsonify(api_save_yaml(yaml_text))
 
+@app.post("/api/captions/from_filenames")
+def captions_from_filenames():
+    data = request.json or {}
+    session = data.get("session")
+
+    # Load labels
+    labels_path = os.path.join("labels", f"{session}.json")
+    labels = {}
+    if os.path.exists(labels_path):
+        with open(labels_path, "r") as f:
+            labels = json.load(f)
+
+    apply_filename_captions(session, labels)
+
+    return {"status": "ok"}
 
 
 # ============================================================================

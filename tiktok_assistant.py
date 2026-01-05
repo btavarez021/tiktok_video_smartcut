@@ -83,6 +83,34 @@ def download_s3_video(key: str) -> Optional[str]:
     except Exception as e:
         log_step(f"[S3 DOWNLOAD ERROR] {e}")
         return None
+    
+def caption_from_filename(filename: str) -> str:
+    """
+    Convert a filename into a human-readable caption.
+    Example:
+    LeMeridien_Cocktail_Rooftop.mov
+    → Rooftop cocktails at Le Meridien
+    """
+    name = os.path.splitext(filename)[0]
+
+    # Replace separators
+    name = re.sub(r"[_\-]+", " ", name)
+
+    # Split CamelCase
+    name = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)
+
+    words = name.split()
+    if not words:
+        return ""
+
+    # Light cleanup
+    cleaned = " ".join(words).strip()
+
+    # Capitalize naturally
+    cleaned = cleaned.capitalize()
+
+    return cleaned
+
 
 # -----------------------------------------
 # Hook Score
@@ -373,6 +401,41 @@ def sanitize_yaml_filenames(cfg: dict) -> dict:
             cfg["last_clip"]["file"] = _normalize_yaml_filename(cfg["last_clip"]["file"])
 
     return cfg
+
+def apply_filename_captions(session: str, labels: dict):
+    """
+    Overwrite ONLY text fields in config.yml using:
+    1) clip label (if exists)
+    2) filename-derived caption
+    """
+    config_path = get_config_path(session)
+    if not os.path.exists(config_path):
+        return
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+
+    def resolve_text(file):
+        if not file:
+            return ""
+        if labels.get(file):
+            return labels[file]
+        return caption_from_filename(file)
+
+    if cfg.get("first_clip"):
+        f = cfg["first_clip"].get("file")
+        cfg["first_clip"]["text"] = resolve_text(f)
+
+    for m in cfg.get("middle_clips", []):
+        f = m.get("file")
+        m["text"] = resolve_text(f)
+
+    if cfg.get("last_clip"):
+        f = cfg["last_clip"].get("file")
+        cfg["last_clip"]["text"] = resolve_text(f)
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
 
 
 # -----------------------------------------

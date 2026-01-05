@@ -1465,38 +1465,34 @@ async function regenerateCaptionsFromClips() {
 
   if (captionsEl && captionsEl.value.trim()) {
     const ok = confirm(
-      "This will overwrite your current captions. Continue?"
+      "This will overwrite your current captions using filenames and labels. Continue?"
     );
     if (!ok) return;
   }
 
-  setStatus("captionsStatus", "Generating captions from clips…", "info");
+  setStatus("captionsStatus", "Generating captions from filenames…", "info");
 
   try {
-    await jsonFetch("/api/generate_yaml", {
+    await jsonFetch("/api/captions/from_filenames", {
       method: "POST",
       body: JSON.stringify({ session: getActiveSession() }),
     });
 
     await loadCaptionsFromYaml();
     await refreshHookScore();
-
-    // Hide story flow until hook is improved again
-    document.querySelector(".story-flow-card")?.classList.add("hidden");
+    await refreshStoryFlowScore();
 
     setStatus(
       "captionsStatus",
-      "New caption draft generated. Improve hook and story flow next.",
+      "Captions generated from filenames and labels.",
       "success"
     );
-
-    clearOverlayWarning();
-
   } catch (err) {
     console.error(err);
     setStatus("captionsStatus", "Failed to generate captions.", "error");
   }
 }
+
 
 function updateRewriteWarning() {
     const mode = document.querySelector('input[name="captionRewriteMode"]:checked')?.value;
