@@ -612,14 +612,19 @@ async function loadUploadManager() {
         const res = await fetch(`/api/uploads?session=${session}`);
         const data = await res.json();
 
-        renderUploadList("rawUploads", data.raw, "raw");
-        renderUploadList("processedUploads", data.processed, "processed");
+        const labelsRes = await fetch(`/api/labels?session=${session}`);
+        const labelsData = await labelsRes.json();
+        const labels = labelsData.labels || {};
+
+        renderUploadList("rawUploads", data.raw, "raw", labels);
+        renderUploadList("processedUploads", data.processed, "processed", labels);
     } catch (e) {
         console.error("UploadManager error:", e);
     }
 }
 
-function renderUploadList(elementId, items, kind) {
+
+function renderUploadList(elementId, items, kind, labels={}) {
     const el = document.getElementById(elementId);
     if (!el) return;
 
@@ -637,8 +642,9 @@ function renderUploadList(elementId, items, kind) {
             const isRaw = kind === "raw";
             const srcKey = isRaw ? rawPrefix + file : processedPrefix + file;
             const destKey = isRaw ? processedPrefix + file : rawPrefix + file;
-
+            const savedLabel = labels[file] || "";
             return `
+                
                 <div class="upload-item">
                     <div class="file-info">
                         <strong>${session}/${file}</strong>
@@ -656,9 +662,11 @@ function renderUploadList(elementId, items, kind) {
 
                                 <input
                                     class="input clip-label-input"
+                                    value="${savedLabel}"
                                     placeholder="Optional label (e.g. Rooftop bar, sunset)"
                                     data-file="${file}"
                                 />
+
                             </div>
                             `
                             : ""
@@ -677,6 +685,63 @@ function renderUploadList(elementId, items, kind) {
 
         })
         .join("");
+
+        // ================================
+        // Wire clip label inputs
+        // ================================
+        el.querySelectorAll(".clip-label-input").forEach(input => {
+            input.addEventListener("blur", async () => {
+                const file = input.dataset.file;
+                const label = input.value.trim();
+                await saveClipLabel(file, label);
+            });
+
+            input.addEventListener("keydown", async (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    input.blur(); // triggers save
+                }
+            });
+        });
+
+        // ================================
+        // Suggest label button
+        // ================================
+        el.querySelectorAll(".suggest-label-btn").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const file = btn.dataset.file;
+
+                btn.disabled = true;
+                btn.textContent = "Thinking…";
+
+                try {
+                    const res = await jsonFetch("/api/chat", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            session: getActiveSession(),
+                            message: `Suggest a short descriptive label for this hotel/travel clip: ${file}`
+                        })
+                    });
+
+                    const suggestion = (res.reply || "").split("\n")[0].trim();
+
+                    const input = btn
+                        .closest(".clip-label-row")
+                        ?.querySelector(".clip-label-input");
+
+                    if (input && suggestion) {
+                        input.value = suggestion;
+                        await saveClipLabel(file, suggestion);
+                    }
+                } catch (err) {
+                    console.error("Suggest label failed:", err);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = "🧠 Suggest label";
+                }
+            });
+        });
+
 }
 
 // ================================
@@ -2220,17 +2285,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // ================================
-    // Auto-save clip labels on blur / Enter
-    // ================================
-    document.addEventListener("blur", (e) => {
-        if (!e.target.classList.contains("clip-label-input")) return;
-
-        const file = e.target.dataset.file;
-        const label = e.target.value.trim();
-
-        saveClipLabel(file, label);
-    }, true);
 
     document.addEventListener("keydown", (e) => {
         if (
@@ -2548,12 +2602,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("previewRewriteBtn")?.addEventListener("click", () => {
         console.log("Preview Rewrite CLICKED"); // Debug check
         previewRewrite();
-    });
-
-    // STYLE PREVIEW — inside DOMContentLoaded
-    document.getElementById("previewStyleBtn")?.addEventListener("click", () => {
-        console.log("STYLE PREVIEW CLICKED");
-        previewOverlay("fast");   // 🔥 use the shared preview function
     });
 
 
