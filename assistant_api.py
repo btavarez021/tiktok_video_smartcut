@@ -717,9 +717,14 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
         analyses_for_prompt: List[str] = []
 
         for fname in local_files:
-            key_norm = fname.lower()
+            analysis = analyses_map.get(fname) or f"Hotel/travel clip: {fname}"
             label = labels_map.get(fname)
-            desc = label or analyses_map.get(key_norm, f"Hotel/travel clip: {fname}")
+
+            if label:
+                desc = f"{analysis}. User intent: {label}"
+            else:
+                desc = analysis
+
             files_for_prompt.append(fname)
             analyses_for_prompt.append(desc)
 

@@ -660,12 +660,23 @@ function renderUploadList(elementId, items, kind, labels={}) {
                                     🧠 Suggest label
                                 </button>
 
+                                 <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Labels auto-save when you click away or press Enter.<br>
+                                        Used to guide AI captions — not shown in the video.
+                                    </span>
+                                </span>
+
                                 <input
                                     class="input clip-label-input"
                                     value="${savedLabel}"
                                     placeholder="Optional label (e.g. Rooftop bar, sunset)"
                                     data-file="${file}"
                                 />
+                                <p class="hint-text small">
+                                    Used to guide AI captions. Not shown in video.
+                                </p>
+
 
                             </div>
                             `
