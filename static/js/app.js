@@ -639,24 +639,66 @@ function renderUploadList(elementId, items, kind) {
             const destKey = isRaw ? processedPrefix + file : rawPrefix + file;
 
             return `
-        <div class="upload-item">
-            <div class="file-info">
-                <strong>${session}/${file}</strong>
-            </div>
+                <div class="upload-item">
+                    <div class="file-info">
+                        <strong>${session}/${file}</strong>
+                    </div>
 
-            <div class="buttons">
-                ${
-                    isRaw
-                        ? `<button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">Move →</button>`
-                        : `<button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">← Move</button>`
-                }
-                <button class="btn-delete" onclick="deleteUpload('${srcKey}')">Delete</button>
-            </div>
-        </div>
-    `;
+                    ${
+                        isRaw
+                            ? `
+                            <div class="clip-label-row">
+                                <button
+                                    class="btn ghost small suggest-label-btn"
+                                    data-file="${file}">
+                                    🧠 Suggest label
+                                </button>
+
+                                <input
+                                    class="input clip-label-input"
+                                    placeholder="Optional label (e.g. Rooftop bar, sunset)"
+                                    data-file="${file}"
+                                />
+                            </div>
+                            `
+                            : ""
+                    }
+
+                    <div class="buttons">
+                        ${
+                            isRaw
+                                ? `<button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">Move →</button>`
+                                : `<button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">← Move</button>`
+                        }
+                        <button class="btn-delete" onclick="deleteUpload('${srcKey}')">Delete</button>
+                    </div>
+                </div>
+            `;
+
         })
         .join("");
 }
+
+// ================================
+// Clip label persistence
+// ================================
+async function saveClipLabel(file, label) {
+    if (!file) return;
+
+    try {
+        await jsonFetch("/api/labels", {
+            method: "POST",
+            body: JSON.stringify({
+                session: getActiveSession(),
+                file,
+                label
+            })
+        });
+    } catch (err) {
+        console.error("Failed to save label:", err);
+    }
+}
+
 
 async function moveUpload(src, dest) {
     await fetch("/api/uploads/move", {
@@ -2177,6 +2219,28 @@ document.addEventListener("DOMContentLoaded", async () => {
                 : "▼ Show Parsed Preview";
         });
     }
+
+    // ================================
+    // Auto-save clip labels on blur / Enter
+    // ================================
+    document.addEventListener("blur", (e) => {
+        if (!e.target.classList.contains("clip-label-input")) return;
+
+        const file = e.target.dataset.file;
+        const label = e.target.value.trim();
+
+        saveClipLabel(file, label);
+    }, true);
+
+    document.addEventListener("keydown", (e) => {
+        if (
+            e.key === "Enter" &&
+            e.target.classList.contains("clip-label-input")
+        ) {
+            e.preventDefault();
+            e.target.blur(); // triggers save
+        }
+    });
 
 
 

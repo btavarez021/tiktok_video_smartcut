@@ -40,7 +40,9 @@ from assistant_api import (
     api_story_flow_score,
     api_story_flow_improve,
     api_overlay_preview, 
-    generate_overlay_preview
+    generate_overlay_preview,
+    load_labels,
+    save_labels
 )
 from tiktok_template import get_config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -137,6 +139,20 @@ def api_move_upload_route():
 def api_delete_upload_route():
     data = request.get_json() or {}
     return jsonify(delete_upload_s3(key=data["key"]))
+
+@app.route("/api/labels", methods=["POST"])
+def api_set_label():
+    data = request.get_json() or {}
+    session = sanitize_session(data.get("session"))
+    filename = data.get("file")
+    label = data.get("label", "").strip()
+
+    labels = load_labels(session)
+    labels[filename] = label
+    save_labels(session, labels)
+
+    return {"status": "ok", "labels": labels}
+
 
 # -----------------------------------------
 # Hook Score

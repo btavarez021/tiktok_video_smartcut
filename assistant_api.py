@@ -434,6 +434,33 @@ def sanitize_session(s: str) -> str:
     s = s.strip().lower().replace(" ", "_")
     return "".join(c for c in s if c.isalnum() or c == "_") or "default"
 
+# ================================
+# Session-scoped clip labels
+# ================================
+LABELS_DIR = os.path.join(os.path.dirname(__file__), "session_labels")
+os.makedirs(LABELS_DIR, exist_ok=True)
+
+def _labels_path(session: str) -> str:
+    session = sanitize_session(session)
+    return os.path.join(LABELS_DIR, session, "labels.json")
+
+def load_labels(session: str) -> Dict[str, str]:
+    path = _labels_path(session)
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def save_labels(session: str, labels: Dict[str, str]) -> None:
+    path = _labels_path(session)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(labels, f, indent=2)
+
+
 # -------------------------------
 # Upload order (S3 JSON index)
 # -------------------------------
@@ -479,6 +506,23 @@ def list_uploads(session: str) -> Dict[str, List[str]]:
     processed = list_videos_from_s3(prefix=processed_prefix)
 
     return {"raw": raw, "processed": processed}
+
+def api_get_labels(session: str) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    return {"labels": load_labels(session)}
+
+def api_set_label(session: str, filename: str, label: str | None) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    labels = load_labels(session)
+
+    label = (label or "").strip()
+    if label:
+        labels[filename] = label
+    else:
+        labels.pop(filename, None)
+
+    save_labels(session, labels)
+    return {"status": "ok"}
 
 
 def move_upload_s3(src: str, dest: str) -> Dict[str, Any]:
@@ -667,13 +711,15 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
             return {"error": msg}
 
         analyses_map = load_analysis_results_session(session)
+        labels_map = load_labels(session)
 
         files_for_prompt: List[str] = []
         analyses_for_prompt: List[str] = []
 
         for fname in local_files:
             key_norm = fname.lower()
-            desc = analyses_map.get(key_norm, f"Hotel/travel clip: {fname}")
+            label = labels_map.get(fname)
+            desc = label or analyses_map.get(key_norm, f"Hotel/travel clip: {fname}")
             files_for_prompt.append(fname)
             analyses_for_prompt.append(desc)
 
@@ -1252,6 +1298,9 @@ def api_chat(message: str, session: str = "default") -> Dict[str, Any]:
     analyses = load_analysis_results_session(session)
     cfg = _load_config(session)
 
+    labels = load_labels(session)
+
+
     # Build the smart contextual prompt
     prompt = f"""
             You are the user's TikTok video-editing assistant.
@@ -1259,6 +1308,10 @@ def api_chat(message: str, session: str = "default") -> Dict[str, Any]:
 
             ### VIDEO CLIPS + AI ANALYSIS
             {json.dumps(analyses, indent=2)}
+
+            ### USER-PROVIDED CLIP LABELS (INTENT)
+            {json.dumps(labels, indent=2)}
+
 
             ### CURRENT YAML CONFIG (do NOT modify unless asked)
             {yaml.safe_dump(cfg, sort_keys=False)}
