@@ -2032,3 +2032,9 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   margin-right: 4px;
 }
 
+.saved-flash {
+  border-color: #4ade80;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.3);
+  transition: all 0.2s ease;
+}
+

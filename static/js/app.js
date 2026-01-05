@@ -670,9 +670,11 @@ function renderUploadList(elementId, items, kind, labels={}) {
                                 <input
                                     class="input clip-label-input"
                                     value="${savedLabel}"
-                                    placeholder="Optional label (e.g. Rooftop bar, sunset)"
+                                    placeholder="Optional label (auto-saves)"
+                                    title="Labels auto-save when you click away or press Enter"
                                     data-file="${file}"
-                                />
+                                    />
+
                                 <p class="hint-text small">
                                     Used to guide AI captions. Not shown in video.
                                 </p>
@@ -759,20 +761,28 @@ function renderUploadList(elementId, items, kind, labels={}) {
 // Clip label persistence
 // ================================
 async function saveClipLabel(file, label) {
-    if (!file) return;
+  if (!file) return;
 
-    try {
-        await jsonFetch("/api/labels", {
-            method: "POST",
-            body: JSON.stringify({
-                session: getActiveSession(),
-                file,
-                label
-            })
-        });
-    } catch (err) {
-        console.error("Failed to save label:", err);
+  try {
+    await jsonFetch("/api/labels", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        file,
+        label
+      })
+    });
+
+    // ✅ UX feedback
+    const input = document.querySelector(`.clip-label-input[data-file="${file}"]`);
+    if (input) {
+      input.classList.add("saved-flash");
+      setTimeout(() => input.classList.remove("saved-flash"), 600);
     }
+
+  } catch (err) {
+    console.error("Failed to save label:", err);
+  }
 }
 
 
