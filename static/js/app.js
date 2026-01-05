@@ -2319,14 +2319,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const safe = sanitizeSessionName(raw);
+
+        // 👇 Create session on backend
         await fetch(`/api/session/${safe}`, { method: "POST" });
 
+        // 👇 Sync UI immediately
         setActiveSession(safe);
-        sidebarLoadSessions();
+        await sidebarLoadSessions();
+        await loadSessionDropdown();
         sidebarSyncActiveLabel();
+
         sidebarToast(`Created & switched to “${safe}”`);
         input.value = "";
     });
+
 
     document.getElementById("sidebarSwitchBtn")?.addEventListener("click", () => {
         const ddl = document.getElementById("sidebarSessionDropdown");

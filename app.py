@@ -102,6 +102,24 @@ def api_delete_session_route(session):
     delete_session(session)
     return jsonify({"success": True})
 
+@app.route("/api/session/<session>", methods=["POST"])
+def api_create_session_route(session):
+    session = sanitize_session(session)
+
+    # Create empty S3 raw folder (no files yet)
+    key = f"{RAW_PREFIX}{session}/.keep"
+
+    try:
+        s3.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=key,
+            Body=b"",
+        )
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+    return jsonify({"success": True, "session": session})
+
 
 # ============================================================================
 # UPLOAD TO S3 (SESSION-AWARE)
