@@ -1326,6 +1326,8 @@ function buildCaptionsFromConfig(cfg) {
 async function loadCaptionsFromYaml() {
     const statusEl = document.getElementById("captionsStatus");
     const captionsEl = document.getElementById("captionsText");
+    const wrap = document.getElementById("captionStatusWrap");
+
     if (!statusEl || !captionsEl) return;
 
     setStatus("captionsStatus", "Loading captions…", "info");
@@ -1335,26 +1337,50 @@ async function loadCaptionsFromYaml() {
         const data = await jsonFetch(`/api/config?session=${session}`);
         const cfg = data.config || {};
 
-        captionsEl.value = buildCaptionsFromConfig(cfg);
-        setCaptionSource("yaml", "🔵 SOURCE: YAML (AI Generated)");
+        // 🔑 Capture BEFORE state
+        const before = captionsEl.value.trim();
 
+        // 🔄 Build captions from YAML
+        const next = buildCaptionsFromConfig(cfg).trim();
+        captionsEl.value = next;
 
-        // 🔥 Enable Rewrite mode immediately (no typing required)
+        // 🔵 Source is always YAML here
+        setCaptionSource("yaml", "🔵 SOURCE: YAML");
+
+        // 🔥 Enable Rewrite mode immediately
         updateRewriteModeAvailability();
 
         await refreshHookScore();
         await refreshStoryFlowScore();
 
-        setStatus("captionsStatus", "Captions loaded.", "success");
+        // 🧠 Detect no-op vs overwrite
+        if (before === next) {
+            setStatus(
+                "captionsStatus",
+                "✔ Captions already match YAML",
+                "info"
+            );
 
-        const status = document.getElementById("captionStatus");
-        const wrap = document.getElementById("captionStatusWrap");
+            const status = document.getElementById("captionStatus");
+            if (status) {
+                status.textContent = "🔵 SOURCE: YAML (already in sync)";
+            }
+        } else {
+            setStatus(
+                "captionsStatus",
+                "✔ Captions reloaded from YAML",
+                "success"
+            );
 
-        if (status) {
-        status.textContent = "Caption source: YAML (already up to date)";
+            const status = document.getElementById("captionStatus");
+            if (status) {
+                status.textContent = "🔵 SOURCE: YAML (reloaded)";
+            }
         }
-        flashElement(wrap);
 
+        // ✨ Visual feedback
+        flashElement(captionsEl);
+        flashElement(wrap);
 
     } catch (err) {
         console.error(err);
