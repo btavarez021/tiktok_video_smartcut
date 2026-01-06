@@ -158,6 +158,24 @@ def api_set_captions_mode(session: str, mode: str) -> Dict[str, Any]:
     log_step(f"[CAPTIONS_MODE] {session} -> {mode}")
     return {"status": "ok", "captions_mode": mode}
 
+def load_labels_for_session(session: str) -> dict:
+    """
+    Load labels.json for a session.
+    Returns { filename: label }
+    """
+    labels_path = os.path.join("sessions", session, "labels.json")
+
+    if not os.path.exists(labels_path):
+        return {}
+
+    try:
+        with open(labels_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("labels", {})
+    except Exception as e:
+        logger.error(f"[LABELS] Failed to load labels for {session}: {e}")
+        return {}
+
 
 # -----------------------------------------
 # Hook Score
@@ -406,6 +424,72 @@ def api_story_flow_improve(session: str) -> Dict[str, Any]:
             "reason": "Failed to improve story flow."
         }
 
+LABELS_FILE = "labels.json"
+
+
+def _humanize_filename(filename: str) -> str:
+    name = os.path.splitext(filename)[0]
+    name = re.sub(r"[_\-]+", " ", name)
+    return re.sub(r"\s+", " ", name).strip()
+
+
+def apply_filename_captions(session: str) -> None:
+    """
+    Generate captions using:
+    1) saved labels (if present)
+    2) fallback to filename-based captions
+    """
+
+    config_path = get_config_path(session)
+    session_dir = os.path.dirname(config_path)
+    labels_path = os.path.join(session_dir, LABELS_FILE)
+
+    if not os.path.exists(config_path):
+        raise FileNotFoundError("config.yml not found")
+
+    # -----------------------------------
+    # Load YAML
+    # -----------------------------------
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+
+    # -----------------------------------
+    # Load labels (optional)
+    # -----------------------------------
+    labels = {}
+    if os.path.exists(labels_path):
+        with open(labels_path, "r", encoding="utf-8") as f:
+            labels = json.load(f) or {}
+
+    def caption_for(file):
+        label = (labels.get(file) or "").strip()
+        return label if label else _humanize_filename(file)
+
+    # -----------------------------------
+    # Apply captions
+    # -----------------------------------
+    if cfg.get("first_clip"):
+        f = cfg["first_clip"].get("file")
+        if f:
+            cfg["first_clip"]["text"] = caption_for(f)
+
+    for clip in cfg.get("middle_clips", []):
+        f = clip.get("file")
+        if f:
+            clip["text"] = caption_for(f)
+
+    if cfg.get("last_clip"):
+        f = cfg["last_clip"].get("file")
+        if f:
+            cfg["last_clip"]["text"] = caption_for(f)
+
+    # -----------------------------------
+    # Save YAML
+    # -----------------------------------
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
+
+    log_step(f"📝 Captions generated from labels/filenames (session={session})")
 
 # -------------------------------
 # Export mode
