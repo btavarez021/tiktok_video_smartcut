@@ -477,7 +477,7 @@ def apply_filename_captions(session: str, labels: dict):
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
 
-    log_step(f"📝 Captions generated from labels/filenames (session={session})")s 
+    log_step(f"📝 Captions generated from labels/filenames (session={session})")
 
 # -------------------------------
 # Export mode
