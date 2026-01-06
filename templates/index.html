@@ -333,34 +333,25 @@
                     
                     <div class="row">
                         <button class="btn secondary small" onclick="regenerateCaptionsFromClips()">
-                            🔄 Generate captions from filenames
-                        </button>
+                        🔄 Generate captions from filenames
+                    </button>
 
-                        <p class="hint-text subtle">
-                            Overwrites current captions using labels first, then filenames (no AI).
-                        </p>
+                    <p class="hint-text subtle">
+                        Overwrites current captions using labels first, then filenames (no AI).
+                    </p>
                     </div>
-
-                </div>
-
-                <div class="card-body">
 
                     <div class="row">
-                        <button class="btn secondary small" onclick="regenerateCaptionsFromClips()">
-                            🔄 Generate captions from filenames
+                        <button id="loadCaptionsFromYamlBtn" class="btn ghost">
+                            ⤵ Load captions from YAML
                         </button>
-                        <p class="hint-text">
-                            Overwrites current captions using labels first, then filenames (no AI).
-                        </p>
-                        <p class="hint-text subtle">
-                            Uses labels first, then filenames (no AI)
-                        </p>
                     </div>
 
-                    <p id="captionStatus" class="hint-text subtle">
-                    Caption source: YAML
-                    </p>
-
+                    <div class="row">
+                        <span id="captionStatus" class="hint-text subtle">
+                            Caption source: —
+                        </span>
+                    </div>
 
                     <label class="field-label">
                         Captions
