@@ -1335,9 +1335,13 @@ async function loadCaptionsFromYaml() {
         setStatus("captionsStatus", "Captions loaded.", "success");
 
         const status = document.getElementById("captionStatus");
+        const wrap = document.getElementById("captionStatusWrap");
+
         if (status) {
         status.textContent = "Caption source: YAML (already up to date)";
         }
+        flashElement(wrap);
+
 
     } catch (err) {
         console.error(err);
