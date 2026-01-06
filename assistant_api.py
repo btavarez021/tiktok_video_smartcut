@@ -469,6 +469,27 @@ def apply_filename_captions(session: str):
             cfg["last_clip"]["text"] = caption_for(f)
 
     # -----------------------------------
+    # Sync captions.txt with YAML
+    # -----------------------------------
+    blocks = []
+
+    if cfg.get("first_clip", {}).get("text"):
+        blocks.append(cfg["first_clip"]["text"])
+
+    for clip in cfg.get("middle_clips", []):
+        if clip.get("text"):
+            blocks.append(clip["text"])
+
+    if cfg.get("last_clip", {}).get("text"):
+        blocks.append(cfg["last_clip"]["text"])
+
+    captions_text = "\n\n".join(blocks)
+
+    with open(_CAPTIONS_FILE, "w", encoding="utf-8") as f:
+        f.write(captions_text)
+
+
+    # -----------------------------------
     # Save YAML
     # -----------------------------------
     with open(config_path, "w", encoding="utf-8") as f:
