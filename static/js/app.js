@@ -1326,7 +1326,7 @@ function buildCaptionsFromConfig(cfg) {
 async function loadCaptionsFromYaml() {
     const statusEl = document.getElementById("captionsStatus");
     const captionsEl = document.getElementById("captionsText");
-    const wrap = document.getElementById("captionStatusWrap");
+    const sourceEl = document.getElementById("captionStatus");
 
     if (!statusEl || !captionsEl) return;
 
@@ -1340,12 +1340,9 @@ async function loadCaptionsFromYaml() {
         // 🔑 Capture BEFORE state
         const before = captionsEl.value.trim();
 
-        // 🔄 Build captions from YAML
+        // 🔄 Load from YAML
         const next = buildCaptionsFromConfig(cfg).trim();
         captionsEl.value = next;
-
-        // 🔵 Source is always YAML here
-        setCaptionSource("yaml", "🔵 SOURCE: YAML");
 
         // 🔥 Enable Rewrite mode immediately
         updateRewriteModeAvailability();
@@ -1353,34 +1350,25 @@ async function loadCaptionsFromYaml() {
         await refreshHookScore();
         await refreshStoryFlowScore();
 
-        // 🧠 Detect no-op vs overwrite
+        // 🧠 Detect no-op vs change
         if (before === next) {
-            setStatus(
-                "captionsStatus",
-                "✔ Captions already match YAML",
-                "info"
-            );
+            setStatus("captionsStatus", "Captions already up to date.", "info");
 
-            const status = document.getElementById("captionStatus");
-            if (status) {
-                status.textContent = "🔵 SOURCE: YAML (already in sync)";
+            if (sourceEl) {
+                sourceEl.textContent = "🔵 SOURCE: YAML (already in sync)";
+                sourceEl.className = "hint-text subtle";
             }
         } else {
-            setStatus(
-                "captionsStatus",
-                "✔ Captions reloaded from YAML",
-                "success"
-            );
+            setStatus("captionsStatus", "Captions loaded from YAML.", "success");
 
-            const status = document.getElementById("captionStatus");
-            if (status) {
-                status.textContent = "🔵 SOURCE: YAML (reloaded)";
+            if (sourceEl) {
+                sourceEl.textContent = "🔵 SOURCE: YAML (reloaded)";
+                sourceEl.className = "hint-text subtle";
             }
         }
 
-        // ✨ Visual feedback
+        // ✨ Visual confirmation
         flashElement(captionsEl);
-        flashElement(wrap);
 
     } catch (err) {
         console.error(err);
@@ -1389,6 +1377,11 @@ async function loadCaptionsFromYaml() {
             `Error loading captions: ${err.message}`,
             "error"
         );
+
+        if (sourceEl) {
+            sourceEl.textContent = "⚠️ Failed to load captions";
+            sourceEl.className = "hint-text error";
+        }
     }
 }
 
