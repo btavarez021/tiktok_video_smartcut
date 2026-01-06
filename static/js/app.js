@@ -11,13 +11,18 @@ let ACTIVE_EXPORT_TASK = null;
 
 let suppressNextPreview = false;
 
-
-function flashElement(el) {
+function setCaptionSource(type, text) {
+  const el = document.getElementById("captionSourceBadge");
   if (!el) return;
-  el.classList.remove("flash");
-  void el.offsetWidth; // force reflow
-  el.classList.add("flash");
+
+  el.className = "caption-source " + type;
+  el.textContent = text;
+
+  el.classList.remove("pulse");
+  void el.offsetWidth;
+  el.classList.add("pulse");
 }
+
 
 // -------------------------
 // Session helpers
@@ -1323,7 +1328,7 @@ async function loadCaptionsFromYaml() {
         const cfg = data.config || {};
 
         captionsEl.value = buildCaptionsFromConfig(cfg);
-        flashElement(captionsEl);
+        setCaptionSource("yaml", "🔵 SOURCE: YAML (AI Generated)");
 
 
         // 🔥 Enable Rewrite mode immediately (no typing required)
@@ -1481,8 +1486,7 @@ async function saveCaptions() {
 async function regenerateCaptionsFromClips() {
 
   const captionsEl = document.getElementById("captionsText");
-    flashElement(captionsEl);
-
+    setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
 
   // Warn if overwriting
   if (captionsEl && captionsEl.value.trim()) {
