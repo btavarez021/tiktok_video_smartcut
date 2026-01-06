@@ -1363,7 +1363,7 @@ async function loadCaptionsFromYaml() {
 
     if (before === next) {
       setCaptionSource("yaml", "🔵 SOURCE: YAML", true);
-      setCaptionInlineStatus("Captions already up to date", "no-change");
+      setCaptionInlineStatus("Captions already up to date", "info");
     } else {
       setCaptionSource("yaml", "🔵 SOURCE: YAML");
       setCaptionInlineStatus("Captions loaded from YAML", "success");
@@ -2684,11 +2684,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-
-
-
 // Watch live typing unlock rewrite mode
 document.getElementById("captionsText")?.addEventListener("input", updateRewriteModeAvailability);
+
+
+document.getElementById("captionsText")?.addEventListener("input", () => {
+  const el = document.getElementById("captionInlineStatus");
+  if (el) el.classList.add("hidden");
+});
+
 
 // Generate variants (unchanged)
 document.getElementById("generateVariantsBtn")?.addEventListener("click", generateCaptionVariants);
