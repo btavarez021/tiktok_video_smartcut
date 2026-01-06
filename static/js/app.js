@@ -19,18 +19,6 @@ function flashElement(el) {
   el.classList.add("flash");
 }
 
-function setCaptionSource(type, text) {
-  const el = document.getElementById("captionSourceBadge");
-  if (!el) return;
-
-  el.className = "caption-source " + type;
-  el.textContent = text;
-
-  el.classList.remove("pulse");
-  void el.offsetWidth;
-  el.classList.add("pulse");
-}
-
 function setCaptionSource(type, text, noChange = false) {
   const el = document.getElementById("captionStatus");
   if (!el) return;
@@ -48,6 +36,14 @@ function setCaptionSource(type, text, noChange = false) {
   }
 }
 
+function setCaptionInlineStatus(text, type = "info") {
+  const el = document.getElementById("captionInlineStatus");
+  if (!el) return;
+
+  el.textContent = text;
+  el.className = `caption-inline-status ${type}`;
+  el.classList.remove("hidden");
+}
 
 
 // -------------------------
@@ -1342,74 +1338,43 @@ function buildCaptionsFromConfig(cfg) {
 }
 
 async function loadCaptionsFromYaml() {
-    const statusEl = document.getElementById("captionsStatus");
-    const captionsEl = document.getElementById("captionsText");
-    const sourceEl = document.getElementById("captionStatus");
+  const captionsEl = document.getElementById("captionsText");
+  if (!captionsEl) return;
 
-    if (!statusEl || !captionsEl) return;
+  // ✅ Intent shown immediately
+  setCaptionSource("yaml", "🔵 SOURCE: YAML");
 
-    // 🔵 ALWAYS set source immediately (user intent)
-    if (sourceEl) {
-        sourceEl.textContent = "🔵 SOURCE: YAML";
-        sourceEl.className = "caption-source source-yaml";
+  setCaptionInlineStatus("Loading captions from YAML…", "info");
+
+  try {
+    const session = encodeURIComponent(getActiveSession());
+    const data = await jsonFetch(`/api/config?session=${session}`);
+    const cfg = data.config || {};
+
+    const before = captionsEl.value.trim();
+    const next = buildCaptionsFromConfig(cfg).trim();
+
+    captionsEl.value = next;
+
+    updateRewriteModeAvailability();
+    await refreshHookScore();
+    await refreshStoryFlowScore();
+
+    if (before === next) {
+      setCaptionSource("yaml", "🔵 SOURCE: YAML", true);
+      setCaptionInlineStatus("Captions already up to date", "no-change");
+    } else {
+      setCaptionSource("yaml", "🔵 SOURCE: YAML");
+      setCaptionInlineStatus("Captions loaded from YAML", "success");
+      flashElement(captionsEl);
     }
 
-    setStatus("captionsStatus", "Loading captions…", "info");
-
-    try {
-        const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
-        const cfg = data.config || {};
-
-        // 🔑 Capture BEFORE state
-        const before = captionsEl.value.trim();
-
-        // 🔄 Build captions from YAML
-        const next = buildCaptionsFromConfig(cfg).trim();
-        captionsEl.value = next;
-
-        // 🔥 Enable rewrite + scoring
-        updateRewriteModeAvailability();
-        await refreshHookScore();
-        await refreshStoryFlowScore();
-
-        // 🧠 Detect no-op vs change
-        const noChange = before === next;
-
-        if (noChange) {
-            setStatus("captionsStatus", "Captions already up to date.", "info");
-
-            if (sourceEl) {
-                sourceEl.textContent = "🔵 SOURCE: YAML · No changes";
-                sourceEl.classList.add("no-change");
-            }
-        } else {
-            setStatus("captionsStatus", "Captions loaded from YAML.", "success");
-
-            if (sourceEl) {
-                sourceEl.textContent = "🔵 SOURCE: YAML · Reloaded";
-                sourceEl.classList.remove("no-change");
-            }
-
-            flashElement(captionsEl);
-        }
-
-    } catch (err) {
-        console.error(err);
-
-        setStatus(
-            "captionsStatus",
-            `Error loading captions: ${err.message}`,
-            "error"
-        );
-
-        if (sourceEl) {
-            sourceEl.textContent = "⚠️ SOURCE: YAML (failed)";
-            sourceEl.className = "caption-source error";
-        }
-    }
+  } catch (err) {
+    console.error(err);
+    setCaptionInlineStatus("Failed to load captions", "error");
+    setCaptionSource("yaml", "⚠ SOURCE: YAML (failed)");
+  }
 }
-
 
 
 // OLD session list (if legacy card exists)
@@ -1538,74 +1503,38 @@ async function saveCaptions() {
 }
 
 async function regenerateCaptionsFromClips() {
-    const captionsEl = document.getElementById("captionsText");
-    const sourceEl = document.getElementById("captionStatus");
+  const captionsEl = document.getElementById("captionsText");
+  if (!captionsEl) return;
 
-    if (!captionsEl) return;
-
-    // ⚠️ Warn if overwriting existing captions
-    if (captionsEl.value.trim()) {
-        const ok = confirm(
-            "This will overwrite your current captions using labels first, then filenames.\n\nContinue?"
-        );
-        if (!ok) return;
-    }
-
-    // 🔔 Immediate, persistent source signal (user clicked intent)
-    if (sourceEl) {
-        sourceEl.textContent = "🟣 SOURCE: Filenames / Labels (generating…)";
-        sourceEl.className = "caption-source source-filenames pending";
-    }
-
-    setStatus(
-        "captionsStatus",
-        "Generating captions from labels / filenames…",
-        "info"
+  if (captionsEl.value.trim()) {
+    const ok = confirm(
+      "This will overwrite your current captions using labels first, then filenames.\n\nContinue?"
     );
+    if (!ok) return;
+  }
 
-    try {
-        // 1️⃣ Backend mutates YAML (single source of truth)
-        await jsonFetch("/api/captions/from_filenames", {
-            method: "POST",
-            body: JSON.stringify({ session: getActiveSession() }),
-        });
+  // 🔔 Immediate intent
+  setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
+  setCaptionInlineStatus("Generating captions from filenames…", "info");
 
-        // 2️⃣ Reload captions FROM YAML (never mutate textarea directly)
-        await loadCaptionsFromYaml();
+  try {
+    await jsonFetch("/api/captions/from_filenames", {
+      method: "POST",
+      body: JSON.stringify({ session: getActiveSession() }),
+    });
 
-        // 3️⃣ Update persistent source badge
-        if (sourceEl) {
-            sourceEl.textContent = "🟣 SOURCE: Filenames / Labels";
-            sourceEl.className = "caption-source source-filenames";
-        }
+    // YAML is source of truth
+    await loadCaptionsFromYaml();
 
-        // 4️⃣ Refresh dependent systems
-        await refreshHookScore();
-        await refreshStoryFlowScore();
+    setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
+    setCaptionInlineStatus("Captions generated from filenames", "success");
 
-        setStatus(
-            "captionsStatus",
-            "Captions generated from labels / filenames ✓",
-            "success"
-        );
-
-    } catch (err) {
-        console.error(err);
-
-        setStatus(
-            "captionsStatus",
-            "Failed to generate captions from filenames.",
-            "error"
-        );
-
-        if (sourceEl) {
-            sourceEl.textContent = "⚠️ Caption generation failed";
-            sourceEl.className = "caption-source error";
-        }
-    }
+  } catch (err) {
+    console.error(err);
+    setCaptionInlineStatus("Failed to generate captions", "error");
+    setCaptionSource("filenames", "⚠ SOURCE: Filenames (failed)");
+  }
 }
-
-
 
 
 function updateRewriteWarning() {
