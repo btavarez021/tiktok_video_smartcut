@@ -12,6 +12,12 @@ let ACTIVE_EXPORT_TASK = null;
 let suppressNextPreview = false;
 
 
+function flashElement(el) {
+  if (!el) return;
+  el.classList.remove("flash");
+  void el.offsetWidth; // force reflow
+  el.classList.add("flash");
+}
 
 // -------------------------
 // Session helpers
@@ -1317,6 +1323,8 @@ async function loadCaptionsFromYaml() {
         const cfg = data.config || {};
 
         captionsEl.value = buildCaptionsFromConfig(cfg);
+        flashElement(captionsEl);
+
 
         // 🔥 Enable Rewrite mode immediately (no typing required)
         updateRewriteModeAvailability();
@@ -1467,7 +1475,10 @@ async function saveCaptions() {
 }
 
 async function regenerateCaptionsFromClips() {
+
   const captionsEl = document.getElementById("captionsText");
+    flashElement(captionsEl);
+
 
   // Warn if overwriting
   if (captionsEl && captionsEl.value.trim()) {
