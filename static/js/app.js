@@ -1463,9 +1463,10 @@ async function saveCaptions() {
 async function regenerateCaptionsFromClips() {
   const captionsEl = document.getElementById("captionsText");
 
+  // Warn if overwriting
   if (captionsEl && captionsEl.value.trim()) {
     const ok = confirm(
-      "This will overwrite your current captions using filenames and labels. Continue?"
+      "This will overwrite your current captions using labels first, then filenames. Continue?"
     );
     if (!ok) return;
   }
@@ -1473,18 +1474,22 @@ async function regenerateCaptionsFromClips() {
   setStatus("captionsStatus", "Generating captions from filenames…", "info");
 
   try {
+    // 1️⃣ Backend mutates YAML (labels → filenames)
     await jsonFetch("/api/captions/from_filenames", {
       method: "POST",
       body: JSON.stringify({ session: getActiveSession() }),
     });
 
+    // 2️⃣ SINGLE source of truth → reload captions from YAML
     await loadCaptionsFromYaml();
+
+    // 3️⃣ Refresh dependent scores
     await refreshHookScore();
     await refreshStoryFlowScore();
 
     setStatus(
       "captionsStatus",
-      "Captions generated from filenames and labels.",
+      "Captions generated from labels / filenames ✓",
       "success"
     );
   } catch (err) {
@@ -1492,6 +1497,7 @@ async function regenerateCaptionsFromClips() {
     setStatus("captionsStatus", "Failed to generate captions.", "error");
   }
 }
+
 
 
 function updateRewriteWarning() {

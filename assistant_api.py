@@ -433,37 +433,25 @@ def _humanize_filename(filename: str) -> str:
     return re.sub(r"\s+", " ", name).strip()
 
 
-def apply_filename_captions(session: str) -> None:
-    """
-    Generate captions using:
-    1) saved labels (if present)
-    2) fallback to filename-based captions
-    """
-
+def apply_filename_captions(session: str, labels: dict):
     config_path = get_config_path(session)
-    session_dir = os.path.dirname(config_path)
-    labels_path = os.path.join(session_dir, LABELS_FILE)
 
     if not os.path.exists(config_path):
-        raise FileNotFoundError("config.yml not found")
+        return
 
-    # -----------------------------------
-    # Load YAML
-    # -----------------------------------
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
 
-    # -----------------------------------
-    # Load labels (optional)
-    # -----------------------------------
-    labels = {}
-    if os.path.exists(labels_path):
-        with open(labels_path, "r", encoding="utf-8") as f:
-            labels = json.load(f) or {}
-
     def caption_for(file):
-        label = (labels.get(file) or "").strip()
-        return label if label else _humanize_filename(file)
+        # 1️⃣ Label wins
+        label = (labels or {}).get(file, "").strip()
+        if label:
+            return label
+
+        # 2️⃣ Fallback → filename prettified
+        name = os.path.splitext(file)[0]
+        name = name.replace("_", " ").replace("-", " ")
+        return name.strip().title()
 
     # -----------------------------------
     # Apply captions
@@ -489,7 +477,7 @@ def apply_filename_captions(session: str) -> None:
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
 
-    log_step(f"📝 Captions generated from labels/filenames (session={session})")
+    log_step(f"📝 Captions generated from labels/filenames (session={session})")s 
 
 # -------------------------------
 # Export mode
