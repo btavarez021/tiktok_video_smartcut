@@ -11,6 +11,14 @@ let ACTIVE_EXPORT_TASK = null;
 
 let suppressNextPreview = false;
 
+
+function flashElement(el) {
+  if (!el) return;
+  el.classList.remove("flash");
+  void el.offsetWidth; // force reflow
+  el.classList.add("flash");
+}
+
 function setCaptionSource(type, text) {
   const el = document.getElementById("captionSourceBadge");
   if (!el) return;
