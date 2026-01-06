@@ -402,40 +402,59 @@ def sanitize_yaml_filenames(cfg: dict) -> dict:
 
     return cfg
 
-def apply_filename_captions(session: str, labels: dict):
+def humanize_filename(filename: str) -> str:
     """
-    Overwrite ONLY text fields in config.yml using:
-    1) clip label (if exists)
-    2) filename-derived caption
+    Convert filename into a readable caption.
+    Example: LeMeridien_RooftopVibes.mov → Le Meridien rooftop vibes
+    """
+    name = os.path.splitext(filename)[0]
+    name = re.sub(r"[_\-]+", " ", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
+
+
+def apply_filename_captions(session: str, labels: dict) -> None:
+    """
+    Replace ALL clip text fields using:
+    1) label (if provided)
+    2) filename (humanized)
     """
     config_path = get_config_path(session)
     if not os.path.exists(config_path):
-        return
+        raise FileNotFoundError("config.yml not found")
 
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
 
-    def resolve_text(file):
-        if not file:
-            return ""
-        if labels.get(file):
-            return labels[file]
-        return caption_from_filename(file)
+    def caption_for(file: str) -> str:
+        label = (labels or {}).get(file, "").strip()
+        if label:
+            return label
+        return humanize_filename(file)
 
-    if cfg.get("first_clip"):
-        f = cfg["first_clip"].get("file")
-        cfg["first_clip"]["text"] = resolve_text(f)
+    # first clip
+    if "first_clip" in cfg and cfg["first_clip"]:
+        file = cfg["first_clip"].get("file")
+        if file:
+            cfg["first_clip"]["text"] = caption_for(file)
 
-    for m in cfg.get("middle_clips", []):
-        f = m.get("file")
-        m["text"] = resolve_text(f)
+    # middle clips
+    for clip in cfg.get("middle_clips", []) or []:
+        file = clip.get("file")
+        if file:
+            clip["text"] = caption_for(file)
 
-    if cfg.get("last_clip"):
-        f = cfg["last_clip"].get("file")
-        cfg["last_clip"]["text"] = resolve_text(f)
+    # last clip
+    if "last_clip" in cfg and cfg["last_clip"]:
+        file = cfg["last_clip"].get("file")
+        if file:
+            cfg["last_clip"]["text"] = caption_for(file)
 
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
+
+    log_step(f"[CAPTIONS] Generated from filenames for session={session}")
+
 
 
 # -----------------------------------------

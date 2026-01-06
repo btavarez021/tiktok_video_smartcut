@@ -47,7 +47,7 @@ from assistant_api import (
 from tiktok_template import get_config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 import threading
-
+from tiktok_assistant import load_labels_for_session, apply_filename_captions
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)
@@ -272,21 +272,19 @@ def route_save_yaml_route():
 
     return jsonify(api_save_yaml(yaml_text))
 
-@app.post("/api/captions/from_filenames")
+@app.route("/api/captions/from_filenames", methods=["POST"])
 def captions_from_filenames():
-    data = request.json or {}
+    data = request.get_json() or {}
     session = data.get("session")
+    if not session:
+        return jsonify({"error": "Missing session"}), 400
 
-    # Load labels
-    labels_path = os.path.join("labels", f"{session}.json")
-    labels = {}
-    if os.path.exists(labels_path):
-        with open(labels_path, "r") as f:
-            labels = json.load(f)
+    labels = load_labels_for_session(session)  # you already have this
 
     apply_filename_captions(session, labels)
 
-    return {"status": "ok"}
+    return jsonify({"status": "ok"})
+
 
 
 # ============================================================================
