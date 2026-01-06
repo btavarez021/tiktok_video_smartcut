@@ -1348,6 +1348,12 @@ async function loadCaptionsFromYaml() {
 
     if (!statusEl || !captionsEl) return;
 
+    // 🔵 ALWAYS set source immediately (user intent)
+    if (sourceEl) {
+        sourceEl.textContent = "🔵 SOURCE: YAML";
+        sourceEl.className = "caption-source source-yaml";
+    }
+
     setStatus("captionsStatus", "Loading captions…", "info");
 
     try {
@@ -1362,12 +1368,12 @@ async function loadCaptionsFromYaml() {
         const next = buildCaptionsFromConfig(cfg).trim();
         captionsEl.value = next;
 
-        // 🔥 Enable rewrite / scoring immediately
+        // 🔥 Enable rewrite + scoring
         updateRewriteModeAvailability();
         await refreshHookScore();
         await refreshStoryFlowScore();
 
-        // 🧠 Detect no-op vs actual change
+        // 🧠 Detect no-op vs change
         const noChange = before === next;
 
         if (noChange) {
@@ -1375,17 +1381,16 @@ async function loadCaptionsFromYaml() {
 
             if (sourceEl) {
                 sourceEl.textContent = "🔵 SOURCE: YAML · No changes";
-                sourceEl.className = "caption-source source-yaml no-change";
+                sourceEl.classList.add("no-change");
             }
         } else {
             setStatus("captionsStatus", "Captions loaded from YAML.", "success");
 
             if (sourceEl) {
-                sourceEl.textContent = "🔵 SOURCE: YAML";
-                sourceEl.className = "caption-source source-yaml";
+                sourceEl.textContent = "🔵 SOURCE: YAML · Reloaded";
+                sourceEl.classList.remove("no-change");
             }
 
-            // ✨ Only flash when something actually changed
             flashElement(captionsEl);
         }
 
@@ -1399,11 +1404,12 @@ async function loadCaptionsFromYaml() {
         );
 
         if (sourceEl) {
-            sourceEl.textContent = "⚠️ Failed to load captions";
+            sourceEl.textContent = "⚠️ SOURCE: YAML (failed)";
             sourceEl.className = "caption-source error";
         }
     }
 }
+
 
 
 // OLD session list (if legacy card exists)
