@@ -426,25 +426,22 @@ def api_story_flow_improve(session: str) -> Dict[str, Any]:
 
 LABELS_FILE = "labels.json"
 
-
-def _humanize_filename(filename: str) -> str:
-    name = os.path.splitext(filename)[0]
-    name = re.sub(r"[_\-]+", " ", name)
-    return re.sub(r"\s+", " ", name).strip()
-
-
-def apply_filename_captions(session: str, labels: dict):
+def apply_filename_captions(session: str):
+    session = sanitize_session(session)
     config_path = get_config_path(session)
 
     if not os.path.exists(config_path):
         return
 
+    # 🔑 Load labels internally
+    labels = load_labels(session)
+
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
 
-    def caption_for(file):
+    def caption_for(file: str) -> str:
         # 1️⃣ Label wins
-        label = (labels or {}).get(file, "").strip()
+        label = (labels.get(file) or "").strip()
         if label:
             return label
 
@@ -477,7 +474,8 @@ def apply_filename_captions(session: str, labels: dict):
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
 
-    log_step(f"📝 Captions generated from labels/filenames (session={session})")
+    log_step(f"📝 Captions generated from labels / filenames (session={session})")
+
 
 # -------------------------------
 # Export mode

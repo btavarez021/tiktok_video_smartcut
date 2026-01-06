@@ -1498,8 +1498,6 @@ async function regenerateCaptionsFromClips() {
   }
 }
 
-
-
 function updateRewriteWarning() {
     const mode = document.querySelector('input[name="captionRewriteMode"]:checked')?.value;
     const warning = document.getElementById("rewriteWarning");
