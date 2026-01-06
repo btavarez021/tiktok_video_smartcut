@@ -31,6 +31,24 @@ function setCaptionSource(type, text) {
   el.classList.add("pulse");
 }
 
+function setCaptionSource(type, text, noChange = false) {
+  const el = document.getElementById("captionStatus");
+  if (!el) return;
+
+  el.textContent = text;
+
+  el.className = "caption-source"; // reset
+
+  if (type === "yaml") el.classList.add("source-yaml");
+  if (type === "filenames") el.classList.add("source-filenames");
+
+  if (noChange) {
+    el.classList.add("no-change");
+    el.textContent += " · No changes";
+  }
+}
+
+
 
 // -------------------------
 // Session helpers
@@ -1340,38 +1358,40 @@ async function loadCaptionsFromYaml() {
         // 🔑 Capture BEFORE state
         const before = captionsEl.value.trim();
 
-        // 🔄 Load from YAML
+        // 🔄 Build captions from YAML
         const next = buildCaptionsFromConfig(cfg).trim();
         captionsEl.value = next;
 
-        // 🔥 Enable Rewrite mode immediately
+        // 🔥 Enable rewrite / scoring immediately
         updateRewriteModeAvailability();
-
         await refreshHookScore();
         await refreshStoryFlowScore();
 
-        // 🧠 Detect no-op vs change
-        if (before === next) {
+        // 🧠 Detect no-op vs actual change
+        const noChange = before === next;
+
+        if (noChange) {
             setStatus("captionsStatus", "Captions already up to date.", "info");
 
             if (sourceEl) {
-                sourceEl.textContent = "🔵 SOURCE: YAML (already in sync)";
-                sourceEl.className = "hint-text subtle";
+                sourceEl.textContent = "🔵 SOURCE: YAML · No changes";
+                sourceEl.className = "caption-source source-yaml no-change";
             }
         } else {
             setStatus("captionsStatus", "Captions loaded from YAML.", "success");
 
             if (sourceEl) {
-                sourceEl.textContent = "🔵 SOURCE: YAML (reloaded)";
-                sourceEl.className = "hint-text subtle";
+                sourceEl.textContent = "🔵 SOURCE: YAML";
+                sourceEl.className = "caption-source source-yaml";
             }
-        }
 
-        // ✨ Visual confirmation
-        flashElement(captionsEl);
+            // ✨ Only flash when something actually changed
+            flashElement(captionsEl);
+        }
 
     } catch (err) {
         console.error(err);
+
         setStatus(
             "captionsStatus",
             `Error loading captions: ${err.message}`,
@@ -1380,10 +1400,11 @@ async function loadCaptionsFromYaml() {
 
         if (sourceEl) {
             sourceEl.textContent = "⚠️ Failed to load captions";
-            sourceEl.className = "hint-text error";
+            sourceEl.className = "caption-source error";
         }
     }
 }
+
 
 // OLD session list (if legacy card exists)
 async function loadSessions() {
@@ -1511,48 +1532,74 @@ async function saveCaptions() {
 }
 
 async function regenerateCaptionsFromClips() {
-  const captionsEl = document.getElementById("captionsText");
+    const captionsEl = document.getElementById("captionsText");
+    const sourceEl = document.getElementById("captionStatus");
 
-  // Warn if overwriting
-  if (captionsEl && captionsEl.value.trim()) {
-    const ok = confirm(
-      "This will overwrite your current captions using labels first, then filenames. Continue?"
-    );
-    if (!ok) return;
-  }
+    if (!captionsEl) return;
 
-  setStatus("captionsStatus", "Generating captions from filenames…", "info");
+    // ⚠️ Warn if overwriting existing captions
+    if (captionsEl.value.trim()) {
+        const ok = confirm(
+            "This will overwrite your current captions using labels first, then filenames.\n\nContinue?"
+        );
+        if (!ok) return;
+    }
 
-  try {
-    // 1️⃣ Backend mutates YAML (labels → filenames)
-    await jsonFetch("/api/captions/from_filenames", {
-      method: "POST",
-      body: JSON.stringify({ session: getActiveSession() }),
-    });
-
-    // 2️⃣ Reload captions from YAML (single source of truth)
-    await loadCaptionsFromYaml();
-
-    // 3️⃣ Explicitly mark source AFTER reload
-    setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
-
-    // 4️⃣ Refresh dependent scores
-    await refreshHookScore();
-    await refreshStoryFlowScore();
+    // 🔔 Immediate, persistent source signal (user clicked intent)
+    if (sourceEl) {
+        sourceEl.textContent = "🟣 SOURCE: Filenames / Labels (generating…)";
+        sourceEl.className = "caption-source source-filenames pending";
+    }
 
     setStatus(
-      "captionsStatus",
-      "Captions generated from labels / filenames ✓",
-      "success"
+        "captionsStatus",
+        "Generating captions from labels / filenames…",
+        "info"
     );
 
-    flashElement(captionsEl);
+    try {
+        // 1️⃣ Backend mutates YAML (single source of truth)
+        await jsonFetch("/api/captions/from_filenames", {
+            method: "POST",
+            body: JSON.stringify({ session: getActiveSession() }),
+        });
 
-  } catch (err) {
-    console.error(err);
-    setStatus("captionsStatus", "Failed to generate captions.", "error");
-  }
+        // 2️⃣ Reload captions FROM YAML (never mutate textarea directly)
+        await loadCaptionsFromYaml();
+
+        // 3️⃣ Update persistent source badge
+        if (sourceEl) {
+            sourceEl.textContent = "🟣 SOURCE: Filenames / Labels";
+            sourceEl.className = "caption-source source-filenames";
+        }
+
+        // 4️⃣ Refresh dependent systems
+        await refreshHookScore();
+        await refreshStoryFlowScore();
+
+        setStatus(
+            "captionsStatus",
+            "Captions generated from labels / filenames ✓",
+            "success"
+        );
+
+    } catch (err) {
+        console.error(err);
+
+        setStatus(
+            "captionsStatus",
+            "Failed to generate captions from filenames.",
+            "error"
+        );
+
+        if (sourceEl) {
+            sourceEl.textContent = "⚠️ Caption generation failed";
+            sourceEl.className = "caption-source error";
+        }
+    }
 }
+
+
 
 
 function updateRewriteWarning() {

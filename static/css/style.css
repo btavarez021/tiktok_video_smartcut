@@ -2103,3 +2103,22 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   opacity: 0.85;
 }
 
+.caption-source {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin-top: 6px;
+}
+
+.caption-source.source-yaml {
+  color: #60a5fa; /* blue */
+}
+
+.caption-source.source-filenames {
+  color: #c084fc; /* purple */
+}
+
+.caption-source.no-change {
+  font-style: italic;
+  opacity: 0.75;
+}
+
