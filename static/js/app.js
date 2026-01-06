@@ -709,7 +709,8 @@ function renderUploadList(elementId, items, kind, labels={}) {
                                     />
 
                                 <p class="hint-text small">
-                                    Used to guide AI captions. Not shown in video.
+                                    Used to guide captions and filename-based generation.
+                                    Not shown in the video.
                                 </p>
 
 
