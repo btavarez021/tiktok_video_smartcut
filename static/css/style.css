@@ -2038,3 +2038,11 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   transition: all 0.2s ease;
 }
 
+.flash {
+  animation: flash-bg 0.3s ease;
+}
+
+@keyframes flash-bg {
+  from { background: rgba(0, 255, 0, 0.15); }
+  to { background: transparent; }
+}

@@ -1325,6 +1325,12 @@ async function loadCaptionsFromYaml() {
         await refreshStoryFlowScore();
 
         setStatus("captionsStatus", "Captions loaded.", "success");
+
+        const status = document.getElementById("captionStatus");
+        if (status) {
+        status.textContent = "Caption source: YAML (already up to date)";
+        }
+
     } catch (err) {
         console.error(err);
         setStatus(
@@ -1492,6 +1498,12 @@ async function regenerateCaptionsFromClips() {
       "Captions generated from labels / filenames ✓",
       "success"
     );
+
+    const status = document.getElementById("captionStatus");
+        if (status) {
+        status.textContent = "Caption source: YAML (matches current captions)";
+        }
+
   } catch (err) {
     console.error(err);
     setStatus("captionsStatus", "Failed to generate captions.", "error");
