@@ -1511,9 +1511,7 @@ async function saveCaptions() {
 }
 
 async function regenerateCaptionsFromClips() {
-
   const captionsEl = document.getElementById("captionsText");
-    setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
 
   // Warn if overwriting
   if (captionsEl && captionsEl.value.trim()) {
@@ -1532,10 +1530,13 @@ async function regenerateCaptionsFromClips() {
       body: JSON.stringify({ session: getActiveSession() }),
     });
 
-    // 2️⃣ SINGLE source of truth → reload captions from YAML
+    // 2️⃣ Reload captions from YAML (single source of truth)
     await loadCaptionsFromYaml();
 
-    // 3️⃣ Refresh dependent scores
+    // 3️⃣ Explicitly mark source AFTER reload
+    setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
+
+    // 4️⃣ Refresh dependent scores
     await refreshHookScore();
     await refreshStoryFlowScore();
 
@@ -1545,16 +1546,14 @@ async function regenerateCaptionsFromClips() {
       "success"
     );
 
-    const status = document.getElementById("captionStatus");
-        if (status) {
-        status.textContent = "Caption source: YAML (matches current captions)";
-        }
+    flashElement(captionsEl);
 
   } catch (err) {
     console.error(err);
     setStatus("captionsStatus", "Failed to generate captions.", "error");
   }
 }
+
 
 function updateRewriteWarning() {
     const mode = document.querySelector('input[name="captionRewriteMode"]:checked')?.value;
