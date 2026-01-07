@@ -939,8 +939,11 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
                     " Minimal luxury captions. "
                     "Assume the hotel name is already established in context. "
                     "DO NOT include the hotel or brand name in ANY caption. "
+                    "Each caption MUST remain its own paragraph separated by a blank line. "
+                    "Keep the SAME number of caption blocks as the original. "
                     "Use short, elegant phrases. No emojis. No hashtags."
                 )
+
 
 
 
