@@ -1236,20 +1236,68 @@ async function generateCaptionVariants() {
     }
 }
 
-// =============================================
-// Helper: Apply selected generated caption text
-// =============================================
-function applyCaptionVariant(text) {
-    const el = document.getElementById("captionsText");
-    if (!el) return;
-    el.value = text;
-
-    // Optional nice extras:
-    refreshHookScore();        // re-score hook immediately
-    refreshStoryFlowScore();   // re-score story flow
-    setStatus("captionsStatus", "Caption applied ✓", "success");
+// ==============================
+// Helper: count caption blocks
+// ==============================
+function countBlocks(text) {
+    if (!text) return 0;
+    return text.split(/\n\s*\n/).filter(Boolean).length;
 }
 
+// =============================================
+// Apply selected generated caption variant
+// =============================================
+async function applyCaptionVariant(text) {
+    const session = getActiveSession();
+    const el = document.getElementById("captionsText");
+    if (!el) return;
+
+    // Capture original BEFORE overwrite
+    const originalText = el.value;
+    const originalCount = countBlocks(originalText);
+    const newCount = countBlocks(text);
+
+    // Apply new captions
+    el.value = text;
+
+    // Warn user if structure changed
+    const mismatch = originalCount !== newCount;
+
+    if (mismatch) {
+        setStatus(
+            "captionsStatus",
+            `⚠ Caption count mismatch (${originalCount} → ${newCount}). Review before saving.`,
+            "warning"
+        );
+        return; // ⛔ do NOT auto-save
+    }
+
+    try {
+        // Save captions to backend
+        const res = await fetch("/api/save_captions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session, text })
+        });
+
+        if (!res.ok) {
+            throw new Error("Failed to save captions");
+        }
+
+        // Re-score immediately
+        refreshHookScore();
+        refreshStoryFlowScore();
+
+        // Refresh iPhone mock preview
+        await refreshOverlayPreview();
+
+        setStatus("captionsStatus", "Caption applied ✓", "success");
+
+    } catch (err) {
+        console.error(err);
+        setStatus("captionsStatus", "Failed to apply caption", "error");
+    }
+}
 
 // ================================
 // Step Enter Handler (Fix Missing Function)
