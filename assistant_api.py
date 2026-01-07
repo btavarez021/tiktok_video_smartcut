@@ -429,80 +429,6 @@ def api_story_flow_improve(session: str) -> Dict[str, Any]:
             "reason": "Failed to improve story flow."
         }
 
-LABELS_FILE = "labels.json"
-
-def apply_filename_captions(session: str):
-    session = sanitize_session(session)
-    config_path = get_config_path(session)
-
-    if not os.path.exists(config_path):
-        return
-
-    # 🔑 Load labels internally
-    labels = load_labels(session)
-
-    with open(config_path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f) or {}
-
-    def caption_for(file: str) -> str:
-        # 1️⃣ Label wins
-        label = (labels.get(file) or "").strip()
-        if label:
-            return label
-
-        # 2️⃣ Fallback → filename prettified
-        name = os.path.splitext(file)[0]
-        name = name.replace("_", " ").replace("-", " ")
-        return name.strip().title()
-
-    # -----------------------------------
-    # Apply captions
-    # -----------------------------------
-    if cfg.get("first_clip"):
-        f = cfg["first_clip"].get("file")
-        if f:
-            cfg["first_clip"]["text"] = caption_for(f)
-
-    for clip in cfg.get("middle_clips", []):
-        f = clip.get("file")
-        if f:
-            clip["text"] = caption_for(f)
-
-    if cfg.get("last_clip"):
-        f = cfg["last_clip"].get("file")
-        if f:
-            cfg["last_clip"]["text"] = caption_for(f)
-
-    # -----------------------------------
-    # Sync captions.txt with YAML
-    # -----------------------------------
-    blocks = []
-
-    if cfg.get("first_clip", {}).get("text"):
-        blocks.append(cfg["first_clip"]["text"])
-
-    for clip in cfg.get("middle_clips", []):
-        if clip.get("text"):
-            blocks.append(clip["text"])
-
-    if cfg.get("last_clip", {}).get("text"):
-        blocks.append(cfg["last_clip"]["text"])
-
-    captions_text = "\n\n".join(blocks)
-
-    with open(_CAPTIONS_FILE, "w", encoding="utf-8") as f:
-        f.write(captions_text)
-
-
-    # -----------------------------------
-    # Save YAML
-    # -----------------------------------
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
-
-    log_step(f"📝 Captions generated from labels / filenames (session={session})")
-
-
 # -------------------------------
 # Export mode
 # -------------------------------
@@ -920,7 +846,6 @@ def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
 # -------------------------------
 # Captions (editor tab — global)
 # -------------------------------
-_CAPTIONS_FILE = os.path.join(os.path.dirname(__file__), "captions.txt")
 
 def normalize_location_repetition(captions: list[str]) -> list[str]:
     if not captions:
@@ -1055,14 +980,6 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
     }
 
 
-
-
-def api_get_captions() -> Dict[str, Any]:
-    if not os.path.exists(_CAPTIONS_FILE):
-        return {"text": ""}
-    with open(_CAPTIONS_FILE, "r", encoding="utf-8") as f:
-        return {"text": f.read()}
-
 def api_save_captions(text: str, session: str) -> Dict[str, Any]:
     try:
         session = sanitize_session(session)
@@ -1097,9 +1014,6 @@ def api_save_captions(text: str, session: str) -> Dict[str, Any]:
 
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
-
-        with open(_CAPTIONS_FILE, "w", encoding="utf-8") as f:
-            f.write(text)
 
         log_success("[CAPTIONS]", f"Saved {len(blocks)} caption block(s)")
 

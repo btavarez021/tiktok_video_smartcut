@@ -1654,8 +1654,11 @@ async function previewRewrite() {
     const variants = res.variants || [];
 
     // UI panel or modal popup preview
-    showRewritePreview(variants[0], variants[1]); // orig vs rewrite
-}
+    showRewritePreview(
+    variants[0]?.text || "",
+    variants[1]?.text || ""
+    );
+    }
 
 function showRewritePreview(original, rewritten) {
     const msg = `Original:\n\n${original}\n\n---\n\nRewrite Preview:\n\n${rewritten}`;
