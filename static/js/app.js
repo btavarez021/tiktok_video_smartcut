@@ -1171,6 +1171,7 @@ async function generateCaptionVariants() {
         punchy: document.getElementById("mode_punchy").checked,
         story: document.getElementById("mode_story").checked,
         influencer: document.getElementById("mode_influencer").checked,
+        minimal: document.getElementById("mode_minimal").checked,
     };
 
     const session = getActiveSession();
