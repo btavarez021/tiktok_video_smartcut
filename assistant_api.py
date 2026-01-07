@@ -967,6 +967,27 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
         "or proper noun in every block unless it adds meaning."
     )
 
+    # Minimal luxury auto-variant
+    r = client.chat.completions.create(
+        model=TEXT_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    CAPTION_ONLY_GUARDRAIL +
+                    " Minimal luxury captions. "
+                    "Assume the hotel name is already established in context. "
+                    "DO NOT repeat the brand. "
+                    "Short, elegant phrases. No emojis. No hashtags."
+                )
+            },
+            {"role": "user", "content": base}
+        ]
+    )
+
+    variants.append(r.choices[0].message.content.strip())
+
+
     if modes.get("rewrite") and modes.get("punchy"):
         r = client.chat.completions.create(
             model=TEXT_MODEL,

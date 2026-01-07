@@ -43,6 +43,12 @@ function setCaptionInlineStatus(text, type = "info") {
   el.textContent = text;
   el.className = `caption-inline-status ${type}`;
   el.classList.remove("hidden");
+
+    // Auto-hide after short delay
+  setTimeout(() => {
+    el.classList.add("hidden");
+  }, 2200);
+
 }
 
 
@@ -1348,12 +1354,15 @@ function buildCaptionsFromConfig(cfg) {
     return parts.join("\n\n");
 }
 
-async function loadCaptionsFromYaml() {
+async function loadCaptionsFromYaml({ preserveSource = false } = {}) {
   const captionsEl = document.getElementById("captionsText");
   if (!captionsEl) return;
 
   // ✅ Intent shown immediately
-  setCaptionSource("yaml", "🔵 SOURCE: YAML");
+    if (!preserveSource) {
+    setCaptionSource("yaml", "🔵 SOURCE: YAML");
+    }
+
 
   setCaptionInlineStatus("Loading captions from YAML…", "info");
 
@@ -1516,9 +1525,8 @@ async function saveCaptions() {
 async function regenerateCaptionsFromClips() {
 
     // 🔒 Force-save all visible labels first
-    document.querySelectorAll(".clip-label-input").forEach(input => {
-    input.blur(); // triggers saveClipLabel
-    });
+    document.querySelectorAll(".clip-label-input").forEach(i => i.blur());
+
 
   const captionsEl = document.getElementById("captionsText");
   if (!captionsEl) return;
@@ -1541,7 +1549,7 @@ async function regenerateCaptionsFromClips() {
     });
 
     // YAML is source of truth
-    await loadCaptionsFromYaml();
+    await loadCaptionsFromYaml({ preserveSource: true });
 
     setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
     setCaptionInlineStatus("Captions generated from filenames", "success");
@@ -2582,6 +2590,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Upload UI & manager
     initUploadUI();
     loadUploadManager();
+
+    setCaptionInlineStatus(
+        "Labels loaded. Regenerate captions to apply them.",
+        "info"
+        );
+
 
     // Session lists
     loadSessions();
