@@ -918,7 +918,9 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
         "punchy":      "Rewrite punchy, energetic TikTok creator style.",
         "story":       "Rewrite more storytelling, emotional progress. Assume the viewer understands the location after the first caption.",
         "influencer":  "Rewrite as confident influencer talking to camera.",
+        "minimal":     "Rewrite in minimal luxury style."
     }
+
 
     variants = [base]  # original included for reference
 
@@ -938,12 +940,12 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
                 system_prompt += (
                     " Minimal luxury captions. "
                     "Assume the hotel name is already established in context. "
-                    "DO NOT include the hotel or brand name in ANY caption. "
+                    "DO NOT include or repeat the hotel or brand name in ANY caption. "
                     "Each caption MUST remain its own paragraph separated by a blank line. "
                     "Keep the SAME number of caption blocks as the original. "
-                    "Use short, elegant phrases. No emojis. No hashtags."
+                    "Use short, elegant phrases. "
+                    "No emojis. No hashtags."
                 )
-
 
 
 
@@ -969,26 +971,6 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
         "Assume shared context across captions and avoid repeating the same location "
         "or proper noun in every block unless it adds meaning."
     )
-
-    # Minimal luxury auto-variant
-    r = client.chat.completions.create(
-        model=TEXT_MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    CAPTION_ONLY_GUARDRAIL +
-                    " Minimal luxury captions. "
-                    "Assume the hotel name is already established in context. "
-                    "DO NOT repeat the brand. "
-                    "Short, elegant phrases. No emojis. No hashtags."
-                )
-            },
-            {"role": "user", "content": base}
-        ]
-    )
-
-    variants.append(r.choices[0].message.content.strip())
 
 
     if modes.get("rewrite") and modes.get("punchy"):
