@@ -434,26 +434,15 @@ def apply_filename_captions(session: str) -> None:
     """
     config_path = get_config_path(session)
     if not os.path.exists(config_path):
-        raise FileNotFoundError("config.yml not found")
+        log_step(f"[CAPTIONS] config.yml not found for session={session}")
+        return
 
-    # Load labels (session already sanitized upstream)
-    labels_path = os.path.join(
-        os.path.dirname(__file__),
-        "session_labels",
-        session,
-        "labels.json"
-    )
-
-    labels = {}
-    if os.path.exists(labels_path):
-        try:
-            with open(labels_path, "r", encoding="utf-8") as f:
-                labels = json.load(f)
-        except Exception:
-            labels = {}
-
+    # 🔑 Load YAML into cfg  ← THIS WAS MISSING
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
+
+    # 🔑 Load labels (single source of truth)
+    labels = load_labels(session)
 
     def caption_for(file: str) -> str:
         label = (labels.get(file) or "").strip()
@@ -482,10 +471,12 @@ def apply_filename_captions(session: str) -> None:
         if f:
             cfg["last_clip"]["text"] = caption_for(f)
 
+    # 💾 Save YAML
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
 
     log_step(f"[CAPTIONS] Generated from filenames/labels for session={session}")
+
 
 
 
@@ -620,13 +611,14 @@ LABELS_DIR = os.path.join(os.path.dirname(__file__), "session_labels")
 os.makedirs(LABELS_DIR, exist_ok=True)
 
 def _labels_path(session: str) -> str:
-    session = sanitize_session(session)
+    # session is already sanitized upstream
     return os.path.join(LABELS_DIR, session, "labels.json")
 
 def load_labels(session: str) -> dict:
     path = _labels_path(session)
     if not os.path.exists(path):
         return {}
+
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
