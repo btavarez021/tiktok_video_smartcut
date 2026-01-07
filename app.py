@@ -41,9 +41,9 @@ from assistant_api import (
     api_overlay_preview, 
     generate_overlay_preview,
     load_labels,
-    save_labels,
-    apply_filename_captions
+    save_labels
 )
+from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 import threading

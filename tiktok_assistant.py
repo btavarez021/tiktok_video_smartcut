@@ -212,7 +212,6 @@ def improve_hook_text(original: str, filename: str | None = None, label: str | N
     return "I didn’t expect this stay to feel this good."
 
 
-
 # -----------------------------------------
 # Normalize video for analysis (optional helper)
 # -----------------------------------------
