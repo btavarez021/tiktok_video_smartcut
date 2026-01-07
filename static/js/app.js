@@ -1358,12 +1358,6 @@ async function loadCaptionsFromYaml({ preserveSource = false } = {}) {
   const captionsEl = document.getElementById("captionsText");
   if (!captionsEl) return;
 
-  // ✅ Intent shown immediately
-    if (!preserveSource) {
-    setCaptionSource("yaml", "🔵 SOURCE: YAML");
-    }
-
-
   setCaptionInlineStatus("Loading captions from YAML…", "info");
 
   try {
