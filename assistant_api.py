@@ -882,7 +882,6 @@ TONE_LABELS_BY_INDEX = {
     6: "Minimal · Luxury Aesthetic (brand implied)",
 }
 
-
 # ============================================================
 # Caption Variants Generator  🔥 (Rewrite / Punchy / Story etc.)
 # ============================================================
@@ -941,11 +940,15 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
                     " Minimal luxury captions. "
                     "Assume the hotel name is already established in context. "
                     "DO NOT include or repeat the hotel or brand name in ANY caption. "
-                    "Each caption MUST remain its own paragraph separated by a blank line. "
-                    "Keep the SAME number of caption blocks as the original. "
-                    "Use short, elegant phrases. "
-                    "No emojis. No hashtags."
+                    "CRITICAL FORMAT RULES: "
+                    "- Output MUST contain the SAME number of caption blocks as the input. "
+                    "- Each caption MUST be on its own line block separated by EXACTLY ONE blank line. "
+                    "- Do NOT merge captions into a single paragraph. "
+                    "- Each caption should be 3–7 words maximum. "
+                    "- Use editorial, high-end luxury tone. "
+                    "- No emojis. No hashtags. No full sentences."
                 )
+
 
 
 
