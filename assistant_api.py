@@ -879,7 +879,7 @@ TONE_LABELS_BY_INDEX = {
     3: "Punchy · TikTok / Reels",
     4: "Storytelling · Voiceover",
     5: "Influencer · Creator Style",
-    6: "Minimal · Luxury Aesthetic",
+    6: "Minimal · Luxury Aesthetic (brand implied)",
 }
 
 
@@ -925,27 +925,34 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
     # Generate one variant per checked mode
     for style, enabled in modes.items():
         if enabled and style in style_prompts:
+
+            system_prompt = (
+                CAPTION_ONLY_GUARDRAIL +
+                " Rewrite captions in blocks separated by blank lines. "
+                "Keep the same number of blocks. "
+                "Assume shared context across captions and avoid repeating the same location "
+                "or proper noun in every block unless it adds meaning."
+            )
+
+            if style == "minimal":
+                system_prompt += (
+                    " Minimal luxury captions. Assume the hotel name is already known. "
+                    "Short, elegant phrases. Avoid repeating the brand unless necessary."
+                )
+
             resp = client.chat.completions.create(
                 model=TEXT_MODEL,
                 messages=[
-                            {
-                                "role": "system",
-                                "content": (
-                                    CAPTION_ONLY_GUARDRAIL +
-                                    " Rewrite captions in blocks separated by blank lines. "
-                                    "Keep the same number of blocks. "
-                                    "Assume shared context across captions and avoid repeating the same location "
-                                    "or proper noun in every block unless it adds meaning."
-                                )
-                            },
-                            {
-                                "role": "user",
-                                "content": f"Original:\n{base}\n\nRewrite style: {style_prompts[style]}"
-                            },
-                        ]
-
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user",
+                        "content": f"Original:\n{base}\n\nRewrite style: {style_prompts[style]}"
+                    },
+                ]
             )
+
             variants.append(resp.choices[0].message.content.strip())
+
 
    # Combo magic ✨ (auto mixes modes for advanced results)
     SYSTEM_COMBO_GUARDRAIL = (
