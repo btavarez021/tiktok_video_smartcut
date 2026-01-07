@@ -183,12 +183,6 @@ def score_hook_text(text: str) -> dict:
     return {"score": min(score, 100), "reasons": reasons[:2]}
 
 def improve_hook_text(original: str, filename: str | None = None, label: str | None = None) -> str:
-    """
-    Smarter hook rewrite:
-    - Uses label first
-    - Falls back to filename
-    - Avoids generic influencer filler
-    """
     original = _normalize_spaces(original)
     if not original:
         return original
@@ -199,17 +193,17 @@ def improve_hook_text(original: str, filename: str | None = None, label: str | N
     if any(k in lower for k in ["surprised", "unexpected", "didn't expect", "for one reason"]):
         return original
 
-    # Priority 1: user label
+    # Priority 1: user label (best hooks)
     if label:
         return f"I didn’t expect this, but {label.lower()}."
 
-    # Priority 2: filename
+    # Priority 2: filename-based specificity
     if filename:
         human = humanize_filename(filename).lower()
         return f"I didn’t expect this, but {human}."
 
-    # Fallback (last resort)
-    return "I didn’t expect this stay to feel this good."
+    # Fallback — curiosity without influencer fluff
+    return "This wasn’t supposed to be the best part of the stay."
 
 
 # -----------------------------------------
