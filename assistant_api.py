@@ -917,6 +917,31 @@ def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
 # -------------------------------
 _CAPTIONS_FILE = os.path.join(os.path.dirname(__file__), "captions.txt")
 
+def normalize_location_repetition(captions: list[str]) -> list[str]:
+    if not captions:
+        return captions
+
+    first = captions[0]
+
+    # Try to detect location phrase from first caption
+    match = re.search(r"\bat\s+(.+)$", first, re.IGNORECASE)
+    if not match:
+        return captions
+
+    location = match.group(1).strip()
+    location_lower = location.lower()
+
+    cleaned = [first]  # keep first intact
+
+    for c in captions[1:]:
+        if location_lower in c.lower():
+            c = re.sub(rf"\s*at\s+{re.escape(location)}", "", c, flags=re.IGNORECASE)
+            cleaned.append(c.strip().capitalize())
+        else:
+            cleaned.append(c)
+
+    return cleaned
+
 
 # ============================================================
 # Caption Variants Generator  🔥 (Rewrite / Punchy / Story etc.)
@@ -938,7 +963,9 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
     if cfg.get("last_clip", {}).get("text"):
         captions.append(cfg["last_clip"]["text"])
 
+    captions = normalize_location_repetition(captions)
     base = "\n\n".join(captions).strip()
+
     if not base:
         return {"variants": ["⚠ No captions found in YAML. Generate or import captions first."]}
 
