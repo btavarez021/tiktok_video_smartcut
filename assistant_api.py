@@ -911,7 +911,10 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
 
     style_prompts = {
         "rewrite":     "Rewrite captions clean and natural.",
-        "hook":        "Improve opening hook only, keep rest similar.",
+        "hook": (
+            "Improve ONLY the first caption as a scroll-stopping hook. "
+            "Do NOT rewrite the other captions except for capitalization or punctuation fixes."
+        ),
         "punchy":      "Rewrite punchy, energetic TikTok creator style.",
         "story":       "Rewrite more storytelling, emotional progress. Assume the viewer understands the location after the first caption.",
         "influencer":  "Rewrite as confident influencer talking to camera.",
@@ -944,27 +947,35 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
             )
             variants.append(resp.choices[0].message.content.strip())
 
-    # Combo magic ✨ (auto mixes modes for advanced results)
+   # Combo magic ✨ (auto mixes modes for advanced results)
+    SYSTEM_COMBO_GUARDRAIL = (
+        CAPTION_ONLY_GUARDRAIL +
+        " Rewrite captions in blocks separated by blank lines. "
+        "Keep the same number of blocks. "
+        "Assume shared context across captions and avoid repeating the same location "
+        "or proper noun in every block unless it adds meaning."
+    )
+
     if modes.get("rewrite") and modes.get("punchy"):
         r = client.chat.completions.create(
-                model=TEXT_MODEL,
-                messages=[
-                    {"role": "system", "content": CAPTION_ONLY_GUARDRAIL},
-                    {"role": "user", "content": f"Rewrite punchy + clear:\n{base}"}
-                ]
-            )
-
+            model=TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_COMBO_GUARDRAIL},
+                {"role": "user", "content": f"Rewrite punchy + clear:\n{base}"}
+            ]
+        )
         variants.append(r.choices[0].message.content.strip())
 
     if modes.get("rewrite") and modes.get("story"):
         r = client.chat.completions.create(
             model=TEXT_MODEL,
             messages=[
-                {"role": "system", "content": CAPTION_ONLY_GUARDRAIL},
+                {"role": "system", "content": SYSTEM_COMBO_GUARDRAIL},
                 {"role": "user", "content": f"Rewrite storytelling + smooth:\n{base}"}
             ]
         )
         variants.append(r.choices[0].message.content.strip())
+
 
 
     final_variants = variants[:7]
