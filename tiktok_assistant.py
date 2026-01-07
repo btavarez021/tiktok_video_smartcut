@@ -545,6 +545,7 @@ STRICT RULES:
 - No hashtags
 - No quotes
 - DO NOT modify cta.text
+- If a location or hotel name is already established, do NOT repeat it in every captionunless it adds new meaning
 
 Overlay style: {style}
 Instructions: {_style_instructions(style)}

@@ -946,7 +946,7 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
         "rewrite":     "Rewrite captions clean and natural.",
         "hook":        "Improve opening hook only, keep rest similar.",
         "punchy":      "Rewrite punchy, energetic TikTok creator style.",
-        "story":       "Rewrite more storytelling, emotional progress.",
+        "story":       "Rewrite more storytelling, emotional progress. Assume the viewer understands the location after the first caption.",
         "influencer":  "Rewrite as confident influencer talking to camera.",
     }
 
@@ -958,7 +958,8 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
             resp = client.chat.completions.create(
                 model=TEXT_MODEL,
                 messages=[
-                    {"role": "system", "content": "Rewrite captions in blocks separated by blank lines. Keep same number of blocks."},
+                    {"role": "system", "content": "Rewrite captions in blocks separated by blank lines. Keep same number of blocks."
+                    "Assume shared context accross captions and avoid repeating the same location or proper noun in every block unless it adds meaning."},
                     {"role": "user", "content": f"Original:\n{base}\n\nRewrite style: {style_prompts[style]}"},
                 ]
             )
