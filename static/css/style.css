@@ -2147,3 +2147,15 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   margin-bottom: 6px;
   font-style: italic;
 }
+
+.inline-status {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.inline-status.success { color: #22c55e; }
+.inline-status.error { color: #ef4444; }
+.inline-status.loading { color: #60a5fa; }
+
+.hidden { display: none; }

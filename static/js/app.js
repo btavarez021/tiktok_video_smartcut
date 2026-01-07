@@ -11,6 +11,15 @@ let ACTIVE_EXPORT_TASK = null;
 
 let suppressNextPreview = false;
 
+function setVariantsStatus(message, state = "loading") {
+  const el = document.getElementById("variantsInlineStatus");
+  if (!el) return;
+
+  el.textContent = message;
+  el.className = `inline-status ${state}`;
+  el.classList.remove("hidden");
+}
+
 
 function flashElement(el) {
   if (!el) return;
@@ -1154,6 +1163,8 @@ async function improveHook() {
 }
 
 async function generateCaptionVariants() {
+    const btn = document.getElementById("generateVariantsBtn");
+
     const modes = {
         rewrite: document.getElementById("mode_rewrite").checked,
         hook: document.getElementById("mode_hook").checked,
@@ -1163,34 +1174,65 @@ async function generateCaptionVariants() {
     };
 
     const session = getActiveSession();
-    const res = await fetch("/api/variants", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ session, modes })
-    });
 
-    const data = await res.json();
-    const box = document.getElementById("variantsOutput");
-    box.innerHTML = "";
+    // 🔔 Immediate feedback
+    setVariantsStatus("Generating caption variants…", "loading");
 
-    data.variants.forEach((variant, i) => {
-    const text = variant.text || "";
-    const tone = variant.tone || "";
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Generating…";
+    }
 
-    box.innerHTML += `
-    <div class="variantCard">
-        <h4>Version ${i + 1}</h4>
+    try {
+        const res = await fetch("/api/variants", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session, modes })
+        });
 
-        ${tone ? `<div class="variantTone">${tone}</div>` : ""}
+        if (!res.ok) {
+            throw new Error("Variant generation failed");
+        }
 
-        <pre style="white-space:pre-wrap">${text}</pre>
+        const data = await res.json();
 
-        <button onclick="applyCaptionVariant(\`${text.replace(/`/g, "\\`")}\`)">
-            Use This
-        </button>
-    </div>`;
-});
+        const box = document.getElementById("variantsOutput");
+        box.innerHTML = "";
 
+        data.variants.forEach((variant, i) => {
+            const text = variant.text || "";
+            const tone = variant.tone || "";
+
+            box.innerHTML += `
+                <div class="variantCard">
+                    <h4>Version ${i + 1}</h4>
+                    ${tone ? `<div class="variantTone">${tone}</div>` : ""}
+                    <pre style="white-space:pre-wrap">${text}</pre>
+                    <button onclick="applyCaptionVariant(\`${text.replace(/`/g, "\\`")}\`)">
+                        Use This
+                    </button>
+                </div>`;
+        });
+
+        // ✅ Success feedback AFTER render
+        setVariantsStatus("Variants generated ✓", "success");
+
+        // Optional auto-hide
+        setTimeout(() => {
+            document
+                .getElementById("variantsInlineStatus")
+                ?.classList.add("hidden");
+        }, 2000);
+
+    } catch (err) {
+        console.error(err);
+        setVariantsStatus("Failed to generate variants", "error");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = "⚡ Generate Caption Variants";
+        }
+    }
 }
 
 // =============================================
