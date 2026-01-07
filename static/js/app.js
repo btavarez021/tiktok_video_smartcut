@@ -1167,14 +1167,24 @@ async function generateCaptionVariants() {
     const box = document.getElementById("variantsOutput");
     box.innerHTML = "";
 
-    data.variants.forEach((text, i) => {
-        box.innerHTML += `
-        <div class="variantCard">
-            <h4>Version ${i+1}</h4>
-            <pre style="white-space:pre-wrap">${text}</pre>
-            <button onclick="applyCaptionVariant(\`${text.replace(/`/g,'\\`')}\`)">Use This</button>
-        </div>`;
-    });
+    data.variants.forEach((variant, i) => {
+    const text = variant.text || "";
+    const tone = variant.tone || "";
+
+    box.innerHTML += `
+    <div class="variantCard">
+        <h4>Version ${i + 1}</h4>
+
+        ${tone ? `<div class="variantTone">${tone}</div>` : ""}
+
+        <pre style="white-space:pre-wrap">${text}</pre>
+
+        <button onclick="applyCaptionVariant(\`${text.replace(/`/g, "\\`")}\`)">
+            Use This
+        </button>
+    </div>`;
+});
+
 }
 
 // =============================================

@@ -53,6 +53,11 @@ export_tasks = {}
 #     "cancel_requested": False,
 # }
 
+CAPTION_ONLY_GUARDRAIL = (
+    "Output ONLY caption text. "
+    "Do NOT include explanations, introductions, headings, labels, or assistant commentary. "
+    "Do NOT say things like 'Here is', 'Sure', or 'Let me know'."
+)
 
 
 # -------------------------------
@@ -942,6 +947,16 @@ def normalize_location_repetition(captions: list[str]) -> list[str]:
 
     return cleaned
 
+TONE_LABELS_BY_INDEX = {
+    0: "Original · Reference",
+    1: "Standard · Clean Rewrite",
+    2: "Hook-Optimized · Scroll Stopper",
+    3: "Punchy · TikTok / Reels",
+    4: "Storytelling · Voiceover",
+    5: "Influencer · Creator Style",
+    6: "Minimal · Luxury Aesthetic",
+}
+
 
 # ============================================================
 # Caption Variants Generator  🔥 (Rewrite / Punchy / Story etc.)
@@ -985,29 +1000,60 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
             resp = client.chat.completions.create(
                 model=TEXT_MODEL,
                 messages=[
-                    {"role": "system", "content": "Rewrite captions in blocks separated by blank lines. Keep same number of blocks."
-                    "Assume shared context accross captions and avoid repeating the same location or proper noun in every block unless it adds meaning."},
-                    {"role": "user", "content": f"Original:\n{base}\n\nRewrite style: {style_prompts[style]}"},
-                ]
+                            {
+                                "role": "system",
+                                "content": (
+                                    CAPTION_ONLY_GUARDRAIL +
+                                    " Rewrite captions in blocks separated by blank lines. "
+                                    "Keep the same number of blocks. "
+                                    "Assume shared context across captions and avoid repeating the same location "
+                                    "or proper noun in every block unless it adds meaning."
+                                )
+                            },
+                            {
+                                "role": "user",
+                                "content": f"Original:\n{base}\n\nRewrite style: {style_prompts[style]}"
+                            },
+                        ]
+
             )
             variants.append(resp.choices[0].message.content.strip())
 
     # Combo magic ✨ (auto mixes modes for advanced results)
     if modes.get("rewrite") and modes.get("punchy"):
         r = client.chat.completions.create(
-            model=TEXT_MODEL,
-            messages=[{"role": "user", "content": f"Rewrite punchy + clear:\n{base}"}]
-        )
+                model=TEXT_MODEL,
+                messages=[
+                    {"role": "system", "content": CAPTION_ONLY_GUARDRAIL},
+                    {"role": "user", "content": f"Rewrite punchy + clear:\n{base}"}
+                ]
+            )
+
         variants.append(r.choices[0].message.content.strip())
 
     if modes.get("rewrite") and modes.get("story"):
         r = client.chat.completions.create(
             model=TEXT_MODEL,
-            messages=[{"role": "user", "content": f"Rewrite storytelling + smooth:\n{base}"}]
+            messages=[
+                {"role": "system", "content": CAPTION_ONLY_GUARDRAIL},
+                {"role": "user", "content": f"Rewrite storytelling + smooth:\n{base}"}
+            ]
         )
         variants.append(r.choices[0].message.content.strip())
 
-    return {"variants": variants[:7]}  # max 7 to keep UI manageable
+
+    final_variants = variants[:7]
+
+    return {
+        "variants": [
+            {
+                "text": v,
+                "tone": TONE_LABELS_BY_INDEX.get(i, "Standard")
+            }
+            for i, v in enumerate(final_variants)
+        ]
+    }
+
 
 
 
