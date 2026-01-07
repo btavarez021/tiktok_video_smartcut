@@ -938,9 +938,10 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
                 system_prompt += (
                     " Minimal luxury captions. "
                     "Assume the hotel name is already established in context. "
-                    "DO NOT repeat the hotel or brand name in individual captions. "
+                    "DO NOT include the hotel or brand name in ANY caption. "
                     "Use short, elegant phrases. No emojis. No hashtags."
                 )
+
 
 
             resp = client.chat.completions.create(

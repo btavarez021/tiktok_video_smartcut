@@ -276,13 +276,14 @@ def route_save_yaml_route():
 @app.route("/api/captions/from_filenames", methods=["POST"])
 def captions_from_filenames():
     data = request.get_json() or {}
-    session = sanitize_session(data.get("session"))
 
+    session = sanitize_session(data.get("session"))
     if not session:
         return jsonify({"error": "Missing session"}), 400
 
     apply_filename_captions(session)
     return jsonify({"status": "ok"})
+
 
 
 

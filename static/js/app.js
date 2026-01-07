@@ -1514,6 +1514,12 @@ async function saveCaptions() {
 }
 
 async function regenerateCaptionsFromClips() {
+
+    // 🔒 Force-save all visible labels first
+    document.querySelectorAll(".clip-label-input").forEach(input => {
+    input.blur(); // triggers saveClipLabel
+    });
+
   const captionsEl = document.getElementById("captionsText");
   if (!captionsEl) return;
 
@@ -2588,8 +2594,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // YAML + analyses
     refreshAnalyses();
-    loadConfigAndYaml();
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml();   // 🔥 ADD THIS
     loadLayoutFromYaml();
+
 
     // Load caption + rewrite mode from YAML/session
     loadCaptionMode();
