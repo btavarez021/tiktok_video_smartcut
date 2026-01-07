@@ -1023,13 +1023,26 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
     }
 
 
+
 def api_save_captions(text: str, session: str) -> Dict[str, Any]:
     try:
         session = sanitize_session(session)
         config_path = get_config_path(session)
 
-        with open(config_path, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
+        # ✅ Ensure config directory exists
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+
+        # ✅ Load existing config OR create a minimal one
+        if os.path.exists(config_path):
+            with open(config_path, "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+        else:
+            cfg = {
+                "first_clip": {},
+                "middle_clips": [],
+                "last_clip": {},
+                "render": {}
+            }
 
         # 🔥 Robust block split
         blocks = [
@@ -1070,6 +1083,7 @@ def api_save_captions(text: str, session: str) -> Dict[str, Any]:
     except Exception as e:
         log_error("[CAPTIONS]", e)
         return {"status": "error", "error": str(e)}
+
 
 
 # -------------------------------
