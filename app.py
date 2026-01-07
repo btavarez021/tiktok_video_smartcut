@@ -26,7 +26,6 @@ from assistant_api import (
     api_set_cta,
     api_apply_overlay,
     api_save_captions,
-    api_get_captions,
     api_apply_timings,
     api_fgscale,
     api_chat,
@@ -300,12 +299,6 @@ def route_variants():
 
     from assistant_api import api_generate_variants
     return jsonify(api_generate_variants(session, modes))
-
-
-@app.route("/api/get_captions", methods=["GET"])
-def route_get_captions():
-    return jsonify(api_get_captions())
-
 
 @app.route("/api/save_captions", methods=["POST"])
 def route_save_captions():
