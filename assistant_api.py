@@ -872,24 +872,13 @@ def normalize_location_repetition(captions: list[str]) -> list[str]:
 
     return cleaned
 
-TONE_LABELS_BY_INDEX = {
-    0: "Original · Reference",
-    1: "Standard · Clean Rewrite",
-    2: "Hook-Optimized · Scroll Stopper",
-    3: "Punchy · TikTok / Reels",
-    4: "Storytelling · Voiceover",
-    5: "Influencer · Creator Style",
-    6: "Minimal · Luxury Aesthetic (brand implied)",
-}
-
-# ============================================================
-# Caption Variants Generator  🔥 (Rewrite / Punchy / Story etc.)
-# ============================================================
 def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
     session = sanitize_session(session)
     cfg = _load_config(session)
 
-    # Collect captions from YAML (same approach as save/load)
+    # --------------------------------------------------
+    # Collect captions from YAML
+    # --------------------------------------------------
     captions = []
 
     if cfg.get("first_clip", {}).get("text"):
@@ -906,110 +895,138 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
     base = "\n\n".join(captions).strip()
 
     if not base:
-        return {"variants": ["⚠ No captions found in YAML. Generate or import captions first."]}
+        return {
+            "variants": [{
+                "text": "⚠ No captions found in YAML. Generate or import captions first.",
+                "tone": "Error"
+            }]
+        }
+
+    # --------------------------------------------------
+    # Tone labels (authoritative)
+    # --------------------------------------------------
+    STYLE_TONE_LABELS = {
+        "rewrite": "Standard · Clean Rewrite",
+        "hook": "Hook-Optimized · Scroll Stopper",
+        "punchy": "Punchy · TikTok / Reels",
+        "story": "Storytelling · Voiceover",
+        "influencer": "Influencer · Creator Style",
+        "minimal": "Minimal · Luxury Aesthetic (brand implied)",
+    }
 
     style_prompts = {
-        "rewrite":     "Rewrite captions clean and natural.",
+        "rewrite": "Rewrite captions clean and natural.",
         "hook": (
             "Improve ONLY the first caption as a scroll-stopping hook. "
             "Do NOT rewrite the other captions except for capitalization or punctuation fixes."
         ),
-        "punchy":      "Rewrite punchy, energetic TikTok creator style.",
-        "story":       "Rewrite more storytelling, emotional progress. Assume the viewer understands the location after the first caption.",
-        "influencer":  "Rewrite as confident influencer talking to camera.",
-        "minimal":     "Rewrite in minimal luxury style."
+        "punchy": "Rewrite punchy, energetic TikTok creator style.",
+        "story": (
+            "Rewrite with storytelling and emotional progression. "
+            "Assume the viewer understands the location after the first caption."
+        ),
+        "influencer": "Rewrite as a confident influencer speaking to camera.",
+        "minimal": "Rewrite in minimal luxury style."
     }
 
+    # If nothing selected, return empty list
+    if not any(modes.values()):
+        return {"variants": []}
 
-    variants = [base]  # original included for reference
+    variants: List[Dict[str, str]] = []
 
-    # Generate one variant per checked mode
-    for style, enabled in modes.items():
-        if enabled and style in style_prompts:
-
-            system_prompt = (
-                CAPTION_ONLY_GUARDRAIL +
-                " Rewrite captions in blocks separated by blank lines. "
-                "Keep the same number of blocks. "
-                "Assume shared context across captions and avoid repeating the same location "
-                "or proper noun in every block unless it adds meaning."
-            )
-
-            if style == "minimal":
-                system_prompt += (
-                    " Minimal luxury captions. "
-                    "Assume the hotel name is already established in context. "
-                    "DO NOT include or repeat the hotel or brand name in ANY caption. "
-                    "CRITICAL FORMAT RULES: "
-                    "- Output MUST contain the SAME number of caption blocks as the input. "
-                    "- Each caption MUST be on its own line block separated by EXACTLY ONE blank line. "
-                    "- Do NOT merge captions into a single paragraph. "
-                    "- Each caption should be 3–7 words maximum. "
-                    "- Use editorial, high-end luxury tone. "
-                    "- No emojis. No hashtags. No full sentences."
-                )
-
-
-
-
-            resp = client.chat.completions.create(
-                model=TEXT_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": f"Original:\n{base}\n\nRewrite style: {style_prompts[style]}"
-                    },
-                ]
-            )
-
-            variants.append(resp.choices[0].message.content.strip())
-
-
-   # Combo magic ✨ (auto mixes modes for advanced results)
-    SYSTEM_COMBO_GUARDRAIL = (
+    # --------------------------------------------------
+    # Base system guardrail (used everywhere)
+    # --------------------------------------------------
+    BASE_SYSTEM_PROMPT = (
         CAPTION_ONLY_GUARDRAIL +
         " Rewrite captions in blocks separated by blank lines. "
-        "Keep the same number of blocks. "
-        "Assume shared context across captions and avoid repeating the same location "
-        "or proper noun in every block unless it adds meaning."
+        "Keep the SAME number of caption blocks as the input. "
+        "Do NOT merge captions into one paragraph."
     )
 
+    # --------------------------------------------------
+    # Generate variants per selected mode
+    # --------------------------------------------------
+    for style, enabled in modes.items():
+        if not enabled or style not in style_prompts:
+            continue
+
+        system_prompt = BASE_SYSTEM_PROMPT
+
+        if style == "minimal":
+            system_prompt += (
+                " Minimal luxury captions. "
+                "Assume the hotel name is already established in context. "
+                "DO NOT include or repeat the hotel or brand name. "
+                "CRITICAL FORMAT RULES: "
+                "- Each caption must be its own block separated by ONE blank line. "
+                "- 3–7 words per caption. "
+                "- Editorial, high-end luxury tone. "
+                "- No emojis. No hashtags. No full sentences."
+            )
+
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": f"{style_prompts[style]}\n\n{base}"
+                },
+            ],
+            temperature=0.6,
+        )
+
+        variants.append({
+            "text": resp.choices[0].message.content.strip(),
+            "tone": STYLE_TONE_LABELS.get(style, style),
+        })
+
+    # --------------------------------------------------
+    # Combo variants (optional enhancement)
+    # --------------------------------------------------
+    COMBO_SYSTEM_PROMPT = (
+        CAPTION_ONLY_GUARDRAIL +
+        " Rewrite captions in blocks separated by blank lines. "
+        "Keep the SAME number of caption blocks. "
+        "Assume shared context across captions and avoid repeating location names."
+    )
 
     if modes.get("rewrite") and modes.get("punchy"):
         r = client.chat.completions.create(
             model=TEXT_MODEL,
             messages=[
-                {"role": "system", "content": SYSTEM_COMBO_GUARDRAIL},
-                {"role": "user", "content": f"Rewrite punchy + clear:\n{base}"}
-            ]
+                {"role": "system", "content": COMBO_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Rewrite punchy + clear:\n\n{base}"}
+            ],
+            temperature=0.6,
         )
-        variants.append(r.choices[0].message.content.strip())
+        variants.append({
+            "text": r.choices[0].message.content.strip(),
+            "tone": "Rewrite + Punchy",
+        })
 
     if modes.get("rewrite") and modes.get("story"):
         r = client.chat.completions.create(
             model=TEXT_MODEL,
             messages=[
-                {"role": "system", "content": SYSTEM_COMBO_GUARDRAIL},
-                {"role": "user", "content": f"Rewrite storytelling + smooth:\n{base}"}
-            ]
+                {"role": "system", "content": COMBO_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Rewrite storytelling + smooth:\n\n{base}"}
+            ],
+            temperature=0.6,
         )
-        variants.append(r.choices[0].message.content.strip())
+        variants.append({
+            "text": r.choices[0].message.content.strip(),
+            "tone": "Rewrite + Story",
+        })
 
-
-
-    final_variants = variants[:7]
-
+    # --------------------------------------------------
+    # Cap to UI max (defensive)
+    # --------------------------------------------------
     return {
-        "variants": [
-            {
-                "text": v,
-                "tone": TONE_LABELS_BY_INDEX.get(i, "Standard")
-            }
-            for i, v in enumerate(final_variants)
-        ]
+        "variants": variants[:7]
     }
-
 
 
 def api_save_captions(text: str, session: str) -> Dict[str, Any]:
