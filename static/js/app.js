@@ -1271,58 +1271,53 @@ async function refreshOverlayPreview() {
 // Apply selected generated caption variant
 // =============================================
 async function applyCaptionVariant(text) {
-    const session = getActiveSession();
-    const el = document.getElementById("captionsText");
-    if (!el) return;
+  const session = getActiveSession();
+  const el = document.getElementById("captionsText");
+  if (!el) return;
 
-    // 🔑 Capture original BEFORE overwrite
-    const originalText = el.value;
-    const originalCount = countBlocks(originalText);
-    const newCount = countBlocks(text);
+  const originalText = el.value;
+  const originalCount = countBlocks(originalText);
+  const newCount = countBlocks(text);
 
-    // Populate comparison preview
-    document.getElementById("compareOld").textContent = originalText;
-    document.getElementById("compareNew").textContent = text;
+  // Populate comparison
+  document.getElementById("compareOld").textContent = originalText;
+  document.getElementById("compareNew").textContent = text;
+  toggleCaptionCompare(true);
 
-    // Auto-expand comparison
-    toggleCaptionCompare(true);
+  // Apply
+  el.value = text;
 
-    // Apply new captions
-    el.value = text;
+  if (originalCount !== newCount) {
+    setStatus(
+      "captionsStatus",
+      `⚠ Caption count mismatch (${originalCount} → ${newCount}). Review before saving.`,
+      "warning"
+    );
+    return;
+  }
 
-    // Warn on mismatch
-    if (originalCount !== newCount) {
-        setStatus(
-            "captionsStatus",
-            `⚠ Caption count mismatch (${originalCount} → ${newCount}). Review before saving.`,
-            "warning"
-        );
-        return; // ⛔ do not auto-save
-    }
+  try {
+    const res = await fetch("/api/save_captions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session, text })
+    });
 
-    try {
-        // Save captions
-        const res = await fetch("/api/save_captions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ session, text })
-        });
+    if (!res.ok) throw new Error("Failed to save captions");
 
-        if (!res.ok) throw new Error("Failed to save captions");
+    lastSavedCaptionsText = text; // 🔑 CRITICAL FIX
 
-        // Refresh everything
-        await loadCaptionsFromYaml();      // keeps YAML + textarea synced
-        await refreshOverlayPreview();     // Step 4 iPhone mock
+    await loadCaptionsFromYaml();
+    await refreshOverlayPreview();
+    refreshHookScore();
+    refreshStoryFlowScore();
 
-        refreshHookScore();
-        refreshStoryFlowScore();
+    setStatus("captionsStatus", "Caption applied ✓", "success");
 
-        setStatus("captionsStatus", "Caption applied ✓", "success");
-
-    } catch (err) {
-        console.error(err);
-        setStatus("captionsStatus", "Failed to apply caption", "error");
-    }
+  } catch (err) {
+    console.error(err);
+    setStatus("captionsStatus", "Failed to apply caption", "error");
+  }
 }
 
 
@@ -1490,7 +1485,6 @@ async function loadCaptionsFromYaml({ preserveSource = false } = {}) {
 
         // ✅ REGISTER BASELINE (THIS FIXES THE BUG)
         lastSavedCaptionsText = next;
-        clearCaptionComparison();
 
         updateRewriteModeAvailability();
         await refreshHookScore();
@@ -2804,10 +2798,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     document
         .getElementById("applyCinematicTimingBtn")
         ?.addEventListener("click", () => applyTiming(true));
-
-    document.getElementById("captionsText")?.addEventListener("input", () => {
-    clearCaptionComparison();
-    });
 
     document.getElementById("saveOverlayStyle")?.addEventListener("click", async () => {
     const style = document.getElementById("overlayStyle")?.value || "default";
