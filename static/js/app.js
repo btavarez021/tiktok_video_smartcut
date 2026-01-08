@@ -50,6 +50,24 @@ function setCaptionSource(type, text, noChange = false) {
   }
 }
 
+function toggleCaptionCompare(forceOpen = false) {
+    const body = document.getElementById("captionCompareBody");
+    const chevron = document.getElementById("compareChevron");
+
+    if (!body) return;
+
+    const isHidden = body.classList.contains("hidden");
+
+    if (forceOpen || isHidden) {
+        body.classList.remove("hidden");
+        chevron.textContent = "▾";
+    } else {
+        body.classList.add("hidden");
+        chevron.textContent = "▸";
+    }
+}
+
+
 function setCaptionInlineStatus(text, type = "info") {
   const el = document.getElementById("captionInlineStatus");
   if (!el) return;
@@ -1273,54 +1291,70 @@ function showCaptionDiff(oldText, newText) {
 }
 
 
+// ==============================
+// Helper: count caption blocks
+// ==============================
+function countBlocks(text) {
+    if (!text) return 0;
+    return text.split(/\n\s*\n/).filter(Boolean).length;
+}
+
 // =============================================
 // Apply selected generated caption variant
 // =============================================
 async function applyCaptionVariant(text) {
-  const session = getActiveSession();
-  const el = document.getElementById("captionsText");
-  if (!el) return;
+    const session = getActiveSession();
+    const el = document.getElementById("captionsText");
+    if (!el) return;
 
-  const originalText = el.value;
+    // 🔑 Capture original BEFORE overwrite
+    const originalText = el.value;
+    const originalCount = countBlocks(originalText);
+    const newCount = countBlocks(text);
 
-  // 1️⃣ Show diff preview
-  const safeToApply = showCaptionDiff(originalText, text);
+    // Populate comparison preview
+    document.getElementById("compareOld").textContent = originalText;
+    document.getElementById("compareNew").textContent = text;
 
-  // 2️⃣ Update textarea visually
-  el.value = text;
+    // Auto-expand comparison
+    toggleCaptionCompare(true);
 
-  // 3️⃣ If structure changed → STOP
-  if (!safeToApply) {
-    setStatus(
-      "captionsStatus",
-      "⚠ Caption structure changed — review before saving",
-      "warning"
-    );
-    return;
-  }
+    // Apply new captions
+    el.value = text;
 
-  try {
-    // 4️⃣ Save captions
-    const res = await fetch("/api/save_captions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session, text })
-    });
+    // Warn on mismatch
+    if (originalCount !== newCount) {
+        setStatus(
+            "captionsStatus",
+            `⚠ Caption count mismatch (${originalCount} → ${newCount}). Review before saving.`,
+            "warning"
+        );
+        return; // ⛔ do not auto-save
+    }
 
-    if (!res.ok) throw new Error("Save failed");
+    try {
+        // Save captions
+        const res = await fetch("/api/save_captions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session, text })
+        });
 
-    // 5️⃣ Refresh dependent UI
-    refreshHookScore();
-    refreshStoryFlowScore();
-    await refreshOverlayPreview();
-    loadCaptionsFromYaml();
+        if (!res.ok) throw new Error("Failed to save captions");
 
-    setStatus("captionsStatus", "Caption applied ✓", "success");
+        // Refresh everything
+        await loadCaptionsFromYaml();      // keeps YAML + textarea synced
+        await refreshOverlayPreview();     // Step 4 iPhone mock
 
-  } catch (err) {
-    console.error(err);
-    setStatus("captionsStatus", "Failed to apply caption", "error");
-  }
+        refreshHookScore();
+        refreshStoryFlowScore();
+
+        setStatus("captionsStatus", "Caption applied ✓", "success");
+
+    } catch (err) {
+        console.error(err);
+        setStatus("captionsStatus", "Failed to apply caption", "error");
+    }
 }
 
 
@@ -2792,6 +2826,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 🔥 Preview immediately
     await previewOverlay("fast");
     });
+
+    document.getElementById("captionsText")?.addEventListener("input", () => {
+    document.getElementById("compareOld").textContent = lastSavedCaptionsText || "";
+    document.getElementById("compareNew").textContent =
+        document.getElementById("captionsText").value;
+
+    toggleCaptionCompare(true);
+});
+
 
 
 

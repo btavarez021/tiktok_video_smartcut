@@ -304,12 +304,6 @@
                     </div>
                 </section>
 
-                <!-- ================================
-                    // STEP 4 = PRESENTATION & STYLE
-                    // Visual preview only — no content mutation unless Apply is clicked
-
-                ================================== -->
-
                 <section class="card step-card" id="step-3">
                     <div class="card-header">
                         <div class="session-tag active-session-tag"> Session: <span class="sessionLabel"></span></div>
@@ -385,6 +379,27 @@
                             class="caption-inline-status hidden">
                         </div>
 
+                        <div id="captionCompareWrapper" class="collapsed">
+
+                        <div class="compareHeader" onclick="toggleCaptionCompare()">
+                            <span>Caption Comparison</span>
+                            <span id="compareChevron">▸</span>
+                        </div>
+
+                        <div id="captionCompareBody" class="compareBody hidden">
+                            <div class="compareColumn">
+                            <h4>Current</h4>
+                            <pre id="compareOld"></pre>
+                            </div>
+
+                            <div class="compareColumn">
+                            <h4>New</h4>
+                            <pre id="compareNew"></pre>
+                            </div>
+                        </div>
+
+                        </div>
+
                         <!-- =========================================================
                             Caption Generation Modes — INSERT BELOW CAPTION TEXT AREA
                         ============================================================= -->
@@ -419,33 +434,6 @@
                             <div id="variantsOutput" class="variants-output"></div>
                         </div>
                         <!-- ======================================================= -->
-
-                        <!-- ========================= -->
-                        <!-- Caption Diff Preview -->
-                        <!-- ========================= -->
-                        <div id="captionDiffPanel" class="hidden">
-                        <h4>🔍 Caption Changes Preview</h4>
-                        <p class="muted">
-                            Review what will change before captions are applied.
-                        </p>
-
-                        <div class="captionDiffGrid">
-                            <div>
-                            <h5>Current Captions</h5>
-                            <pre id="captionDiffOld"></pre>
-                            </div>
-
-                            <div>
-                            <h5>New Captions</h5>
-                            <pre id="captionDiffNew"></pre>
-                            </div>
-                        </div>
-
-                        <div id="captionDiffWarning" class="warning hidden">
-                            ⚠ Caption count mismatch — review before saving
-                        </div>
-                        </div>
-
 
                         <hr class="soft-divider" style="margin: 16px 0;" />
 

@@ -2177,3 +2177,15 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   margin-top: 12px;
   color: #f59e0b;
 }
+
+.compareBody.hidden {
+    display: none;
+}
+
+.compareHeader {
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
