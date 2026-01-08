@@ -743,7 +743,7 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
             label = labels_map.get(fname)
 
             if label:
-                desc = f"{analysis}. User intent: {label}"
+                desc = f"{analysis}\nINTENT: {label}\n"
             else:
                 desc = analysis
 
