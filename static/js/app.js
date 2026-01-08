@@ -1473,41 +1473,43 @@ function buildCaptionsFromConfig(cfg) {
 }
 
 async function loadCaptionsFromYaml({ preserveSource = false } = {}) {
-  const captionsEl = document.getElementById("captionsText");
-  if (!captionsEl) return;
+    const captionsEl = document.getElementById("captionsText");
+    if (!captionsEl) return;
 
-  setCaptionInlineStatus("Loading captions from YAML…", "info");
+    setCaptionInlineStatus("Loading captions from YAML…", "info");
 
-  try {
-    const session = encodeURIComponent(getActiveSession());
-    const data = await jsonFetch(`/api/config?session=${session}`);
-    const cfg = data.config || {};
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        const cfg = data.config || {};
 
-    const before = captionsEl.value.trim();
-    const next = buildCaptionsFromConfig(cfg).trim();
+        const before = captionsEl.value.trim();
+        const next = buildCaptionsFromConfig(cfg).trim();
 
-    lastSavedCaptionsText = next;
+        captionsEl.value = next;
 
-    captionsEl.value = next;
+        // ✅ REGISTER BASELINE (THIS FIXES THE BUG)
+        lastSavedCaptionsText = next;
+        clearCaptionComparison();
 
-    updateRewriteModeAvailability();
-    await refreshHookScore();
-    await refreshStoryFlowScore();
+        updateRewriteModeAvailability();
+        await refreshHookScore();
+        await refreshStoryFlowScore();
 
-    if (before === next) {
-      setCaptionSource("yaml", "🔵 SOURCE: YAML", true);
-      setCaptionInlineStatus("Captions already up to date", "info");
-    } else {
-      setCaptionSource("yaml", "🔵 SOURCE: YAML");
-      setCaptionInlineStatus("Captions loaded from YAML", "success");
-      flashElement(captionsEl);
+        if (before === next) {
+            setCaptionSource("yaml", "🔵 SOURCE: YAML", true);
+            setCaptionInlineStatus("Captions already up to date", "info");
+        } else {
+            setCaptionSource("yaml", "🔵 SOURCE: YAML");
+            setCaptionInlineStatus("Captions loaded from YAML", "success");
+            flashElement(captionsEl);
+        }
+
+    } catch (err) {
+        console.error(err);
+        setCaptionInlineStatus("Failed to load captions", "error");
+        setCaptionSource("yaml", "⚠ SOURCE: YAML (failed)");
     }
-
-  } catch (err) {
-    console.error(err);
-    setCaptionInlineStatus("Failed to load captions", "error");
-    setCaptionSource("yaml", "⚠ SOURCE: YAML (failed)");
-  }
 }
 
 
@@ -1637,42 +1639,61 @@ async function saveCaptions() {
 }
 
 async function regenerateCaptionsFromClips() {
-
     // 🔒 Force-save all visible labels first
     document.querySelectorAll(".clip-label-input").forEach(i => i.blur());
 
+    const captionsEl = document.getElementById("captionsText");
+    if (!captionsEl) return;
 
-  const captionsEl = document.getElementById("captionsText");
-  if (!captionsEl) return;
+    if (captionsEl.value.trim()) {
+        const ok = confirm(
+            "This will overwrite your current captions using labels first, then filenames.\n\nContinue?"
+        );
+        if (!ok) return;
+    }
 
-  if (captionsEl.value.trim()) {
-    const ok = confirm(
-      "This will overwrite your current captions using labels first, then filenames.\n\nContinue?"
-    );
-    if (!ok) return;
-  }
-
-  // 🔔 Immediate intent
-  setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
-  setCaptionInlineStatus("Generating captions from filenames…", "info");
-
-  try {
-    await jsonFetch("/api/captions/from_filenames", {
-      method: "POST",
-      body: JSON.stringify({ session: getActiveSession() }),
-    });
-
-    // YAML is source of truth
-    await loadCaptionsFromYaml({ preserveSource: true });
-
+    // 🔔 Immediate intent
     setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
-    setCaptionInlineStatus("Captions generated from filenames", "success");
+    setCaptionInlineStatus("Generating captions from filenames…", "info");
 
-  } catch (err) {
-    console.error(err);
-    setCaptionInlineStatus("Failed to generate captions", "error");
-    setCaptionSource("filenames", "⚠ SOURCE: Filenames (failed)");
-  }
+    try {
+        // Backend updates config.yml
+        await jsonFetch("/api/captions/from_filenames", {
+            method: "POST",
+            body: JSON.stringify({ session: getActiveSession() }),
+        });
+
+        // ✅ NOW load from YAML (this sets baseline)
+        await loadCaptionsFromYaml({ preserveSource: true });
+
+        setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
+        setCaptionInlineStatus("Captions generated from filenames", "success");
+
+    } catch (err) {
+        console.error(err);
+        setCaptionInlineStatus("Failed to generate captions", "error");
+        setCaptionSource("filenames", "⚠ SOURCE: Filenames (failed)");
+    }
+}
+
+// =============================================
+// Clear caption comparison preview (Step 3)
+// =============================================
+function clearCaptionComparison() {
+    const wrapper = document.getElementById("captionCompareWrapper");
+    const body = document.getElementById("captionCompareBody");
+    const chevron = document.getElementById("compareChevron");
+
+    const oldEl = document.getElementById("compareOld");
+    const newEl = document.getElementById("compareNew");
+
+    if (oldEl) oldEl.textContent = "";
+    if (newEl) newEl.textContent = "";
+
+    if (body) body.classList.add("hidden");
+    if (wrapper) wrapper.classList.add("collapsed");
+
+    if (chevron) chevron.textContent = "▸";
 }
 
 
@@ -2783,6 +2804,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     document
         .getElementById("applyCinematicTimingBtn")
         ?.addEventListener("click", () => applyTiming(true));
+
+    document.getElementById("captionsText")?.addEventListener("input", () => {
+    clearCaptionComparison();
+    });
 
     document.getElementById("saveOverlayStyle")?.addEventListener("click", async () => {
     const style = document.getElementById("overlayStyle")?.value || "default";
