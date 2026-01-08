@@ -1308,7 +1308,9 @@ async function applyCaptionVariant(text) {
     lastSavedCaptionsText = text; // 🔑 CRITICAL FIX
 
     await loadCaptionsFromYaml();
+    await loadConfigAndYaml();
     await refreshOverlayPreview();
+    
     refreshHookScore();
     refreshStoryFlowScore();
 
