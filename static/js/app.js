@@ -11,6 +11,9 @@ let ACTIVE_EXPORT_TASK = null;
 
 let suppressNextPreview = false;
 
+let lastSavedCaptionsText = "";
+
+
 function setVariantsStatus(message, state = "loading") {
   const el = document.getElementById("variantsInlineStatus");
   if (!el) return;
@@ -1259,44 +1262,9 @@ async function generateCaptionVariants() {
     }
 }
 
-// ==============================
-// Helper: count caption blocks
-// ==============================
-function countBlocks(text) {
-    if (!text) return 0;
-    return text.split(/\n\s*\n/).filter(Boolean).length;
-}
-
-function showCaptionDiff(oldText, newText) {
-  const panel = document.getElementById("captionDiffPanel");
-  const oldBox = document.getElementById("captionDiffOld");
-  const newBox = document.getElementById("captionDiffNew");
-  const warning = document.getElementById("captionDiffWarning");
-
-  oldBox.textContent = oldText;
-  newBox.textContent = newText;
-
-  const oldCount = countBlocks(oldText);
-  const newCount = countBlocks(newText);
-
-  if (oldCount !== newCount) {
-    warning.classList.remove("hidden");
-  } else {
-    warning.classList.add("hidden");
-  }
-
-  panel.classList.remove("hidden");
-
-  return oldCount === newCount;
-}
-
-
-// ==============================
-// Helper: count caption blocks
-// ==============================
-function countBlocks(text) {
-    if (!text) return 0;
-    return text.split(/\n\s*\n/).filter(Boolean).length;
+// Alias used by caption system
+async function refreshOverlayPreview() {
+  return previewOverlay("fast");
 }
 
 // =============================================
@@ -1517,6 +1485,8 @@ async function loadCaptionsFromYaml({ preserveSource = false } = {}) {
 
     const before = captionsEl.value.trim();
     const next = buildCaptionsFromConfig(cfg).trim();
+
+    lastSavedCaptionsText = next;
 
     captionsEl.value = next;
 
