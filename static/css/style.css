@@ -2159,3 +2159,21 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 .inline-status.loading { color: #60a5fa; }
 
 .hidden { display: none; }
+
+.captionDiffGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.captionDiffGrid pre {
+  background: #111;
+  padding: 12px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+
+.warning {
+  margin-top: 12px;
+  color: #f59e0b;
+}

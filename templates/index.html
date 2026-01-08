@@ -420,6 +420,33 @@
                         </div>
                         <!-- ======================================================= -->
 
+                        <!-- ========================= -->
+                        <!-- Caption Diff Preview -->
+                        <!-- ========================= -->
+                        <div id="captionDiffPanel" class="hidden">
+                        <h4>🔍 Caption Changes Preview</h4>
+                        <p class="muted">
+                            Review what will change before captions are applied.
+                        </p>
+
+                        <div class="captionDiffGrid">
+                            <div>
+                            <h5>Current Captions</h5>
+                            <pre id="captionDiffOld"></pre>
+                            </div>
+
+                            <div>
+                            <h5>New Captions</h5>
+                            <pre id="captionDiffNew"></pre>
+                            </div>
+                        </div>
+
+                        <div id="captionDiffWarning" class="warning hidden">
+                            ⚠ Caption count mismatch — review before saving
+                        </div>
+                        </div>
+
+
                         <hr class="soft-divider" style="margin: 16px 0;" />
 
                         <!-- Hook Score -->
@@ -493,6 +520,7 @@
                         </div>
 
                         </div>
+                        
 
                         <div class="row row-align-center">
                             <button id="saveCaptionsBtn" class="btn secondary">💾 Save captions</button>

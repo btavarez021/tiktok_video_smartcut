@@ -20,6 +20,11 @@ function setVariantsStatus(message, state = "loading") {
   el.classList.remove("hidden");
 }
 
+function countBlocks(text) {
+  if (!text) return 0;
+  return text.split(/\n\s*\n/).filter(Boolean).length;
+}
+
 
 function flashElement(el) {
   if (!el) return;
@@ -1244,72 +1249,80 @@ function countBlocks(text) {
     return text.split(/\n\s*\n/).filter(Boolean).length;
 }
 
+function showCaptionDiff(oldText, newText) {
+  const panel = document.getElementById("captionDiffPanel");
+  const oldBox = document.getElementById("captionDiffOld");
+  const newBox = document.getElementById("captionDiffNew");
+  const warning = document.getElementById("captionDiffWarning");
+
+  oldBox.textContent = oldText;
+  newBox.textContent = newText;
+
+  const oldCount = countBlocks(oldText);
+  const newCount = countBlocks(newText);
+
+  if (oldCount !== newCount) {
+    warning.classList.remove("hidden");
+  } else {
+    warning.classList.add("hidden");
+  }
+
+  panel.classList.remove("hidden");
+
+  return oldCount === newCount;
+}
+
+
 // =============================================
 // Apply selected generated caption variant
 // =============================================
 async function applyCaptionVariant(text) {
-    const session = getActiveSession();
-    const el = document.getElementById("captionsText");
-    if (!el) return;
+  const session = getActiveSession();
+  const el = document.getElementById("captionsText");
+  if (!el) return;
 
-    // Capture original BEFORE overwrite
-    const originalText = el.value;
-    const originalCount = countBlocks(originalText);
-    const newCount = countBlocks(text);
+  const originalText = el.value;
 
-    // Apply new captions temporarily
-    el.value = text;
+  // 1️⃣ Show diff preview
+  const safeToApply = showCaptionDiff(originalText, text);
 
-    // 🚨 Structural safety check
-    if (originalCount !== newCount) {
-        // Revert textarea to last saved state
-        el.value = originalText;
+  // 2️⃣ Update textarea visually
+  el.value = text;
 
-        setStatus(
-            "captionsStatus",
-            `⚠ Caption count mismatch (${originalCount} → ${newCount}). Review before saving.`,
-            "warning"
-        );
-        return; // ⛔ do NOT auto-save
-    }
+  // 3️⃣ If structure changed → STOP
+  if (!safeToApply) {
+    setStatus(
+      "captionsStatus",
+      "⚠ Caption structure changed — review before saving",
+      "warning"
+    );
+    return;
+  }
 
-    try {
-        // 🔑 Save captions to backend
-        const res = await fetch("/api/save_captions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ session, text })
-        });
+  try {
+    // 4️⃣ Save captions
+    const res = await fetch("/api/save_captions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session, text })
+    });
 
-        if (!res.ok) {
-            throw new Error("Failed to save captions");
-        }
+    if (!res.ok) throw new Error("Save failed");
 
-        // 🔄 Refresh derived state
-        refreshHookScore();
-        refreshStoryFlowScore();
+    // 5️⃣ Refresh dependent UI
+    refreshHookScore();
+    refreshStoryFlowScore();
+    await refreshOverlayPreview();
+    loadCaptionsFromYaml();
 
-        // 📱 Refresh iPhone mock preview
-        await refreshOverlayPreview();
+    setStatus("captionsStatus", "Caption applied ✓", "success");
 
-        // 🔄 Sync YAML editor with backend
-        loadCaptionsFromYaml();
-
-        setStatus("captionsStatus", "Caption applied ✓", "success");
-
-    } catch (err) {
-        console.error(err);
-
-        // Revert on failure
-        el.value = originalText;
-
-        setStatus(
-            "captionsStatus",
-            "Failed to apply caption",
-            "error"
-        );
-    }
+  } catch (err) {
+    console.error(err);
+    setStatus("captionsStatus", "Failed to apply caption", "error");
+  }
 }
+
 
 // ================================
 // Step Enter Handler (Fix Missing Function)
