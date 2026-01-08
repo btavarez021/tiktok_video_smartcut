@@ -1310,7 +1310,7 @@ async function applyCaptionVariant(text) {
     await loadCaptionsFromYaml();
     await loadConfigAndYaml();
     await refreshOverlayPreview();
-    
+
     refreshHookScore();
     refreshStoryFlowScore();
 
@@ -1661,6 +1661,14 @@ async function regenerateCaptionsFromClips() {
 
         // ✅ NOW load from YAML (this sets baseline)
         await loadCaptionsFromYaml({ preserveSource: true });
+
+        flashElement(captionsEl);
+        setStatus(
+        "captionsStatus",
+        "Captions regenerated from clips — previous captions replaced",
+        "info"
+        );
+
 
         setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
         setCaptionInlineStatus("Captions generated from filenames", "success");
