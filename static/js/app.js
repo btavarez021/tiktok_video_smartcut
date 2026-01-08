@@ -1257,13 +1257,14 @@ async function applyCaptionVariant(text) {
     const originalCount = countBlocks(originalText);
     const newCount = countBlocks(text);
 
-    // Apply new captions
+    // Apply new captions temporarily
     el.value = text;
 
-    // Warn user if structure changed
-    const mismatch = originalCount !== newCount;
+    // 🚨 Structural safety check
+    if (originalCount !== newCount) {
+        // Revert textarea to last saved state
+        el.value = originalText;
 
-    if (mismatch) {
         setStatus(
             "captionsStatus",
             `⚠ Caption count mismatch (${originalCount} → ${newCount}). Review before saving.`,
@@ -1273,7 +1274,7 @@ async function applyCaptionVariant(text) {
     }
 
     try {
-        // Save captions to backend
+        // 🔑 Save captions to backend
         const res = await fetch("/api/save_captions", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1284,18 +1285,29 @@ async function applyCaptionVariant(text) {
             throw new Error("Failed to save captions");
         }
 
-        // Re-score immediately
+        // 🔄 Refresh derived state
         refreshHookScore();
         refreshStoryFlowScore();
 
-        // Refresh iPhone mock preview
+        // 📱 Refresh iPhone mock preview
         await refreshOverlayPreview();
+
+        // 🔄 Sync YAML editor with backend
+        loadCaptionsFromYaml();
 
         setStatus("captionsStatus", "Caption applied ✓", "success");
 
     } catch (err) {
         console.error(err);
-        setStatus("captionsStatus", "Failed to apply caption", "error");
+
+        // Revert on failure
+        el.value = originalText;
+
+        setStatus(
+            "captionsStatus",
+            "Failed to apply caption",
+            "error"
+        );
     }
 }
 
