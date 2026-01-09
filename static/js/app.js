@@ -801,6 +801,7 @@ function renderUploadList(elementId, items, kind, labels = {}) {
             `;
         })
         .join("");
+        
 
     // ================================
     // 🎬 LOAD CLIP PREVIEWS

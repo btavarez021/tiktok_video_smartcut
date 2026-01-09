@@ -806,20 +806,19 @@ def api_clip_preview(session: str, filename: str) -> dict:
 
     frame_path = os.path.join(preview_dir, filename + ".jpg")
 
-    # Extract a frame at ~1 second (good default)
-    if not os.path.exists(frame_path):
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-                "-i", video_path,
-                "-ss", "00:00:01",
-                "-vframes", "1",
-                frame_path
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
+    # ✅ Always regenerate for accuracy
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-ss", "00:00:00.8",   
+            "-i", video_path,
+            "-vframes", "1",
+            frame_path
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
 
     with open(frame_path, "rb") as f:
         encoded = base64.b64encode(f.read()).decode()
@@ -827,6 +826,7 @@ def api_clip_preview(session: str, filename: str) -> dict:
     return {
         "image": f"data:image/jpeg;base64,{encoded}"
     }
+
 
 
 # -------------------------------
