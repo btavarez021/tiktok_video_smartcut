@@ -11,7 +11,7 @@ from openai import OpenAI
 import base64
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
-
+import subprocess
 from flask import request
 from assistant_log import log_step, log_error, log_success
 from tiktok_template import edit_video, video_folder,get_config_path, STYLE_PRESETS
@@ -794,6 +794,39 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
         log_error("[YAML]", e)
         return {"error": str(e)}
 
+def api_clip_preview(session: str, filename: str) -> dict:
+    session = sanitize_session(session)
+
+    video_path = os.path.join(video_folder, session, filename)
+    if not os.path.exists(video_path):
+        return {"error": "video not found"}
+
+    preview_dir = os.path.join("preview_frames", session)
+    os.makedirs(preview_dir, exist_ok=True)
+
+    frame_path = os.path.join(preview_dir, filename + ".jpg")
+
+    # Extract a frame at ~1 second (good default)
+    if not os.path.exists(frame_path):
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i", video_path,
+                "-ss", "00:00:01",
+                "-vframes", "1",
+                frame_path
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+
+    with open(frame_path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode()
+
+    return {
+        "image": f"data:image/jpeg;base64,{encoded}"
+    }
 
 
 # -------------------------------

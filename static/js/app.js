@@ -28,6 +28,25 @@ function countBlocks(text) {
   return text.split(/\n\s*\n/).filter(Boolean).length;
 }
 
+async function loadClipPreview(filename, imgEl) {
+    const session = getActiveSession();
+
+    try {
+        const res = await fetch("/api/clip_preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session, filename })
+        });
+
+        const data = await res.json();
+        if (data.image) {
+            imgEl.src = data.image;
+        }
+    } catch (e) {
+        console.warn("Preview failed for", filename);
+    }
+}
+
 
 function flashElement(el) {
   if (!el) return;
@@ -698,7 +717,7 @@ async function loadUploadManager() {
 }
 
 
-function renderUploadList(elementId, items, kind, labels={}) {
+function renderUploadList(elementId, items, kind, labels = {}) {
     const el = document.getElementById(elementId);
     if (!el) return;
 
@@ -717,9 +736,10 @@ function renderUploadList(elementId, items, kind, labels={}) {
             const srcKey = isRaw ? rawPrefix + file : processedPrefix + file;
             const destKey = isRaw ? processedPrefix + file : rawPrefix + file;
             const savedLabel = labels[file] || "";
+
             return `
-                
                 <div class="upload-item">
+
                     <div class="file-info">
                         <strong>${session}/${file}</strong>
                     </div>
@@ -728,33 +748,41 @@ function renderUploadList(elementId, items, kind, labels={}) {
                         isRaw
                             ? `
                             <div class="clip-label-row">
+
+                                <!-- 🎬 CLIP PREVIEW -->
+                                <img
+                                    class="clip-preview"
+                                    data-file="${file}"
+                                    alt="Preview frame"
+                                />
+
+                                <!-- 🧠 SUGGEST LABEL -->
                                 <button
                                     class="btn ghost small suggest-label-btn"
                                     data-file="${file}">
                                     🧠 Suggest label
                                 </button>
 
-                                 <span class="tooltip">ⓘ
+                                <span class="tooltip">ⓘ
                                     <span class="tooltiptext">
                                         Labels auto-save when you click away or press Enter.<br>
                                         Used to guide AI captions — not shown in the video.
                                     </span>
                                 </span>
 
+                                <!-- ✍️ LABEL INPUT -->
                                 <input
                                     class="input clip-label-input"
                                     value="${savedLabel}"
-                                    placeholder="Optional label (auto-saves)"
+                                    placeholder="e.g. Rooftop cocktails"
                                     title="Labels auto-save when you click away or press Enter"
                                     data-file="${file}"
-                                    />
+                                />
 
                                 <p class="hint-text small">
                                     Used to guide captions and filename-based generation.
                                     Not shown in the video.
                                 </p>
-
-
                             </div>
                             `
                             : ""
@@ -768,68 +796,75 @@ function renderUploadList(elementId, items, kind, labels={}) {
                         }
                         <button class="btn-delete" onclick="deleteUpload('${srcKey}')">Delete</button>
                     </div>
+
                 </div>
             `;
-
         })
         .join("");
 
-        // ================================
-        // Wire clip label inputs
-        // ================================
-        el.querySelectorAll(".clip-label-input").forEach(input => {
-            input.addEventListener("blur", async () => {
-                const file = input.dataset.file;
-                const label = input.value.trim();
-                await saveClipLabel(file, label);
-            });
+    // ================================
+    // 🎬 LOAD CLIP PREVIEWS
+    // ================================
+    el.querySelectorAll(".clip-preview").forEach(img => {
+        const file = img.dataset.file;
+        loadClipPreview(file, img);
+    });
 
-            input.addEventListener("keydown", async (e) => {
-                if (e.key === "Enter") {
-                    e.preventDefault();
-                    input.blur(); // triggers save
-                }
-            });
+    // ================================
+    // ✍️ LABEL AUTO-SAVE
+    // ================================
+    el.querySelectorAll(".clip-label-input").forEach(input => {
+        input.addEventListener("blur", async () => {
+            const file = input.dataset.file;
+            const label = input.value.trim();
+            await saveClipLabel(file, label);
         });
 
-        // ================================
-        // Suggest label button
-        // ================================
-        el.querySelectorAll(".suggest-label-btn").forEach(btn => {
-            btn.addEventListener("click", async () => {
-                const file = btn.dataset.file;
-
-                btn.disabled = true;
-                btn.textContent = "Thinking…";
-
-                try {
-                    const res = await jsonFetch("/api/chat", {
-                        method: "POST",
-                        body: JSON.stringify({
-                            session: getActiveSession(),
-                            message: `Suggest a short descriptive label for this hotel/travel clip: ${file}`
-                        })
-                    });
-
-                    const suggestion = (res.reply || "").split("\n")[0].trim();
-
-                    const input = btn
-                        .closest(".clip-label-row")
-                        ?.querySelector(".clip-label-input");
-
-                    if (input && suggestion) {
-                        input.value = suggestion;
-                        await saveClipLabel(file, suggestion);
-                    }
-                } catch (err) {
-                    console.error("Suggest label failed:", err);
-                } finally {
-                    btn.disabled = false;
-                    btn.textContent = "🧠 Suggest label";
-                }
-            });
+        input.addEventListener("keydown", async (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                input.blur();
+            }
         });
+    });
 
+    // ================================
+    // 🧠 SUGGEST LABEL BUTTON
+    // ================================
+    el.querySelectorAll(".suggest-label-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+            const file = btn.dataset.file;
+
+            btn.disabled = true;
+            btn.textContent = "Thinking…";
+
+            try {
+                const res = await jsonFetch("/api/chat", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        session: getActiveSession(),
+                        message: `Suggest a short descriptive label for this hotel/travel clip: ${file}`
+                    })
+                });
+
+                const suggestion = (res.reply || "").split("\n")[0].trim();
+
+                const input = btn
+                    .closest(".clip-label-row")
+                    ?.querySelector(".clip-label-input");
+
+                if (input && suggestion) {
+                    input.value = suggestion;
+                    await saveClipLabel(file, suggestion);
+                }
+            } catch (err) {
+                console.error("Suggest label failed:", err);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "🧠 Suggest label";
+            }
+        });
+    });
 }
 
 // ================================

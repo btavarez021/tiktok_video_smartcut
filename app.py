@@ -41,7 +41,8 @@ from assistant_api import (
     api_overlay_preview, 
     generate_overlay_preview,
     load_labels,
-    save_labels
+    save_labels,
+    api_clip_preview
 )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -316,6 +317,13 @@ def route_captions_mode():
     from assistant_api import api_set_captions_mode
     return jsonify(api_set_captions_mode(session, mode))
 
+@app.route("/api/clip_preview", methods=["POST"])
+def clip_preview():
+    data = request.json
+    return api_clip_preview(
+        data.get("session"),
+        data.get("filename")
+    )
 
 # ============================================================================
 # TTS / CTA
