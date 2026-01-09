@@ -2379,3 +2379,45 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   background: transparent;
   border-left-color: transparent;
 }
+
+
+.caption-toggle-row .toggle-btn,
+.caption-toggle-row .ghost {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid #1f232b;
+  color: #9ca3af;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.caption-toggle-row button:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+/* 🔥 Active tab */
+.caption-toggle-row button.active {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  color: #fff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(96,165,250,.4),
+              0 0 12px rgba(59,130,246,.35);
+}
+
+/* Step 4 only – nicer ghost buttons */
+.step4-caption-panel .btn.ghost,
+.step4-caption-panel .caption-diff-header .ghost {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid #1f232b;
+  color: #cbd5f5;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.step4-caption-panel .btn.ghost:hover,
+.step4-caption-panel .caption-diff-header .ghost:hover {
+  background: rgba(255,255,255,0.08);
+}

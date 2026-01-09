@@ -1839,6 +1839,19 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;");
 }
 
+function syncCaptionToggleUI() {
+  const orig = document.getElementById("showOriginal");
+  const rew = document.getElementById("showRewritten");
+  const diff = document.getElementById("showDiff");
+
+  [orig, rew, diff].forEach(b => b?.classList.remove("active"));
+
+  if (captionViewMode === "original") orig?.classList.add("active");
+  if (captionViewMode === "rewritten") rew?.classList.add("active");
+  if (captionViewMode === "diff") diff?.classList.add("active");
+}
+
+
 
 
 // ================================
@@ -3037,18 +3050,22 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
 // ========================================
 document.getElementById("showOriginal")?.addEventListener("click", () => {
   captionViewMode = "original";
+  syncCaptionToggleUI();
   renderStep4CaptionView();
 });
 
 document.getElementById("showRewritten")?.addEventListener("click", () => {
   captionViewMode = "rewritten";
+  syncCaptionToggleUI();
   renderStep4CaptionView();
 });
 
 document.getElementById("showDiff")?.addEventListener("click", () => {
   captionViewMode = "diff";
+  syncCaptionToggleUI();
   renderStep4CaptionView();
 });
+
 
 
 
