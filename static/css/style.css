@@ -2248,3 +2248,29 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   }
 }
 
+
+.caption-toggle-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.toggle-btn {
+  padding: 6px 14px;
+  border-radius: 18px;
+  border: 1px solid #ccc;
+  background: #f4f4f4;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.toggle-btn.active {
+  background: #111;
+  color: #fff;
+}
+
+.toggle-btn:hover {
+  background: #e5e5e5;
+}
+

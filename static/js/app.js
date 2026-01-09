@@ -14,6 +14,7 @@ let suppressNextPreview = false;
 let lastSavedCaptionsText = "";
 
 
+
 function setVariantsStatus(message, state = "loading") {
   const el = document.getElementById("variantsInlineStatus");
   if (!el) return;
@@ -1533,6 +1534,12 @@ async function loadCaptionsFromYaml({ preserveSource = false } = {}) {
         // ✅ REGISTER BASELINE (THIS FIXES THE BUG)
         lastSavedCaptionsText = next;
 
+        const box = document.getElementById("captionsText");
+        if (box) {
+        box.dataset.workingText = next;   // reset rewritten baseline
+        }
+
+
         updateRewriteModeAvailability();
         await refreshHookScore();
         await refreshStoryFlowScore();
@@ -2920,6 +2927,37 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
   const el = document.getElementById("captionInlineStatus");
   if (el) el.classList.add("hidden");
 });
+
+// ========================================
+// Step 4 — Original / Rewritten Toggle
+// ========================================
+let captionBox = document.getElementById("captionsText");
+
+// Track rewritten text separately from YAML baseline
+captionBox?.addEventListener("input", () => {
+  captionBox.dataset.workingText = captionBox.value;
+});
+
+// Original → YAML baseline
+document.getElementById("showOriginal")?.addEventListener("click", () => {
+  captionViewMode = "original";
+
+  document.getElementById("showOriginal").classList.add("active");
+  document.getElementById("showRewritten").classList.remove("active");
+
+  renderCaptionView();
+});
+
+// Rewritten → current working copy
+document.getElementById("showRewritten")?.addEventListener("click", () => {
+  captionViewMode = "rewritten";
+
+  document.getElementById("showRewritten").classList.add("active");
+  document.getElementById("showOriginal").classList.remove("active");
+
+  renderCaptionView();
+});
+
 
 
 // Generate variants (unchanged)
