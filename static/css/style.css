@@ -2441,3 +2441,9 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   border-radius: 8px;
   border: 1px solid #1f232b;
 }
+
+@media (max-width: 768px) {
+  .diff-grid {
+    grid-template-columns: 1fr;
+  }
+}
