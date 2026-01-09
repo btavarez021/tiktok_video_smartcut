@@ -2278,3 +2278,35 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   box-shadow: 0 0 0 1px rgba(59,130,246,.4);
 }
 
+.step4-caption-panel {
+  background: #0f1115;
+  border: 1px solid #1f232b;
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px;
+  max-height: 260px;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e5e7eb;
+}
+
+.step4-diff {
+  display: flex;
+  gap: 12px;
+}
+
+.diff-col {
+  flex: 1;
+  background: #0b0d12;
+  border-radius: 8px;
+  padding: 10px;
+  overflow: auto;
+}
+
+.diff-col h4 {
+  margin: 0 0 6px;
+  color: #93c5fd;
+  font-size: 12px;
+  text-transform: uppercase;
+}

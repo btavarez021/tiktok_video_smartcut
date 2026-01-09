@@ -1774,6 +1774,30 @@ function updateRewriteWarning() {
     warning.classList.toggle("hidden", mode !== "rewrite");
 }
 
+function renderStep4CaptionView() {
+  const panel = document.getElementById("step4CaptionText");
+  const diff = document.getElementById("step4Diff");
+
+  const original = lastSavedCaptionsText || "";
+  const rewritten = document.getElementById("captionsText")?.dataset.workingText || "";
+
+  if (captionViewMode === "original") {
+    panel.textContent = original;
+    panel.classList.remove("hidden");
+    diff.classList.add("hidden");
+  } 
+  else if (captionViewMode === "rewritten") {
+    panel.textContent = rewritten;
+    panel.classList.remove("hidden");
+    diff.classList.add("hidden");
+  } 
+  else if (captionViewMode === "diff") {
+    panel.classList.add("hidden");
+    diff.classList.remove("hidden");
+    document.getElementById("step4DiffOriginal").textContent = original;
+    document.getElementById("step4DiffRewritten").textContent = rewritten;
+  }
+}
 
 
 
@@ -1821,7 +1845,7 @@ async function applyOverlay() {
   captionViewMode = "rewritten";
   document.getElementById("showRewritten")?.classList.add("active");
   document.getElementById("showOriginal")?.classList.remove("active");
-  renderCaptionView();
+    renderStep4CaptionView();
 
   suppressNextPreview = true;
   await previewOverlay("fast");
@@ -2949,40 +2973,24 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
   if (el) el.classList.add("hidden");
 });
 
-// ========================================
-// Step 4 — Original / Rewritten Toggle
-// ========================================
-const captionBox = document.getElementById("captionsText");
 
-// Track rewritten working copy
-captionBox?.addEventListener("input", () => {
-  captionBox.dataset.workingText = captionBox.value;
-});
-
-// Original → YAML baseline
+// ========================================
+// Step 4 — Caption View Toggles
+// ========================================
 document.getElementById("showOriginal")?.addEventListener("click", () => {
   captionViewMode = "original";
-
-  document.getElementById("showOriginal").classList.add("active");
-  document.getElementById("showRewritten").classList.remove("active");
-
-  if (captionBox) captionBox.readOnly = true;
-
-  renderCaptionView();
+  renderStep4CaptionView();
 });
 
-// Rewritten → editable working copy
 document.getElementById("showRewritten")?.addEventListener("click", () => {
   captionViewMode = "rewritten";
-
-  document.getElementById("showRewritten").classList.add("active");
-  document.getElementById("showOriginal").classList.remove("active");
-
-  if (captionBox) captionBox.readOnly = false;
-
-  renderCaptionView();
+  renderStep4CaptionView();
 });
 
+document.getElementById("showDiff")?.addEventListener("click", () => {
+  captionViewMode = "diff";
+  renderStep4CaptionView();
+});
 
 
 
