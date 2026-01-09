@@ -41,8 +41,7 @@ from assistant_api import (
     api_overlay_preview, 
     generate_overlay_preview,
     load_labels,
-    save_labels,
-    api_get_clip_summaries
+    save_labels
 )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -317,10 +316,6 @@ def route_captions_mode():
     from assistant_api import api_set_captions_mode
     return jsonify(api_set_captions_mode(session, mode))
 
-@app.route("/api/clip_summaries")
-def clip_summaries():
-    session = request.args.get("session", "default")
-    return api_get_clip_summaries(session)
 
 # ============================================================================
 # TTS / CTA

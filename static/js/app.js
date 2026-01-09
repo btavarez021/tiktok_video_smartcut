@@ -28,51 +28,6 @@ function countBlocks(text) {
   return text.split(/\n\s*\n/).filter(Boolean).length;
 }
 
-function toggleClipSummaries() {
-    const body = document.getElementById("clipSummariesBody");
-    const chevron = document.getElementById("clipSummaryChevron");
-
-    const isHidden = body.classList.contains("hidden");
-
-    body.classList.toggle("hidden");
-    chevron.textContent = isHidden ? "▾" : "▸";
-
-    if (isHidden) {
-        loadClipSummaries();
-    }
-}
-
-async function loadClipSummaries() {
-    const list = document.getElementById("clipSummariesList");
-    if (!list) return;
-
-    list.innerHTML = "<li>Loading summaries…</li>";
-
-    try {
-        const session = getActiveSession();
-        const res = await jsonFetch(`/api/clip_summaries?session=${encodeURIComponent(session)}`);
-
-        if (!res.clips || res.clips.length === 0) {
-            list.innerHTML = "<li>No analysis found yet. Run Analyze Clips first.</li>";
-            return;
-        }
-
-        list.innerHTML = "";
-        res.clips.forEach(c => {
-            const li = document.createElement("li");
-            li.innerHTML = `
-                <strong>${c.file}</strong>
-                <div class="hint-text">${c.summary}</div>
-            `;
-            list.appendChild(li);
-        });
-
-    } catch (err) {
-        console.error(err);
-        list.innerHTML = "<li>Failed to load clip summaries.</li>";
-    }
-}
-
 
 function flashElement(el) {
   if (!el) return;
