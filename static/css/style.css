@@ -1837,7 +1837,7 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 /* Let accordion open normally */
 .acc-body {
     position: static;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* When open, expand naturally */
@@ -1847,12 +1847,10 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 
 /* Step-4 buttons must always be clickable */
 .step4-actions {
-    position: sticky;
-    bottom: 0;
-    background: #0f1115;
-    padding-top: 10px;
+    position: static;
     margin-top: 12px;
-    border-top: 1px solid #1f232b;
+    display: flex;
+    gap: 10px;
 }
 
 
@@ -2278,11 +2276,13 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   border-radius: 12px;
   padding: 12px;
   margin-top: 12px;
-  max-height: 260px;
-  overflow: auto;
   font-size: 13px;
   line-height: 1.5;
   color: #e5e7eb;
+
+  /* critical */
+  max-height: none;
+  overflow: visible;
 }
 
 .step4-diff {
