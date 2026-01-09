@@ -1775,32 +1775,39 @@ function updateRewriteWarning() {
 }
 
 function renderStep4CaptionView() {
-  const box = document.getElementById("step4CaptionText");
-  const captionsBox = document.getElementById("captionsText");
-  if (!box || !captionsBox) return;
+  const panel = document.getElementById("step4CaptionPanel");
+  if (!panel) return;
 
-  const originalBtn = document.getElementById("showOriginal");
-  const rewrittenBtn = document.getElementById("showRewritten");
-  const diffBtn = document.getElementById("showDiff");
-
-  const baseline = lastSavedCaptionsText || "";
-  const working = captionsBox.dataset.workingText || captionsBox.value || "";
-
-  // Toggle button styles
-  originalBtn?.classList.toggle("active", captionViewMode === "original");
-  rewrittenBtn?.classList.toggle("active", captionViewMode === "rewritten");
-  diffBtn?.classList.toggle("active", captionViewMode === "diff");
+  const original = lastSavedCaptionsText || "";
+  const rewritten =
+    document.getElementById("captionsText")?.dataset.workingText || original;
 
   if (captionViewMode === "original") {
-    box.textContent = baseline;
+    panel.innerHTML = `<pre class="captionBlock">${escapeHtml(original)}</pre>`;
+    return;
   }
-  else if (captionViewMode === "rewritten") {
-    box.textContent = working;
+
+  if (captionViewMode === "rewritten") {
+    panel.innerHTML = `<pre class="captionBlock">${escapeHtml(rewritten)}</pre>`;
+    return;
   }
-  else if (captionViewMode === "diff") {
-    box.innerHTML = buildCaptionDiffHTML(baseline, working);
-  }
+
+  // DIFF VIEW
+  panel.innerHTML = `
+    <div class="captionDiffGrid">
+      <div>
+        <div class="diffHeader">Original (YAML)</div>
+        <pre class="captionBlock">${escapeHtml(original)}</pre>
+      </div>
+      <div>
+        <div class="diffHeader">Rewritten</div>
+        <pre class="captionBlock">${escapeHtml(rewritten)}</pre>
+      </div>
+    </div>
+  `;
 }
+
+
 
 
 function buildCaptionDiffHTML(oldText, newText) {
