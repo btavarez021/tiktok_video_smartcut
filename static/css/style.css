@@ -2285,6 +2285,36 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   overflow: visible;
 }
 
+/* Scrollable area inside Step 4 caption panel */
+#step4CaptionScroll {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 10px;
+  background: #0b0d12;
+  border-radius: 8px;
+  border: 1px solid #1f232b;
+}
+
+/* Collapsed state */
+#step4CaptionScroll.hidden {
+  display: none;
+}
+
+.caption-diff-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid #1f232b;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #cbd5f5;
+}
+
+
 .step4-diff {
   display: flex;
   gap: 12px;
@@ -2308,4 +2338,44 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 .step4-actions {
   position: relative;
   z-index: 50;
+}
+
+
+.diff-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.diff-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.diff-old,
+.diff-new {
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+/* old text */
+.diff-old {
+  background: rgba(255, 80, 80, 0.08);
+  border-left: 3px solid #ff5a5a;
+}
+
+/* new text */
+.diff-new {
+  background: rgba(0, 255, 160, 0.08);
+  border-left: 3px solid #2cffb3;
+}
+
+/* no change */
+.diff-old:not(.changed),
+.diff-new:not(.changed) {
+  background: transparent;
+  border-left-color: transparent;
 }

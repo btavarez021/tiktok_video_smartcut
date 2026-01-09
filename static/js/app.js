@@ -1800,10 +1800,10 @@ function renderStep4CaptionView() {
     box.textContent = document.getElementById("captionsText")?.value || "";
   }
   else if (captionViewMode === "diff") {
-    box.innerHTML = renderCaptionDiffHTML(
-      lastSavedCaptionsText,
-      document.getElementById("captionsText")?.value || ""
-    );
+    box.innerHTML = buildCaptionDiffHTML(
+  lastSavedCaptionsText,
+  document.getElementById("captionsText")?.value || ""
+);
   }
 }
 
