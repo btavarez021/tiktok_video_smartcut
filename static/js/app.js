@@ -1775,29 +1775,33 @@ function updateRewriteWarning() {
 }
 
 function renderStep4CaptionView() {
-  const panel = document.getElementById("step4CaptionText");
-  const diff = document.getElementById("step4Diff");
+  const box = document.getElementById("step4CaptionText");
+  if (!box) return;
 
-  const original = lastSavedCaptionsText || "";
-  const rewritten = document.getElementById("captionsText")?.dataset.workingText || "";
+  const originalBtn = document.getElementById("showOriginal");
+  const rewrittenBtn = document.getElementById("showRewritten");
+  const diffBtn = document.getElementById("showDiff");
+
+  if (originalBtn && rewrittenBtn) {
+    originalBtn.classList.toggle("active", captionViewMode === "original");
+    rewrittenBtn.classList.toggle("active", captionViewMode === "rewritten");
+  }
+
+  if (diffBtn) {
+    diffBtn.classList.toggle("active", captionViewMode === "diff");
+  }
 
   if (captionViewMode === "original") {
-    panel.textContent = original;
-    panel.classList.remove("hidden");
-    diff.classList.add("hidden");
-  } 
+    box.textContent = captionsBaseline || "";
+  }
   else if (captionViewMode === "rewritten") {
-    panel.textContent = rewritten;
-    panel.classList.remove("hidden");
-    diff.classList.add("hidden");
-  } 
+    box.textContent = captionsWorking || "";
+  }
   else if (captionViewMode === "diff") {
-    panel.classList.add("hidden");
-    diff.classList.remove("hidden");
-    document.getElementById("step4DiffOriginal").textContent = original;
-    document.getElementById("step4DiffRewritten").textContent = rewritten;
+    box.innerHTML = renderCaptionDiffHTML(captionsBaseline, captionsWorking);
   }
 }
+
 
 
 
