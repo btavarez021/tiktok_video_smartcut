@@ -1874,12 +1874,20 @@ async function applyOverlay() {
     }),
   });
 
-  // Reload YAML
-  await loadConfigAndYaml();
+    const rewrite = rewriteMode === "rewrite";
 
-  // 🔥 YAML now contains the new captions (if rewrite was enabled)
-  // Sync both baseline + working copy from YAML
-  await loadCaptionsFromYaml();
+    if (rewrite) {
+    // 🧠 Preserve old captions before overwrite
+    window.__preRewriteCaptions = lastSavedCaptionsText;
+    }
+
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
+
+    // Restore original baseline for diff
+    if (rewrite && window.__preRewriteCaptions) {
+    lastSavedCaptionsText = window.__preRewriteCaptions;
+    }
 
   // 🔄 Always show rewritten view after apply
   captionViewMode = "rewritten";
