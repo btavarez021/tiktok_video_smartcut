@@ -24,11 +24,9 @@ function renderCaptionView() {
   if (!box) return;
 
   if (captionViewMode === "original") {
-    captionViewLocked = true;   // 🔒 freeze auto-refresh
     box.value = lastSavedCaptionsText || "";
     box.readOnly = true;
   } else {
-    captionViewLocked = false;  // 🔓 allow live updates
     box.value = box.dataset.workingText || box.value;
     box.readOnly = false;
   }
@@ -1550,11 +1548,6 @@ async function loadCaptionsFromYaml({ preserveSource = false } = {}) {
 
         const before = captionsEl.value.trim();
         const next = buildCaptionsFromConfig(cfg).trim();
-
-        // ONLY update textarea if user is not viewing Original
-        if (!captionViewLocked) {
-        captionsEl.value = next;
-        }
 
         // Baseline is ALWAYS updated
         lastSavedCaptionsText = next;
