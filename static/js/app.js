@@ -14,6 +14,25 @@ let suppressNextPreview = false;
 let lastSavedCaptionsText = "";
 
 
+// ================================
+// Step 4 Caption View (Original vs Rewritten)
+// ================================
+let captionViewMode = "rewritten";
+
+function renderCaptionView() {
+  const box = document.getElementById("captionsText");
+  if (!box) return;
+
+  if (captionViewMode === "original") {
+    box.value = lastSavedCaptionsText || "";
+    box.readOnly = true;      // prevent editing original
+  } else {
+    box.value = box.dataset.workingText || box.value;
+    box.readOnly = false;
+  }
+}
+
+
 
 function setVariantsStatus(message, state = "loading") {
   const el = document.getElementById("variantsInlineStatus");
