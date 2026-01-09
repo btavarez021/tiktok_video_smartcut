@@ -1776,32 +1776,63 @@ function updateRewriteWarning() {
 
 function renderStep4CaptionView() {
   const box = document.getElementById("step4CaptionText");
-  if (!box) return;
+  const captionsBox = document.getElementById("captionsText");
+  if (!box || !captionsBox) return;
 
   const originalBtn = document.getElementById("showOriginal");
   const rewrittenBtn = document.getElementById("showRewritten");
   const diffBtn = document.getElementById("showDiff");
 
-  if (originalBtn && rewrittenBtn) {
-    originalBtn.classList.toggle("active", captionViewMode === "original");
-    rewrittenBtn.classList.toggle("active", captionViewMode === "rewritten");
-  }
+  const baseline = lastSavedCaptionsText || "";
+  const working = captionsBox.dataset.workingText || captionsBox.value || "";
 
-  if (diffBtn) {
-    diffBtn.classList.toggle("active", captionViewMode === "diff");
-  }
+  // Toggle button styles
+  originalBtn?.classList.toggle("active", captionViewMode === "original");
+  rewrittenBtn?.classList.toggle("active", captionViewMode === "rewritten");
+  diffBtn?.classList.toggle("active", captionViewMode === "diff");
 
   if (captionViewMode === "original") {
-    box.textContent = captionsBaseline || "";
+    box.textContent = baseline;
   }
   else if (captionViewMode === "rewritten") {
-    box.textContent = captionsWorking || "";
+    box.textContent = working;
   }
   else if (captionViewMode === "diff") {
-    box.innerHTML = renderCaptionDiffHTML(captionsBaseline, captionsWorking);
+    box.innerHTML = buildCaptionDiffHTML(baseline, working);
   }
 }
 
+
+function buildCaptionDiffHTML(oldText, newText) {
+  const oldLines = (oldText || "").split("\n");
+  const newLines = (newText || "").split("\n");
+
+  let html = `<div class="diff-grid">`;
+
+  const max = Math.max(oldLines.length, newLines.length);
+  for (let i = 0; i < max; i++) {
+    const o = oldLines[i] || "";
+    const n = newLines[i] || "";
+
+    const same = o === n;
+    html += `
+      <div class="diff-row">
+        <div class="diff-old ${same ? "" : "changed"}">${escapeHtml(o)}</div>
+        <div class="diff-new ${same ? "" : "changed"}">${escapeHtml(n)}</div>
+      </div>
+    `;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
 
 
