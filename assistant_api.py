@@ -798,20 +798,28 @@ def api_clip_preview(session: str, filename: str) -> dict:
     session = sanitize_session(session)
 
     video_path = os.path.join(video_folder, session, filename)
+
+    # 🔥 Ensure local file exists (fixes broken previews)
     if not os.path.exists(video_path):
-        return {"error": "video not found"}
+        from tiktok_assistant import download_s3_video
+        key = f"{RAW_PREFIX}{session}/{filename}"
+        tmp = download_s3_video(key)
+        if not tmp:
+            return {"error": "video not found"}
+        os.makedirs(os.path.dirname(video_path), exist_ok=True)
+        shutil.copy2(tmp, video_path)
 
     preview_dir = os.path.join("preview_frames", session)
     os.makedirs(preview_dir, exist_ok=True)
 
     frame_path = os.path.join(preview_dir, filename + ".jpg")
 
-    # ✅ Always regenerate for accuracy
+    # ✅ Always regenerate (accurate previews)
     subprocess.run(
         [
             "ffmpeg",
             "-y",
-            "-ss", "00:00:00.8",   
+            "-ss", "00:00:01.5",
             "-i", video_path,
             "-vframes", "1",
             frame_path
