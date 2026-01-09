@@ -2190,21 +2190,28 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     margin-bottom: 8px;
 }
 
+.clip-label-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  column-gap: 16px;
+  align-items: start;
+}
+
+.clip-label-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.clip-label-input {
+  width: 100%;
+  min-width: 260px;
+}
+
 .clip-preview {
-  width: 120px;
-  height: 160px;
+  width: 96px;
+  height: 96px;
   object-fit: cover;
   border-radius: 8px;
-  background: #111;
-}
-
-.clip-label-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-
-.clip-label-row input {
-  flex: 1;
+  cursor: pointer;
 }

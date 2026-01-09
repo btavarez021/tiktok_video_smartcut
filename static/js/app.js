@@ -749,15 +749,18 @@ function renderUploadList(elementId, items, kind, labels = {}) {
                             ? `
                             <div class="clip-label-row">
 
-                                <!-- 🎬 CLIP PREVIEW -->
-                                <img
-                                    class="clip-preview"
-                                    data-file="${file}"
-                                    alt="Preview frame"
-                                />
+                            <!-- LEFT: Preview -->
+                            <img
+                                class="clip-preview"
+                                data-file="${file}"
+                                alt="Preview frame"
+                            />
+
+                            <!-- RIGHT: Controls -->
+                            <div class="clip-label-content">
+
                                 <small class="clip-meta">Tap image to re-preview</small>
 
-                                <!-- 🧠 SUGGEST LABEL -->
                                 <button
                                     class="btn ghost small suggest-label-btn"
                                     data-file="${file}">
@@ -771,12 +774,10 @@ function renderUploadList(elementId, items, kind, labels = {}) {
                                     </span>
                                 </span>
 
-                                <!-- ✍️ LABEL INPUT -->
                                 <input
                                     class="input clip-label-input"
                                     value="${savedLabel}"
                                     placeholder="e.g. Rooftop cocktails"
-                                    title="Labels auto-save when you click away or press Enter"
                                     data-file="${file}"
                                 />
 
@@ -784,7 +785,9 @@ function renderUploadList(elementId, items, kind, labels = {}) {
                                     Used to guide captions and filename-based generation.
                                     Not shown in the video.
                                 </p>
+
                             </div>
+                        </div>
                             `
                             : ""
                     }
