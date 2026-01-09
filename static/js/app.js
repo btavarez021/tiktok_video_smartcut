@@ -24,15 +24,14 @@ function renderCaptionView() {
   if (!box) return;
 
   if (captionViewMode === "original") {
-    captionViewLocked = true;   // 🔒 freeze auto-refresh
     box.value = lastSavedCaptionsText || "";
     box.readOnly = true;
   } else {
-    captionViewLocked = false;  // 🔓 allow live updates
     box.value = box.dataset.workingText || box.value;
     box.readOnly = false;
   }
 }
+
 
 
 
