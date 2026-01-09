@@ -1839,28 +1839,36 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     justify-content:center;
 }
 
-/* Ensure nothing underneath overlaps upward */
-.acc-section {
-    position: relative;
-    z-index: 1;
-}
-
 /* ===========================================
    FIX CAPTION ACCORDION + PREVIEW STACKING
    =========================================== */
 
-/* Let accordion content expand naturally */
-.acc-body {
-    position: relative;
-    z-index: 2;                     /* sits ABOVE phone preview */
+   /* Accordion must stay inside document flow */
+.acc-section {
+    position: static;
 }
 
-/* Phone preview + buttons stay visible & clickable */
-#overlayPreviewWrapper,
-.preview-actions {
-    position: relative;
-    z-index: 10;                    /* on top of accordion below */
+/* Let accordion open normally */
+.acc-body {
+    position: static;
+    overflow: hidden;
 }
+
+/* When open, expand naturally */
+.acc-section.open .acc-body {
+    overflow: visible;
+}
+
+/* Step-4 buttons must always be clickable */
+.step4-actions {
+    position: sticky;
+    bottom: 0;
+    background: #0f1115;
+    padding-top: 10px;
+    margin-top: 12px;
+    border-top: 1px solid #1f232b;
+}
+
 
 /* Never let phone preview overlap outside container */
 #overlayPreviewWrapper {
