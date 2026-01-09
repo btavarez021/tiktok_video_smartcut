@@ -382,20 +382,11 @@
 
                         <div class="caption-diff-header" onclick="toggleCaptionCompare()">
                             <span>Caption Changes</span>
-                            <button class="ghost small" id="compareCollapseBtn">Collapse</button>
+                            <button id="compareCollapseBtn" class="btn ghost small">Collapse</button>
                         </div>
 
                         <div id="captionCompareBody" class="step4CaptionScroll hidden">
-
-                            <div class="compareColumn">
-                            <h4>Current</h4>
-                            <pre id="compareOld"></pre>
-                            </div>
-
-                            <div class="compareColumn">
-                            <h4>New</h4>
-                            <pre id="compareNew"></pre>
-                            </div>
+                            <div id="step3DiffGrid" class="diff-grid"></div>
                         </div>
 
                         </div>
