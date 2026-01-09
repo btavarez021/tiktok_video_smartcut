@@ -1536,9 +1536,9 @@ function buildCaptionsFromConfig(cfg) {
     return parts.join("\n\n");
 }
 
-async function loadCaptionsFromYaml({ preserveSource = false } = {}) {
-  const captionsEl = document.getElementById("captionsText");
-  if (!captionsEl) return;
+async function loadCaptionsFromYaml() {
+  const box = document.getElementById("captionsText");
+  if (!box) return;
 
   setCaptionInlineStatus("Loading captions from YAML…", "info");
 
@@ -1547,34 +1547,25 @@ async function loadCaptionsFromYaml({ preserveSource = false } = {}) {
     const data = await jsonFetch(`/api/config?session=${session}`);
     const cfg = data.config || {};
 
-    const before = captionsEl.value.trim();
-    const next = buildCaptionsFromConfig(cfg).trim();
+    const yamlText = buildCaptionsFromConfig(cfg).trim();
 
-    // 🔑 Baseline (YAML truth)
-    lastSavedCaptionsText = next;
+    // 🔑 YAML is the baseline (Original)
+    lastSavedCaptionsText = yamlText;
 
-    // 🔑 Working copy (rewritten / editable)
-    const box = document.getElementById("captionsText");
-    if (box) {
-      box.dataset.workingText = next;
+    // 🔥 Only overwrite working copy if we are NOT in rewritten mode
+    if (captionViewMode !== "rewritten") {
+      box.dataset.workingText = yamlText;
     }
 
-    // 🔥 Push correct view into the textarea
+    // 🔄 Push correct text into textarea
     renderCaptionView();
 
-    // Update UI logic
     updateRewriteModeAvailability();
     await refreshHookScore();
     await refreshStoryFlowScore();
 
-    if (before === next) {
-      setCaptionSource("yaml", "🔵 SOURCE: YAML", true);
-      setCaptionInlineStatus("Captions already up to date", "info");
-    } else {
-      setCaptionSource("yaml", "🔵 SOURCE: YAML");
-      setCaptionInlineStatus("Captions loaded from YAML", "success");
-      flashElement(captionsEl);
-    }
+    setCaptionSource("yaml", "🔵 SOURCE: YAML");
+    setCaptionInlineStatus("Captions loaded from YAML", "success");
 
   } catch (err) {
     console.error(err);
@@ -1791,57 +1782,58 @@ function updateRewriteWarning() {
 // Step 4: Overlay, timings, TTS, CTA, fg scale, music
 // ================================
 async function applyOverlay() {
-    console.log("APPLY OVERLAY CLICKED")
+  console.log("APPLY OVERLAY CLICKED");
+
   const styleSel = document.getElementById("overlayStyle");
   const statusEl = document.getElementById("overlayStatus");
   if (!styleSel || !statusEl) return;
 
   const style = styleSel.value || "travel_blog";
 
-  // 👈 THIS decides if LLM rewrites or not
-  const rewriteMode = document.querySelector('input[name="captionRewriteMode"]:checked')?.value || "visual";
+  const rewriteMode =
+    document.querySelector('input[name="captionRewriteMode"]:checked')?.value || "visual";
 
   setStatus(
-      "overlayStatus",
-      rewriteMode === "rewrite"
-          ? "Applying overlay + rewriting captions…"
-          : "Applying visual overlay only…",
-      "info"
+    "overlayStatus",
+    rewriteMode === "rewrite"
+      ? "Applying overlay + rewriting captions…"
+      : "Applying visual overlay only…",
+    "info"
   );
 
   try {
-      await jsonFetch("/api/overlay", {
-          method: "POST",
-          body: JSON.stringify({
-              style,
-              session: getActiveSession(),
-              rewrite: rewriteMode === "rewrite",   // ✔ correct boolean
-          })
-      });
+    await jsonFetch("/api/overlay", {
+      method: "POST",
+      body: JSON.stringify({
+        style,
+        session: getActiveSession(),
+        rewrite: rewriteMode === "rewrite",
+      }),
+    });
 
     await loadConfigAndYaml();
+
+    // 🔥 Overlay rewrite commits to YAML → becomes new baseline
+    captionViewMode = "original";
     await loadCaptionsFromYaml();
 
+    // 🔄 Then switch back to rewritten view
     captionViewMode = "rewritten";
     renderCaptionView();
-
 
     suppressNextPreview = true;
     await previewOverlay("fast");
 
-
     setStatus(
-    "overlayStatus",
-    rewriteMode === "rewrite"
+      "overlayStatus",
+      rewriteMode === "rewrite"
         ? "Overlay applied + captions rewritten ✓"
         : "Overlay applied without rewriting ✓",
-    "success"
-);
-
-
+      "success"
+    );
   } catch (err) {
-      console.error(err);
-      setStatus("overlayStatus", "Failed to apply overlay.", "error");
+    console.error(err);
+    setStatus("overlayStatus", "Failed to apply overlay.", "error");
   }
 }
 
@@ -2958,9 +2950,9 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
 // ========================================
 // Step 4 — Original / Rewritten Toggle
 // ========================================
-let captionBox = document.getElementById("captionsText");
+const captionBox = document.getElementById("captionsText");
 
-// Track rewritten text separately from YAML baseline
+// Track rewritten working copy
 captionBox?.addEventListener("input", () => {
   captionBox.dataset.workingText = captionBox.value;
 });
@@ -2972,18 +2964,23 @@ document.getElementById("showOriginal")?.addEventListener("click", () => {
   document.getElementById("showOriginal").classList.add("active");
   document.getElementById("showRewritten").classList.remove("active");
 
+  if (captionBox) captionBox.readOnly = true;
+
   renderCaptionView();
 });
 
-// Rewritten → current working copy
+// Rewritten → editable working copy
 document.getElementById("showRewritten")?.addEventListener("click", () => {
   captionViewMode = "rewritten";
 
   document.getElementById("showRewritten").classList.add("active");
   document.getElementById("showOriginal").classList.remove("active");
 
+  if (captionBox) captionBox.readOnly = false;
+
   renderCaptionView();
 });
+
 
 
 

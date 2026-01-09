@@ -2274,3 +2274,7 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
     background: #e5e5e5;
     }
 
+.toggle-btn {
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
