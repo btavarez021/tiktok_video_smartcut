@@ -2170,17 +2170,28 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   color: #f59e0b;
 }
 
-.compareBody.hidden {
-    display: none;
+/* Step 3 comparison drawer */
+#captionCompareWrapper {
+  background: #0f1115;
+  border: 1px solid #1f232b;
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px;
 }
 
-.compareHeader {
-    cursor: pointer;
-    font-weight: 600;
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
+#captionCompareBody {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 10px;
+  background: #0b0d12;
+  border-radius: 8px;
+  border: 1px solid #1f232b;
 }
+
+#captionCompareBody.hidden {
+  display: none;
+}
+
 
 .clip-label-row {
   display: grid;
@@ -2420,4 +2431,13 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 .step4-caption-panel .btn.ghost:hover,
 .step4-caption-panel .caption-diff-header .ghost:hover {
   background: rgba(255,255,255,0.08);
+}
+
+#captionCompareBody {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 10px;
+  background: #0b0d12;
+  border-radius: 8px;
+  border: 1px solid #1f232b;
 }

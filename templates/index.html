@@ -378,15 +378,15 @@
                         <div id="captionInlineStatus"
                             class="caption-inline-status hidden">
                         </div>
+                        <div id="captionCompareWrapper" class="step4-caption-panel collapsed">
 
-                        <div id="captionCompareWrapper" class="collapsed">
-
-                        <div class="compareHeader" onclick="toggleCaptionCompare()">
-                            <span>Caption Comparison</span>
-                            <span id="compareChevron">▸</span>
+                        <div class="caption-diff-header" onclick="toggleCaptionCompare()">
+                            <span>Caption Changes</span>
+                            <button class="ghost small" id="compareCollapseBtn">Collapse</button>
                         </div>
 
-                        <div id="captionCompareBody" class="compareBody hidden">
+                        <div id="captionCompareBody" class="step4CaptionScroll hidden">
+
                             <div class="compareColumn">
                             <h4>Current</h4>
                             <pre id="compareOld"></pre>

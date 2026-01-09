@@ -97,21 +97,25 @@ function setCaptionSource(type, text, noChange = false) {
 }
 
 function toggleCaptionCompare(forceOpen = false) {
-    const body = document.getElementById("captionCompareBody");
-    const chevron = document.getElementById("compareChevron");
+  const body = document.getElementById("captionCompareBody");
+  const wrapper = document.getElementById("captionCompareWrapper");
+  const btn = document.getElementById("compareCollapseBtn");
 
-    if (!body) return;
+  if (!body || !wrapper) return;
 
-    const isHidden = body.classList.contains("hidden");
+  const isOpen = !body.classList.contains("hidden");
 
-    if (forceOpen || isHidden) {
-        body.classList.remove("hidden");
-        chevron.textContent = "▾";
-    } else {
-        body.classList.add("hidden");
-        chevron.textContent = "▸";
-    }
+  if (forceOpen || !isOpen) {
+    body.classList.remove("hidden");
+    wrapper.classList.remove("collapsed");
+    if (btn) btn.textContent = "Collapse";
+  } else {
+    body.classList.add("hidden");
+    wrapper.classList.add("collapsed");
+    if (btn) btn.textContent = "Expand";
+  }
 }
+
 
 
 function setCaptionInlineStatus(text, type = "info") {
