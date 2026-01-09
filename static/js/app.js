@@ -755,6 +755,7 @@ function renderUploadList(elementId, items, kind, labels = {}) {
                                     data-file="${file}"
                                     alt="Preview frame"
                                 />
+                                <small class="clip-meta">Tap image to re-preview</small>
 
                                 <!-- 🧠 SUGGEST LABEL -->
                                 <button
@@ -801,7 +802,7 @@ function renderUploadList(elementId, items, kind, labels = {}) {
             `;
         })
         .join("");
-        
+
 
     // ================================
     // 🎬 LOAD CLIP PREVIEWS
