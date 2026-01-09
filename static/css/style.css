@@ -2443,7 +2443,11 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 }
 
 @media (max-width: 768px) {
-  .diff-grid {
+  .compareBody {
+    flex-direction: column;
+  }
+
+  .diff-row {
     grid-template-columns: 1fr;
   }
 }
