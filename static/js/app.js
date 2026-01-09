@@ -811,8 +811,13 @@ function renderUploadList(elementId, items, kind, labels = {}) {
     // 🎬 LOAD CLIP PREVIEWS
     // ================================
     el.querySelectorAll(".clip-preview").forEach(img => {
-        const file = img.dataset.file;
+    const file = img.dataset.file;
+    loadClipPreview(file, img);
+
+    img.addEventListener("click", () => {
+        img.src = ""; // force refresh
         loadClipPreview(file, img);
+    });
     });
 
     // ================================

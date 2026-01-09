@@ -2217,12 +2217,34 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 }
 
 @media (max-width: 640px) {
+
   .clip-label-row {
-    grid-template-columns: 72px 1fr;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
 
   .clip-preview {
-    width: 72px;
-    height: 72px;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 9 / 16;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 10px;
+  }
+
+  .clip-label-content {
+    gap: 10px;
+  }
+
+  .clip-label-input {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .clip-meta {
+    font-size: 12px;
+    opacity: 0.7;
   }
 }
+
