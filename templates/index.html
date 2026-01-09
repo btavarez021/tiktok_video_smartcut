@@ -357,6 +357,21 @@
                         SOURCE: —
                         </div>
 
+                        <!-- ================================
+                            AI Clip Summaries (memory helper)
+                        ================================ -->
+                        <div class="card-subsection" style="margin-bottom:12px;">
+                            <div class="compareHeader" onclick="toggleClipSummaries()">
+                                <span>🧠 What the clips contain (AI)</span>
+                                <span id="clipSummaryChevron">▸</span>
+                            </div>
+
+                            <div id="clipSummariesBody" class="compareBody hidden">
+                                <ul id="clipSummariesList" class="analysis-list"></ul>
+                            </div>
+                        </div>
+
+
                         <label class="field-label">
                             Captions
                             <span class="tooltip">ⓘ

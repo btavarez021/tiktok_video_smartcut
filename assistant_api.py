@@ -795,6 +795,24 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
         return {"error": str(e)}
 
 
+def api_get_clip_summaries(session: str) -> Dict[str, Any]:
+    """
+    Returns AI-generated summaries for each clip in the session.
+    Used for helping users remember what each clip contains.
+    """
+    session = sanitize_session(session)
+    analyses = load_analysis_results_session(session)
+
+    return {
+        "clips": [
+            {
+                "file": filename,
+                "summary": description
+            }
+            for filename, description in analyses.items()
+        ]
+    }
+
 
 # -------------------------------
 # Config retrieval + saving (global)
