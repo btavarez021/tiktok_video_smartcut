@@ -24,9 +24,11 @@ function renderCaptionView() {
   if (!box) return;
 
   if (captionViewMode === "original") {
+    captionViewLocked = true;   // 🔒 freeze auto-refresh
     box.value = lastSavedCaptionsText || "";
     box.readOnly = true;
   } else {
+    captionViewLocked = false;  // 🔓 allow live updates
     box.value = box.dataset.workingText || box.value;
     box.readOnly = false;
   }
@@ -1536,47 +1538,50 @@ function buildCaptionsFromConfig(cfg) {
 }
 
 async function loadCaptionsFromYaml({ preserveSource = false } = {}) {
-    const captionsEl = document.getElementById("captionsText");
-    if (!captionsEl) return;
+  const captionsEl = document.getElementById("captionsText");
+  if (!captionsEl) return;
 
-    setCaptionInlineStatus("Loading captions from YAML…", "info");
+  setCaptionInlineStatus("Loading captions from YAML…", "info");
 
-    try {
-        const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
-        const cfg = data.config || {};
+  try {
+    const session = encodeURIComponent(getActiveSession());
+    const data = await jsonFetch(`/api/config?session=${session}`);
+    const cfg = data.config || {};
 
-        const before = captionsEl.value.trim();
-        const next = buildCaptionsFromConfig(cfg).trim();
+    const before = captionsEl.value.trim();
+    const next = buildCaptionsFromConfig(cfg).trim();
 
-        // Baseline is ALWAYS updated
-        lastSavedCaptionsText = next;
+    // 🔑 Baseline (YAML truth)
+    lastSavedCaptionsText = next;
 
-        const box = document.getElementById("captionsText");
-        if (box) {
-        box.dataset.workingText = next;
-        }
-
-
-
-        updateRewriteModeAvailability();
-        await refreshHookScore();
-        await refreshStoryFlowScore();
-
-        if (before === next) {
-            setCaptionSource("yaml", "🔵 SOURCE: YAML", true);
-            setCaptionInlineStatus("Captions already up to date", "info");
-        } else {
-            setCaptionSource("yaml", "🔵 SOURCE: YAML");
-            setCaptionInlineStatus("Captions loaded from YAML", "success");
-            flashElement(captionsEl);
-        }
-
-    } catch (err) {
-        console.error(err);
-        setCaptionInlineStatus("Failed to load captions", "error");
-        setCaptionSource("yaml", "⚠ SOURCE: YAML (failed)");
+    // 🔑 Working copy (rewritten / editable)
+    const box = document.getElementById("captionsText");
+    if (box) {
+      box.dataset.workingText = next;
     }
+
+    // 🔥 Push correct view into the textarea
+    renderCaptionView();
+
+    // Update UI logic
+    updateRewriteModeAvailability();
+    await refreshHookScore();
+    await refreshStoryFlowScore();
+
+    if (before === next) {
+      setCaptionSource("yaml", "🔵 SOURCE: YAML", true);
+      setCaptionInlineStatus("Captions already up to date", "info");
+    } else {
+      setCaptionSource("yaml", "🔵 SOURCE: YAML");
+      setCaptionInlineStatus("Captions loaded from YAML", "success");
+      flashElement(captionsEl);
+    }
+
+  } catch (err) {
+    console.error(err);
+    setCaptionInlineStatus("Failed to load captions", "error");
+    setCaptionSource("yaml", "⚠ SOURCE: YAML (failed)");
+  }
 }
 
 
