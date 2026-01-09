@@ -1774,38 +1774,40 @@ function updateRewriteWarning() {
     warning.classList.toggle("hidden", mode !== "rewrite");
 }
 
+
 function renderStep4CaptionView() {
-  const panel = document.getElementById("step4CaptionPanel");
-  if (!panel) return;
+  const box = document.getElementById("step4CaptionText");
+  if (!box) return;
 
   const original = lastSavedCaptionsText || "";
   const rewritten =
     document.getElementById("captionsText")?.dataset.workingText || original;
 
   if (captionViewMode === "original") {
-    panel.innerHTML = `<pre class="captionBlock">${escapeHtml(original)}</pre>`;
+    box.textContent = original;
     return;
   }
 
   if (captionViewMode === "rewritten") {
-    panel.innerHTML = `<pre class="captionBlock">${escapeHtml(rewritten)}</pre>`;
+    box.textContent = rewritten;
     return;
   }
 
-  // DIFF VIEW
-  panel.innerHTML = `
+  // Show Changes = side-by-side diff
+  box.innerHTML = `
     <div class="captionDiffGrid">
       <div>
-        <div class="diffHeader">Original (YAML)</div>
-        <pre class="captionBlock">${escapeHtml(original)}</pre>
+        <div class="diffHeader">Original</div>
+        <pre>${escapeHtml(original)}</pre>
       </div>
       <div>
         <div class="diffHeader">Rewritten</div>
-        <pre class="captionBlock">${escapeHtml(rewritten)}</pre>
+        <pre>${escapeHtml(rewritten)}</pre>
       </div>
     </div>
   `;
 }
+
 
 
 
