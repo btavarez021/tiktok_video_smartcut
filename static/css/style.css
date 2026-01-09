@@ -832,30 +832,16 @@ h3 {
     margin-bottom: 6px;
 }
 
-/* DEFAULT CLOSED */
+/* Accordion closed */
 .acc-body {
-    max-height: 0;
-    overflow: hidden;
-    opacity: 0;
-    padding: 0 4px;
-    margin-left: 6px;
-    margin-bottom: 0;
-    border-left: 2px solid transparent;
-    transition:
-        max-height .35s ease,
-        opacity .35s ease,
-        margin-bottom .35s ease,
-        border-left-color .35s ease;
+    display: none;
 }
 
-/* OPEN STATE */
+/* Accordion open */
 .acc-section.open .acc-body {
-    max-height: 1400px;            /* more room for preview */
-    overflow: visible;             /* allow preview to fully show */
-    opacity: 1;
-    padding: 12px 4px 24px 4px;     /* space below preview buttons */
+    display: block;
+    padding: 12px 4px 24px 4px;
     margin-bottom: 16px;
-    border-left-color: #444;
 }
 
 
