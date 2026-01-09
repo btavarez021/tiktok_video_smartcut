@@ -17,6 +17,8 @@ let lastSavedCaptionsText = "";
 // ================================
 // Step 4 Caption View (Original vs Rewritten)
 // ================================
+let diffCollapsed = false;
+
 let captionViewMode = "rewritten";
 
 function renderCaptionView() {
@@ -1777,39 +1779,33 @@ function updateRewriteWarning() {
 
 function renderStep4CaptionView() {
   const box = document.getElementById("step4CaptionText");
+  const header = document.getElementById("captionDiffHeader");
+  const scroll = document.getElementById("step4CaptionScroll");
+
   if (!box) return;
 
-  const original = lastSavedCaptionsText || "";
-  const rewritten =
-    document.getElementById("captionsText")?.dataset.workingText || original;
+  if (captionViewMode === "diff") {
+    header?.classList.remove("hidden");
+  } else {
+    header?.classList.add("hidden");
+    diffCollapsed = false;
+    scroll?.classList.remove("hidden");
+    document.getElementById("toggleDiffCollapse").textContent = "Collapse";
+  }
 
   if (captionViewMode === "original") {
-    box.textContent = original;
-    return;
+    box.textContent = lastSavedCaptionsText || "";
   }
-
-  if (captionViewMode === "rewritten") {
-    box.textContent = rewritten;
-    return;
+  else if (captionViewMode === "rewritten") {
+    box.textContent = document.getElementById("captionsText")?.value || "";
   }
-
-  // Show Changes = side-by-side diff
-  box.innerHTML = `
-    <div class="captionDiffGrid">
-      <div>
-        <div class="diffHeader">Original</div>
-        <pre>${escapeHtml(original)}</pre>
-      </div>
-      <div>
-        <div class="diffHeader">Rewritten</div>
-        <pre>${escapeHtml(rewritten)}</pre>
-      </div>
-    </div>
-  `;
+  else if (captionViewMode === "diff") {
+    box.innerHTML = renderCaptionDiffHTML(
+      lastSavedCaptionsText,
+      document.getElementById("captionsText")?.value || ""
+    );
+  }
 }
-
-
-
 
 
 function buildCaptionDiffHTML(oldText, newText) {
@@ -2782,6 +2778,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Only clear your local task ID
     // UI update happens inside pollExportStatus()
     ACTIVE_EXPORT_TASK = null;
+});
+
+document.getElementById("toggleDiffCollapse")?.addEventListener("click", () => {
+  diffCollapsed = !diffCollapsed;
+
+  document.getElementById("step4CaptionScroll")
+    ?.classList.toggle("hidden", diffCollapsed);
+
+  document.getElementById("toggleDiffCollapse").textContent =
+    diffCollapsed ? "Expand" : "Collapse";
 });
 
 
