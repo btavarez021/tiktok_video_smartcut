@@ -2310,3 +2310,8 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   font-size: 12px;
   text-transform: uppercase;
 }
+
+.step4-actions {
+  position: relative;
+  z-index: 50;
+}
