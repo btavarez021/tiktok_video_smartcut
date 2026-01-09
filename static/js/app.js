@@ -1549,15 +1549,13 @@ async function loadCaptionsFromYaml() {
 
     const yamlText = buildCaptionsFromConfig(cfg).trim();
 
-    // 🔑 YAML is the baseline (Original)
+    // 🔑 YAML baseline
     lastSavedCaptionsText = yamlText;
 
-    // 🔥 Only overwrite working copy if we are NOT in rewritten mode
-    if (captionViewMode !== "rewritten") {
-      box.dataset.workingText = yamlText;
-    }
+    // 🔥 Always update working copy from YAML
+    box.dataset.workingText = yamlText;
 
-    // 🔄 Push correct text into textarea
+    // 🔄 Show whichever view is active
     renderCaptionView();
 
     updateRewriteModeAvailability();
@@ -1573,6 +1571,7 @@ async function loadCaptionsFromYaml() {
     setCaptionSource("yaml", "⚠ SOURCE: YAML (failed)");
   }
 }
+
 
 
 // OLD session list (if legacy card exists)
@@ -1802,45 +1801,48 @@ async function applyOverlay() {
   );
 
   try {
-    await jsonFetch("/api/overlay", {
-      method: "POST",
-      body: JSON.stringify({
-        style,
-        session: getActiveSession(),
-        rewrite: rewriteMode === "rewrite",
-      }),
-    });
+  await jsonFetch("/api/overlay", {
+    method: "POST",
+    body: JSON.stringify({
+      style,
+      session: getActiveSession(),
+      rewrite: rewriteMode === "rewrite",
+    }),
+  });
 
-    await loadConfigAndYaml();
+  // Reload YAML
+  await loadConfigAndYaml();
 
-    // 🔥 Overlay rewrite commits to YAML → becomes new baseline
-    captionViewMode = "original";
-    await loadCaptionsFromYaml();
+  // 🔥 YAML now contains the new captions (if rewrite was enabled)
+  // Sync both baseline + working copy from YAML
+  await loadCaptionsFromYaml();
 
-    // 🔄 Then switch back to rewritten view
-    captionViewMode = "rewritten";
-    renderCaptionView();
+  // 🔄 Always show rewritten view after apply
+  captionViewMode = "rewritten";
+  document.getElementById("showRewritten")?.classList.add("active");
+  document.getElementById("showOriginal")?.classList.remove("active");
+  renderCaptionView();
 
-    suppressNextPreview = true;
-    await previewOverlay("fast");
+  suppressNextPreview = true;
+  await previewOverlay("fast");
 
-    setStatus(
-      "overlayStatus",
-      rewriteMode === "rewrite"
-        ? "Overlay applied + captions rewritten ✓"
-        : "Overlay applied without rewriting ✓",
-      "success"
-    );
-  } catch (err) {
-    console.error(err);
-    setStatus("overlayStatus", "Failed to apply overlay.", "error");
-  }
+  setStatus(
+    "overlayStatus",
+    rewriteMode === "rewrite"
+      ? "Overlay applied + captions rewritten ✓"
+      : "Overlay applied without rewriting ✓",
+    "success"
+  );
+} catch (err) {
+  console.error(err);
+  setStatus("overlayStatus", "Failed to apply overlay.", "error");
+}
 }
 
 // confirm
 document.getElementById("confirmRewriteBtn")?.addEventListener("click", async ()=>{
     document.getElementById("rewritePreviewModal").classList.add("hidden");
-    applyOverlay(true); // calls overlay rewrite for real
+    applyOverlay(); // calls overlay rewrite for real
 });
 
 // cancel

@@ -2249,32 +2249,32 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 }
 
 
-    .caption-toggle-row {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    margin: 8px 0;
-    }
-
-    .toggle-btn {
-    padding: 6px 14px;
-    border-radius: 18px;
-    border: 1px solid #ccc;
-    background: #f4f4f4;
-    cursor: pointer;
-    font-weight: 600;
-    }
-
-    .toggle-btn.active {
-    background: #111;
-    color: #fff;
-    }
-
-    .toggle-btn:hover {
-    background: #e5e5e5;
-    }
+.caption-toggle-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 10px 0;
+}
 
 .toggle-btn {
-  transition: background 0.15s ease, color 0.15s ease;
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid #2c2f36;
+  background: #1a1c20;
+  color: #bfc3c9;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all .15s ease;
+}
+
+.toggle-btn:hover {
+  background: #22252b;
+}
+
+.toggle-btn.active {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  color: white;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59,130,246,.4);
 }
 
