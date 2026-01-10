@@ -2487,33 +2487,50 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   border-style: dashed;
 }
 
-.upload-column {
+/* Upload Manager vertical sizing */
+#uploadManagerContent {
   display: flex;
   flex-direction: column;
-  min-height: 0; /* CRITICAL — allows children to scroll */
-}
-
-
-#rawUploads,
-#processedUploads {
-  overflow-y: auto;
+  height: calc(100vh - 260px); /* keeps manager constrained */
   min-height: 0;
 }
 
+/* 2-column grid */
+.uploads-container {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-height: 0;
+}
+
+/* Each column stacks title + list */
+.upload-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* THIS is the only scrolling surface */
+.upload-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* ❌ Disable scrolling on inner divs */
+#rawUploads,
+#processedUploads {
+  overflow: visible;
+}
 
 @media (max-width: 900px) {
   .uploads-container {
     grid-template-columns: 1fr;
-    height: auto;
   }
 
-  #rawUploads,
-  #processedUploads {
-    max-height: 70vh;
-    overflow-y: auto;
-  }
-
-  #processedUploads {
-    margin-top: 24px;
+  .upload-column {
+    min-height: 300px;
   }
 }
+
