@@ -259,7 +259,7 @@ def normalize_video(src: str, dst: str) -> None:
 # -----------------------------------------
 # LLM Clip Analysis
 # -----------------------------------------
-def analyze_video(path: str) -> str:
+def analyze_video(path: str, session: str, label: str = "") -> str:
     """
     Given a local video path, return a short 1-sentence description
     suitable for a TikTok hotel/travel caption seed.
@@ -271,14 +271,27 @@ def analyze_video(path: str) -> str:
         return f"Hotel clip describing scene in {basename}"
 
     prompt = f"""
-You are a TikTok travel editor.
+        You are a visual captioning assistant for a hotel & travel video editing system.
 
-Write ONE short sentence (max 150 chars) describing what this hotel/travel clip likely shows.
+        Project:
+        {session}
 
-Filename: {basename}
+        User label for this clip:
+        {label or "(none provided)"}
 
-No hashtags. No quotes. Return only the sentence.
-""".strip()
+        Describe what is visually visible in this video clip in ONE short sentence (max 150 chars).
+
+        Rules:
+        - Do NOT invent beaches, oceans, tropical resorts, or water unless clearly visible
+        - Do NOT contradict the user label
+        - Do NOT invent locations not stated in the project
+        - If unsure, stay neutral (e.g. "rooftop", "bar", "city skyline", "hotel gym")
+
+        Filename: {basename}
+
+        Return ONLY the sentence.
+        """.strip()
+
 
     resp = client.chat.completions.create(
         model=TEXT_MODEL,

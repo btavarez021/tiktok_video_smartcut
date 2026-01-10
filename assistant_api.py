@@ -676,6 +676,7 @@ def _sync_s3_videos_to_local(session: str) -> List[str]:
 # Analyze APIs (per session)
 # -------------------------------
 def _analyze_all_videos(session: str) -> Dict[str, Any]:
+    labels = load_labels_for_session(session)  # { filename: label }
     session = sanitize_session(session)
     raw_prefix = f"{RAW_PREFIX}{session}/"
 
@@ -692,9 +693,13 @@ def _analyze_all_videos(session: str) -> Dict[str, Any]:
             continue
 
         try:
-            desc = analyze_video(tmp)
             basename = os.path.basename(key)
+            label = labels.get(basename, "")
+
+            desc = analyze_video(tmp, session, label)
+
             save_analysis_result_session(session, basename, desc)
+
             count += 1
         except Exception as e:
             logger.error(f"[ANALYZE][{session}] Failed for {key}: {e}")
