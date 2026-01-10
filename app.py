@@ -41,8 +41,9 @@ from assistant_api import (
     api_overlay_preview, 
     generate_overlay_preview,
     load_labels,
-    save_labels,
-    api_clip_preview
+    api_set_label,
+    api_clip_preview, 
+    repair_label
 )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -169,17 +170,30 @@ def api_get_labels_route():
 
 
 @app.route("/api/labels", methods=["POST"])
-def api_set_label():
+def api_set_label_route():
     data = request.get_json() or {}
     session = sanitize_session(data.get("session"))
     filename = data.get("file")
-    label = data.get("label", "").strip()
+    label = data.get("label")
 
-    labels = load_labels(session)
-    labels[filename] = label
-    save_labels(session, labels)
+    result = api_set_label(session, filename, label)
+    return jsonify(result)
 
-    return {"status": "ok", "labels": labels}
+
+@app.route("/repair_label", methods=["POST"])
+def repair_label_route():
+    data = request.json
+    file = data["file"]
+    label = data["label"]
+    session = sanitize_session(data["session"])
+
+    fixed = repair_label(
+        filename=file,
+        label=label,
+        session=session
+    )
+
+    return jsonify({"fixed_label": fixed})
 
 
 # -----------------------------------------

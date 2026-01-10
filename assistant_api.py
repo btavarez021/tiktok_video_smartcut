@@ -91,6 +91,38 @@ def strip_emojis(text: str) -> str:
     # Remove emojis & pictographs (Unicode-safe)
     return re.sub(r"[\U00010000-\U0010ffff]", "", text).strip()
 
+# ================================
+# Clip label validation & cleanup
+# ================================
+def normalize_label(label: str) -> str:
+    """
+    Enforces clean, AI-safe clip labels.
+    """
+    if not label:
+        return ""
+
+    label = strip_emojis(label)
+    label = label.strip()
+
+    # Collapse spaces
+    label = re.sub(r"\s+", " ", label)
+
+    # Max length
+    label = label[:60]
+
+    # Remove junk characters
+    label = re.sub(r"[^a-zA-Z0-9 \-]", "", label)
+
+    # Block useless labels
+    banned = {"video", "clip", "test", "file", "upload", "sample"}
+    if label.lower() in banned:
+        return ""
+
+    # Must contain letters
+    if not re.search(r"[a-zA-Z]", label):
+        return ""
+
+    return label.strip()
 
 
 # ==========================================
@@ -161,24 +193,6 @@ def api_set_captions_mode(session: str, mode: str) -> Dict[str, Any]:
 
     log_step(f"[CAPTIONS_MODE] {session} -> {mode}")
     return {"status": "ok", "captions_mode": mode}
-
-def load_labels_for_session(session: str) -> dict:
-    """
-    Load labels.json for a session.
-    Returns { filename: label }
-    """
-    labels_path = os.path.join("sessions", session, "labels.json")
-
-    if not os.path.exists(labels_path):
-        return {}
-
-    try:
-        with open(labels_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data.get("labels", {})
-    except Exception as e:
-        logger.error(f"[LABELS] Failed to load labels for {session}: {e}")
-        return {}
 
 
 # -----------------------------------------
@@ -536,14 +550,81 @@ def api_set_label(session: str, filename: str, label: str | None) -> Dict[str, A
     session = sanitize_session(session)
     labels = load_labels(session)
 
-    label = (label or "").strip()
-    if label:
-        labels[filename] = label
-    else:
-        labels.pop(filename, None)
+    raw = (label or "").strip()
+    clean = normalize_label(raw)
 
+    # If label is invalid or too generic, repair it using vision
+    if not clean:
+        fixed = repair_label(filename, raw, session)
+        if fixed:
+            labels[filename] = fixed
+            save_labels(session, labels)
+            return {
+                "status": "ok",
+                "file": filename,
+                "label": fixed,
+                "auto_fixed": True
+            }
+        else:
+            labels.pop(filename, None)
+            save_labels(session, labels)
+            return {
+                "status": "ok",
+                "file": filename,
+                "label": "",
+                "auto_fixed": False
+            }
+
+    # Valid label → save directly
+    labels[filename] = clean
     save_labels(session, labels)
-    return {"status": "ok"}
+
+    return {
+        "status": "ok",
+        "file": filename,
+        "label": clean,
+        "auto_fixed": False
+    }
+
+
+def repair_label(filename: str, label: str, session: str) -> str:
+    if not client:
+        return normalize_label(label)
+
+    prompt = f"""
+You are fixing a short video label.
+
+Bad label: "{label}"
+Filename: "{filename}"
+Hotel or session: "{session}"
+
+Rewrite the label into a short, clean, visual description of what the clip shows.
+
+Rules:
+- Max 8 words
+- No emojis
+- No hashtags
+- No hotel name unless relevant
+- Must describe what is visible
+- Must be useful for captions
+
+Return ONLY the label text.
+"""
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+            max_tokens=20,
+        )
+
+        fixed = (resp.choices[0].message.content or "").strip()
+        return normalize_label(fixed)
+
+    except Exception as e:
+        logger.error(f"[REPAIR_LABEL] {e}")
+        return normalize_label(label)
 
 
 def move_upload_s3(src: str, dest: str) -> Dict[str, Any]:
@@ -679,7 +760,7 @@ def _analyze_all_videos(session: str) -> Dict[str, Any]:
     raw_prefix = f"{RAW_PREFIX}{session}/"
 
     # 🔥 LOAD LABELS FOR THIS SESSION
-    labels = load_labels_for_session(session)
+    labels = load_labels(session)
 
     keys = list_videos_from_s3(prefix=raw_prefix, return_full_keys=True)
 

@@ -34,6 +34,31 @@ function renderCaptionView() {
   }
 }
 
+function showLabelWarning(file, badLabel, reason) {
+  if (!confirm(
+    `⚠️ Label is weak: ${reason}\n\nFixing labels improves captions, hooks and story flow.\n\nClick OK to auto-fix it or Cancel to edit yourself.`
+  )) {
+    return;
+  }
+
+  fetch("/repair_label", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      file,
+      label: badLabel,
+      session: getActiveSession()
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.fixed_label) {
+      document.querySelector(`input[data-file="${file}"]`).value = data.fixed_label;
+    }
+  });
+}
+
+
 
 function renderStep3Diff(oldText, newText) {
   const grid = document.getElementById("step3DiffGrid");
@@ -895,53 +920,52 @@ function renderUploadList(elementId, items, kind, labels = {}) {
     });
 
     // ================================
-    // 🧠 SUGGEST LABEL BUTTON
+    // 🧠 SUGGEST LABEL BUTTON (Vision-powered)
     // ================================
     el.querySelectorAll(".suggest-label-btn").forEach(btn => {
-        btn.addEventListener("click", async () => {
-            const file = btn.dataset.file;
+    btn.addEventListener("click", async () => {
+        const file = btn.dataset.file;
 
-            btn.disabled = true;
-            btn.textContent = "Thinking…";
+        btn.disabled = true;
+        btn.textContent = "Analyzing…";
 
-            try {
-                const res = await jsonFetch("/api/chat", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        session: getActiveSession(),
-                        message: `Suggest a short descriptive label for this hotel/travel clip: ${file}`
-                    })
-                });
-
-                const suggestion = (res.reply || "").split("\n")[0].trim();
-
-                const input = btn
-                .closest(".clip-card")
-                ?.querySelector(".clip-label-input");
-
-
-                if (input && suggestion) {
-                    input.value = suggestion;
-                    await saveClipLabel(file, suggestion);
-                }
-            } catch (err) {
-                console.error("Suggest label failed:", err);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = "🧠 Suggest label";
-            }
+        try {
+        const res = await jsonFetch("/repair_label", {
+            method: "POST",
+            body: JSON.stringify({
+            session: getActiveSession(),
+            file,
+            label: ""   // empty → force GPT-Vision to generate from video
+            })
         });
-    });
-}
 
-// ================================
-// Clip label persistence
-// ================================
+        const fixed = res.fixed_label;
+
+        const input = btn
+            .closest(".clip-card")
+            ?.querySelector(".clip-label-input");
+
+        if (input && fixed) {
+            input.value = fixed;
+            await saveClipLabel(file, fixed);
+        }
+
+        } catch (err) {
+        console.error("Suggest label failed:", err);
+        alert("Failed to analyze video");
+        } finally {
+        btn.disabled = false;
+        btn.textContent = "🧠 Suggest label";
+        }
+    });
+    });
+
+
 async function saveClipLabel(file, label) {
   if (!file) return;
 
   try {
-    await jsonFetch("/api/labels", {
+    const res = await jsonFetch("/api/labels", {
       method: "POST",
       body: JSON.stringify({
         session: getActiveSession(),
@@ -950,7 +974,12 @@ async function saveClipLabel(file, label) {
       })
     });
 
-    // ✅ UX feedback
+    // Show repaired label if backend fixed it
+    if (res?.label && res.label !== label) {
+      const input = document.querySelector(`.clip-label-input[data-file="${file}"]`);
+      if (input) input.value = res.label;
+    }
+
     const input = document.querySelector(`.clip-label-input[data-file="${file}"]`);
     if (input) {
       input.classList.add("saved-flash");
@@ -959,6 +988,7 @@ async function saveClipLabel(file, label) {
 
   } catch (err) {
     console.error("Failed to save label:", err);
+    alert("Failed to save label");
   }
 }
 
