@@ -2491,8 +2491,10 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  height: calc(100vh - 220px); /* tweak this to fit header */
-  min-height: 0; /* CRITICAL for scroll to work */
+
+  /* Critical */
+  height: calc(100vh - 180px);
+  min-height: 0;     /* allows children to scroll */
 }
 
 #rawUploads,
