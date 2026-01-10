@@ -15,7 +15,6 @@ import subprocess
 from flask import request
 from assistant_log import log_step, log_error, log_success
 from tiktok_template import edit_video, video_folder,get_config_path, STYLE_PRESETS
-
 from s3_config import (
     s3,
     S3_BUCKET_NAME,

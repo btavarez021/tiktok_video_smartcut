@@ -14,7 +14,7 @@ from typing import Dict, List, Optional
 import re
 import yaml
 from openai import OpenAI
-
+import base64
 from assistant_log import log_step
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX  # shared S3 client + config
 from tiktok_template import get_config_path
@@ -259,51 +259,73 @@ def normalize_video(src: str, dst: str) -> None:
 # -----------------------------------------
 # LLM Clip Analysis
 # -----------------------------------------
+
+
 def analyze_video(path: str, session: str, label: str = "") -> str:
-    """
-    Given a local video path, return a short 1-sentence description
-    suitable for a TikTok hotel/travel caption seed.
-    """
     basename = os.path.basename(path)
 
     if client is None:
-        # Fallback if no OpenAI key set
-        return f"Hotel clip describing scene in {basename}"
+        return f"Hotel clip showing {label or basename}"
 
-    prompt = f"""
-        You are a visual captioning assistant for a hotel & travel video editing system.
+    # 1️⃣ Extract a frame from the clip
+    frame = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg").name
 
-        Project:
-        {session}
+    subprocess.run(
+        ["ffmpeg", "-y", "-ss", "00:00:01.5", "-i", path, "-vframes", "1", frame],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
-        User label for this clip (THIS IS THE PRIMARY TRUTH):
-        {label or "(none provided)"}
+    with open(frame, "rb") as f:
+        img_b64 = base64.b64encode(f.read()).decode()
 
-        You must describe the scene primarily based on this label.
-        If the filename or visuals seem different, trust the label.
+    # 2️⃣ Vision-based prompt
+    prompt = [
+        {
+            "role": "system",
+            "content": "You are a visual hotel & travel scene describer. Be factual. No guessing."
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": f"""
+Project:
+{session}
 
-        Describe what is visually visible in this video clip in ONE short sentence (max 150 chars).
+User label (primary intent):
+{label or "(none)"}
 
-        Rules:
-        - Do NOT invent beaches, oceans, tropical resorts, or water unless clearly visible
-        - Do NOT invent locations not stated in the project
-        - Use the project name and city when relevant
-        - If unsure, stay neutral (e.g. "rooftop", "bar", "city skyline", "hotel gym")
+Describe ONLY what you see in this frame.
 
-        Filename: {basename}
-
-        Return ONLY the sentence.
-        """.strip()
-
-
+Rules:
+- Do not invent oceans, beaches, or resorts
+- Do not invent interiors if outdoors
+- Do not contradict the label
+- Use neutral factual language
+- If unsure, say what is visible (e.g. rooftop, bar, skyline)
+"""
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{img_b64}"
+                    }
+                }
+            ]
+        }
+    ]
 
     resp = client.chat.completions.create(
-        model=TEXT_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7,
+        model="gpt-4o",
+        messages=prompt,
+        max_tokens=60,
+        temperature=0.2
     )
-    desc = (resp.choices[0].message.content or "").strip()
-    return desc
+
+    return resp.choices[0].message.content.strip()
+
 
 
 def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
