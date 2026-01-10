@@ -2492,19 +2492,28 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+  height: calc(100vh - 180px); /* or whatever fits your header */
 }
+
+#rawUploads,
+#processedUploads {
+  overflow-y: auto;
+  max-height: 100%;
+  padding-right: 6px; /* space for scrollbar */
+}
+
 
 @media (max-width: 900px) {
   .uploads-container {
     grid-template-columns: 1fr;
   }
 
-  .processedUploads {
+  #processedUploads {
     order: 2;
     margin-top: 24px;
   }
 
-  .rawUploads {
+  #rawUploads {
     order: 1;
   }
 }
