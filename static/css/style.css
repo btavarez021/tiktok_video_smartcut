@@ -2487,22 +2487,19 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   border-style: dashed;
 }
 
-.uploads-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr;
-  gap: 16px;
-
-  height: calc(100vh - 180px);
-  min-height: 0;
+.upload-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* CRITICAL — allows children to scroll */
 }
+
 
 #rawUploads,
 #processedUploads {
   overflow-y: auto;
   min-height: 0;
-  padding-right: 8px;
 }
+
 
 @media (max-width: 900px) {
   .uploads-container {
