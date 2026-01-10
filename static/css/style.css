@@ -2490,12 +2490,13 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 .uploads-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;   /* ← THIS is what enables scrolling */
   gap: 16px;
 
-  /* Critical */
   height: calc(100vh - 180px);
-  min-height: 0;     /* allows children to scroll */
+  min-height: 0;
 }
+
 
 #rawUploads,
 #processedUploads {
