@@ -2491,18 +2491,19 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 #uploadManagerContent {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 260px); /* keeps manager constrained */
+  height: calc(100vh - 260px); /* constrain on desktop */
   min-height: 0;
 }
 
-/* 2-column grid */
+/* Grid fills the available height inside the manager */
 .uploads-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  min-height: 0;
-}
 
+  flex: 1;        /* ✅ IMPORTANT: take remaining height */
+  min-height: 0;  /* ✅ allow children to shrink/scroll */
+}
 
 /* Each column stacks title + list */
 .upload-column {
@@ -2511,26 +2512,39 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   min-height: 0;
 }
 
-/* THIS is the only scrolling surface */
+/* The list is the scroll surface */
 .upload-list {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;      /* ✅ IMPORTANT for nested flex scroll */
+  overflow-y: auto;   /* ✅ scrolling on */
   padding-right: 8px;
 }
 
-/* ❌ Disable scrolling on inner divs */
+/* ✅ DO NOT override these — they ARE the scroll containers */
+/* REMOVE THIS COMPLETELY:
 #rawUploads,
 #processedUploads {
   overflow: visible;
 }
+*/
 
+/* Mobile: let the whole manager flow naturally,
+   but give each list a max height so it can scroll */
 @media (max-width: 900px) {
+  #uploadManagerContent {
+    height: auto;      /* ✅ on mobile, don't lock to viewport math */
+  }
+
   .uploads-container {
     grid-template-columns: 1fr;
   }
 
-  .upload-column {
-    min-height: 300px;
+  .upload-list {
+    max-height: 60vh;  /* ✅ each section scrolls on mobile */
+  }
+
+  #processedUploads {
+    margin-top: 12px;
   }
 }
 
