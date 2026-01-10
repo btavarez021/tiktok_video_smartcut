@@ -777,11 +777,17 @@ def _analyze_all_videos(session: str) -> Dict[str, Any]:
         try:
             basename = os.path.basename(key)
 
-            # 🔥 Pull label for this specific clip
+           # 🔥 Pull user label
             label = labels.get(basename, "")
 
-            # 🔥 Pass session + label into GPT
-            desc = analyze_video(tmp, session, label)
+            # 🔥 Only allow Vision to invent a label if user gave nothing
+            clean = normalize_label(label)
+            if not clean:
+                clean = ""   # force Vision-based labeling inside analyze_video()
+
+            # 🔥 Now analysis respects user intent
+            desc = analyze_video(tmp, session, clean)
+
 
             save_analysis_result_session(session, basename, desc)
             count += 1
