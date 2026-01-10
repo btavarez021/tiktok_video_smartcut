@@ -976,15 +976,15 @@ async function saveClipLabel(file, label) {
       })
     });
 
-    const repaired = res?.label || res?.labels?.[file];
+    // 🔥 Backend is now the single source of truth
+    const finalLabel = res?.label ?? "";
 
-    if (repaired && repaired !== label) {
     const input = document.querySelector(`.clip-label-input[data-file="${file}"]`);
-    if (input) input.value = repaired;
+
+    if (input && finalLabel !== input.value) {
+      input.value = finalLabel;
     }
 
-
-    const input = document.querySelector(`.clip-label-input[data-file="${file}"]`);
     if (input) {
       input.classList.add("saved-flash");
       setTimeout(() => input.classList.remove("saved-flash"), 600);
@@ -995,6 +995,7 @@ async function saveClipLabel(file, label) {
     alert("Failed to save label");
   }
 }
+
 
 
 async function moveUpload(src, dest) {
