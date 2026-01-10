@@ -2490,13 +2490,12 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 .uploads-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr;   /* ← THIS is what enables scrolling */
+  grid-template-rows: 1fr;
   gap: 16px;
 
   height: calc(100vh - 180px);
   min-height: 0;
 }
-
 
 #rawUploads,
 #processedUploads {
@@ -2505,7 +2504,6 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   padding-right: 8px;
 }
 
-/* Mobile */
 @media (max-width: 900px) {
   .uploads-container {
     grid-template-columns: 1fr;
@@ -2514,7 +2512,8 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 
   #rawUploads,
   #processedUploads {
-    max-height: 70vh;  /* each section scrolls */
+    max-height: 70vh;
+    overflow-y: auto;
   }
 
   #processedUploads {
