@@ -2582,4 +2582,13 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   scrollbar-color: rgba(120,120,255,.6) rgba(255,255,255,.04);
 }
 
+.upload-list::-webkit-scrollbar-thumb {
+  opacity: 0;
+  transition: opacity .2s;
+}
+
+.upload-list:hover::-webkit-scrollbar-thumb {
+  opacity: 1;
+}
+
 
