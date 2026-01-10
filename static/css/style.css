@@ -2487,7 +2487,6 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   border-style: dashed;
 }
 
-
 .uploads-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2501,7 +2500,6 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   max-height: 100%;
   padding-right: 6px; /* space for scrollbar */
 }
-
 
 @media (max-width: 900px) {
   .uploads-container {
