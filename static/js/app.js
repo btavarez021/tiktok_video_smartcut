@@ -801,10 +801,6 @@ function renderUploadList(elementId, items, kind, labels = {}) {
             return `
                 <div class="upload-item">
 
-                    <div class="file-info">
-                        <strong>${session}/${file}</strong>
-                    </div>
-
                     ${
                         isRaw
                             ? `
