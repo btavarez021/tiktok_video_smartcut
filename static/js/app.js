@@ -808,47 +808,49 @@ function renderUploadList(elementId, items, kind, labels = {}) {
                     ${
                         isRaw
                             ? `
-                            <div class="clip-label-row">
+                            <div class="clip-card">
 
-                            <!-- LEFT: Preview -->
                             <img
-                                class="clip-preview"
+                                class="clip-preview large"
                                 data-file="${file}"
                                 alt="Preview frame"
                             />
 
-                            <!-- RIGHT: Controls -->
-                            <div class="clip-label-content">
+                            <div class="clip-filename">
+                                ${file}
+                            </div>
 
-                                <small class="clip-meta">Tap image to re-preview</small>
+                            <input
+                                class="input clip-label-input"
+                                value="${savedLabel}"
+                                placeholder="e.g. Rooftop cocktails"
+                                data-file="${file}"
+                            />
+
+                            <p class="hint-text small">
+                                Used to guide captions and filename-based generation.
+                            </p>
+
+                            <div class="clip-actions">
 
                                 <button
-                                    class="btn ghost small suggest-label-btn"
-                                    data-file="${file}">
-                                    🧠 Suggest label
+                                class="btn ghost small suggest-label-btn"
+                                data-file="${file}">
+                                🧠 Suggest label
                                 </button>
 
-                                <span class="tooltip">ⓘ
-                                    <span class="tooltiptext">
-                                        Labels auto-save when you click away or press Enter.<br>
-                                        Used to guide AI captions — not shown in the video.
-                                    </span>
-                                </span>
+                                <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
+                                Move →
+                                </button>
 
-                                <input
-                                    class="input clip-label-input"
-                                    value="${savedLabel}"
-                                    placeholder="e.g. Rooftop cocktails"
-                                    data-file="${file}"
-                                />
-
-                                <p class="hint-text small">
-                                    Used to guide captions and filename-based generation.
-                                    Not shown in the video.
-                                </p>
+                                <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
+                                Delete
+                                </button>
 
                             </div>
-                        </div>
+
+                            </div>
+
                             `
                             : ""
                     }
@@ -921,8 +923,9 @@ function renderUploadList(elementId, items, kind, labels = {}) {
                 const suggestion = (res.reply || "").split("\n")[0].trim();
 
                 const input = btn
-                    .closest(".clip-label-row")
-                    ?.querySelector(".clip-label-input");
+                .closest(".clip-card")
+                ?.querySelector(".clip-label-input");
+
 
                 if (input && suggestion) {
                     input.value = suggestion;
