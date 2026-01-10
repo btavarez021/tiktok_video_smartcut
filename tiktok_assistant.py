@@ -276,21 +276,25 @@ def analyze_video(path: str, session: str, label: str = "") -> str:
         Project:
         {session}
 
-        User label for this clip:
+        User label for this clip (THIS IS THE PRIMARY TRUTH):
         {label or "(none provided)"}
+
+        You must describe the scene primarily based on this label.
+        If the filename or visuals seem different, trust the label.
 
         Describe what is visually visible in this video clip in ONE short sentence (max 150 chars).
 
         Rules:
         - Do NOT invent beaches, oceans, tropical resorts, or water unless clearly visible
-        - Do NOT contradict the user label
         - Do NOT invent locations not stated in the project
+        - Use the project name and city when relevant
         - If unsure, stay neutral (e.g. "rooftop", "bar", "city skyline", "hotel gym")
 
         Filename: {basename}
 
         Return ONLY the sentence.
         """.strip()
+
 
 
     resp = client.chat.completions.create(
