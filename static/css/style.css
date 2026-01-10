@@ -2481,3 +2481,8 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   gap: 8px;
   justify-content: space-between;
 }
+
+.clip-card.processed {
+  opacity: 0.6;
+  border-style: dashed;
+}

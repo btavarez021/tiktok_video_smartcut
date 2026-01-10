@@ -801,43 +801,61 @@ function renderUploadList(elementId, items, kind, labels = {}) {
             return `
                 <div class="upload-item">
                     ${
-                    isRaw
-                        ? `
-                        <div class="clip-card">
+                        isRaw
+                            ? `
+                            <div class="clip-card">
 
-                        <img class="clip-preview large" data-file="${file}" />
+                                <img class="clip-preview large" data-file="${file}" />
 
-                        <div class="clip-filename">${file}</div>
+                                <div class="clip-filename">${file}</div>
 
-                        <input
-                            class="input clip-label-input"
-                            value="${savedLabel}"
-                            placeholder="e.g. Rooftop cocktails"
-                            data-file="${file}"
-                        />
+                                <input
+                                class="input clip-label-input"
+                                value="${savedLabel}"
+                                placeholder="e.g. Rooftop cocktails"
+                                data-file="${file}"
+                                />
 
-                        <p class="hint-text small">
-                            Used to guide captions and filename-based generation.
-                        </p>
+                                <p class="hint-text small">
+                                Used to guide captions and filename-based generation.
+                                </p>
 
-                        <div class="clip-actions">
-                            <button class="btn ghost small suggest-label-btn" data-file="${file}">
-                            🧠 Suggest label
-                            </button>
+                                <div class="clip-actions">
+                                <button class="btn ghost small suggest-label-btn" data-file="${file}">
+                                    🧠 Suggest label
+                                </button>
 
-                            <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
-                            Move →
-                            </button>
+                                <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
+                                    Move →
+                                </button>
 
-                            <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
-                            Delete
-                            </button>
-                        </div>
+                                <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
+                                    Delete
+                                </button>
+                                </div>
 
-                        </div>
-                        `
-                        : ""
-                    }
+                            </div>
+                            `
+                            : `
+                            <div class="clip-card processed">
+
+                                <img class="clip-preview" data-file="${file}" />
+
+                                <div class="clip-filename">${file}</div>
+
+                                <div class="clip-actions">
+                                <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
+                                    ← Move back
+                                </button>
+
+                                <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
+                                    Delete
+                                </button>
+                                </div>
+
+                            </div>
+                            `
+                        }
                 </div>
                 `;
 
