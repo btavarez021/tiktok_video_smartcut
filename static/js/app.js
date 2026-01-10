@@ -888,7 +888,7 @@ function renderUploadList(elementId, items, kind, labels = {}) {
         .join("");
 
     // ================================
-    // 🧠 SUGGEST LABEL BUTTON (Vision-powered)
+    // 🧠 SUGGEST LABEL (Vision-powered)
     // ================================
     el.querySelectorAll(".suggest-label-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -903,15 +903,14 @@ function renderUploadList(elementId, items, kind, labels = {}) {
             body: JSON.stringify({
             session: getActiveSession(),
             file,
-            label: ""   // empty → force GPT-Vision to generate from video
+            label: ""   // empty → force GPT-Vision to read the video
             })
         });
 
         const fixed = res.fixed_label;
 
-        const input = btn
-            .closest(".clip-card")
-            ?.querySelector(".clip-label-input");
+        const input = btn.closest(".clip-card")
+                        ?.querySelector(".clip-label-input");
 
         if (input && fixed) {
             input.value = fixed;
@@ -926,8 +925,7 @@ function renderUploadList(elementId, items, kind, labels = {}) {
         btn.textContent = "🧠 Suggest label";
         }
     });
-    });
-
+    });   
 
     // ================================
     // 🎬 LOAD CLIP PREVIEWS
@@ -941,8 +939,6 @@ function renderUploadList(elementId, items, kind, labels = {}) {
         loadClipPreview(file, img);
     });
     });
-
-}
 
     // ================================
     // ✍️ LABEL AUTO-SAVE
@@ -963,6 +959,9 @@ function renderUploadList(elementId, items, kind, labels = {}) {
 
     });
 
+}
+
+    
 
 async function saveClipLabel(file, label) {
   if (!file) return;
