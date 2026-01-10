@@ -2548,3 +2548,38 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   }
 }
 
+/* ====== Custom Scrollbars (Upload Manager) ====== */
+.upload-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.upload-list::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+}
+
+.upload-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(120,120,255,0.6),
+    rgba(80,80,200,0.6)
+  );
+  border-radius: 8px;
+  border: 2px solid rgba(0,0,0,0.4);
+}
+
+.upload-list::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(140,140,255,0.85),
+    rgba(100,100,240,0.85)
+  );
+}
+
+/* Firefox */
+.upload-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120,120,255,.6) rgba(255,255,255,.04);
+}
+
+
