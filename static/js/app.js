@@ -887,38 +887,6 @@ function renderUploadList(elementId, items, kind, labels = {}) {
         })
         .join("");
 
-
-    // ================================
-    // 🎬 LOAD CLIP PREVIEWS
-    // ================================
-    el.querySelectorAll(".clip-preview").forEach(img => {
-    const file = img.dataset.file;
-    loadClipPreview(file, img);
-
-    img.addEventListener("click", () => {
-        img.src = ""; // force refresh
-        loadClipPreview(file, img);
-    });
-    });
-
-    // ================================
-    // ✍️ LABEL AUTO-SAVE
-    // ================================
-    el.querySelectorAll(".clip-label-input").forEach(input => {
-        input.addEventListener("blur", async () => {
-            const file = input.dataset.file;
-            const label = input.value.trim();
-            await saveClipLabel(file, label);
-        });
-
-        input.addEventListener("keydown", async (e) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                input.blur();
-            }
-        });
-    });
-
     // ================================
     // 🧠 SUGGEST LABEL BUTTON (Vision-powered)
     // ================================
@@ -961,6 +929,41 @@ function renderUploadList(elementId, items, kind, labels = {}) {
     });
 
 
+    // ================================
+    // 🎬 LOAD CLIP PREVIEWS
+    // ================================
+    el.querySelectorAll(".clip-preview").forEach(img => {
+    const file = img.dataset.file;
+    loadClipPreview(file, img);
+
+    img.addEventListener("click", () => {
+        img.src = ""; // force refresh
+        loadClipPreview(file, img);
+    });
+    });
+
+}
+
+    // ================================
+    // ✍️ LABEL AUTO-SAVE
+    // ================================
+    el.querySelectorAll(".clip-label-input").forEach(input => {
+        input.addEventListener("blur", async () => {
+            const file = input.dataset.file;
+            const label = input.value.trim();
+            await saveClipLabel(file, label);
+        });
+
+        input.addEventListener("keydown", async (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                input.blur();
+            }
+        });
+
+    });
+
+
 async function saveClipLabel(file, label) {
   if (!file) return;
 
@@ -974,11 +977,13 @@ async function saveClipLabel(file, label) {
       })
     });
 
-    // Show repaired label if backend fixed it
-    if (res?.label && res.label !== label) {
-      const input = document.querySelector(`.clip-label-input[data-file="${file}"]`);
-      if (input) input.value = res.label;
+    const repaired = res?.label || res?.labels?.[file];
+
+    if (repaired && repaired !== label) {
+    const input = document.querySelector(`.clip-label-input[data-file="${file}"]`);
+    if (input) input.value = repaired;
     }
+
 
     const input = document.querySelector(`.clip-label-input[data-file="${file}"]`);
     if (input) {
