@@ -2497,12 +2497,12 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 
 /* 2-column grid */
 .uploads-container {
-  flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   min-height: 0;
 }
+
 
 /* Each column stacks title + list */
 .upload-column {
