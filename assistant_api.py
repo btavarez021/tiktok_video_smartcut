@@ -676,9 +676,11 @@ def _sync_s3_videos_to_local(session: str) -> List[str]:
 # Analyze APIs (per session)
 # -------------------------------
 def _analyze_all_videos(session: str) -> Dict[str, Any]:
-    labels = load_labels_for_session(session)  # { filename: label }
     session = sanitize_session(session)
     raw_prefix = f"{RAW_PREFIX}{session}/"
+
+    # 🔥 LOAD LABELS FOR THIS SESSION
+    labels = load_labels_for_session(session)
 
     keys = list_videos_from_s3(prefix=raw_prefix, return_full_keys=True)
 
@@ -694,18 +696,22 @@ def _analyze_all_videos(session: str) -> Dict[str, Any]:
 
         try:
             basename = os.path.basename(key)
+
+            # 🔥 Pull label for this specific clip
             label = labels.get(basename, "")
 
+            # 🔥 Pass session + label into GPT
             desc = analyze_video(tmp, session, label)
 
             save_analysis_result_session(session, basename, desc)
-
             count += 1
+
         except Exception as e:
             logger.error(f"[ANALYZE][{session}] Failed for {key}: {e}")
 
     log_step(f"[ANALYZE] Completed analysis for {count} video(s) in session '{session}'")
     return {"status": "ok", "count": count}
+    
 
 
 def api_analyze(session: str = "default") -> Dict[str, Any]:
