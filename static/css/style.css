@@ -2604,4 +2604,17 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   margin-top: 6px;
 }
 
+#variantsOutput.collapsed {
+  max-height: 0;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  transition: max-height 0.35s ease;
+}
+
+.inline-status.clickable {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 

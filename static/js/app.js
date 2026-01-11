@@ -13,6 +13,11 @@ let suppressNextPreview = false;
 
 let lastSavedCaptionsText = "";
 
+let variantsCollapsed = false;
+
+toggleVariantsPanel(false);
+
+
 
 // ================================
 // Step 4 Caption View (Original vs Rewritten)
@@ -1337,6 +1342,30 @@ async function improveHook() {
   }
 }
 
+function toggleVariantsPanel(force = null) {
+  const box = document.getElementById("variantsOutput");
+  const status = document.getElementById("variantsInlineStatus");
+
+  if (!box) return;
+
+  if (force !== null) {
+    variantsCollapsed = force;
+  } else {
+    variantsCollapsed = !variantsCollapsed;
+  }
+
+  box.classList.toggle("collapsed", variantsCollapsed);
+
+  if (variantsCollapsed) {
+    status.textContent = "✓ Variant applied — click to expand";
+    status.className = "inline-status success clickable";
+    status.onclick = () => toggleVariantsPanel(false);
+  } else {
+    status.onclick = null;
+  }
+}
+
+
 async function generateCaptionVariants() {
     const btn = document.getElementById("generateVariantsBtn");
 
@@ -1429,9 +1458,8 @@ async function applyCaptionVariant(text) {
   const newCount = countBlocks(text);
 
   // Populate comparison
-renderStep3Diff(originalText, text);
-toggleCaptionCompare(true);
-
+  renderStep3Diff(originalText, text);
+  toggleCaptionCompare(true);
 
   // Apply
   el.value = text;
@@ -1464,6 +1492,9 @@ toggleCaptionCompare(true);
     refreshStoryFlowScore();
 
     setStatus("captionsStatus", "Caption applied ✓", "success");
+
+    // 🔥 Auto-collapse variants after apply
+    toggleVariantsPanel(true);
 
   } catch (err) {
     console.error(err);
