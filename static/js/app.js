@@ -1320,7 +1320,7 @@ async function improveHook() {
       body: JSON.stringify({ session: getActiveSession() }),
     });
 
-    if (data.status !== "ok") throw new Error(data.error || "failed");
+    if (data.status === "error") throw new Error(data.error || "failed");
 
     // Reload captions + YAML
     await loadCaptionsFromYaml();
