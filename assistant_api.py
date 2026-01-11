@@ -124,6 +124,33 @@ def normalize_label(label: str) -> str:
 
     return label.strip()
 
+def is_weak_label(label: str) -> bool:
+    if not label:
+        return True
+
+    label = label.lower().strip()
+
+    # Too short
+    if len(label) < 6:
+        return True
+
+    # Too generic
+    weak_words = {
+        "video", "clip", "shot", "scene",
+        "food", "drink", "hotel", "lobby",
+        "cocktail", "view", "room",
+        "test", "sample", "file", "upload"
+    }
+
+    if label in weak_words:
+        return True
+
+    # Single vague noun
+    if " " not in label:
+        return True
+
+    return False
+
 
 # ==========================================
 # SESSION-SCOPED ANALYSIS CACHE (NEW SYSTEM)
@@ -563,8 +590,10 @@ def api_set_label(session: str, filename: str, label: str | None) -> Dict[str, A
                 "status": "ok",
                 "file": filename,
                 "label": fixed,
-                "auto_fixed": True
+                "auto_fixed": True,
+                "weak": False
             }
+
         else:
             labels.pop(filename, None)
             save_labels(session, labels)
@@ -583,8 +612,10 @@ def api_set_label(session: str, filename: str, label: str | None) -> Dict[str, A
         "status": "ok",
         "file": filename,
         "label": clean,
-        "auto_fixed": False
+        "auto_fixed": False,
+        "weak": is_weak_label(clean)
     }
+
 
 
 def repair_label(filename: str, label: str, session: str) -> str:

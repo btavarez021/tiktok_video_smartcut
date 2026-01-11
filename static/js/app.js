@@ -976,15 +976,27 @@ async function saveClipLabel(file, label) {
       })
     });
 
-    // 🔥 Backend is now the single source of truth
     const finalLabel = res?.label ?? "";
+    const weak = !!res?.weak;
 
     const input = document.querySelector(`.clip-label-input[data-file="${file}"]`);
+    const card  = input?.closest(".clip-card");
 
+    // 🔄 Always sync with backend truth
     if (input && finalLabel !== input.value) {
       input.value = finalLabel;
     }
 
+    // ⚠️ Show AI hint if label is weak
+    if (card) {
+      if (weak) {
+        card.classList.add("label-weak");
+      } else {
+        card.classList.remove("label-weak");
+      }
+    }
+
+    // UX feedback
     if (input) {
       input.classList.add("saved-flash");
       setTimeout(() => input.classList.remove("saved-flash"), 600);

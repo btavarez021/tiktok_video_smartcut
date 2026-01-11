@@ -2591,4 +2591,17 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   opacity: 1;
 }
 
+.clip-card.label-weak {
+  border: 2px dashed #f4b400;
+  background: rgba(244, 180, 0, 0.06);
+}
+
+.clip-card.label-weak::after {
+  content: "AI can suggest a better visual label";
+  display: block;
+  font-size: 12px;
+  color: #f4b400;
+  margin-top: 6px;
+}
+
 
