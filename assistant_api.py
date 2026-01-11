@@ -1384,6 +1384,70 @@ def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool |
     return {"status": "ok", "cta": c}
 
 
+def rewrite_captions(cfg: dict, style: str) -> list[str]:
+    """
+    Rewrites all captions in config.yml according to overlay style.
+    Returns list of rewritten captions in same order.
+    Does NOT mutate config.
+    """
+
+    captions = []
+
+    if cfg.get("first_clip", {}).get("text"):
+        captions.append(cfg["first_clip"]["text"])
+
+    for clip in cfg.get("middle_clips", []):
+        if clip.get("text"):
+            captions.append(clip["text"])
+
+    if cfg.get("last_clip", {}).get("text"):
+        captions.append(cfg["last_clip"]["text"])
+
+    if not captions or not client:
+        return captions
+
+    prompt = f"""
+Rewrite these captions to match the style "{style}".
+
+Rules:
+- Do NOT change the number of captions
+- Do NOT add or remove captions
+- Keep meaning the same
+- Improve tone, energy, pacing, and emotional impact
+- Use emojis only if appropriate to the style
+- Keep captions concise and TikTok-friendly
+
+Captions:
+{json.dumps(captions, indent=2)}
+
+Return JSON ONLY:
+{{
+  "rewrites": ["caption 1", "caption 2", "..."]
+}}
+"""
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5,
+        )
+
+        content = resp.choices[0].message.content.strip()
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        data = json.loads(content[start:end])
+
+        rewrites = data.get("rewrites", [])
+
+        if len(rewrites) != len(captions):
+            return captions  # fail safe
+
+        return rewrites
+
+    except Exception as e:
+        logger.error(f"[REWRITE_CAPTIONS] {e}")
+        return captions
 
 
 # -------------------------------
