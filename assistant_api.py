@@ -244,11 +244,17 @@ def api_improve_hook(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
     cfg = _load_config(session)
 
-    # Collect all captions in order
+    if not cfg.get("first_clip", {}).get("text"):
+        return {"status": "error", "error": "No hook found"}
+
+    original = cfg["first_clip"]["text"]
+
+    new_hook = improve_hook_text(original)
+
+    # Build full caption block with only hook changed
     captions = []
 
-    if cfg.get("first_clip", {}).get("text"):
-        captions.append(cfg["first_clip"]["text"])
+    captions.append(new_hook)
 
     for clip in cfg.get("middle_clips", []):
         if clip.get("text"):
@@ -257,16 +263,16 @@ def api_improve_hook(session: str) -> Dict[str, Any]:
     if cfg.get("last_clip", {}).get("text"):
         captions.append(cfg["last_clip"]["text"])
 
-    if not captions:
-        return {"error": "No captions"}
+    proposed = "\n\n".join(captions)
 
-    # Improve only the hook
-    new_hook = improve_hook_text(captions[0])
-
-    captions[0] = new_hook
+    score = score_hook_text(new_hook)
 
     return {
-        "proposed": "\n\n".join(captions)
+        "status": "proposed",
+        "proposed": proposed,
+        "hook": new_hook,
+        "score": score["score"],
+        "reasons": score["reasons"]
     }
 
 

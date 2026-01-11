@@ -2640,11 +2640,12 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 }
 
 .variants-body {
-  max-height: 900px;
-  transition: max-height 0.4s ease, opacity 0.25s ease;
-  overflow: hidden;
+  max-height: 420px;          /* pick a good UX height */
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 14px;
 }
+
 
 .variants-drawer.closed .variants-body {
   max-height: 0;
