@@ -242,33 +242,33 @@ def api_hook_score(session: str) -> Dict[str, Any]:
 
 def api_improve_hook(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    config_path = get_config_path(session)
+    cfg = _load_config(session)
 
-    if not os.path.exists(config_path):
-        return {"status": "error", "error": "config.yml not found"}
+    # Collect all captions in order
+    captions = []
 
-    with open(config_path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f) or {}
+    if cfg.get("first_clip", {}).get("text"):
+        captions.append(cfg["first_clip"]["text"])
 
-    hook = extract_hook_text(cfg)
-    new_hook = improve_hook_text(hook)
+    for clip in cfg.get("middle_clips", []):
+        if clip.get("text"):
+            captions.append(clip["text"])
 
-    # Update first_clip.text only
-    cfg.setdefault("first_clip", {})
-    cfg["first_clip"]["text"] = new_hook
+    if cfg.get("last_clip", {}).get("text"):
+        captions.append(cfg["last_clip"]["text"])
 
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+    if not captions:
+        return {"error": "No captions"}
 
-    # Return new score too
-    result = score_hook_text(new_hook)
+    # Improve only the hook
+    new_hook = improve_hook_text(captions[0])
+
+    captions[0] = new_hook
 
     return {
-        "status": "ok",
-        "hook": new_hook,
-        "score": result["score"],
-        "reasons": result["reasons"],
+        "proposed": "\n\n".join(captions)
     }
+
 
 # -----------------------------------------
 # Story Flow Score
@@ -364,67 +364,41 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
 
 def api_story_flow_improve(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    config_path = get_config_path(session)
+    cfg = _load_config(session)
 
-    if not os.path.exists(config_path):
-        return {"updated": False, "reason": "config.yml not found"}
+    # Collect captions
+    hook = cfg.get("first_clip", {}).get("text", "")
 
-    with open(config_path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f) or {}
-
-    # --------------------------------------------------
-    # Collect ALL captions AFTER the hook
-    # (middle clips + last clip)
-    # --------------------------------------------------
-    targets = []  # list of dict refs we will mutate
-    texts = []    # their text values
-
+    middle = []
     for clip in cfg.get("middle_clips", []):
         if clip.get("text"):
-            targets.append(clip)
-            texts.append(clip["text"])
+            middle.append(clip["text"])
 
     if cfg.get("last_clip", {}).get("text"):
-        targets.append(cfg["last_clip"])
-        texts.append(cfg["last_clip"]["text"])
+        middle.append(cfg["last_clip"]["text"])
 
-    # Need at least TWO captions to improve flow
-    if len(texts) < 2:
-        return {
-            "updated": False,
-            "reason": "Need at least 2 captions after the hook to improve story flow."
-        }
+    if len(middle) < 2:
+        return {"error": "Need at least 2 captions"}
 
     if not client:
-        return {
-            "updated": False,
-            "reason": "AI unavailable."
-        }
+        return {"error": "AI unavailable"}
 
-    # --------------------------------------------------
-    # LLM prompt
-    # --------------------------------------------------
     prompt = f"""
-                Improve the narrative flow of these captions.
+Improve the narrative flow of these captions.
 
-                Rules:
-                - Do NOT rewrite the opening hook
-                - Do NOT add or remove captions
-                - Do NOT add sequence words like "then", "next", or "finally"
-                - Improve flow by rephrasing sentences, not by adding connectors
-                - Use semantic transitions (energy shift, location change, mood progression)
-                - Keep captions concise and natural
-                - Avoid trivial synonym swaps; each rewrite should meaningfully improve flow
-                - Return JSON ONLY
+Rules:
+- Do NOT rewrite the opening hook
+- Do NOT add or remove captions
+- Improve flow by rephrasing sentences only
+- Keep captions concise and natural
+- Return JSON only
 
-                Captions:
-                {json.dumps(texts, indent=2)}
+Captions:
+{json.dumps(middle, indent=2)}
 
-                Return:
-                {{
-                "rewrites": ["caption 1", "caption 2", "..."]
-                }}
-                """
+Return:
+{{ "rewrites": ["caption 1", "caption 2", "..."] }}
+"""
 
     try:
         resp = client.chat.completions.create(
@@ -434,40 +408,25 @@ def api_story_flow_improve(session: str) -> Dict[str, Any]:
         )
 
         content = resp.choices[0].message.content.strip()
-
-        # Safe JSON extraction
         start = content.find("{")
         end = content.rfind("}") + 1
         result = json.loads(content[start:end])
 
         rewrites = result.get("rewrites", [])
 
-        if len(rewrites) != len(targets):
-            return {
-                "updated": False,
-                "reason": "AI rewrite count mismatch."
-            }
+        if len(rewrites) != len(middle):
+            return {"error": "Rewrite count mismatch"}
 
-        # --------------------------------------------------
-        # Apply rewrites IN PLACE
-        # --------------------------------------------------
-        for i, new_text in enumerate(rewrites):
-            targets[i]["text"] = new_text
-
-        with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(cfg, f, sort_keys=False)
+        full = [hook] + rewrites
 
         return {
-            "updated": True,
-            "count": len(rewrites)
+            "proposed": "\n\n".join(full)
         }
 
     except Exception as e:
         log_error("[STORY_FLOW_IMPROVE]", e)
-        return {
-            "updated": False,
-            "reason": "Failed to improve story flow."
-        }
+        return {"error": "Failed to improve story flow"}
+
 
 # -------------------------------
 # Export mode
@@ -1438,30 +1397,36 @@ def api_apply_overlay(
 ) -> Dict[str, Any]:
 
     try:
-
-        if rewrite:
-            cfg = _load_config(session_id)
-            if not cfg.get("first_clip",{}).get("text"):
-                return {"status":"error","error":"No captions to rewrite"}
-
         session_id = sanitize_session(session_id)
+        cfg = _load_config(session_id)
 
+        # Always apply visual overlay settings
         apply_overlay(
             session_id,
             style,
-            rewrite=rewrite
+            rewrite=False   # 🔥 NEVER rewrite here
         )
 
+        # --------------------------------------
+        # If rewrite requested → return PROPOSAL
+        # --------------------------------------
+        if rewrite:
+            if not cfg.get("first_clip", {}).get("text"):
+                return {"status": "error", "error": "No captions to rewrite"}
 
-        log_success(
-            "[OVERLAY]",
-            f"Applied overlay '{style}' (rewrite={rewrite}) for session '{session_id}'"
-        )
+            proposed = rewrite_captions(cfg, style)
 
+            return {
+                "status": "proposed",
+                "style": style,
+                "proposed": "\n\n".join(proposed)
+            }
+
+        # Visual-only path
         return {
             "status": "ok",
             "style": style,
-            "rewrite": rewrite,
+            "rewrite": False,
             "session": session_id,
         }
 

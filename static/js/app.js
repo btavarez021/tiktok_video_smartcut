@@ -2006,7 +2006,7 @@ async function applyOverlay() {
   );
 
   try {
-  await jsonFetch("/api/overlay", {
+  const res = await jsonFetch("/api/overlay", {
     method: "POST",
     body: JSON.stringify({
       style,
@@ -2015,37 +2015,39 @@ async function applyOverlay() {
     }),
   });
 
-    const rewrite = rewriteMode === "rewrite";
+  // -------------------------------
+  // 🧠 Rewrite path (proposal only)
+  // -------------------------------
+  if (res.status === "proposed") {
+    const el = document.getElementById("captionsText");
+    const original = lastSavedCaptionsText || el.value;
 
-    if (rewrite) {
-    // 🧠 Preserve old captions before overwrite
-    window.__preRewriteCaptions = lastSavedCaptionsText;
-    }
+    // Store working copy
+    el.dataset.workingText = res.proposed;
+    el.value = res.proposed;
 
-    await loadConfigAndYaml();
-    await loadCaptionsFromYaml();
+    // Show diff (same as Step 3)
+    renderStep3Diff(original, res.proposed);
+    toggleCaptionCompare(true);
 
-    // Restore original baseline for diff
-    if (rewrite && window.__preRewriteCaptions) {
-    lastSavedCaptionsText = window.__preRewriteCaptions;
-    }
-
-  // 🔄 Always show rewritten view after apply
-  captionViewMode = "rewritten";
-  document.getElementById("showRewritten")?.classList.add("active");
-  document.getElementById("showOriginal")?.classList.remove("active");
+    captionViewMode = "diff";
+    syncCaptionToggleUI();
     renderStep4CaptionView();
 
-  suppressNextPreview = true;
+
+    setStatus("overlayStatus", "Rewrite ready — review changes", "info");
+
+    return; // DO NOT apply anything else
+  }
+
+  // -------------------------------
+  // Visual-only path
+  // -------------------------------
+  await loadConfigAndYaml();
   await previewOverlay("fast");
 
-  setStatus(
-    "overlayStatus",
-    rewriteMode === "rewrite"
-      ? "Overlay applied + captions rewritten ✓"
-      : "Overlay applied without rewriting ✓",
-    "success"
-  );
+  setStatus("overlayStatus", "Overlay applied ✓", "success");
+
 } catch (err) {
   console.error(err);
   setStatus("overlayStatus", "Failed to apply overlay.", "error");
