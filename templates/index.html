@@ -394,37 +394,46 @@
 
                         <!-- =========================================================
                             Caption Generation Modes — INSERT BELOW CAPTION TEXT AREA
-                        ============================================================= -->
-                        <div class="caption-mode-generator card-subsection" style="margin-top:16px;">
-                            <h3>🧠 Caption Variants Generator</h3>
+                        ========================================================== -->
+                        <div class="variants-drawer closed" id="variantsDrawer">
+
+                        <div class="variants-header" onclick="toggleVariantsPanel()">
+                            <span>🧠 Caption Variants</span>
+                            <button class="btn ghost small" id="variantsToggleBtn">Expand</button>
+                        </div>
+
+                        <div class="variants-body">
+
                             <p class="hint-text subtle">
                             Select one or more modes to generate multiple caption options.<br>
                             Each mode produces a separate rewrite — nothing is overwritten automatically.
                             </p>
+
                             <p class="hint-text subtle">
                             Recommended flow: Improve Hook → Storytelling → Punchy (optional)
                             </p>
 
-
-
-
                             <div class="checkbox-grid">
-                                <label><input type="checkbox" id="mode_rewrite"> Rewrite captions</label>
-                                <label><input type="checkbox" id="mode_hook"> Improve Hook</label>
-                                <label><input type="checkbox" id="mode_punchy"> Punchy & energetic</label>
-                                <label><input type="checkbox" id="mode_story"> Storytelling</label>
-                                <label><input type="checkbox" id="mode_influencer"> Influencer voice</label>
-                                <label><input type="checkbox" id="mode_minimal"> Minimal · Luxury</label>
-
+                            <label><input type="checkbox" id="mode_rewrite"> Rewrite captions</label>
+                            <label><input type="checkbox" id="mode_hook"> Improve Hook</label>
+                            <label><input type="checkbox" id="mode_punchy"> Punchy & energetic</label>
+                            <label><input type="checkbox" id="mode_story"> Storytelling</label>
+                            <label><input type="checkbox" id="mode_influencer"> Influencer voice</label>
+                            <label><input type="checkbox" id="mode_minimal"> Minimal · Luxury</label>
                             </div>
 
                             <button id="generateVariantsBtn" class="btn secondary small" style="margin-top:10px;">
-                                ⚡ Generate Caption Variants
+                            ⚡ Generate Caption Variants
                             </button>
-                            <div id="variantsInlineStatus" class="inline-status hidden"></div>
 
+                            <div id="variantsInlineStatus" class="inline-status hidden"></div>
                             <div id="variantsOutput" class="variants-output"></div>
-                        </div>
+
+                        </div> <!-- /.variants-body -->
+
+                        </div> <!-- /.variants-drawer -->
+
+
                         <!-- ======================================================= -->
 
                         <hr class="soft-divider" style="margin: 16px 0;" />

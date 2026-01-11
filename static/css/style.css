@@ -2617,4 +2617,39 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   text-decoration: underline;
 }
 
+/* ===============================
+   Caption Variants Drawer
+=============================== */
+
+.variants-drawer {
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  margin-top: 16px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.02);
+}
+
+.variants-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  background: rgba(255,255,255,0.04);
+}
+
+.variants-body {
+  max-height: 900px;
+  transition: max-height 0.4s ease, opacity 0.25s ease;
+  overflow: hidden;
+  padding: 14px;
+}
+
+.variants-drawer.closed .variants-body {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+}
 

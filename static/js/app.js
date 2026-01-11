@@ -1519,6 +1519,23 @@ function addStepEnterHandler(stepNumber, callback) {
     observer.observe(stepCard);
 }
 
+function toggleVariantsPanel(forceClose = false) {
+  const drawer = document.getElementById("variantsDrawer");
+  const btn = document.getElementById("variantsToggleBtn");
+  if (!drawer) return;
+
+  if (forceClose) {
+    drawer.classList.add("closed");
+    if (btn) btn.textContent = "Expand";
+    return;
+  }
+
+  drawer.classList.toggle("closed");
+  const closed = drawer.classList.contains("closed");
+  if (btn) btn.textContent = closed ? "Expand" : "Collapse";
+}
+
+
 
 // Story Flow Score
 // Evaluates ONLY middle captions (excludes hook + CTA)
