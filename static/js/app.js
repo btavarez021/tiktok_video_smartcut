@@ -1309,7 +1309,8 @@ function clearOverlayWarning() {
 async function improveHook() {
   const btn = document.getElementById("improveHookBtn");
   const statusEl = document.getElementById("hookScoreStatus");
-  if (!btn) return;
+  const el = document.getElementById("captionsText");
+  if (!btn || !el) return;
 
   btn.disabled = true;
   if (statusEl) statusEl.textContent = "Improving hook…";
@@ -1322,18 +1323,29 @@ async function improveHook() {
 
     if (data.status === "error") throw new Error(data.error || "failed");
 
-    // Reload captions + YAML
-    await loadCaptionsFromYaml();
-    await loadConfigAndYaml();
+    // 🔥 PROPOSAL MODE
+    if (data.status === "proposed") {
+      const original = lastSavedCaptionsText || el.value;
 
-    // Re-score BOTH
-    await refreshHookScore();
-    await refreshStoryFlowScore();
+      // Store working copy
+      el.dataset.workingText = data.proposed;
+      el.value = data.proposed;
 
-    if (statusEl) statusEl.textContent = "Hook improved ✅";
-    setTimeout(() => {
-      if (statusEl) statusEl.textContent = "";
-    }, 1500);
+      // Show diff
+      renderStep3Diff(original, data.proposed);
+      toggleCaptionCompare(true);
+
+      // Update score UI
+      if (typeof renderHookScore === "function") {
+        renderHookScore(data.score, data.reasons);
+      }
+
+      if (statusEl) statusEl.textContent = "Hook rewrite ready — review changes";
+      return;
+    }
+
+    throw new Error("Unexpected response");
+
   } catch (err) {
     console.error(err);
     if (statusEl) statusEl.textContent = "Failed to improve hook.";
@@ -1341,6 +1353,7 @@ async function improveHook() {
     btn.disabled = false;
   }
 }
+
 
 function toggleVariantsPanel(force = null) {
   const box = document.getElementById("variantsOutput");
