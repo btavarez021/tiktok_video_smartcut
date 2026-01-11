@@ -617,45 +617,76 @@ def api_set_label(session: str, filename: str, label: str | None) -> Dict[str, A
     }
 
 
+def get_clip_preview_base64(session: str, filename: str) -> str:
+    """
+    Returns data:image/png;base64,... for a clip frame
+    """
+    img = api_clip_preview(session, filename)
+
+    if not img or "image" not in img:
+        raise RuntimeError("No preview frame")
+
+    return img["image"]
+
 
 def repair_label(filename: str, label: str, session: str) -> str:
-    if not client:
+    try:
+        image_b64 = get_clip_preview_base64(session, filename)
+    except Exception as e:
+        logger.error(f"[REPAIR_LABEL] No preview frame: {e}")
         return normalize_label(label)
 
-    prompt = f"""
-You are fixing a short video label.
+    messages = [
+        {
+            "role": "system",
+            "content": "You generate short, visual labels for video clips."
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": f"""
+Fix or create a short label for this video.
 
-Bad label: "{label}"
-Filename: "{filename}"
-Hotel or session: "{session}"
-
-Rewrite the label into a short, clean, visual description of what the clip shows.
+Current label: "{label or '(empty)'}"
 
 Rules:
 - Max 8 words
 - No emojis
 - No hashtags
-- No hotel name unless relevant
-- Must describe what is visible
-- Must be useful for captions
+- Do not use hotel name unless visible
+- Describe what is on screen
+- Useful for captions
 
 Return ONLY the label text.
 """
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_b64
+                    }
+                }
+            ]
+        }
+    ]
 
     try:
         resp = client.chat.completions.create(
-            model=TEXT_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.4,
+            model="gpt-4o",  
+            messages=messages,
             max_tokens=20,
+            temperature=0.2
         )
 
         fixed = (resp.choices[0].message.content or "").strip()
         return normalize_label(fixed)
 
     except Exception as e:
-        logger.error(f"[REPAIR_LABEL] {e}")
+        logger.error(f"[REPAIR_LABEL] Vision failed: {e}")
         return normalize_label(label)
+
 
 
 def move_upload_s3(src: str, dest: str) -> Dict[str, Any]:
