@@ -2884,13 +2884,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     }
 
-    document.getElementById("hookScoreValue")?.addEventListener("click", () => {
-  toggleVariantsPanel(false);
-  document.getElementById("hookLab")?.classList.remove("hidden");
-  scrollToVariants();
-});
-
-
     document.getElementById("generateHooksBtn")
   ?.addEventListener("click", generateHooks);
 
