@@ -68,21 +68,24 @@ async function generateHooks() {
 
 let selectedHook = null;
 
-function renderHookLab(hooks) {
-  const box = document.getElementById("hookLabOutput");
-  if (!box) return;
+function renderHookLab(hooks){
+  const out = document.getElementById("hookLabOutput");
+  out.innerHTML = "";
 
-  box.innerHTML = "";
+  hooks.sort((a,b) => b.score - a.score);
 
-  hooks.forEach(hook => {
-    box.innerHTML += `
-      <div class="hookCard" onclick="selectHook(${JSON.stringify(hook.text)})">
-        <span class="hookText">${hook.text}</span>
-        <span class="hookScore">🔥 ${hook.score}</span>
+  hooks.forEach(h => {
+    out.innerHTML += `
+      <div class="hookCard" onclick="selectHook(${JSON.stringify(h.text)})">
+        <span class="hookText">${h.text}</span>
+        <span class="hookScore">🔥 ${h.score}</span>
       </div>
     `;
   });
+
+  document.getElementById("hookLab").classList.remove("hidden");
 }
+
 
 function selectHook(text) {
   selectedHook = text;
