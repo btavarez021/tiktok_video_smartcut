@@ -1152,6 +1152,7 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
     elif cfg.get("first_clip", {}).get("text"):
         captions.append(cfg["first_clip"]["text"])
 
+    hook_locked = bool(selected_hook)
 
     for clip in cfg.get("middle_clips", []):
         if clip.get("text"):
@@ -1211,8 +1212,9 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
         CAPTION_ONLY_GUARDRAIL +
         " Rewrite captions in blocks separated by blank lines. "
         "Keep the SAME number of caption blocks as the input. "
-        "Do NOT merge captions into one paragraph."
+        "Do NOT merge captions into one paragraph. "
     )
+
 
     # --------------------------------------------------
     # Generate variants per selected mode
@@ -1222,6 +1224,14 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
             continue
 
         system_prompt = BASE_SYSTEM_PROMPT
+
+        if hook_locked:
+            system_prompt += (
+                " The FIRST caption is a locked hook. "
+                "DO NOT rewrite, rephrase, shorten, or modify the first caption. "
+                "Only rewrite the remaining captions to match the tone."
+            )
+
 
         if style == "minimal":
             system_prompt += (
