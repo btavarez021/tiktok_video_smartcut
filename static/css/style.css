@@ -2679,3 +2679,19 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   justify-content:space-between;
   align-items:center;
 }
+
+.hookCard {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hookCard:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.hookCard.selected {
+  border: 2px solid #8b5cf6;
+  background: rgba(139,92,246,0.12);
+  box-shadow: 0 0 0 1px rgba(139,92,246,0.4) inset;
+}
+
