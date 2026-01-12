@@ -275,7 +275,8 @@ def api_improve_hook(session: str) -> Dict[str, Any]:
         "reasons": score["reasons"]
     }
 
-def api_generate_hooks(session):
+def api_generate_hooks(session: str):
+    session = sanitize_session(session)
     cfg = _load_config(session)
 
     scenes = []
@@ -285,22 +286,61 @@ def api_generate_hooks(session):
         if c.get("text"):
             scenes.append(c["text"])
 
+    if not scenes:
+        return {"hooks": []}
+
+    if not client:
+        # fallback
+        return {
+            "hooks": [{"text": scenes[0], "score": 70}]
+        }
+
     prompt = f"""
-Generate 6 short viral TikTok hooks based on these scenes.
+Generate 8 short viral TikTok hooks based on these scenes.
 
 Rules:
-- 6 hooks
-- Max 12 words each
-- Different creative angles (mystery, hype, luxury, curiosity, etc)
+- Hooks must refer to the SAME experience
+- Different tones: hype, curiosity, luxury, influencer, cinematic
+- Max 12 words
 - No emojis
-- Do NOT describe all scenes — just tease
+- Do NOT describe all scenes — tease the experience
 
 Scenes:
 {json.dumps(scenes, indent=2)}
 
 Return JSON:
-{{ "hooks": ["...", "..."] }}
+{{ "hooks": ["hook1", "hook2", ...] }}
 """
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.6,
+        )
+
+        content = resp.choices[0].message.content.strip()
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        data = json.loads(content[start:end])
+
+        hooks = []
+        for text in data.get("hooks", []):
+            score = score_hook_text(text)["score"]
+            hooks.append({
+                "text": normalize_label(text),
+                "score": score
+            })
+
+        # Sort best first
+        hooks.sort(key=lambda x: x["score"], reverse=True)
+
+        return {"hooks": hooks}
+
+    except Exception as e:
+        log_error("[HOOK_LAB]", e)
+        return {"hooks": []}
+
 
 def api_generate_body_from_hook(session, hook, style):
     cfg = _load_config(session)
@@ -332,6 +372,7 @@ Rules:
 Return JSON:
 {{ "body": ["caption1", "caption2", "caption3"] }}
 """
+
 
 
 # -----------------------------------------

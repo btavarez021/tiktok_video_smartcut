@@ -43,7 +43,8 @@ from assistant_api import (
     load_labels,
     api_set_label,
     api_clip_preview, 
-    repair_label
+    repair_label,
+    api_generate_hooks
 )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -194,6 +195,13 @@ def repair_label_route():
     )
 
     return jsonify({"fixed_label": fixed})
+
+
+@app.route("/api/hooks", methods=["POST"])
+def route_hooks():
+    data = request.get_json() or {}
+    session = sanitize_session(data.get("session", "default"))
+    return jsonify(api_generate_hooks(session))
 
 
 # -----------------------------------------
