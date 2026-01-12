@@ -2654,3 +2654,28 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   opacity: 0;
 }
 
+
+#hookScoreValue.clickable {
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+#hookScoreValue.clickable:hover {
+  opacity: 0.8;
+}
+
+.hookBadge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.hookBadge.great { background:#ff3b3b; color:white; }
+.hookBadge.ok    { background:#ffd23c; color:black; }
+.hookBadge.weak  { background:#999; color:white; }
+
+.variantHeader {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}

@@ -39,6 +39,31 @@ function renderCaptionView() {
   }
 }
 
+function renderVariantCard(num, tone, text, score) {
+  let badge = "";
+
+  if (score !== null) {
+    if (score >= 85) badge = `<span class="hookBadge great">🔥 ${score}</span>`;
+    else if (score >= 70) badge = `<span class="hookBadge ok">⭐ ${score}</span>`;
+    else badge = `<span class="hookBadge weak">⚠ ${score}</span>`;
+  }
+
+  return `
+    <div class="variantCard">
+      <div class="variantHeader">
+        <h4>Version ${num}</h4>
+        ${badge}
+      </div>
+      ${tone ? `<div class="variantTone">${tone}</div>` : ""}
+      <pre style="white-space:pre-wrap">${text}</pre>
+      <button onclick="applyCaptionVariant(\`${text.replace(/`/g,"\\`")}\`)">
+        Use This
+      </button>
+    </div>
+  `;
+}
+
+
 function showLabelWarning(file, badLabel, reason) {
   if (!confirm(
     `⚠️ Label is weak: ${reason}\n\nFixing labels improves captions, hooks and story flow.\n\nClick OK to auto-fix it or Cancel to edit yourself.`
@@ -1417,20 +1442,24 @@ async function generateCaptionVariants() {
         const box = document.getElementById("variantsOutput");
         box.innerHTML = "";
 
-        data.variants.forEach((variant, i) => {
+        for (let i = 0; i < data.variants.length; i++) {
+            const variant = data.variants[i];
             const text = variant.text || "";
             const tone = variant.tone || "";
 
-            box.innerHTML += `
-                <div class="variantCard">
-                    <h4>Version ${i + 1}</h4>
-                    ${tone ? `<div class="variantTone">${tone}</div>` : ""}
-                    <pre style="white-space:pre-wrap">${text}</pre>
-                    <button onclick="applyCaptionVariant(\`${text.replace(/`/g, "\\`")}\`)">
-                        Use This
-                    </button>
-                </div>`;
-        });
+            // 🔥 Score the hook (first block only)
+            const hook = text.split(/\n\s*\n/)[0];
+            let score = null;
+
+            try {
+                score = await scoreVariantHook(hook);
+            } catch {
+                score = null;
+            }
+
+            box.innerHTML += renderVariantCard(i + 1, tone, text, score);
+            }
+
 
         // ✅ Success feedback AFTER render
         setVariantsStatus("Variants generated ✓", "success");
@@ -2811,6 +2840,36 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ? "▲ Hide Parsed Preview"
                 : "▼ Show Parsed Preview";
         });
+    }
+
+    // ================================
+    // Hook score → Open Variants Drawer
+    // ================================
+    const hookScore = document.getElementById("hookScoreValue");
+
+    if (hookScore) {
+    hookScore.classList.add("clickable");
+
+    hookScore.addEventListener("click", () => {
+        console.log("Hook score clicked → opening variants");
+
+        // Open drawer
+        toggleVariantsPanel(false);
+
+        // Scroll to it
+        const drawer = document.getElementById("variantsDrawer");
+        if (drawer) {
+        drawer.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+    });
+    }
+
+    async function scoreVariantHook(text) {
+    const res = await jsonFetch("/api/hook_score_preview", {
+        method: "POST",
+        body: JSON.stringify({ text })
+    });
+    return res.score;
     }
 
 
