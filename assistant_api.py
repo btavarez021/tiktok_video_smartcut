@@ -1137,7 +1137,7 @@ def normalize_location_repetition(captions: list[str]) -> list[str]:
 
     return cleaned
 
-def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
+def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
     cfg = _load_config(session)
 
@@ -1146,8 +1146,12 @@ def api_generate_variants(session: str, modes: dict) -> Dict[str, Any]:
     # --------------------------------------------------
     captions = []
 
-    if cfg.get("first_clip", {}).get("text"):
+    # 🔥 Use selected hook if provided
+    if selected_hook:
+        captions.append(selected_hook)
+    elif cfg.get("first_clip", {}).get("text"):
         captions.append(cfg["first_clip"]["text"])
+
 
     for clip in cfg.get("middle_clips", []):
         if clip.get("text"):

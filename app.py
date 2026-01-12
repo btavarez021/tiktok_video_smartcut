@@ -44,7 +44,7 @@ from assistant_api import (
     api_set_label,
     api_clip_preview, 
     repair_label,
-    api_generate_hooks
+    api_generate_variants
 )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -331,9 +331,9 @@ def route_variants():
 
     session = sanitize_session(data.get("session", "default"))
     modes = data.get("modes", {})
+    selected_hook = data.get("selected_hook")
 
-    from assistant_api import api_generate_variants
-    return jsonify(api_generate_variants(session, modes))
+    return jsonify(api_generate_variants(session, modes, selected_hook))
 
 @app.route("/api/save_captions", methods=["POST"])
 def route_save_captions():
