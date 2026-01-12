@@ -13,10 +13,6 @@ let suppressNextPreview = false;
 
 let lastSavedCaptionsText = "";
 
-toggleVariantsPanel(false);
-
-
-
 // ================================
 // Step 4 Caption View (Original vs Rewritten)
 // ================================
@@ -2901,11 +2897,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Open drawer
         toggleVariantsPanel(false);
 
-        // Scroll to it
+        // 🔥 Show Hook Lab
+        document.getElementById("hookLab")?.classList.remove("hidden");
+
+        // Scroll into view
         const drawer = document.getElementById("variantsDrawer");
-        if (drawer) {
-        drawer.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
+        drawer?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     }
 
