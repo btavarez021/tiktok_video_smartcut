@@ -1233,17 +1233,24 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
             )
 
 
-        if style == "minimal":
+        if style == "minimal":  
             system_prompt += (
                 " Minimal luxury captions. "
                 "Assume the hotel name is already established in context. "
                 "DO NOT include or repeat the hotel or brand name. "
                 "CRITICAL FORMAT RULES: "
                 "- Each caption must be its own block separated by ONE blank line. "
-                "- 3–7 words per caption. "
+                "- 3–7 words per caption for NON-HOOK captions. "
                 "- Editorial, high-end luxury tone. "
-                "- No emojis. No hashtags. No full sentences."
+                "- No emojis. No hashtags. No full sentences. "
             )
+
+            if hook_locked:
+                system_prompt += (
+                    " The FIRST caption is a locked hook. "
+                    "It may be longer and may be a full sentence. "
+                    "DO NOT rewrite or remove it."
+                )
 
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
