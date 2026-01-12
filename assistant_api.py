@@ -275,6 +275,64 @@ def api_improve_hook(session: str) -> Dict[str, Any]:
         "reasons": score["reasons"]
     }
 
+def api_generate_hooks(session):
+    cfg = _load_config(session)
+
+    scenes = []
+    if cfg.get("first_clip", {}).get("text"):
+        scenes.append(cfg["first_clip"]["text"])
+    for c in cfg.get("middle_clips", []):
+        if c.get("text"):
+            scenes.append(c["text"])
+
+    prompt = f"""
+Generate 6 short viral TikTok hooks based on these scenes.
+
+Rules:
+- 6 hooks
+- Max 12 words each
+- Different creative angles (mystery, hype, luxury, curiosity, etc)
+- No emojis
+- Do NOT describe all scenes — just tease
+
+Scenes:
+{json.dumps(scenes, indent=2)}
+
+Return JSON:
+{{ "hooks": ["...", "..."] }}
+"""
+
+def api_generate_body_from_hook(session, hook, style):
+    cfg = _load_config(session)
+
+    scenes = []
+    for c in cfg.get("middle_clips", []):
+        if c.get("text"):
+            scenes.append(c["text"])
+    if cfg.get("last_clip", {}).get("text"):
+        scenes.append(cfg["last_clip"]["text"])
+
+    prompt = f"""
+You are writing TikTok captions.
+
+Selected Hook:
+"{hook}"
+
+Scenes:
+{json.dumps(scenes, indent=2)}
+
+Rewrite the captions in "{style}" tone.
+
+Rules:
+- Do NOT change the hook
+- One caption per scene
+- Keep them concise
+- Match the hook’s tone
+
+Return JSON:
+{{ "body": ["caption1", "caption2", "caption3"] }}
+"""
+
 
 # -----------------------------------------
 # Story Flow Score

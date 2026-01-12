@@ -61,6 +61,58 @@ function renderVariantCard(num, tone, text, score) {
   `;
 }
 
+async function generateHooks() {
+  const res = await jsonFetch("/api/hooks", {
+    method: "POST",
+    body: JSON.stringify({ session: getActiveSession() })
+  });
+
+  renderHookLab(res.hooks);
+}
+
+let selectedHook = null;
+
+async function renderHookLab(hooks) {
+  const box = document.getElementById("hookLabOutput");
+  const lab = document.getElementById("hookLab");
+
+  if (!box || !lab) return;
+
+  lab.classList.remove("hidden");
+  box.innerHTML = "";
+
+  for (const hook of hooks) {
+    let score = null;
+    try {
+      score = await scoreVariantHook(hook);
+    } catch {}
+
+    const card = document.createElement("div");
+    card.className = "hookCard";
+
+    card.innerHTML = `
+      <span class="hookText">${hook}</span>
+      <span class="hookScore">${score ? `🔥 ${score}` : ""}</span>
+    `;
+
+    card.onclick = () => selectHook(hook);
+
+    box.appendChild(card);
+  }
+}
+
+function selectHook(text) {
+  selectedHook = text;
+
+  const bar = document.getElementById("selectedHookBar");
+  const label = document.getElementById("selectedHookDisplay");
+
+  if (bar && label) {
+    bar.classList.remove("hidden");
+    label.textContent = text;
+  }
+}
+
 
 function showLabelWarning(file, badLabel, reason) {
   if (!confirm(
@@ -1378,30 +1430,6 @@ async function improveHook() {
 }
 
 
-function toggleVariantsPanel(force = null) {
-  const box = document.getElementById("variantsOutput");
-  const status = document.getElementById("variantsInlineStatus");
-
-  if (!box) return;
-
-  if (force !== null) {
-    variantsCollapsed = force;
-  } else {
-    variantsCollapsed = !variantsCollapsed;
-  }
-
-  box.classList.toggle("collapsed", variantsCollapsed);
-
-  if (variantsCollapsed) {
-    status.textContent = "✓ Variant applied — click to expand";
-    status.className = "inline-status success clickable";
-    status.onclick = () => toggleVariantsPanel(false);
-  } else {
-    status.onclick = null;
-  }
-}
-
-
 async function generateCaptionVariants() {
     const btn = document.getElementById("generateVariantsBtn");
 
@@ -1428,7 +1456,11 @@ async function generateCaptionVariants() {
         const res = await fetch("/api/variants", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ session, modes })
+            body: JSON.stringify({
+                    session,
+                    modes,
+                    selected_hook: selectedHook || null
+                    })
         });
 
         if (!res.ok) {
@@ -2839,6 +2871,21 @@ document.addEventListener("DOMContentLoaded", async () => {
                 : "▼ Show Parsed Preview";
         });
     }
+
+    function selectHook(text) {
+    selectedHook = text;
+
+    const bar = document.getElementById("selectedHookBar");
+    const label = document.getElementById("selectedHookDisplay");
+
+    if (bar && label) {
+        bar.classList.remove("hidden");
+        label.textContent = text;
+    }
+    }
+
+    document.getElementById("generateHooksBtn")
+  ?.addEventListener("click", generateHooks);
 
     // ================================
     // Hook score → Open Variants Drawer
