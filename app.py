@@ -196,12 +196,23 @@ def repair_label_route():
 
     return jsonify({"fixed_label": fixed})
 
-
 @app.route("/api/hooks", methods=["POST"])
-def route_hooks():
-    data = request.get_json() or {}
-    session = sanitize_session(data.get("session", "default"))
-    return jsonify(api_generate_hooks(session))
+def route_generate_hooks():
+    try:
+        data = request.get_json(force=True) or {}
+        session = sanitize_session(data.get("session", "default"))
+
+        from assistant_api import api_generate_hooks
+        result = api_generate_hooks(session)
+
+        return jsonify(result)
+
+    except Exception as e:
+        print("HOOK ROUTE ERROR:", e)
+        return jsonify({
+            "hooks": [],
+            "error": str(e)
+        }), 500
 
 
 # -----------------------------------------

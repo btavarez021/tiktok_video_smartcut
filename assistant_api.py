@@ -276,6 +276,7 @@ def api_improve_hook(session: str) -> Dict[str, Any]:
     }
 
 def api_generate_hooks(session: str):
+    print("[HOOK_LAB] Generating hooks for", session)
     session = sanitize_session(session)
     cfg = _load_config(session)
 
@@ -334,7 +335,7 @@ Return JSON:
 
         # Sort best first
         hooks.sort(key=lambda x: x["score"], reverse=True)
-
+        print("[HOOK_LAB] Generating hooks for", session)
         return {"hooks": hooks}
 
     except Exception as e:
