@@ -1647,9 +1647,9 @@ function updateImproveButtons(hookScore, storyScore) {
   const hookBtn = document.getElementById("improveHookBtn");
   const flowBtn = document.getElementById("improveStoryFlowBtn");
 
-  if (hookBtn && typeof hookScore === "number") {
-    hookBtn.classList.toggle("hidden", hookScore >= 85);
-  }
+  if (hookBtn) {
+  hookBtn.classList.add("hidden");
+}
 
   if (flowBtn && typeof storyScore === "number") {
     flowBtn.classList.toggle("hidden", storyScore >= 80);
