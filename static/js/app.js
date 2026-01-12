@@ -13,8 +13,6 @@ let suppressNextPreview = false;
 
 let lastSavedCaptionsText = "";
 
-let variantsCollapsed = false;
-
 toggleVariantsPanel(false);
 
 
