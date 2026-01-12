@@ -68,33 +68,20 @@ async function generateHooks() {
 
 let selectedHook = null;
 
-async function renderHookLab(hooks) {
+function renderHookLab(hooks) {
   const box = document.getElementById("hookLabOutput");
-  const lab = document.getElementById("hookLab");
+  if (!box) return;
 
-  if (!box || !lab) return;
-
-  lab.classList.remove("hidden");
   box.innerHTML = "";
 
-  for (const hook of hooks) {
-    let score = null;
-    try {
-      score = await scoreVariantHook(hook);
-    } catch {}
-
-    const card = document.createElement("div");
-    card.className = "hookCard";
-
-    card.innerHTML = `
-      <span class="hookText">${hook}</span>
-      <span class="hookScore">${score ? `🔥 ${score}` : ""}</span>
+  hooks.forEach(hook => {
+    box.innerHTML += `
+      <div class="hookCard" onclick="selectHook(${JSON.stringify(hook.text)})">
+        <span class="hookText">${hook.text}</span>
+        <span class="hookScore">🔥 ${hook.score}</span>
+      </div>
     `;
-
-    card.onclick = () => selectHook(hook);
-
-    box.appendChild(card);
-  }
+  });
 }
 
 function selectHook(text) {
