@@ -2986,6 +2986,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     }
 
+    // 🔍 "Find better hooks" button inside Hook Score card
+    document.getElementById("openHookLabBtn")?.addEventListener("click", () => {
+    toggleVariantsPanel(false); // open drawer
+    document.getElementById("hookLab")?.classList.remove("hidden");
+    document
+        .getElementById("hookLab")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
     
 
     document.addEventListener("keydown", (e) => {
