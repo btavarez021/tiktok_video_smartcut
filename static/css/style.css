@@ -2707,3 +2707,10 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
 .tooltiptext {
   z-index: 9999;
 }
+
+#variantsOutput {
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 6px; /* keeps scrollbar off text */
+}
+

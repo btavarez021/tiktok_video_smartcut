@@ -395,7 +395,6 @@
                         <!-- ================================
                             HOOK SCORE (Primary Entry Point)
                         ================================ -->
-
                         <div class="hook-score-card">
                         <div class="hook-score-header">
                             <strong>
@@ -404,7 +403,7 @@
                                 <span class="tooltiptext tooltip-wide">
                                 Scores how strong your <b>first caption</b> is at stopping scroll.<br><br>
                                 Based on curiosity, clarity, emotional pull, and pacing.<br><br>
-                                Higher score = more people keep watching.
+                                <b>Higher score = more people keep watching.</b>
                                 </span>
                             </span>
                             </strong>
@@ -413,7 +412,7 @@
                         </div>
 
                         <p class="hint-text subtle">
-                            Click the score to open Hook Lab and explore stronger openings.
+                            Click the score to open <b>Hook Lab</b> and explore stronger openings.
                         </p>
 
                         <div id="hookScoreHook" class="hook-score-hook">
@@ -421,15 +420,12 @@
                         </div>
 
                         <ul id="hookScoreReasons" class="hook-score-reasons"></ul>
-
                         <span id="hookScoreStatus" class="hint-text"></span>
                         </div>
-
 
                         <!-- ================================
                             STORY FLOW (Locked by Hook)
                         ================================ -->
-
                         <div id="storyFlowLockedHint" class="hint-text hidden">
                         🔒 Improve the opening hook to unlock story flow scoring.
                         </div>
@@ -441,7 +437,8 @@
                             <span class="tooltip">ⓘ
                                 <span class="tooltiptext tooltip-wide">
                                 Scores how well captions <b>after the hook</b> flow together.<br><br>
-                                Focuses on pacing, clarity, and keeping curiosity alive.
+                                Focuses on pacing, clarity, and keeping curiosity alive.<br><br>
+                                <b>Higher score = viewers are more likely to finish the video.</b>
                                 </span>
                             </span>
                             </strong>
@@ -456,11 +453,9 @@
                         <ul id="storyFlowReasons" class="story-flow-reasons"></ul>
                         </div>
 
-
                         <!-- ================================
                             CAPTION VARIANTS + HOOK LAB
                         ================================ -->
-
                         <div class="variants-drawer closed" id="variantsDrawer">
 
                         <div class="variants-header" onclick="toggleVariantsPanel()">
@@ -477,7 +472,6 @@
                             <p class="hint-text subtle">
                             Best flow: <b>Pick a Hook → Generate Variants → Choose the best story</b>
                             </p>
-
 
                             <!-- 🧲 Hook Lab -->
                             <div id="hookLab" class="hook-lab hidden">
@@ -513,7 +507,6 @@
                             <hr />
                             </div>
 
-
                             <!-- Caption Modes -->
                             <div class="checkbox-grid">
                             <label><input type="checkbox" id="mode_rewrite"> Rewrite captions</label>
@@ -533,6 +526,15 @@
 
                         </div>
                         </div>
+
+                        <!-- ================================
+                            SAVE
+                        ================================ -->
+                        <div class="row row-align-center">
+                        <button id="saveCaptionsBtn" class="btn secondary">💾 Save captions</button>
+                        <div id="captionsStatus" class="hint-text"></div>
+                        </div>
+
 
 
 
