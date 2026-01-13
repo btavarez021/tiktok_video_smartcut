@@ -34,6 +34,22 @@ function renderCaptionView() {
 
 }
 
+// ================================
+// Diff engine (GLOBAL)
+// ================================
+let diffDirty = false;
+
+function maybeRefreshDiff() {
+  if (!diffDirty) return;
+
+  const base = lastSavedCaptionsText || "";
+  const current = document.getElementById("captionsText")?.value || "";
+
+  renderStep3Diff(base, current);
+  diffDirty = false;
+}
+
+
 
 function renderVariantCard(num, tone, text, score, cardId) {
   let badge = "";
@@ -1881,8 +1897,11 @@ async function loadCaptionsFromYaml() {
     // 🔑 YAML baseline
     lastSavedCaptionsText = yamlText;
 
-    // 🔥 Always update working copy from YAML
+    // 🔥 Only overwrite working copy if not currently in rewrite/diff
+    if (captionViewMode !== "diff") {
     box.dataset.workingText = yamlText;
+    }
+
 
     // 🔄 Show whichever view is active
     renderCaptionView();
@@ -2934,6 +2953,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("generateHooksBtn")
   ?.addEventListener("click", generateHooks);
 
+  document.getElementById("captionsText")?.addEventListener("input", () => {
+  diffDirty = true;
+});
+
+
     // ================================
     // Hook score → Open Variants Drawer
     // ================================
@@ -3287,22 +3311,6 @@ document.getElementById("toggleDiffCollapse")?.addEventListener("click", () => {
     await previewOverlay("fast");
     });
 
-    let diffDirty = false;
-
-document.getElementById("captionsText")?.addEventListener("input", () => {
-  diffDirty = true;
-});
-
-function maybeRefreshDiff() {
-  if (!diffDirty) return;
-
-  const base = lastSavedCaptionsText || "";
-  const current = document.getElementById("captionsText")?.value || "";
-
-  renderStep3Diff(base, current);
-  diffDirty = false;
-}
-
     document.getElementById("saveTtsBtn")?.addEventListener("click", saveTtsSettings);
     document.getElementById("saveCtaBtn")?.addEventListener("click", saveCtaSettings);
     document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
@@ -3352,55 +3360,29 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
 // ========================================
 document.getElementById("showOriginal")?.addEventListener("click", () => {
   captionViewMode = "original";
+  renderCaptionView();          // 🔥 THIS was missing
   syncCaptionToggleUI();
-  document.getElementById("step4CaptionScroll")?.classList.toggle(
-  "hidden",
-  captionViewMode !== "diff"
-);
-
-if (captionViewMode === "diff") {
-  renderStep4Diff(
-    lastSavedCaptionsText,
-    document.getElementById("captionsText")?.value || ""
-  );
-}
-
+  document.getElementById("step4CaptionScroll")?.classList.add("hidden");
 });
 
 document.getElementById("showRewritten")?.addEventListener("click", () => {
   captionViewMode = "rewritten";
+  renderCaptionView();          // 🔥 THIS was missing
   syncCaptionToggleUI();
-  document.getElementById("step4CaptionScroll")?.classList.toggle(
-  "hidden",
-  captionViewMode !== "diff"
-);
-
-if (captionViewMode === "diff") {
-  renderStep4Diff(
-    lastSavedCaptionsText,
-    document.getElementById("captionsText")?.value || ""
-  );
-}
-
+  document.getElementById("step4CaptionScroll")?.classList.add("hidden");
 });
 
 document.getElementById("showDiff")?.addEventListener("click", () => {
   captionViewMode = "diff";
   syncCaptionToggleUI();
-  document.getElementById("step4CaptionScroll")?.classList.toggle(
-  "hidden",
-  captionViewMode !== "diff"
-);
 
-if (captionViewMode === "diff") {
+  document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
+
   renderStep4Diff(
     lastSavedCaptionsText,
     document.getElementById("captionsText")?.value || ""
   );
-}
-
 });
-
 
 
 
