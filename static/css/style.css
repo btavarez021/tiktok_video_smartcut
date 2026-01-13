@@ -2625,10 +2625,10 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 10px;
   margin-top: 16px;
-  overflow: hidden;
   background: rgba(255,255,255,0.02);
 }
 
+/* Header */
 .variants-header {
   display: flex;
   justify-content: space-between;
@@ -2639,49 +2639,37 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   background: rgba(255,255,255,0.04);
 }
 
+/* Body must NOT scroll */
 .variants-body {
-  max-height: 420px;          /* pick a good UX height */
+  padding: 14px;
+  overflow: visible;
+}
+
+/* Closed state */
+.variants-drawer.closed .variants-body {
+  display: none;
+}
+
+/* ===============================
+   Variants list (ONLY this scrolls)
+=============================== */
+
+#variantsOutput {
+  max-height: 520px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 14px;
+  padding-right: 8px;
+  margin-top: 10px;
 }
 
-
-.variants-drawer.closed .variants-body {
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  opacity: 0;
-}
-
-
-#hookScoreValue.clickable {
-  cursor: pointer;
-  text-decoration: underline dotted;
-}
-#hookScoreValue.clickable:hover {
-  opacity: 0.8;
-}
-
-.hookBadge {
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.hookBadge.great { background:#ff3b3b; color:white; }
-.hookBadge.ok    { background:#ffd23c; color:black; }
-.hookBadge.weak  { background:#999; color:white; }
-
-.variantHeader {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
+/* ===============================
+   Hook Lab Cards
+=============================== */
 
 .hookCard {
   cursor: pointer;
+  padding: 10px 12px;
+  border-radius: 8px;
   transition: all 0.15s ease;
 }
 
@@ -2695,7 +2683,37 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   box-shadow: 0 0 0 1px rgba(139,92,246,0.4) inset;
 }
 
-/* Allow tooltips to escape containers */
+/* ===============================
+   Hook score click styling
+=============================== */
+
+#hookScoreValue.clickable {
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+#hookScoreValue.clickable:hover {
+  opacity: 0.8;
+}
+
+/* ===============================
+   Hook badges
+=============================== */
+
+.hookBadge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.hookBadge.great { background:#ff3b3b; color:white; }
+.hookBadge.ok    { background:#ffd23c; color:black; }
+.hookBadge.weak  { background:#999; color:white; }
+
+/* ===============================
+   Tooltip Fixes
+=============================== */
+
 .variants-drawer,
 .variants-body,
 .hook-lab,
@@ -2703,14 +2721,7 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   overflow: visible !important;
 }
 
-/* Make sure tooltips float above drawers */
 .tooltiptext {
   z-index: 9999;
-}
-
-#variantsOutput {
-  max-height: 520px;
-  overflow-y: auto;
-  padding-right: 6px; /* keeps scrollbar off text */
 }
 
