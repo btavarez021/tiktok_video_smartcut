@@ -1865,6 +1865,21 @@ h3 {
   border-radius: 10px;
 }
 
+.upload-column {
+  position: relative;
+}
+
+.upload-column::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(0,0,0,0), #0e0e10);
+  pointer-events: none;
+}
+
 
 /* Each clip becomes its own mini TikTok card */
 .clip-card {
@@ -2013,4 +2028,27 @@ h3 {
   background: rgba(239,68,68,0.08);
 }
 
+/* Mobile-friendly Caption Diff */
+@media (max-width: 720px) {
+  .diff-grid {
+    grid-template-columns: 1fr;
+  }
 
+  .diff-card.old {
+    border-left: 4px solid #ef4444;
+    background: linear-gradient(
+      180deg,
+      rgba(239,68,68,0.18),
+      rgba(0,0,0,0.35)
+    );
+  }
+
+  .diff-card.new {
+    border-left: 4px solid #22c55e;
+    background: linear-gradient(
+      180deg,
+      rgba(34,197,94,0.22),
+      rgba(0,0,0,0.35)
+    );
+  }
+}
