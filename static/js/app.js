@@ -226,11 +226,6 @@ function renderStep3Diff(oldText, newText) {
 }
 
 
-document.getElementById("captionCompareBody")?.classList.remove("hidden");
-document.getElementById("compareCollapseBtn").textContent = "Collapse";
-
-
-
 function setVariantsStatus(message, state = "loading") {
   const el = document.getElementById("variantsInlineStatus");
   if (!el) return;
