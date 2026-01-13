@@ -73,27 +73,31 @@ async function generateHooks() {
   status.textContent = "Generating hooks…";
   status.className = "hook-lab-status loading";
 
+  let res = null;
+
   try {
-    const res = await jsonFetch("/api/hooks", {
+    res = await jsonFetch("/api/hooks", {
       method: "POST",
       body: JSON.stringify({ session: getActiveSession() })
     });
+  } catch (e) {
+    console.warn("Hook fetch warning:", e);
+  }
 
-    renderHookLab(res.hooks);
+  const hooks = res?.hooks;
 
-    status.textContent = `✓ ${res.hooks.length} hooks generated`;
+  if (Array.isArray(hooks) && hooks.length > 0) {
+    renderHookLab(hooks);
+    status.textContent = `✓ ${hooks.length} hooks generated`;
     status.className = "hook-lab-status success";
-
-  } catch (err) {
-    console.error(err);
+  } else {
     status.textContent = "⚠ Failed to generate hooks";
     status.className = "hook-lab-status error";
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Generate Hooks";
   }
-}
 
+  btn.disabled = false;
+  btn.textContent = "Generate Hooks";
+}
 
 let selectedHook = null;
 
@@ -128,6 +132,19 @@ function renderHookLab(hooks) {
 function selectHook(text) {
   selectedHook = text;
 
+  // Remove previous highlight
+  document.querySelectorAll(".hookCard").forEach(c =>
+    c.classList.remove("selected")
+  );
+
+  // Highlight clicked one
+  const cards = document.querySelectorAll(".hookCard");
+  cards.forEach(c => {
+    if (c.querySelector(".hookText")?.textContent === text) {
+      c.classList.add("selected");
+    }
+  });
+
   const bar = document.getElementById("selectedHookBar");
   const label = document.getElementById("selectedHookDisplay");
 
@@ -136,6 +153,7 @@ function selectHook(text) {
     label.textContent = text;
   }
 }
+
 
 
 function showLabelWarning(file, badLabel, reason) {
