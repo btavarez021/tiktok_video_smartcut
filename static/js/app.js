@@ -13,6 +13,8 @@ let suppressNextPreview = false;
 
 let lastSavedCaptionsText = "";
 
+let workingCaptionsText = "";
+
 // ================================
 // Step 4 Caption View (Original vs Rewritten)
 // ================================
@@ -25,14 +27,20 @@ function renderCaptionView() {
   if (!box) return;
 
   if (captionViewMode === "original") {
-  box.value = lastSavedCaptionsText || "";
-  box.readOnly = true;
-} else {
-  box.value = box.dataset.workingText ?? lastSavedCaptionsText ?? "";
-  box.readOnly = false;
+    box.value = lastSavedCaptionsText || "";
+    box.readOnly = true;
+  }
+  else if (captionViewMode === "rewritten") {
+    box.value = workingCaptionsText || lastSavedCaptionsText || "";
+    box.readOnly = true;
+  }
+  else {
+    // diff mode — hide textarea so it can't overwrite diff
+    box.value = "";
+    box.readOnly = true;
+  }
 }
 
-}
 
 // ================================
 // Diff engine (GLOBAL)
@@ -43,13 +51,16 @@ function maybeRefreshDiff() {
   if (!diffDirty) return;
 
   const base = lastSavedCaptionsText || "";
-  const current = document.getElementById("captionsText")?.value || "";
+
+  // Step-3 compares YAML → live editor
+  const current =
+    captionViewMode === "rewritten"
+      ? workingCaptionsText
+      : document.getElementById("captionsText")?.value || "";
 
   renderStep3Diff(base, current);
   diffDirty = false;
 }
-
-
 
 function renderVariantCard(num, tone, text, score, cardId) {
   let badge = "";
@@ -1520,8 +1531,7 @@ function clearOverlayWarning() {
 async function improveHook() {
   const btn = document.getElementById("improveHookBtn");
   const statusEl = document.getElementById("hookScoreStatus");
-  const el = document.getElementById("captionsText");
-  if (!btn || !el) return;
+  if (!btn) return;
 
   btn.disabled = true;
   if (statusEl) statusEl.textContent = "Improving hook…";
@@ -1538,17 +1548,20 @@ async function improveHook() {
     if (data.status === "proposed") {
       const original = lastSavedCaptionsText || "";
 
-      // Store working copy
-      el.dataset.workingText = data.proposed;
-      el.value = data.proposed;
+      // 🔵 Store rewrite ONLY in working copy
+      workingCaptionsText = data.proposed || "";
 
-      // Show diff
-      renderStep3Diff(original, data.proposed);
+      // 🔥 Step-3 (live diff)
+      renderStep3Diff(original, workingCaptionsText);
       toggleCaptionCompare(true);
-      // Update score UI
-      if (typeof renderHookScore === "function") {
-        renderHookScore(data.score, data.reasons);
-      }
+
+      // 🔥 Step-4 (review diff)
+      renderStep4Diff(original, workingCaptionsText);
+
+      // 🔥 Force UI into diff mode
+      captionViewMode = "diff";
+      syncCaptionToggleUI();
+      renderCaptionView();
 
       if (statusEl) statusEl.textContent = "Hook rewrite ready — review changes";
       return;
@@ -2165,8 +2178,8 @@ if (res.status === "proposed") {
   const rewritten = res.proposed || "";
 
   // Save rewrite as working copy
-  el.dataset.workingText = rewritten;
-  el.value = rewritten;
+    workingCaptionsText = rewritten;
+
 
   // 🔥 Step 3 (live editor diff)
   renderStep3Diff(original, rewritten);
@@ -2194,6 +2207,11 @@ if (res.status === "proposed") {
   await loadConfigAndYaml();
     await loadCaptionsFromYaml();   // 🔑 THIS UPDATES lastSavedCaptionsText
     await previewOverlay("fast");
+
+    workingCaptionsText = lastSavedCaptionsText;
+captionViewMode = "rewritten";
+renderCaptionView();
+syncCaptionToggleUI();
 
 
   setStatus("overlayStatus", "Overlay applied ✓", "success");
@@ -3379,9 +3397,9 @@ document.getElementById("showDiff")?.addEventListener("click", () => {
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
 
   renderStep4Diff(
-    lastSavedCaptionsText,
-    document.getElementById("captionsText")?.value || ""
-  );
+  lastSavedCaptionsText,
+  workingCaptionsText
+);
 });
 
 
