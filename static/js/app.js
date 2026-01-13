@@ -199,31 +199,42 @@ function renderStep3Diff(oldText, newText) {
   const grid = document.getElementById("step3DiffGrid");
   if (!grid) return;
 
-  const oldLines = (oldText || "").split("\n");
-  const newLines = (newText || "").split("\n");
+  // Split into lines and REMOVE blank separator lines
+  const oldLines = (oldText || "")
+    .split("\n")
+    .map(l => l.trim())
+    .filter(l => l !== "");
 
-  let html = "";
+  const newLines = (newText || "")
+    .split("\n")
+    .map(l => l.trim())
+    .filter(l => l !== "");
+
+  grid.innerHTML = "";
+
   const max = Math.max(oldLines.length, newLines.length);
 
   for (let i = 0; i < max; i++) {
     const o = oldLines[i] || "";
     const n = newLines[i] || "";
 
-    html += `
-      <div class="diff-card old">
-        <div class="diff-label">Original</div>
-        ${escapeHtml(o)}
-      </div>
+    const same = o === n;
 
-      <div class="diff-card new">
-        <div class="diff-label">Rewritten</div>
-        ${escapeHtml(n)}
-      </div>
-    `;
+    // Old card
+    const oldCard = document.createElement("div");
+    oldCard.className = "diff-card old" + (same ? "" : " changed");
+    oldCard.textContent = o || "(empty)";
+
+    // New card
+    const newCard = document.createElement("div");
+    newCard.className = "diff-card new" + (same ? "" : " changed");
+    newCard.textContent = n || "(empty)";
+
+    grid.appendChild(oldCard);
+    grid.appendChild(newCard);
   }
-
-  grid.innerHTML = html;
 }
+
 
 
 function setVariantsStatus(message, state = "loading") {
