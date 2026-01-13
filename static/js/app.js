@@ -2161,32 +2161,32 @@ async function applyOverlay() {
 if (res.status === "proposed") {
   const el = document.getElementById("captionsText");
 
-  // 🔵 YAML baseline
   const original = lastSavedCaptionsText || "";
-
-  // 🟢 Proposed rewrite
   const rewritten = res.proposed || "";
 
-  // Store working copy
+  // Save rewrite as working copy
   el.dataset.workingText = rewritten;
   el.value = rewritten;
 
-  // Step 3 diff (live editing panel)
+  // 🔥 Step 3 (live editor diff)
   renderStep3Diff(original, rewritten);
   toggleCaptionCompare(true);
-  // Step 4 diff (review panel)
+
+  // 🔥 Step 4 (review panel diff)
   renderStep4Diff(original, rewritten);
 
+  // Force Step-4 into diff view
   captionViewMode = "diff";
   syncCaptionToggleUI();
-
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
-  document.getElementById("captionDiffHeader")?.classList.remove("hidden");
+
+  // 🔥 This ensures textarea is NOT overwriting the diff
+  renderCaptionView();
 
   setStatus("overlayStatus", "Rewrite ready — review changes", "info");
-
-  return; // ⛔ Stop — do not apply overlay yet
+  return;
 }
+
 
   // -------------------------------
   // Visual-only path
