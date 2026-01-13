@@ -392,26 +392,92 @@
 
                         </div>
 
-                        <!-- =========================================================
-                            Caption Generation Modes — INSERT BELOW CAPTION TEXT AREA
-                        ========================================================== -->
+                        <!-- ================================
+                            HOOK SCORE (Primary Entry Point)
+                        ================================ -->
+
+                        <div class="hook-score-card">
+                        <div class="hook-score-header">
+                            <strong>
+                            Hook Score
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext tooltip-wide">
+                                Scores how strong your <b>first caption</b> is at stopping scroll.<br><br>
+                                Based on curiosity, clarity, emotional pull, and pacing.<br><br>
+                                Higher score = more people keep watching.
+                                </span>
+                            </span>
+                            </strong>
+
+                            <span id="hookScoreValue" class="hook-score-value clickable">–/100</span>
+                        </div>
+
+                        <p class="hint-text subtle">
+                            Click the score to open Hook Lab and explore stronger openings.
+                        </p>
+
+                        <div id="hookScoreHook" class="hook-score-hook">
+                            (no opening caption yet)
+                        </div>
+
+                        <ul id="hookScoreReasons" class="hook-score-reasons"></ul>
+
+                        <span id="hookScoreStatus" class="hint-text"></span>
+                        </div>
+
+
+                        <!-- ================================
+                            STORY FLOW (Locked by Hook)
+                        ================================ -->
+
+                        <div id="storyFlowLockedHint" class="hint-text hidden">
+                        🔒 Improve the opening hook to unlock story flow scoring.
+                        </div>
+
+                        <div class="story-flow-card hidden">
+                        <div class="story-flow-header">
+                            <strong>
+                            📖 Story Flow
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext tooltip-wide">
+                                Scores how well captions <b>after the hook</b> flow together.<br><br>
+                                Focuses on pacing, clarity, and keeping curiosity alive.
+                                </span>
+                            </span>
+                            </strong>
+
+                            <span id="storyFlowScoreValue" class="story-flow-value">–/100</span>
+                        </div>
+
+                        <p class="hint-text subtle">
+                            Scoring captions after the hook (caption 2+)
+                        </p>
+
+                        <ul id="storyFlowReasons" class="story-flow-reasons"></ul>
+                        </div>
+
+
+                        <!-- ================================
+                            CAPTION VARIANTS + HOOK LAB
+                        ================================ -->
+
                         <div class="variants-drawer closed" id="variantsDrawer">
 
                         <div class="variants-header" onclick="toggleVariantsPanel()">
-                            <span>🧠 Caption Variants</span>
+                            <span>🧠 Caption Variants & Hook Lab</span>
                             <button class="btn ghost small" id="variantsToggleBtn">Expand</button>
                         </div>
 
                         <div class="variants-body">
 
                             <p class="hint-text subtle">
-                            Select one or more modes to generate multiple caption options.<br>
-                            Each mode produces a separate rewrite — nothing is overwritten automatically.
+                            This is where you experiment safely. Nothing here overwrites your captions.
                             </p>
 
                             <p class="hint-text subtle">
-                            Recommended flow: Improve Hook → Storytelling → Punchy (optional)
+                            Best flow: <b>Pick a Hook → Generate Variants → Choose the best story</b>
                             </p>
+
 
                             <!-- 🧲 Hook Lab -->
                             <div id="hookLab" class="hook-lab hidden">
@@ -419,42 +485,36 @@
                             <div class="hook-lab-header">
                                 🧲 Hook Lab
                                 <span class="tooltip">ⓘ
-                                    <span class="tooltiptext tooltip-wide">
-                                        Hook Lab generates <b>alternate opening lines</b> for your video.<br><br>
-                                        These hooks are scored for:
-                                        • curiosity
-                                        • emotional pull
-                                        • scroll-stopping power<br><br>
-                                        Pick one → then generate caption variants that follow it.
-                                    </span>
+                                <span class="tooltiptext tooltip-wide">
+                                    Generates alternate opening lines for your video.<br><br>
+                                    Each hook is scored for:
+                                    • curiosity
+                                    • emotional pull
+                                    • scroll-stopping power<br><br>
+                                    Pick one → then generate stories that follow it.
+                                </span>
                                 </span>
 
                                 <button id="generateHooksBtn" class="btn ghost small">
-                                    Generate Hooks
+                                Generate Hooks
                                 </button>
                             </div>
-
 
                             <div id="hookLabOutput" class="hook-lab-grid"></div>
 
                             <div id="selectedHookBar" class="hidden">
                                 <strong>Selected hook:</strong>
                                 <span id="selectedHookDisplay"></span>
-
-                                <p class="hint-text subtle" style="margin-top:4px;">
-                                    This hook will be used when generating caption variants.
+                                <p class="hint-text subtle">
+                                This hook will be used when generating caption variants below.
                                 </p>
                             </div>
 
-
                             <hr />
                             </div>
-                            <p class="hint-text subtle">
-                            🧭 Best flow:
-                            <b>Pick a Hook → Generate Variants → Choose the best story.</b>
-                            </p>
 
 
+                            <!-- Caption Modes -->
                             <div class="checkbox-grid">
                             <label><input type="checkbox" id="mode_rewrite"> Rewrite captions</label>
                             <label><input type="checkbox" id="mode_hook"> Improve Hook</label>
@@ -471,9 +531,9 @@
                             <div id="variantsInlineStatus" class="inline-status hidden"></div>
                             <div id="variantsOutput" class="variants-output"></div>
 
-                        </div> <!-- /.variants-body -->
+                        </div>
+                        </div>
 
-                        </div> <!-- /.variants-drawer -->
 
 
                         <!-- ======================================================= -->
@@ -507,8 +567,11 @@
 
                             </div>
                             <p class="hint-text subtle">
-                                Only the <b>first caption</b> affects this score.
+                            This measures how strong your <b>opening line</b> is for stopping scroll.
+                            <br>
+                            <b>Click the score</b> to explore better hooks if it’s low.
                             </p>
+
 
                             <div id="hookScoreHook" class="hook-score-hook">
                                 (no opening caption yet)
