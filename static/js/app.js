@@ -64,35 +64,33 @@ function renderVariantCard(num, tone, text, score) {
   `;
 }
 
-async function generateHooks() {
-  const btn = document.getElementById("generateHooksBtn");
-  const status = document.getElementById("hookLabStatus");
+function renderHookLab(hooks) {
+  const out = document.getElementById("hookLabOutput");
+  out.innerHTML = "";
 
-  btn.disabled = true;
-  btn.textContent = "Generating…";
-  status.textContent = "Generating hooks…";
-  status.className = "hook-lab-status loading";
+  if (!Array.isArray(hooks) || hooks.length === 0) {
+    out.innerHTML = `<div class="hint-text subtle">No hooks generated. Try again.</div>`;
+    return;
+  }
 
-  try {
-    const res = await jsonFetch("/api/hooks", {
-      method: "POST",
-      body: JSON.stringify({ session: getActiveSession() })
+  hooks
+    .filter(h => h && h.text)
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .forEach(h => {
+      const text = h.text.replace(/"/g, "&quot;");
+      const score = h.score ?? 0;
+
+      out.innerHTML += `
+        <div class="hookCard" onclick="selectHook(${JSON.stringify(h.text)})">
+          <span class="hookText">${text}</span>
+          <span class="hookScore">🔥 ${score}</span>
+        </div>
+      `;
     });
 
-    renderHookLab(res.hooks);
-
-    status.textContent = `✓ ${res.hooks.length} hooks generated`;
-    status.className = "hook-lab-status success";
-
-  } catch (err) {
-    console.error(err);
-    status.textContent = "⚠ Failed to generate hooks";
-    status.className = "hook-lab-status error";
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Generate Hooks";
-  }
+  document.getElementById("hookLab").classList.remove("hidden");
 }
+
 
 
 let selectedHook = null;
