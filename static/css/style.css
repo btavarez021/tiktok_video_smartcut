@@ -1848,11 +1848,23 @@ h3 {
 
 
 .upload-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 14px;
-  padding-top: 10px;
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 14px 4px 18px;
+  scroll-snap-type: x mandatory;
 }
+
+/* Smooth horizontal scroll */
+.upload-list::-webkit-scrollbar {
+  height: 10px;
+}
+
+.upload-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.15);
+  border-radius: 10px;
+}
+
 
 /* Each clip becomes its own mini TikTok card */
 .clip-card {
@@ -1881,4 +1893,86 @@ h3 {
   border-radius: 6px;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.12);
+}
+
+/* ===============================
+   CAPTION CHANGES (DIFF VIEW)
+=============================== */
+
+.step4-caption-panel {
+  margin-top: 16px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Header */
+.caption-diff-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Scroll container */
+.step4CaptionScroll {
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+/* GRID: old vs new */
+.diff-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* Individual caption card */
+.diff-card {
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* OLD caption */
+.diff-card.old {
+  background: linear-gradient(
+    180deg,
+    rgba(239,68,68,0.12),
+    rgba(0,0,0,0.35)
+  );
+  border: 1px solid rgba(239,68,68,0.35);
+}
+
+/* NEW caption */
+.diff-card.new {
+  background: linear-gradient(
+    180deg,
+    rgba(34,197,94,0.14),
+    rgba(0,0,0,0.35)
+  );
+  border: 1px solid rgba(34,197,94,0.4);
+}
+
+/* Labels */
+.diff-label {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.85;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Mobile fallback */
+@media (max-width: 720px) {
+  .diff-grid {
+    grid-template-columns: 1fr;
+  }
 }
