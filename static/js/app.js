@@ -199,35 +199,9 @@ function renderStep3Diff(oldText, newText) {
   const grid = document.getElementById("step3DiffGrid");
   if (!grid) return;
 
-  const oldLines = (oldText || "").split("\n");
-  const newLines = (newText || "").split("\n");
-
-  grid.innerHTML = "";
-
-  const max = Math.max(oldLines.length, newLines.length);
-
-  for (let i = 0; i < max; i++) {
-    const o = oldLines[i] || "";
-    const n = newLines[i] || "";
-
-    const same = o === n;
-
-    const row = document.createElement("div");
-    row.className = "diff-row";
-
-    const oldDiv = document.createElement("div");
-    oldDiv.className = "diff-old" + (same ? "" : " changed");
-    oldDiv.textContent = o;
-
-    const newDiv = document.createElement("div");
-    newDiv.className = "diff-new" + (same ? "" : " changed");
-    newDiv.textContent = n;
-
-    row.appendChild(oldDiv);
-    row.appendChild(newDiv);
-    grid.appendChild(row);
-  }
+  grid.innerHTML = buildCaptionDiffHTML(oldText, newText);
 }
+
 
 
 
