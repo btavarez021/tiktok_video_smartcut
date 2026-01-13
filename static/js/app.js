@@ -36,6 +36,13 @@ function renderCaptionView() {
 function renderVariantCard(num, tone, text, score) {
   let badge = "";
 
+  if (score >= 80) {
+    badge = `<div class="variant-badge best">🔥 Best Hook</div>`;
+    } else if (score >= 65) {
+    badge = `<div class="variant-badge good">⭐ Strong Hook</div>`;
+    }
+
+
   if (score !== null) {
     if (score >= 85) badge = `<span class="hookBadge great">🔥 ${score}</span>`;
     else if (score >= 70) badge = `<span class="hookBadge ok">⭐ ${score}</span>`;
@@ -1324,6 +1331,7 @@ async function refreshHookScore() {
 
     scoreEl.textContent = `${score}/100`;
     hookEl.textContent = data.hook || "(no opening caption yet)";
+    
 
     // Reset classes
     card.classList.remove("good", "ok", "bad");
@@ -1345,7 +1353,18 @@ async function refreshHookScore() {
       ? reasons.map(r => `<li>${r}</li>`).join("")
       : `<li>Looks solid ✅</li>`;
 
-    if (statusEl) statusEl.textContent = "";
+    const diffOpen = !document
+    .getElementById("captionCompareBody")
+    ?.classList.contains("hidden");
+
+    if (score < 60 && !diffOpen) {
+        statusEl.textContent =
+            "⚠ Weak hook — click the score to explore better ones.";
+    } else {
+        statusEl.textContent = "";
+    }
+
+
     // ================================
     // ⚠ Soft Warning: Low Hook + Rewrite Mode Active
     // ================================

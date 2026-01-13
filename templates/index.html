@@ -418,20 +418,42 @@
 
                             <div class="hook-lab-header">
                                 🧲 Hook Lab
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext tooltip-wide">
+                                        Hook Lab generates <b>alternate opening lines</b> for your video.<br><br>
+                                        These hooks are scored for:
+                                        • curiosity
+                                        • emotional pull
+                                        • scroll-stopping power<br><br>
+                                        Pick one → then generate caption variants that follow it.
+                                    </span>
+                                </span>
+
                                 <button id="generateHooksBtn" class="btn ghost small">
-                                Generate Hooks
+                                    Generate Hooks
                                 </button>
                             </div>
+
 
                             <div id="hookLabOutput" class="hook-lab-grid"></div>
 
                             <div id="selectedHookBar" class="hidden">
                                 <strong>Selected hook:</strong>
                                 <span id="selectedHookDisplay"></span>
+
+                                <p class="hint-text subtle" style="margin-top:4px;">
+                                    This hook will be used when generating caption variants.
+                                </p>
                             </div>
+
 
                             <hr />
                             </div>
+                            <p class="hint-text subtle">
+                            🧭 Best flow:
+                            <b>Pick a Hook → Generate Variants → Choose the best story.</b>
+                            </p>
+
 
                             <div class="checkbox-grid">
                             <label><input type="checkbox" id="mode_rewrite"> Rewrite captions</label>
@@ -472,7 +494,15 @@
                                     </span>
                                 </strong>
 
-                                <span id="hookScoreValue" class="hook-score-value clickable">–/100</span>
+                                <span id="hookScoreValue"
+                                    class="hook-score-value clickable"
+                                    title="Click to open Hook Lab and explore stronger hooks">
+                                –/100
+                                </span>
+                                <p class="hint-text subtle">
+                                Click the score to open <b>Hook Lab</b> and explore stronger openings.
+                                </p>
+
 
 
                             </div>

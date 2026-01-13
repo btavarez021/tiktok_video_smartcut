@@ -328,10 +328,12 @@ Return JSON:
         hooks = []
         for text in data.get("hooks", []):
             score = score_hook_text(text)["score"]
+            clean = strip_emojis(text).strip()
             hooks.append({
-                "text": normalize_label(text),
+                "text": clean,
                 "score": score
             })
+
 
         # Sort best first
         hooks.sort(key=lambda x: x["score"], reverse=True)
