@@ -34,28 +34,33 @@ function renderCaptionView() {
 }
 
 
-function renderVariantCard(num, tone, text, score) {
+function renderVariantCard(num, tone, text, score, cardId) {
   let badge = "";
 
-if (score >= 85) badge = `<span class="hookBadge great">📖 ${score}</span>`;
-else if (score >= 70) badge = `<span class="hookBadge ok">📖 ${score}</span>`;
-else badge = `<span class="hookBadge weak">📖 ${score}</span>`;
-
+  if (score !== null && score !== undefined) {
+    if (score >= 85) badge = `<span class="hookBadge great">🔥 ${score}</span>`;
+    else if (score >= 70) badge = `<span class="hookBadge ok">⭐ ${score}</span>`;
+    else badge = `<span class="hookBadge weak">⚠ ${score}</span>`;
+  }
 
   return `
-    <div class="variantCard">
+    <div class="variantCard" id="${cardId}">
       <div class="variantHeader">
         <h4>Version ${num}</h4>
         ${badge}
       </div>
+
       ${tone ? `<div class="variantTone">${tone}</div>` : ""}
+
       <pre style="white-space:pre-wrap">${text}</pre>
-      <button onclick="applyCaptionVariant(\`${text.replace(/`/g, "\\`")}\`)">
+
+      <button class="btn small" onclick="applyCaptionVariant(\`${text.replace(/`/g,"\\`")}\`)">
         Use This
       </button>
     </div>
   `;
 }
+
 
 
 function updateVariantHookScore(id, score) {
@@ -1500,90 +1505,88 @@ async function improveHook() {
 
 
 async function generateCaptionVariants() {
-    const btn = document.getElementById("generateVariantsBtn");
+  const btn = document.getElementById("generateVariantsBtn");
 
-    const modes = {
-        rewrite: document.getElementById("mode_rewrite")?.checked,
-        hook: document.getElementById("mode_hook")?.checked,
-        punchy: document.getElementById("mode_punchy")?.checked,
-        story: document.getElementById("mode_story")?.checked,
-        influencer: document.getElementById("mode_influencer")?.checked,
-        minimal: document.getElementById("mode_minimal")?.checked,
-    };
+  const modes = {
+    rewrite: document.getElementById("mode_rewrite")?.checked,
+    hook: document.getElementById("mode_hook")?.checked,
+    punchy: document.getElementById("mode_punchy")?.checked,
+    story: document.getElementById("mode_story")?.checked,
+    influencer: document.getElementById("mode_influencer")?.checked,
+    minimal: document.getElementById("mode_minimal")?.checked,
+  };
 
-    const session = getActiveSession();
+  const session = getActiveSession();
 
-    setVariantsStatus("Generating caption variants…", "loading");
+  setVariantsStatus("Generating caption variants…", "loading");
 
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Generating…";
+  }
+
+  try {
+    const res = await fetch("/api/variants", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session,
+        modes,
+        selected_hook: selectedHook || null
+      })
+    });
+
+    if (!res.ok) {
+      throw new Error("Variant generation failed");
+    }
+
+    const data = await res.json();
+
+    const box = document.getElementById("variantsOutput");
+    box.innerHTML = "";
+
+    for (let i = 0; i < data.variants.length; i++) {
+      const variant = data.variants[i];
+      const text = variant.text || "";
+      const tone = variant.tone || "";
+
+      const cardId = `variant_${i}`;
+
+      box.innerHTML += renderVariantCard(
+        i + 1,
+        tone,
+        text,
+        null,
+        cardId
+      );
+
+      // Score only the HOOK (first block)
+      const hook = text.split(/\n\s*\n/)[0];
+
+      scoreVariantHook(hook).then(score => {
+        updateVariantHookScore(cardId, score);
+      });
+    }
+
+    // ✅ Success AFTER render
+    setVariantsStatus("Variants generated ✓", "success");
+
+    setTimeout(() => {
+      document.getElementById("variantsInlineStatus")?.classList.add("hidden");
+    }, 2000);
+
+  } catch (err) {
+    console.error(err);
+    setVariantsStatus("Failed to generate variants", "error");
+  } finally {
     if (btn) {
-        btn.disabled = true;
-        btn.textContent = "Generating…";
+      btn.disabled = false;
+      btn.textContent = "⚡ Generate Caption Variants";
     }
-
-    try {
-        const res = await fetch("/api/variants", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                session,
-                modes,
-                selected_hook: selectedHook || null
-            })
-        });
-
-        if (!res.ok) {
-            throw new Error("Variant generation failed");
-        }
-
-        const data = await res.json();
-
-        const box = document.getElementById("variantsOutput");
-        box.innerHTML = "";
-
-        for (let i = 0; i < data.variants.length; i++) {
-            const variant = data.variants[i];
-            const text = variant.text || "";
-            const tone = variant.tone || "";
-
-            const parts = text.split(/\n\s*\n/);
-
-            // We no longer score the hook here — it is fixed
-            const story = parts.slice(1).join("\n\n");
-
-            const cardId = `variant_${i}`;
-
-            box.innerHTML += renderVariantCard(
-                i + 1,
-                tone,
-                text,
-                null,
-                cardId
-            );
-
-            // Only score STORY FLOW now
-            scoreStoryFlow().then(flow => {
-            updateVariantStoryScore(cardId, flow);
-            });
-
-        }
-
-        // ✅ Success AFTER all variants are rendered
-        setVariantsStatus("Variants generated ✓", "success");
-
-        setTimeout(() => {
-            document.getElementById("variantsInlineStatus")?.classList.add("hidden");
-        }, 2000);
-
-    } catch (err) {
-        console.error(err);
-        setVariantsStatus("Failed to generate variants", "error");
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent = "⚡ Generate Caption Variants";
-        }
-    }
+  }
 }
+
+
 
 
 
