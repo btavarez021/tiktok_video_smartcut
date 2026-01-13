@@ -2052,3 +2052,11 @@ h3 {
     );
   }
 }
+
+/* iPhone mock container must clip overflow */
+#overlayPreviewBox,
+.overlay-preview,
+.phone-mock {
+  position: relative;
+  overflow: hidden;
+}
