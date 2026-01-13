@@ -1503,6 +1503,13 @@ async function improveHook() {
   }
 }
 
+async function scoreVariantHook(text) {
+    const res = await jsonFetch("/api/hook_score_preview", {
+        method: "POST",
+        body: JSON.stringify({ text })
+    });
+    return res.score;
+    }
 
 async function generateCaptionVariants() {
   const btn = document.getElementById("generateVariantsBtn");
@@ -3001,14 +3008,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     }
 
-    async function scoreVariantHook(text) {
-    const res = await jsonFetch("/api/hook_score_preview", {
-        method: "POST",
-        body: JSON.stringify({ text })
-    });
-    return res.score;
-    }
-
+    
 
     document.addEventListener("keydown", (e) => {
         if (
