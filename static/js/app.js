@@ -65,13 +65,35 @@ function renderVariantCard(num, tone, text, score) {
 }
 
 async function generateHooks() {
-  const res = await jsonFetch("/api/hooks", {
-    method: "POST",
-    body: JSON.stringify({ session: getActiveSession() })
-  });
+  const btn = document.getElementById("generateHooksBtn");
+  const status = document.getElementById("hookLabStatus");
 
-  renderHookLab(res.hooks);
+  btn.disabled = true;
+  btn.textContent = "Generating…";
+  status.textContent = "Generating hooks…";
+  status.className = "hook-lab-status loading";
+
+  try {
+    const res = await jsonFetch("/api/hooks", {
+      method: "POST",
+      body: JSON.stringify({ session: getActiveSession() })
+    });
+
+    renderHookLab(res.hooks);
+
+    status.textContent = `✓ ${res.hooks.length} hooks generated`;
+    status.className = "hook-lab-status success";
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "⚠ Failed to generate hooks";
+    status.className = "hook-lab-status error";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Generate Hooks";
+  }
 }
+
 
 let selectedHook = null;
 

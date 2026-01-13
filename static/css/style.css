@@ -2725,3 +2725,26 @@ display:flex;align-items:center;justify-content:center;z-index:999;}
   z-index: 9999;
 }
 
+.hook-lab-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hook-lab-status {
+  font-size: 12px;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.hook-lab-status.loading {
+  color: #ffd23c;
+}
+
+.hook-lab-status.success {
+  color: #4ade80;
+}
+
+.hook-lab-status.error {
+  color: #ff6b6b;
+}
