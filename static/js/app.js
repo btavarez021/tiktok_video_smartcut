@@ -61,13 +61,6 @@ function renderVariantCard(num, tone, text, score, cardId) {
   `;
 }
 
-
-
-function updateVariantHookScore(id, score) {
-  const el = document.querySelector(`#${id} .hookScoreValue`);
-  if (el) el.textContent = score?.score ?? "—";
-}
-
 function updateVariantStoryScore(id, flow) {
   const el = document.querySelector(`#${id} .storyScoreValue`);
   if (el) el.textContent = flow?.score ?? "—";
@@ -1503,14 +1496,6 @@ async function improveHook() {
   }
 }
 
-async function scoreVariantHook(text) {
-    const res = await jsonFetch("/api/hook_score_preview", {
-        method: "POST",
-        body: JSON.stringify({ text })
-    });
-    return res.score;
-    }
-
 async function generateCaptionVariants() {
   const btn = document.getElementById("generateVariantsBtn");
 
@@ -1566,13 +1551,6 @@ async function generateCaptionVariants() {
         null,
         cardId
       );
-
-      // Score only the HOOK (first block)
-      const hook = text.split(/\n\s*\n/)[0];
-
-      scoreVariantHook(hook).then(score => {
-        updateVariantHookScore(cardId, score);
-      });
     }
 
     // ✅ Success AFTER render
