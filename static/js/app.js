@@ -114,21 +114,29 @@ function renderHookLab(hooks) {
     .filter(h => h && h.text)
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .forEach(h => {
-      const text = h.text.replace(/"/g, "&quot;");
-      const score = h.score ?? 0;
+      const card = document.createElement("div");
+      card.className = "hookCard";
 
-      out.innerHTML += `
-        <div class="hookCard" onclick="selectHook(${JSON.stringify(h.text)})">
-          <span class="hookText">${text}</span>
-          <span class="hookScore">🔥 ${score}</span>
-        </div>
-      `;
+      const textSpan = document.createElement("span");
+      textSpan.className = "hookText";
+      textSpan.textContent = h.text;
+
+      const scoreSpan = document.createElement("span");
+      scoreSpan.className = "hookScore";
+      scoreSpan.textContent = `🔥 ${h.score ?? 0}`;
+
+      card.appendChild(textSpan);
+      card.appendChild(scoreSpan);
+
+      card.addEventListener("click", () => selectHook(h.text));
+
+      out.appendChild(card);
     });
 
-const lab = document.getElementById("hookLab");
-if (lab) lab.classList.remove("hidden");
-
+  const lab = document.getElementById("hookLab");
+  if (lab) lab.classList.remove("hidden");
 }
+
 
 
 function selectHook(text) {
