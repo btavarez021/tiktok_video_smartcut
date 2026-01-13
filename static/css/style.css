@@ -1895,6 +1895,27 @@ h3 {
   border: 1px solid rgba(255,255,255,0.12);
 }
 
+/* Destructive action: Delete */
+.clip-actions .btn-delete {
+  background: linear-gradient(
+    180deg,
+    rgba(239,68,68,0.25),
+    rgba(239,68,68,0.1)
+  );
+  border: 1px solid rgba(239,68,68,0.6);
+  color: #fecaca;
+}
+
+.clip-actions .btn-delete:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(239,68,68,0.4),
+    rgba(239,68,68,0.2)
+  );
+  color: #fff;
+}
+
+
 /* ===============================
    CAPTION CHANGES (DIFF VIEW)
 =============================== */
@@ -1976,3 +1997,20 @@ h3 {
     grid-template-columns: 1fr;
   }
 }
+
+/* Label saved feedback */
+.clip-label-input.saved {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34,197,94,0.25);
+  background: rgba(34,197,94,0.08);
+  transition: all 0.25s ease;
+}
+
+/* Error state */
+.clip-label-input.error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.25);
+  background: rgba(239,68,68,0.08);
+}
+
+

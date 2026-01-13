@@ -1076,23 +1076,48 @@ function renderUploadList(elementId, items, kind, labels = {}) {
     });
 
     // ================================
-    // ✍️ LABEL AUTO-SAVE
+    // ✍️ LABEL AUTO-SAVE (with feedback)
     // ================================
     el.querySelectorAll(".clip-label-input").forEach(input => {
-        input.addEventListener("blur", async () => {
+
+        const save = async () => {
             const file = input.dataset.file;
             const label = input.value.trim();
-            await saveClipLabel(file, label);
-        });
 
-        input.addEventListener("keydown", async (e) => {
+            try {
+                await saveClipLabel(file, label);
+
+                // Success glow
+                input.classList.remove("error");
+                input.classList.add("saved");
+
+                setTimeout(() => {
+                    input.classList.remove("saved");
+                }, 1200);
+
+            } catch (e) {
+                console.error("Label save failed", e);
+
+                // Error glow
+                input.classList.add("error");
+
+                setTimeout(() => {
+                    input.classList.remove("error");
+                }, 1500);
+            }
+        };
+
+        input.addEventListener("blur", save);
+
+        input.addEventListener("keydown", (e) => {
             if (e.key === "Enter") {
                 e.preventDefault();
-                input.blur();
+                input.blur(); // triggers save()
             }
         });
 
     });
+
 
 }
 
