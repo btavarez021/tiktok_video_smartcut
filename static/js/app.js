@@ -51,14 +51,11 @@ function maybeRefreshDiff() {
   if (!diffDirty) return;
 
   const base = lastSavedCaptionsText || "";
-
-  // Step-3 compares YAML → live editor
-  const current =
-    captionViewMode === "rewritten"
-      ? workingCaptionsText
-      : document.getElementById("captionsText")?.value || "";
+  const current = workingCaptionsText || "";
 
   renderStep3Diff(base, current);
+  renderStep4Diff(base, current);
+
   diffDirty = false;
 }
 
