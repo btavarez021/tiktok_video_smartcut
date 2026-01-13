@@ -1229,10 +1229,16 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
 
         if hook_locked:
             system_prompt += (
-                " The FIRST caption is a locked hook. "
-                "DO NOT rewrite, rephrase, shorten, or modify the first caption. "
+                " IMPORTANT: The first paragraph is a FIXED hook. "
+                "It MUST be used verbatim in every variant. "
+                "Do NOT rewrite it. "
+                "Do NOT rephrase it. "
+                "Do NOT shorten it. "
+                "Do NOT change punctuation. "
+                "Do NOT add or remove words. "
                 "Only rewrite the remaining captions to match the tone."
             )
+
 
 
         if style == "minimal":  

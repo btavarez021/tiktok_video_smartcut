@@ -33,21 +33,14 @@ function renderCaptionView() {
   }
 }
 
+
 function renderVariantCard(num, tone, text, score) {
   let badge = "";
 
-  if (score >= 80) {
-    badge = `<div class="variant-badge best">🔥 Best Hook</div>`;
-    } else if (score >= 65) {
-    badge = `<div class="variant-badge good">⭐ Strong Hook</div>`;
-    }
+if (score >= 85) badge = `<span class="hookBadge great">📖 ${score}</span>`;
+else if (score >= 70) badge = `<span class="hookBadge ok">📖 ${score}</span>`;
+else badge = `<span class="hookBadge weak">📖 ${score}</span>`;
 
-
-  if (score !== null) {
-    if (score >= 85) badge = `<span class="hookBadge great">🔥 ${score}</span>`;
-    else if (score >= 70) badge = `<span class="hookBadge ok">⭐ ${score}</span>`;
-    else badge = `<span class="hookBadge weak">⚠ ${score}</span>`;
-  }
 
   return `
     <div class="variantCard">
@@ -57,12 +50,24 @@ function renderVariantCard(num, tone, text, score) {
       </div>
       ${tone ? `<div class="variantTone">${tone}</div>` : ""}
       <pre style="white-space:pre-wrap">${text}</pre>
-      <button onclick="applyCaptionVariant(\`${text.replace(/`/g,"\\`")}\`)">
+      <button onclick="applyCaptionVariant(\`${text.replace(/`/g, "\\`")}\`)">
         Use This
       </button>
     </div>
   `;
 }
+
+
+function updateVariantHookScore(id, score) {
+  const el = document.querySelector(`#${id} .hookScoreValue`);
+  if (el) el.textContent = score?.score ?? "—";
+}
+
+function updateVariantStoryScore(id, flow) {
+  const el = document.querySelector(`#${id} .storyScoreValue`);
+  if (el) el.textContent = flow?.score ?? "—";
+}
+
 
 async function generateHooks() {
   const btn = document.getElementById("generateHooksBtn");
@@ -1498,17 +1503,16 @@ async function generateCaptionVariants() {
     const btn = document.getElementById("generateVariantsBtn");
 
     const modes = {
-        rewrite: document.getElementById("mode_rewrite").checked,
-        hook: document.getElementById("mode_hook").checked,
-        punchy: document.getElementById("mode_punchy").checked,
-        story: document.getElementById("mode_story").checked,
-        influencer: document.getElementById("mode_influencer").checked,
-        minimal: document.getElementById("mode_minimal").checked,
+        rewrite: document.getElementById("mode_rewrite")?.checked,
+        hook: document.getElementById("mode_hook")?.checked,
+        punchy: document.getElementById("mode_punchy")?.checked,
+        story: document.getElementById("mode_story")?.checked,
+        influencer: document.getElementById("mode_influencer")?.checked,
+        minimal: document.getElementById("mode_minimal")?.checked,
     };
 
     const session = getActiveSession();
 
-    // 🔔 Immediate feedback
     setVariantsStatus("Generating caption variants…", "loading");
 
     if (btn) {
@@ -1521,10 +1525,10 @@ async function generateCaptionVariants() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                    session,
-                    modes,
-                    selected_hook: selectedHook || null
-                    })
+                session,
+                modes,
+                selected_hook: selectedHook || null
+            })
         });
 
         if (!res.ok) {
@@ -1541,28 +1545,32 @@ async function generateCaptionVariants() {
             const text = variant.text || "";
             const tone = variant.tone || "";
 
-            // 🔥 Score the hook (first block only)
-            const hook = text.split(/\n\s*\n/)[0];
-            let score = null;
+            const parts = text.split(/\n\s*\n/);
 
-            try {
-                score = await scoreVariantHook(hook);
-            } catch {
-                score = null;
-            }
+            // We no longer score the hook here — it is fixed
+            const story = parts.slice(1).join("\n\n");
 
-            box.innerHTML += renderVariantCard(i + 1, tone, text, score);
-            }
+            const cardId = `variant_${i}`;
 
+            box.innerHTML += renderVariantCard(
+                i + 1,
+                tone,
+                text,
+                null,
+                cardId
+            );
 
-        // ✅ Success feedback AFTER render
+            // Only score STORY FLOW now
+            scoreStoryFlow(story).then(flow => {
+                updateVariantStoryScore(cardId, flow);
+            });
+        }
+
+        // ✅ Success AFTER all variants are rendered
         setVariantsStatus("Variants generated ✓", "success");
 
-        // Optional auto-hide
         setTimeout(() => {
-            document
-                .getElementById("variantsInlineStatus")
-                ?.classList.add("hidden");
+            document.getElementById("variantsInlineStatus")?.classList.add("hidden");
         }, 2000);
 
     } catch (err) {
@@ -1575,6 +1583,8 @@ async function generateCaptionVariants() {
         }
     }
 }
+
+
 
 // Alias used by caption system
 async function refreshOverlayPreview() {
