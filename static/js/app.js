@@ -1561,9 +1561,10 @@ async function generateCaptionVariants() {
             );
 
             // Only score STORY FLOW now
-            scoreStoryFlow(story).then(flow => {
-                updateVariantStoryScore(cardId, flow);
+            scoreStoryFlow().then(flow => {
+            updateVariantStoryScore(cardId, flow);
             });
+
         }
 
         // ✅ Success AFTER all variants are rendered
@@ -1680,6 +1681,19 @@ function toggleVariantsPanel(forceClose = false) {
   const closed = drawer.classList.contains("closed");
   if (btn) btn.textContent = closed ? "Expand" : "Collapse";
 }
+
+async function scoreStoryFlow() {
+  const session = getActiveSession();
+
+  const res = await fetch(`/api/story_flow_score?session=${encodeURIComponent(session)}`);
+
+  if (!res.ok) {
+    throw new Error("Story flow scoring failed");
+  }
+
+  return await res.json(); // { score, reasons }
+}
+
 
 
 
