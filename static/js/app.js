@@ -125,7 +125,9 @@ function renderHookLab(hooks) {
       `;
     });
 
-  document.getElementById("hookLab").classList.remove("hidden");
+const lab = document.getElementById("hookLab");
+if (lab) lab.classList.remove("hidden");
+
 }
 
 
