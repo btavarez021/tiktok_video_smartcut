@@ -200,6 +200,11 @@ function renderStep3Diff(oldText, newText) {
   if (!grid) return;
 
   grid.innerHTML = buildCaptionDiffHTML(oldText, newText);
+
+  // 🔥 ALSO sync Step 4
+  captionViewMode = "diff";
+  syncCaptionToggleUI();
+  renderStep4CaptionView();
 }
 
 
