@@ -25,12 +25,13 @@ function renderCaptionView() {
   if (!box) return;
 
   if (captionViewMode === "original") {
-    box.value = lastSavedCaptionsText || "";
-    box.readOnly = true;
-  } else {
-    box.value = box.dataset.workingText || box.value;
-    box.readOnly = false;
-  }
+  box.value = lastSavedCaptionsText || "";
+  box.readOnly = true;
+} else {
+  box.value = box.dataset.workingText ?? lastSavedCaptionsText ?? "";
+  box.readOnly = false;
+}
+
 }
 
 
@@ -235,6 +236,23 @@ function renderStep3Diff(oldText, newText) {
   }
 }
 
+function renderStep4Diff(original, rewritten) {
+  const grid = document.getElementById("step4DiffGrid");
+  if (!grid) return;
+
+  grid.innerHTML = "";
+
+  // reuse logic without ID hacks
+  const temp = document.createElement("div");
+  temp.id = "step3DiffGrid";
+  document.body.appendChild(temp);
+
+  renderStep3Diff(original, rewritten);
+
+  grid.innerHTML = temp.innerHTML;
+  temp.remove();
+}
+
 
 
 function setVariantsStatus(message, state = "loading") {
@@ -295,11 +313,17 @@ function setCaptionSource(type, text, noChange = false) {
   }
 }
 
-function toggleCaptionCompare() {
+function toggleCaptionCompare(forceOpen = false) {
   const body = document.getElementById("captionCompareBody");
   const btn = document.getElementById("compareCollapseBtn");
-
   if (!body) return;
+
+  if (forceOpen) {
+    maybeRefreshDiff();
+    body.classList.remove("hidden");
+    btn.textContent = "Collapse";
+    return;
+  }
 
   const isOpen = !body.classList.contains("hidden");
 
@@ -307,10 +331,13 @@ function toggleCaptionCompare() {
     body.classList.add("hidden");
     btn.textContent = "Expand";
   } else {
+    maybeRefreshDiff();
     body.classList.remove("hidden");
     btn.textContent = "Collapse";
   }
 }
+
+
 
 function setCaptionInlineStatus(text, type = "info") {
   const el = document.getElementById("captionInlineStatus");
@@ -1493,7 +1520,7 @@ async function improveHook() {
 
     // 🔥 PROPOSAL MODE
     if (data.status === "proposed") {
-      const original = lastSavedCaptionsText || el.value;
+      const original = lastSavedCaptionsText || "";
 
       // Store working copy
       el.dataset.workingText = data.proposed;
@@ -1502,7 +1529,6 @@ async function improveHook() {
       // Show diff
       renderStep3Diff(original, data.proposed);
       toggleCaptionCompare(true);
-
       // Update score UI
       if (typeof renderHookScore === "function") {
         renderHookScore(data.score, data.reasons);
@@ -1614,14 +1640,13 @@ async function applyCaptionVariant(text) {
   const el = document.getElementById("captionsText");
   if (!el) return;
 
-  const originalText = el.value;
+    const originalText = lastSavedCaptionsText || "";
   const originalCount = countBlocks(originalText);
   const newCount = countBlocks(text);
 
   // Populate comparison
   renderStep3Diff(originalText, text);
   toggleCaptionCompare(true);
-
   // Apply
   el.value = text;
 
@@ -1981,6 +2006,9 @@ async function saveCaptions() {
                 session: getActiveSession(),
             }),
         });
+        
+
+        lastSavedCaptionsText = text;   // 🔑 THIS IS REQUIRED
 
         setStatus(
             "captionsStatus",
@@ -2049,25 +2077,6 @@ async function regenerateCaptionsFromClips() {
     }
 }
 
-// =============================================
-// Clear caption comparison preview (Step 3)
-// =============================================
-function clearCaptionComparison() {
-    const wrapper = document.getElementById("captionCompareWrapper");
-    const body = document.getElementById("captionCompareBody");
-    const chevron = document.getElementById("compareChevron");
-
-    const oldEl = document.getElementById("compareOld");
-    const newEl = document.getElementById("compareNew");
-
-    if (oldEl) oldEl.textContent = "";
-    if (newEl) newEl.textContent = "";
-
-    if (body) body.classList.add("hidden");
-    if (wrapper) wrapper.classList.add("collapsed");
-
-    if (chevron) chevron.textContent = "▸";
-}
 
 
 function updateRewriteWarning() {
@@ -2078,68 +2087,6 @@ function updateRewriteWarning() {
     warning.classList.toggle("hidden", mode !== "rewrite");
 }
 
-
-function renderStep4CaptionView() {
-  const box = document.getElementById("step4CaptionText");
-  const header = document.getElementById("captionDiffHeader");
-  const scroll = document.getElementById("step4CaptionScroll");
-
-  if (!box) return;
-
-  if (captionViewMode === "diff") {
-    header?.classList.remove("hidden");
-  } else {
-    header?.classList.add("hidden");
-    diffCollapsed = false;
-    scroll?.classList.remove("hidden");
-    document.getElementById("toggleDiffCollapse").textContent = "Collapse";
-  }
-
-  if (captionViewMode === "original") {
-    box.textContent = lastSavedCaptionsText || "";
-  }
-  else if (captionViewMode === "rewritten") {
-    box.textContent = document.getElementById("captionsText")?.value || "";
-  }
-  else if (captionViewMode === "diff") {
-    box.innerHTML = buildCaptionDiffHTML(
-  lastSavedCaptionsText,
-  document.getElementById("captionsText")?.value || ""
-);
-  }
-}
-
-
-function buildCaptionDiffHTML(oldText, newText) {
-  const oldLines = (oldText || "").split("\n");
-  const newLines = (newText || "").split("\n");
-
-  let html = `<div class="diff-grid">`;
-
-  const max = Math.max(oldLines.length, newLines.length);
-  for (let i = 0; i < max; i++) {
-    const o = oldLines[i] || "";
-    const n = newLines[i] || "";
-
-    const same = o === n;
-    html += `
-      <div class="diff-row">
-        <div class="diff-old ${same ? "" : "changed"}">${escapeHtml(o)}</div>
-        <div class="diff-new ${same ? "" : "changed"}">${escapeHtml(n)}</div>
-      </div>
-    `;
-  }
-
-  html += `</div>`;
-  return html;
-}
-
-function escapeHtml(str) {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
 
 function syncCaptionToggleUI() {
   const orig = document.getElementById("showOriginal");
@@ -2190,35 +2137,45 @@ async function applyOverlay() {
   });
 
   // -------------------------------
-  // 🧠 Rewrite path (proposal only)
-  // -------------------------------
-  if (res.status === "proposed") {
-    const el = document.getElementById("captionsText");
-    const original = lastSavedCaptionsText || el.value;
+// 🧠 Rewrite path (proposal only)
+// -------------------------------
+if (res.status === "proposed") {
+  const el = document.getElementById("captionsText");
 
-    // Store working copy
-    el.dataset.workingText = res.proposed;
-    el.value = res.proposed;
+  // 🔵 YAML baseline
+  const original = lastSavedCaptionsText || "";
 
-    // Show diff (same as Step 3)
-    renderStep3Diff(original, res.proposed);
-    toggleCaptionCompare(true);
+  // 🟢 Proposed rewrite
+  const rewritten = res.proposed || "";
 
-    captionViewMode = "diff";
-    syncCaptionToggleUI();
-    renderStep4CaptionView();
+  // Store working copy
+  el.dataset.workingText = rewritten;
+  el.value = rewritten;
 
+  // Step 3 diff (live editing panel)
+  renderStep3Diff(original, rewritten);
+  toggleCaptionCompare(true);
+  // Step 4 diff (review panel)
+  renderStep4Diff(original, rewritten);
 
-    setStatus("overlayStatus", "Rewrite ready — review changes", "info");
+  captionViewMode = "diff";
+  syncCaptionToggleUI();
 
-    return; // DO NOT apply anything else
-  }
+  document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
+  document.getElementById("captionDiffHeader")?.classList.remove("hidden");
+
+  setStatus("overlayStatus", "Rewrite ready — review changes", "info");
+
+  return; // ⛔ Stop — do not apply overlay yet
+}
 
   // -------------------------------
   // Visual-only path
   // -------------------------------
   await loadConfigAndYaml();
-  await previewOverlay("fast");
+    await loadCaptionsFromYaml();   // 🔑 THIS UPDATES lastSavedCaptionsText
+    await previewOverlay("fast");
+
 
   setStatus("overlayStatus", "Overlay applied ✓", "success");
 
@@ -2974,18 +2931,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    function selectHook(text) {
-    selectedHook = text;
-
-    const bar = document.getElementById("selectedHookBar");
-    const label = document.getElementById("selectedHookDisplay");
-
-    if (bar && label) {
-        bar.classList.remove("hidden");
-        label.textContent = text;
-    }
-    }
-
     document.getElementById("generateHooksBtn")
   ?.addEventListener("click", generateHooks);
 
@@ -3342,17 +3287,21 @@ document.getElementById("toggleDiffCollapse")?.addEventListener("click", () => {
     await previewOverlay("fast");
     });
 
-    document.getElementById("captionsText")?.addEventListener("input", () => {
-  renderStep3Diff(
-    lastSavedCaptionsText || "",
-    document.getElementById("captionsText").value
-  );
-  toggleCaptionCompare(true);
+    let diffDirty = false;
+
+document.getElementById("captionsText")?.addEventListener("input", () => {
+  diffDirty = true;
 });
 
+function maybeRefreshDiff() {
+  if (!diffDirty) return;
 
+  const base = lastSavedCaptionsText || "";
+  const current = document.getElementById("captionsText")?.value || "";
 
-
+  renderStep3Diff(base, current);
+  diffDirty = false;
+}
 
     document.getElementById("saveTtsBtn")?.addEventListener("click", saveTtsSettings);
     document.getElementById("saveCtaBtn")?.addEventListener("click", saveCtaSettings);
@@ -3404,19 +3353,52 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
 document.getElementById("showOriginal")?.addEventListener("click", () => {
   captionViewMode = "original";
   syncCaptionToggleUI();
-  renderStep4CaptionView();
+  document.getElementById("step4CaptionScroll")?.classList.toggle(
+  "hidden",
+  captionViewMode !== "diff"
+);
+
+if (captionViewMode === "diff") {
+  renderStep4Diff(
+    lastSavedCaptionsText,
+    document.getElementById("captionsText")?.value || ""
+  );
+}
+
 });
 
 document.getElementById("showRewritten")?.addEventListener("click", () => {
   captionViewMode = "rewritten";
   syncCaptionToggleUI();
-  renderStep4CaptionView();
+  document.getElementById("step4CaptionScroll")?.classList.toggle(
+  "hidden",
+  captionViewMode !== "diff"
+);
+
+if (captionViewMode === "diff") {
+  renderStep4Diff(
+    lastSavedCaptionsText,
+    document.getElementById("captionsText")?.value || ""
+  );
+}
+
 });
 
 document.getElementById("showDiff")?.addEventListener("click", () => {
   captionViewMode = "diff";
   syncCaptionToggleUI();
-  renderStep4CaptionView();
+  document.getElementById("step4CaptionScroll")?.classList.toggle(
+  "hidden",
+  captionViewMode !== "diff"
+);
+
+if (captionViewMode === "diff") {
+  renderStep4Diff(
+    lastSavedCaptionsText,
+    document.getElementById("captionsText")?.value || ""
+  );
+}
+
 });
 
 
