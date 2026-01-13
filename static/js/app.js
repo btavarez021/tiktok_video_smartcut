@@ -199,14 +199,35 @@ function renderStep3Diff(oldText, newText) {
   const grid = document.getElementById("step3DiffGrid");
   if (!grid) return;
 
-  grid.innerHTML = buildCaptionDiffHTML(oldText, newText);
+  const oldLines = (oldText || "").split("\n");
+  const newLines = (newText || "").split("\n");
 
-  // 🔥 ALSO sync Step 4
-  captionViewMode = "diff";
-  syncCaptionToggleUI();
-  renderStep4CaptionView();
+  let html = "";
+  const max = Math.max(oldLines.length, newLines.length);
+
+  for (let i = 0; i < max; i++) {
+    const o = oldLines[i] || "";
+    const n = newLines[i] || "";
+
+    html += `
+      <div class="diff-card old">
+        <div class="diff-label">Original</div>
+        ${escapeHtml(o)}
+      </div>
+
+      <div class="diff-card new">
+        <div class="diff-label">Rewritten</div>
+        ${escapeHtml(n)}
+      </div>
+    `;
+  }
+
+  grid.innerHTML = html;
 }
 
+
+document.getElementById("captionCompareBody")?.classList.remove("hidden");
+document.getElementById("compareCollapseBtn").textContent = "Collapse";
 
 
 
@@ -268,27 +289,22 @@ function setCaptionSource(type, text, noChange = false) {
   }
 }
 
-function toggleCaptionCompare(forceOpen = false) {
+function toggleCaptionCompare() {
   const body = document.getElementById("captionCompareBody");
-  const wrapper = document.getElementById("captionCompareWrapper");
   const btn = document.getElementById("compareCollapseBtn");
 
-  if (!body || !wrapper) return;
+  if (!body) return;
 
   const isOpen = !body.classList.contains("hidden");
 
-  if (forceOpen || !isOpen) {
-    body.classList.remove("hidden");
-    wrapper.classList.remove("collapsed");
-    if (btn) btn.textContent = "Collapse";
-  } else {
+  if (isOpen) {
     body.classList.add("hidden");
-    wrapper.classList.add("collapsed");
-    if (btn) btn.textContent = "Expand";
+    btn.textContent = "Expand";
+  } else {
+    body.classList.remove("hidden");
+    btn.textContent = "Collapse";
   }
 }
-
-
 
 function setCaptionInlineStatus(text, type = "info") {
   const el = document.getElementById("captionInlineStatus");
