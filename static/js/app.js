@@ -222,9 +222,13 @@ function showLabelWarning(file, badLabel, reason) {
 
 function renderStep3Diff(oldText, newText) {
   const grid = document.getElementById("step3DiffGrid");
-  if (!grid) return;
+  const wrapper = document.getElementById("captionCompareWrapper");
+  const scroll = document.getElementById("step3CaptionScroll");
+  const toggleBtn = document.getElementById("step3DiffToggle");
 
-  // Split into lines and REMOVE blank separator lines
+  if (!grid || !wrapper || !scroll) return;
+
+  // Split into blocks and REMOVE blank lines
   const oldLines = (oldText || "")
     .split("\n")
     .map(l => l.trim())
@@ -237,28 +241,39 @@ function renderStep3Diff(oldText, newText) {
 
   grid.innerHTML = "";
 
+  // Show the diff panel
+  wrapper.classList.remove("hidden");
+  scroll.classList.remove("hidden");
+
+  // Wire collapse ONCE
+  if (toggleBtn && !toggleBtn.dataset.bound) {
+    toggleBtn.dataset.bound = "1";
+    toggleBtn.addEventListener("click", () => {
+      scroll.classList.toggle("hidden");
+    });
+  }
+
   const max = Math.max(oldLines.length, newLines.length);
 
   for (let i = 0; i < max; i++) {
     const o = oldLines[i] || "";
     const n = newLines[i] || "";
 
-    const same = o === n;
-
-    // Old card
+    // OLD
     const oldCard = document.createElement("div");
-    oldCard.className = "diff-card old" + (same ? "" : " changed");
-    oldCard.textContent = o || "(empty)";
+    oldCard.className = "diff-card old";
+    oldCard.textContent = o || "—";
 
-    // New card
+    // NEW
     const newCard = document.createElement("div");
-    newCard.className = "diff-card new" + (same ? "" : " changed");
-    newCard.textContent = n || "(empty)";
+    newCard.className = "diff-card new";
+    newCard.textContent = n || "—";
 
     grid.appendChild(oldCard);
     grid.appendChild(newCard);
   }
 }
+
 
 function renderStep4Diff(original, rewritten) {
   const grid = document.getElementById("step4DiffGrid");

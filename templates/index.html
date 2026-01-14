@@ -375,6 +375,21 @@
 
                         <textarea id="captionsText" class="textarea" rows="12"></textarea>
 
+                        <!-- Step 3 — Caption Changes (live) -->
+                        <div id="captionCompareWrapper" class="step4-caption-panel hidden" style="margin-top:16px;">
+
+                        <div class="caption-diff-header">
+                            <span>Caption Changes</span>
+                            <button id="step3DiffToggle" class="btn ghost small">Collapse</button>
+                        </div>
+
+                        <div id="step3CaptionScroll" class="step4CaptionScroll">
+                            <div id="step3DiffGrid" class="diff-grid"></div>
+                        </div>
+
+                        </div>
+
+
                         <!-- ✅ INLINE STATUS (new, immediate feedback) -->
                         <div id="captionInlineStatus"
                             class="caption-inline-status hidden">
@@ -698,13 +713,6 @@
                                 <div id="captionModeStatus" class="status-text"></div>
 
                                 <hr class="soft-divider">
-
-
-                                <div id="captionToggleRow" class="caption-toggle-row">
-                                <button id="showOriginal" class="toggle-btn">Original</button>
-                                <button id="showRewritten" class="toggle-btn active">Rewritten</button>
-                                <button id="showDiff" class="toggle-btn">Show Changes</button>
-                                </div>
 
                                 <div id="step4CaptionPanel" class="step4-caption-panel">
 

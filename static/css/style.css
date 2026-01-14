@@ -2066,3 +2066,36 @@ h3 {
   position: relative;
   overflow: hidden;
 }
+
+/* ================================
+   Upload Manager — TikTok card sizing
+   (override – do not move)
+================================ */
+
+.upload-list {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 12px 6px 18px;
+  scroll-snap-type: x mandatory;
+}
+
+.upload-list .clip-card {
+  flex: 0 0 auto;       /* prevents flex from stretching cards */
+  width: 140px;        /* desktop TikTok size */
+  scroll-snap-align: start;
+}
+
+.clip-preview {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 9 / 16;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+@media (max-width: 768px) {
+  .upload-list .clip-card {
+    width: 180px;
+  }
+}
