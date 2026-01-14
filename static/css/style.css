@@ -1971,17 +1971,24 @@ h3 {
   }
 }
 
-/* FIX: prevent upload card buttons stacking */
+/* ================================
+   Upload Card Button Layout FIX
+================================ */
+
 .clip-actions {
-  display: flex !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
-  flex-wrap: nowrap !important;
 }
 
-.clip-actions .btn,
+/* Make Suggest full width on top */
+.clip-actions button:first-child {
+  grid-column: span 2;
+}
+
+/* Make sure buttons don't shrink */
 .clip-actions button {
-  width: auto !important;
-  flex: 1 !important;
+  width: 100% !important;
   min-width: 0;
   white-space: nowrap;
 }
