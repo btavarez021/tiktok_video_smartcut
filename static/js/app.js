@@ -275,21 +275,41 @@ function renderStep3Diff(oldText, newText) {
 }
 
 function toggleCaptionCompare(show) {
-  const wrapper = document.getElementById("captionCompareWrapper");
-  const scroll = document.getElementById("step3CaptionScroll");
-  const btn = document.getElementById("step3DiffToggle");
+  /* =====================
+     STEP 3
+  ====================== */
+  const wrapper3 = document.getElementById("captionCompareWrapper");
+  const scroll3 = document.getElementById("step3CaptionScroll");
+  const btn3 = document.getElementById("step3DiffToggle");
 
-  if (!wrapper) return;
+  if (wrapper3) {
+    if (show) {
+      wrapper3.classList.remove("hidden");
+      scroll3?.classList.remove("hidden");
+      if (btn3) btn3.textContent = "Collapse";
+    } else {
+      scroll3?.classList.add("hidden");
+      if (btn3) btn3.textContent = "Expand";
+    }
+  }
 
-  if (show) {
-    wrapper.classList.remove("hidden");
-    scroll?.classList.remove("hidden");
-    if (btn) btn.textContent = "Collapse";
-  } else {
-    scroll?.classList.add("hidden");
-    if (btn) btn.textContent = "Expand";
+  /* =====================
+     STEP 4
+  ====================== */
+  const scroll4 = document.getElementById("step4CaptionScroll");
+  const btn4 = document.getElementById("toggleDiffCollapse");
+
+  if (scroll4) {
+    if (show) {
+      scroll4.style.display = "block";
+      if (btn4) btn4.textContent = "Collapse";
+    } else {
+      scroll4.style.display = "none";
+      if (btn4) btn4.textContent = "Expand";
+    }
   }
 }
+
 
 
 function renderStep4Diff(original, rewritten) {
@@ -3334,11 +3354,18 @@ document.getElementById("toggleDiffCollapse")?.addEventListener("click", () => {
         .getElementById("applyCinematicTimingBtn")
         ?.addEventListener("click", () => applyTiming(true));
     
-        document.getElementById("step3DiffToggle")?.addEventListener("click", () => {
-        const scroll = document.getElementById("step3CaptionScroll");
-        const isHidden = scroll?.classList.contains("hidden");
-        toggleCaptionCompare(isHidden);
-        });
+document.getElementById("step3DiffToggle")?.addEventListener("click", () => {
+  const scroll = document.getElementById("step3CaptionScroll");
+  const isHidden = scroll?.classList.contains("hidden");
+  toggleCaptionCompare(isHidden);
+});
+
+document.getElementById("toggleDiffCollapse")?.addEventListener("click", () => {
+  const scroll = document.getElementById("step4CaptionScroll");
+  const isHidden = scroll?.style.display === "none";
+  toggleCaptionCompare(isHidden);
+});
+
 
 
     document.getElementById("saveOverlayStyle")?.addEventListener("click", async () => {
