@@ -493,37 +493,49 @@
                             <div id="hookLab" class="hook-lab hidden">
 
                             <div class="hook-lab-header">
-                                🧲 Hook Lab
-                                <span class="tooltip">ⓘ
-                                <span class="tooltiptext tooltip-wide">
-                                    Generates alternate opening lines for your video.<br><br>
-                                    Each hook is scored for:
-                                    • curiosity
-                                    • emotional pull
-                                    • scroll-stopping power<br><br>
-                                    Pick one → then generate stories that follow it.
-                                </span>
-                                </span>
+
+                                <!-- Top row: title + generate -->
+                                <div class="hook-lab-title-row">
+                                <div class="hook-lab-title">
+                                    🧲 Hook Lab
+                                    <span class="tooltip">ⓘ
+                                    <span class="tooltiptext tooltip-wide">
+                                        Generates alternate opening lines for your video.<br><br>
+                                        Each hook is scored for:
+                                        • curiosity
+                                        • emotional pull
+                                        • scroll-stopping power<br><br>
+                                        Pick one → then generate stories that follow it.
+                                    </span>
+                                    </span>
+                                </div>
 
                                 <div class="hook-lab-actions">
-                                <span id="hookLabStatus" class="hook-lab-status"></span>
-                                <button id="generateHooksBtn" class="btn ghost small">Generate Hooks</button>
+                                    <span id="hookLabStatus" class="hook-lab-status"></span>
+                                    <button id="generateHooksBtn" class="btn primary">
+                                    Generate Hooks
+                                    </button>
                                 </div>
+                                </div>
+
+                                <!-- Selected hook bar -->
+                                <div id="selectedHookBar" class="selected-hook-bar hidden">
+                                <div class="selected-hook-label">Selected hook</div>
+                                <div id="selectedHookDisplay" class="selected-hook-text"></div>
+                                <div class="selected-hook-hint">
+                                    Caption variants will use this hook as the opening line.
+                                </div>
+                                </div>
+
                             </div>
 
+                            <!-- Hooks grid -->
                             <div id="hookLabOutput" class="hook-lab-grid"></div>
 
-                            <div id="selectedHookBar" class="hidden">
-                                <strong>Selected hook:</strong>
-                                <span id="selectedHookDisplay"></span>
-                                <p class="hint-text subtle">
-                                Variants will follow this hook.
-                                </p>
-
-                            </div>
-
                             <hr />
+
                             </div>
+
 
 
                             <!-- Caption Modes -->
