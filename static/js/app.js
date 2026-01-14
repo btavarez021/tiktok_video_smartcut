@@ -284,8 +284,8 @@ function toggleCaptionCompare(show) {
      STEP 3
   ====================== */
   const wrapper3 = document.getElementById("captionCompareWrapper");
-  const scroll3 = document.getElementById("step3CaptionScroll");
-  const btn3 = document.getElementById("step3DiffToggle");
+  const scroll3  = document.getElementById("step3CaptionScroll");
+  const btn3     = document.getElementById("step3DiffToggle");
 
   if (wrapper3) {
     if (show) {
@@ -293,6 +293,7 @@ function toggleCaptionCompare(show) {
       scroll3?.classList.remove("hidden");
       if (btn3) btn3.textContent = "Collapse";
     } else {
+      wrapper3.classList.add("hidden");          // 🔥 THIS WAS MISSING
       scroll3?.classList.add("hidden");
       if (btn3) btn3.textContent = "Expand";
     }
@@ -314,7 +315,6 @@ function toggleCaptionCompare(show) {
     }
   }
 }
-
 
 
 function renderStep4Diff(original, rewritten) {
