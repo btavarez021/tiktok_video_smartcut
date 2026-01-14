@@ -2152,6 +2152,21 @@ async function regenerateCaptionsFromClips() {
     }
 }
 
+function focusCaptionChanges() {
+  const wrapper = document.getElementById("captionCompareWrapper");
+  if (!wrapper || wrapper.classList.contains("hidden")) return;
+
+  wrapper.scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+
+  // visual cue
+  wrapper.classList.remove("flash");
+  void wrapper.offsetWidth;
+  wrapper.classList.add("flash");
+}
+
 
 
 function updateRewriteWarning() {
