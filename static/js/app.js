@@ -274,6 +274,23 @@ function renderStep3Diff(oldText, newText) {
   }
 }
 
+function toggleCaptionCompare(show) {
+  const wrapper = document.getElementById("captionCompareWrapper");
+  const scroll = document.getElementById("step3CaptionScroll");
+  const btn = document.getElementById("step3DiffToggle");
+
+  if (!wrapper) return;
+
+  if (show) {
+    wrapper.classList.remove("hidden");
+    scroll?.classList.remove("hidden");
+    if (btn) btn.textContent = "Collapse";
+  } else {
+    scroll?.classList.add("hidden");
+    if (btn) btn.textContent = "Expand";
+  }
+}
+
 
 function renderStep4Diff(original, rewritten) {
   const grid = document.getElementById("step4DiffGrid");
@@ -3316,6 +3333,13 @@ document.getElementById("toggleDiffCollapse")?.addEventListener("click", () => {
     document
         .getElementById("applyCinematicTimingBtn")
         ?.addEventListener("click", () => applyTiming(true));
+    
+        document.getElementById("step3DiffToggle")?.addEventListener("click", () => {
+        const scroll = document.getElementById("step3CaptionScroll");
+        const isHidden = scroll?.classList.contains("hidden");
+        toggleCaptionCompare(isHidden);
+        });
+
 
     document.getElementById("saveOverlayStyle")?.addEventListener("click", async () => {
     const style = document.getElementById("overlayStyle")?.value || "default";
