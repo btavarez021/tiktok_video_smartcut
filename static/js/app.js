@@ -3018,6 +3018,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   diffDirty = true;
 });
 
+const captionsBox = document.getElementById("captionsText");
+
+if (captionsBox) {
+  captionsBox.addEventListener("input", () => {
+    const base = lastSavedCaptionsText || "";
+    const current = captionsBox.value || "";
+
+    workingCaptionsText = current;
+    diffDirty = true;
+
+    // Live update Step-3 diff
+    renderStep3Diff(base, current);
+
+    // Auto-open compare panel once user edits
+    toggleCaptionCompare(true);
+  });
+}
 
     // ================================
     // Hook score → Open Variants Drawer
