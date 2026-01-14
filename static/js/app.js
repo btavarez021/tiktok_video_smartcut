@@ -1595,6 +1595,7 @@ async function improveHook() {
       // 🔥 Step-3 (live diff)
       renderStep3Diff(original, workingCaptionsText);
       toggleCaptionCompare(true);
+      focusCaptionChanges();
 
       // 🔥 Step-4 (review diff)
       renderStep4Diff(original, workingCaptionsText);
@@ -1719,6 +1720,7 @@ async function applyCaptionVariant(text) {
   // Populate comparison
   renderStep3Diff(originalText, text);
   toggleCaptionCompare(true);
+  focusCaptionChanges();
 
   if (originalCount !== newCount) {
     setStatus(
@@ -2225,6 +2227,7 @@ if (res.status === "proposed") {
   // 🔥 Step 3 (live editor diff)
   renderStep3Diff(original, rewritten);
   toggleCaptionCompare(true);
+  focusCaptionChanges();
 
   // 🔥 Step 4 (review panel diff)
   renderStep4Diff(original, rewritten);
