@@ -1961,6 +1961,12 @@ h3 {
   padding: 14px;
 }
 
+@media (max-width: 720px) {
+  .step4CaptionScroll {
+    max-height: 60vh;
+  }
+}
+
 /* GRID: old vs new */
 .diff-grid {
   display: grid;

@@ -1670,6 +1670,8 @@ async function applyCaptionVariant(text) {
   const originalCount = countBlocks(originalText);
   const newCount = countBlocks(text);
 
+  workingCaptionsText = text;
+
   // Populate comparison
   renderStep3Diff(originalText, text);
   toggleCaptionCompare(true);
@@ -2209,6 +2211,8 @@ if (res.status === "proposed") {
 captionViewMode = "rewritten";
 renderCaptionView();
 syncCaptionToggleUI();
+
+diffDirty = false;
 
 
   setStatus("overlayStatus", "Overlay applied ✓", "success");
