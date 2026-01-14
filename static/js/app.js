@@ -281,16 +281,28 @@ function renderStep4Diff(original, rewritten) {
 
   grid.innerHTML = "";
 
-  // reuse logic without ID hacks
-  const temp = document.createElement("div");
-  temp.id = "step3DiffGrid";
-  document.body.appendChild(temp);
+  const oldLines = (original || "").split("\n").map(l=>l.trim()).filter(Boolean);
+  const newLines = (rewritten || "").split("\n").map(l=>l.trim()).filter(Boolean);
 
-  renderStep3Diff(original, rewritten);
+  const max = Math.max(oldLines.length, newLines.length);
 
-  grid.innerHTML = temp.innerHTML;
-  temp.remove();
+  for (let i=0;i<max;i++){
+    const o = oldLines[i] || "—";
+    const n = newLines[i] || "—";
+
+    const oldCard = document.createElement("div");
+    oldCard.className = "diff-card old";
+    oldCard.textContent = o;
+
+    const newCard = document.createElement("div");
+    newCard.className = "diff-card new";
+    newCard.textContent = n;
+
+    grid.appendChild(oldCard);
+    grid.appendChild(newCard);
+  }
 }
+
 
 
 
@@ -351,31 +363,6 @@ function setCaptionSource(type, text, noChange = false) {
     el.textContent += " · No changes";
   }
 }
-
-function toggleCaptionCompare(forceOpen = false) {
-  const body = document.getElementById("captionCompareBody");
-  const btn = document.getElementById("compareCollapseBtn");
-  if (!body) return;
-
-  if (forceOpen) {
-    maybeRefreshDiff();
-    body.classList.remove("hidden");
-    btn.textContent = "Collapse";
-    return;
-  }
-
-  const isOpen = !body.classList.contains("hidden");
-
-  if (isOpen) {
-    body.classList.add("hidden");
-    btn.textContent = "Expand";
-  } else {
-    maybeRefreshDiff();
-    body.classList.remove("hidden");
-    btn.textContent = "Collapse";
-  }
-}
-
 
 
 function setCaptionInlineStatus(text, type = "info") {
@@ -1427,7 +1414,7 @@ async function refreshHookScore() {
   const improveBtn = document.getElementById("improveHookBtn");
 
   // 🚫 No captions → hide hook score entirely
-  if (!captionsEl || !captionsEl.value.trim()) {
+if (!workingCaptionsText && !lastSavedCaptionsText) {
     card?.classList.add("hidden");
     return;
   }
@@ -1690,8 +1677,6 @@ async function applyCaptionVariant(text) {
   // Populate comparison
   renderStep3Diff(originalText, text);
   toggleCaptionCompare(true);
-  // Apply
-  el.value = text;
 
   if (originalCount !== newCount) {
     setStatus(
