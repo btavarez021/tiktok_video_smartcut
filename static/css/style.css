@@ -2077,3 +2077,69 @@ h3 {
 .clip-actions button:nth-child(2):active {
   transform: scale(0.96);
 }
+
+@media (max-width: 768px) {
+  .uploads-container {
+    flex-direction: column;
+  }
+
+  .upload-column {
+    min-width: 100% !important;
+  }
+
+
+}
+
+.clip-card.processed::after {
+  content: "PROCESSED";
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(34,197,94,.9);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 6px;
+  border-radius: 6px;
+  letter-spacing: .04em;
+}
+
+.clip-card {
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .uploads-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .upload-column {
+    width: 100%;
+  }
+
+  .upload-list {
+    overflow-x: auto;
+    display: flex;
+    gap: 14px;
+    padding-bottom: 14px;
+  }
+
+  .upload-column h3 {
+    position: sticky;
+    left: 0;
+    background: #1b1b1d;
+    padding-bottom: 6px;
+    z-index: 5;
+  }
+}
+
+.upload-column.processed h3 {
+  color: #22c55e;
+}
+
+.upload-column.raw h3 {
+  color: #f59e0b;
+}
+
