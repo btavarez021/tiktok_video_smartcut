@@ -2184,3 +2184,23 @@ h3 {
   background: linear-gradient(90deg, rgba(14,14,16,0), rgba(14,14,16,0.8));
   pointer-events: none;
 }
+
+/* Hook Lab attention highlight */
+.hook-lab-highlight {
+  animation: hookPulse 1.8s ease-out;
+  border: 2px solid rgba(168, 85, 247, 0.9);
+  box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.7);
+}
+
+@keyframes hookPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(168, 85, 247, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0);
+  }
+}
+

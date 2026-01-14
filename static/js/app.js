@@ -192,6 +192,20 @@ function selectHook(text) {
   }
 }
 
+function highlightHookLab() {
+  const lab = document.getElementById("hookLab");
+  if (!lab) return;
+
+  lab.classList.remove("hook-lab-highlight"); // reset
+  void lab.offsetWidth;                       // force reflow
+  lab.classList.add("hook-lab-highlight");
+
+  // Remove class after animation finishes
+  setTimeout(() => {
+    lab.classList.remove("hook-lab-highlight");
+  }, 2000);
+}
+
 
 
 function showLabelWarning(file, badLabel, reason) {
@@ -3014,28 +3028,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     hookScore.classList.add("clickable");
 
     hookScore.addEventListener("click", () => {
-        console.log("Hook score clicked → opening variants");
+  toggleVariantsPanel(false);
+  document.getElementById("hookLab")?.classList.remove("hidden");
 
-        // Open drawer
-        toggleVariantsPanel(false);
+  const drawer = document.getElementById("variantsDrawer");
+  drawer?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-        // 🔥 Show Hook Lab
-        document.getElementById("hookLab")?.classList.remove("hidden");
+  highlightHookLab(); 
+});
 
-        // Scroll into view
-        const drawer = document.getElementById("variantsDrawer");
-        drawer?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
     }
 
     // 🔍 "Find better hooks" button inside Hook Score card
     document.getElementById("openHookLabBtn")?.addEventListener("click", () => {
-    toggleVariantsPanel(false); // open drawer
-    document.getElementById("hookLab")?.classList.remove("hidden");
-    document
-        .getElementById("hookLab")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+  toggleVariantsPanel(false);
+  document.getElementById("hookLab")?.classList.remove("hidden");
+  document
+    .getElementById("hookLab")
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  highlightHookLab();   
+});
+
 
     
 
