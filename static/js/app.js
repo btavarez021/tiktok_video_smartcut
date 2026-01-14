@@ -31,9 +31,9 @@ function renderCaptionView() {
     box.readOnly = true;
   }
   else if (captionViewMode === "rewritten") {
-    box.value = workingCaptionsText || lastSavedCaptionsText || "";
-    box.readOnly = true;
-  }
+  box.value = workingCaptionsText || lastSavedCaptionsText || "";
+  box.readOnly = false;   
+}
   else {
     // diff mode — hide textarea so it can't overwrite diff
     box.value = "";
@@ -1951,14 +1951,14 @@ async function loadCaptionsFromYaml() {
     // 🔑 YAML baseline
     lastSavedCaptionsText = yamlText;
 
-    // 🔥 Only overwrite working copy if not currently in rewrite/diff
-    if (captionViewMode !== "diff") {
-    box.dataset.workingText = yamlText;
-    }
+    // 🔥 Step 3 editor must always be editable
+    workingCaptionsText = yamlText;
 
+    // Do NOT let Step-4 lock the editor here
+    captionViewMode = "rewritten";
 
-    // 🔄 Show whichever view is active
     renderCaptionView();
+
 
     updateRewriteModeAvailability();
     await refreshHookScore();
