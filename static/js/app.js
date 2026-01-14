@@ -241,17 +241,8 @@ function renderStep3Diff(oldText, newText) {
 
   grid.innerHTML = "";
 
-  // Show the diff panel
-  wrapper.classList.remove("hidden");
-  scroll.classList.remove("hidden");
+wrapper.classList.remove("hidden");
 
-  // Wire collapse ONCE
-  if (toggleBtn && !toggleBtn.dataset.bound) {
-    toggleBtn.dataset.bound = "1";
-    toggleBtn.addEventListener("click", () => {
-      scroll.classList.toggle("hidden");
-    });
-  }
 
   const max = Math.max(oldLines.length, newLines.length);
 
