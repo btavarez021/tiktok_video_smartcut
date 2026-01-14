@@ -876,19 +876,20 @@ h3 {
 }
 
 /* Columns (Raw / Processed) */
-.uploads-container {               
-    display: grid;                
-    grid-template-columns: 1fr 1fr; 
-    gap: 25px;                    
-    margin-top: 15px;            
+.uploads-container {
+    display: flex;
+    gap: 24px;
+    align-items: stretch;
 }
 
+/* Let columns size naturally */
 .upload-column {
-    background: #242426;        
-    padding: 18px;                
-    border-radius: 10px;          
-    border: 1px solid #303033;    
+    flex: 1;
+    min-width: 0; /* CRITICAL for horizontal scroll */
+    display: flex;
+    flex-direction: column;
 }
+
 
 /* Sub-headings */
 .upload-column h3 {
@@ -1941,12 +1942,14 @@ h3 {
 ================================ */
 
 .upload-list {
+  flex: 1;
   display: flex;
   gap: 14px;
   overflow-x: auto;
   padding: 12px 6px 18px;
   scroll-snap-type: x mandatory;
 }
+
 
 .upload-list .clip-card {
   flex: 0 0 auto;       /* prevents flex from stretching cards */
