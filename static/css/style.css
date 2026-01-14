@@ -1970,3 +1970,18 @@ h3 {
     width: 180px;
   }
 }
+
+/* FIX: prevent upload card buttons stacking */
+.clip-actions {
+  display: flex !important;
+  gap: 6px;
+  flex-wrap: nowrap !important;
+}
+
+.clip-actions .btn,
+.clip-actions button {
+  width: auto !important;
+  flex: 1 !important;
+  min-width: 0;
+  white-space: nowrap;
+}
