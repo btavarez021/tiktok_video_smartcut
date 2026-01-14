@@ -882,12 +882,19 @@ h3 {
     align-items: stretch;
 }
 
-/* Let columns size naturally */
+/* Raw + Processed columns */
 .upload-column {
     flex: 1;
-    min-width: 0; /* CRITICAL for horizontal scroll */
+    min-width: 100%;        /* 👈 CRITICAL */
+    overflow: hidden;      /* keeps scrollbars inside */
     display: flex;
     flex-direction: column;
+}
+
+/* Processed column can be narrow */
+.upload-column.processed {
+    min-width: 260px;
+    flex: 0 0 260px;
 }
 
 
@@ -1935,6 +1942,30 @@ h3 {
   position: relative;
   overflow: hidden;
 }
+
+/* ======================================
+   Upload Manager Column Width FIX
+====================================== */
+
+.uploads-container {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+}
+
+/* Raw uploads column */
+.upload-column {
+  flex: 1 1 auto;
+  min-width: 100%;     /* 👈 THIS is the fix */
+  overflow: hidden;   /* keeps the horizontal scroller clean */
+}
+
+/* Processed column stays narrow */
+.upload-column.processed {
+  flex: 0 0 260px;
+  min-width: 260px;
+}
+
 
 /* ================================
    Upload Manager — TikTok card sizing
