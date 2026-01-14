@@ -2143,3 +2143,44 @@ h3 {
   color: #f59e0b;
 }
 
+/* ================================
+   Desktop: Show Raw & Processed as rows
+================================ */
+
+.uploads-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.upload-column {
+  width: 100%;
+}
+
+
+.upload-column h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.upload-column h3::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, #3a3a3f, transparent);
+  margin-left: 12px;
+}
+
+.upload-column::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24px;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(14,14,16,0), rgba(14,14,16,0.8));
+  pointer-events: none;
+}
