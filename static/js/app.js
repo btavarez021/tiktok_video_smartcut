@@ -89,18 +89,25 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
 
 
 function enterRewriteReviewMode() {
-  document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
+  const bar = document.getElementById("rewriteDecisionBar");
+  bar?.classList.remove("hidden");
+
+  // ✅ re-enable buttons for new rewrite proposals
+  bar?.querySelectorAll("button").forEach(btn => {
+    btn.disabled = false;
+  });
+
   document.getElementById("captionDiffHeader")?.classList.remove("hidden");
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
 }
 
 
+
 function exitRewriteReviewMode() {
   document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
   document.getElementById("captionDiffHeader")?.classList.add("hidden");
+  document.getElementById("step4CaptionScroll")?.classList.add("hidden");
 }
-
-
 
 
 function renderVariantCard(num, tone, text, score, cardId) {
@@ -3475,7 +3482,7 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
     lastSavedCaptionsText = workingCaptionsText;
 
     await loadConfigAndYaml();
-    await loadCaptionsFromYaml();
+
     await refreshOverlayPreview();
     await refreshHookScore();
     await refreshStoryFlowScore();
@@ -3486,6 +3493,9 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
 
     setStatus("overlayStatus", "Rewrite accepted ✓", "success");
     clearPendingRewrite();
+    workingCaptionsText = lastSavedCaptionsText;   // re-arm for next rewrite
+    exitRewriteReviewMode();                      // fully hide review UI
+
 
   } catch (err) {
     console.error(err);
@@ -3508,6 +3518,8 @@ document.getElementById("rejectRewriteBtn")?.addEventListener("click", () => {
 
   setStatus("overlayStatus", "Rewrite discarded", "info");
   clearPendingRewrite();
+  exitRewriteReviewMode();
+
 });
 
 
