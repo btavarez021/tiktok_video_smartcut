@@ -3427,57 +3427,63 @@ document.getElementById("showDiff")?.addEventListener("click", () => {
 });
 
 
+document.addEventListener("click", async (e) => {
+  const accept = e.target.closest('[data-action="accept-rewrite"]');
+  const reject = e.target.closest('[data-action="reject-rewrite"]');
 
+  if (!accept && !reject) return;
 
+  // ---------------------------------
+  // ACCEPT
+  // ---------------------------------
+  if (accept) {
+    if (!workingCaptionsText || !rewritePending) return;
 
-document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () => {
-  if (!workingCaptionsText || !rewritePending) return;
+    try {
+      await jsonFetch("/api/save_captions", {
+        method: "POST",
+        body: JSON.stringify({
+          session: getActiveSession(),
+          text: workingCaptionsText
+        })
+      });
 
-  try {
-    await jsonFetch("/api/save_captions", {
-      method: "POST",
-      body: JSON.stringify({
-        session: getActiveSession(),
-        text: workingCaptionsText
-      })
-    });
+      lastSavedCaptionsText = workingCaptionsText;
 
-    lastSavedCaptionsText = workingCaptionsText;
+      await loadConfigAndYaml();
+      await loadCaptionsFromYaml();
+      await refreshOverlayPreview();
+      await refreshHookScore();
+      await refreshStoryFlowScore();
 
-    // Reload canonical state
-    await loadConfigAndYaml();
-    await loadCaptionsFromYaml();
-    await refreshOverlayPreview();
-    await refreshHookScore();
-    await refreshStoryFlowScore();
+      exitRewriteReviewMode();
+      captionViewMode = "rewritten";
+      renderCaptionView();
+      syncCaptionToggleUI();
 
-    // 🔥 EXIT REVIEW MODE AFTER reload
-    exitRewriteReviewMode();
+      setStatus("overlayStatus", "Rewrite accepted ✓", "success");
+    } catch (err) {
+      console.error(err);
+      setStatus("overlayStatus", "Failed to save rewrite", "error");
+    }
+  }
 
-    captionViewMode = "rewritten";
+  // ---------------------------------
+  // REJECT
+  // ---------------------------------
+  if (reject) {
+    workingCaptionsText = lastSavedCaptionsText;
+    rewritePending = false;
+
     renderCaptionView();
-    syncCaptionToggleUI();
+    renderStep3Diff(lastSavedCaptionsText, lastSavedCaptionsText);
+    renderStep4Diff(lastSavedCaptionsText, lastSavedCaptionsText);
 
-    setStatus("overlayStatus", "Rewrite accepted ✓", "success");
-
-  } catch (err) {
-    console.error(err);
-    setStatus("overlayStatus", "Failed to save rewrite", "error");
+    exitRewriteReviewMode();
+    setStatus("overlayStatus", "Rewrite discarded", "info");
   }
 });
 
-
-document.getElementById("rejectRewriteBtn")?.addEventListener("click", () => {
-  workingCaptionsText = lastSavedCaptionsText;
-  rewritePending = false;
-
-  renderCaptionView();
-  renderStep3Diff(lastSavedCaptionsText, lastSavedCaptionsText);
-  renderStep4Diff(lastSavedCaptionsText, lastSavedCaptionsText);
-
-  exitRewriteReviewMode();
-  setStatus("overlayStatus", "Rewrite discarded", "info");
-});
 
 // Generate variants (unchanged)
 document.getElementById("generateVariantsBtn")?.addEventListener("click", generateCaptionVariants);
