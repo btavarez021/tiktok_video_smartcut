@@ -43,6 +43,17 @@ function renderCaptionView() {
   }
 }
 
+function toggleStep4Diff(show) {
+  const scroll = document.getElementById("step4CaptionScroll");
+  const btn = document.getElementById("toggleDiffCollapse");
+
+  if (!scroll) return;
+
+  scroll.classList.toggle("hidden", !show);
+  if (btn) btn.textContent = show ? "Collapse" : "Expand";
+  diffCollapsed = !show;
+}
+
 
 function renderVariantCard(num, tone, text, score, cardId) {
   let badge = "";
@@ -3359,8 +3370,7 @@ document.getElementById("step3DiffToggle")?.addEventListener("click", () => {
 });
 
 document.getElementById("toggleDiffCollapse")?.addEventListener("click", () => {
-  diffCollapsed = !diffCollapsed;
-  toggleCaptionCompare(!diffCollapsed);
+  toggleStep4Diff(diffCollapsed);
 });
 
 
