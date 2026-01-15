@@ -87,29 +87,28 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
 
 
 function enterRewriteReviewMode() {
-  if (!rewritePending) return;
+  isInRewriteReview = true;
+  rewritePending = true;
 
   const bar = document.getElementById("rewriteDecisionBar");
   bar?.classList.remove("hidden");
 
-  bar?.querySelectorAll("button").forEach(btn => {
-    btn.disabled = false;
-  });
+  bar?.querySelectorAll("button").forEach(btn => btn.disabled = false);
 
   document.getElementById("captionDiffHeader")?.classList.remove("hidden");
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
 }
 
 
-
-
 function exitRewriteReviewMode() {
   rewritePending = false;
+  isInRewriteReview = false;
 
   document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
   document.getElementById("captionDiffHeader")?.classList.add("hidden");
   document.getElementById("step4CaptionScroll")?.classList.add("hidden");
 }
+
 
 
 function renderVariantCard(num, tone, text, score, cardId) {
@@ -3412,18 +3411,15 @@ document.getElementById("showRewritten")?.addEventListener("click", () => {
 });
 
 document.getElementById("showDiff")?.addEventListener("click", () => {
+  captionViewMode = "diff";
   syncCaptionToggleUI();
+  document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
 
-  const scroll = document.getElementById("step4CaptionScroll");
-  const bar = document.getElementById("rewriteDecisionBar");
-
-  scroll?.classList.remove("hidden");
-
-  // 🔒 HARD RULE: bar visibility is ONLY driven by rewritePending
-  if (rewritePending) {
-    bar?.classList.remove("hidden");
+  // Only show decision bar if we are in review mode
+  if (isInRewriteReview) {
+    document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
   } else {
-    bar?.classList.add("hidden");
+    document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
   }
 
   renderStep4Diff(lastSavedCaptionsText, workingCaptionsText);
@@ -3431,12 +3427,13 @@ document.getElementById("showDiff")?.addEventListener("click", () => {
 
 
 
+
 document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () => {
   if (!workingCaptionsText) return;
 
-  rewritePending = false;
+  // 🔥 MUST exit review first
+  exitRewriteReviewMode();
   lockRewriteDecision();
-  exitRewriteReviewMode();   // 🔥 this is the ONLY place we exit
 
   try {
     await jsonFetch("/api/save_captions", {
@@ -3466,6 +3463,7 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
     setStatus("overlayStatus", "Failed to save rewrite", "error");
   }
 });
+
 
 
 
