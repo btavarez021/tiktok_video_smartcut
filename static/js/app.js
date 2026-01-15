@@ -2206,12 +2206,12 @@ async function applyOverlay() {
 // 🧠 Rewrite path (proposal only)
 // -------------------------------
 if (res.status === "proposed") {
-  // 🚫 Do NOT re-enter review mode if rewrite already handled
-  if (!rewritePending && !isInRewriteReview) {
+  if (!isInRewriteReview && !rewritePending) {
     proposeRewrite(res.proposed, "Overlay rewrite ready");
   }
   return;
 }
+
 
 
 
