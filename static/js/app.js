@@ -82,6 +82,7 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
 
     isInRewriteReview = true;
   rewritePending = true;
+  
   enterRewriteReviewMode();
   showPendingRewrite();
 
@@ -91,14 +92,25 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
 
 function enterRewriteReviewMode() {
   console.log("🔥 ENTERED REWRITE REVIEW MODE");
+
   if (!rewritePending) return;
 
+  // Decision bar
   const bar = document.getElementById("rewriteDecisionBar");
   bar?.classList.remove("hidden");
   bar?.querySelectorAll("button").forEach(btn => btn.disabled = false);
 
+  // Diff UI
   document.getElementById("captionDiffHeader")?.classList.remove("hidden");
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
+
+  // Pending badge
+  document.getElementById("pendingRewriteBadge")?.classList.remove("hidden");
+
+  // Force Step-4 diff visible
+  captionViewMode = "diff";
+  renderCaptionView();
+  syncCaptionToggleUI();
 }
 
 function hardClearRewriteUI() {
