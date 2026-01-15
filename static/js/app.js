@@ -1614,37 +1614,15 @@ async function improveHook() {
 
     if (data.status === "error") throw new Error(data.error || "failed");
 
-    // 🔥 PROPOSAL MODE
+    // 🔥 Rewrite proposal
     if (data.status === "proposed") {
-  const original = lastSavedCaptionsText || "";
+      proposeRewrite(data.proposed, "Hook rewrite ready");
 
-  // 🔵 Store rewrite ONLY in working copy
-  workingCaptionsText = data.proposed || "";
-
-  // 🔥 Step-3 (live diff)
-  renderStep3Diff(original, workingCaptionsText);
-  focusCaptionChanges();
-
-  // 🔥 Step-4 (review diff)
-  renderStep4Diff(original, workingCaptionsText);
-
-  // 🔥 Force UI into diff mode
-  captionViewMode = "diff";
-  syncCaptionToggleUI();
-  renderCaptionView();
-
-  enterRewriteReviewMode();
-
-  // 🔥 Show rewrite decision bar
-  document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
-  showPendingRewrite();
-  document.getElementById("captionDiffHeader")?.classList.remove("hidden");
-  document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
-
-  if (statusEl) statusEl.textContent = "Hook rewrite ready — review & accept or reject";
-
-  return;
-}
+      if (statusEl) {
+        statusEl.textContent = "Hook rewrite ready — review & accept or reject";
+      }
+      return;
+    }
 
     throw new Error("Unexpected response");
 
@@ -1655,6 +1633,7 @@ async function improveHook() {
     btn.disabled = false;
   }
 }
+
 
 async function generateCaptionVariants() {
   const btn = document.getElementById("generateVariantsBtn");
@@ -1959,6 +1938,11 @@ async function loadCaptionsFromYaml() {
     // 🔑 YAML baseline
     lastSavedCaptionsText = yamlText;
 
+    rewritePending = false;
+    clearPendingRewrite();
+    exitRewriteReviewMode();
+
+
     // 🔥 Step 3 editor must always be editable
     workingCaptionsText = yamlText;
 
@@ -1972,11 +1956,8 @@ async function loadCaptionsFromYaml() {
     await refreshHookScore();
     await refreshStoryFlowScore();
 
-    document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
-
     setCaptionSource("yaml", "🔵 SOURCE: YAML");
     setCaptionInlineStatus("Captions loaded from YAML", "success");
-    clearPendingRewrite();
 
   } catch (err) {
     console.error(err);
@@ -2239,35 +2220,9 @@ async function applyOverlay() {
 // 🧠 Rewrite path (proposal only)
 // -------------------------------
 if (res.status === "proposed") {
-  const original = lastSavedCaptionsText || "";
-  const rewritten = res.proposed || "";
 
-  // Working copy only
-  workingCaptionsText = rewritten;
-
-  // Step 3 diff
-  renderStep3Diff(original, rewritten);
-  focusCaptionChanges();
-
-  // Step 4 diff
-  renderStep4Diff(original, rewritten);
-
-  // 🔥 Force Step-4 into DIFF mode
-  captionViewMode = "diff";
-  syncCaptionToggleUI();
-  enterRewriteReviewMode();
-
-  document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
-
-  // Prevent textarea from overwriting diff
-  renderCaptionView();
-
-  // Show Accept / Reject
-  document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
-  showPendingRewrite();
-  document.getElementById("captionDiffHeader")?.classList.remove("hidden");
-
-  setStatus("overlayStatus", "Rewrite ready — review changes", "info");
+    rewritePending = true;
+    proposeRewrite(res.proposed, "Overlay rewrite ready");
 
   return;
 }
