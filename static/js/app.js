@@ -2199,47 +2199,69 @@ async function applyOverlay() {
   );
 
   try {
-  const res = await jsonFetch("/api/overlay", {
-    method: "POST",
-    body: JSON.stringify({
-      style,
-      session: getActiveSession(),
-      rewrite: rewriteMode === "rewrite",
-    }),
-  });
+    const res = await jsonFetch("/api/overlay", {
+      method: "POST",
+      body: JSON.stringify({
+        style,
+        session: getActiveSession(),
+        rewrite: rewriteMode === "rewrite",
+      }),
+    });
 
-  // -------------------------------
-// 🧠 Rewrite path (proposal only)
-// -------------------------------
-if (res.status === "proposed") {
-  if (!rewriteCommitted) {
-    proposeRewrite(res.proposed, "Overlay rewrite ready");
-  }
-  return;
-}
+    // ======================================
+    // ⚠ Hook weak / warning → must HARD RESET
+    // ======================================
+    if (res.status === "warning") {
+      console.warn("Overlay blocked:", res.message);
 
-  // -------------------------------
-  // Visual-only path
-  // -------------------------------
-  await loadConfigAndYaml();
-    await loadCaptionsFromYaml();   // 🔑 THIS UPDATES lastSavedCaptionsText
+      rewritePending = false;
+      clearPendingRewrite();
+      exitRewriteReviewMode();
+
+      captionViewMode = "rewritten";
+      renderCaptionView();
+      syncCaptionToggleUI();
+
+      setStatus(
+        "overlayStatus",
+        res.message || "Hook too weak to safely rewrite captions.",
+        "warning"
+      );
+      return;
+    }
+
+    // ======================================
+    // 🧠 Rewrite proposal path
+    // ======================================
+    if (res.status === "proposed") {
+      if (!rewriteCommitted) {
+        proposeRewrite(res.proposed, "Overlay rewrite ready");
+      }
+      return;
+    }
+
+    // ======================================
+    // 🎨 Visual-only overlay path
+    // ======================================
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml(); // updates lastSavedCaptionsText
     await previewOverlay("fast");
 
     workingCaptionsText = lastSavedCaptionsText;
-captionViewMode = "rewritten";
-renderCaptionView();
-syncCaptionToggleUI();
+    captionViewMode = "rewritten";
+    renderCaptionView();
+    syncCaptionToggleUI();
 
-diffDirty = false;
+    diffDirty = false;
 
+    setStatus("overlayStatus", "Overlay applied ✓", "success");
 
-  setStatus("overlayStatus", "Overlay applied ✓", "success");
-
-} catch (err) {
-  console.error(err);
-  setStatus("overlayStatus", "Failed to apply overlay.", "error");
+  } catch (err) {
+    console.error(err);
+    setStatus("overlayStatus", "Failed to apply overlay.", "error");
+  }
 }
-}
+
 
 
 document
