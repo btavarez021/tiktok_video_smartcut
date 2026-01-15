@@ -44,7 +44,8 @@ from assistant_api import (
     api_set_label,
     api_clip_preview, 
     repair_label,
-    api_generate_variants
+    api_generate_variants,
+    reorder_storyboard
 )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -241,6 +242,18 @@ def route_story_flow_improve():
     data = request.get_json(silent=True) or {}
     session = sanitize_session(data.get("session", "default"))
     return jsonify(api_story_flow_improve(session))
+
+@app.route("/api/reorder_clips", methods=["POST"])
+def api_reorder_clips():
+    data = request.json
+    session = data["session"]
+    new_order = data["order"]
+
+    try:
+        cfg = reorder_storyboard(session, new_order)
+        return jsonify({"status": "ok", "config": cfg})
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 400
 
 
 # ============================================================================

@@ -25,6 +25,8 @@ from s3_config import (
     PROCESSED_PREFIX,
 )
 import shutil
+from tiktok_template import reorder_clips
+
 # Import ONLY non-circular functions from tiktok_assistant
 from tiktok_assistant import (
     generate_signed_download_url,
@@ -879,6 +881,23 @@ def _sync_s3_videos_to_local(session: str) -> List[str]:
 
     log_step(f"[SYNC] Synced {len(local_files)} videos for session '{session}'")
     return local_files
+
+
+def reorder_storyboard(session, new_order):
+    session = sanitize_session(session)
+    cfg = _load_config(session)
+
+    if not cfg:
+        return {"error": "config not found"}
+
+    cfg = reorder_clips(cfg, new_order)
+
+    config_path = get_config_path(session)
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+
+    log_step(f"[REORDER] Updated clip order for session '{session}'")
+    return cfg
 
 
 # -------------------------------

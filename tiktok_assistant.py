@@ -738,6 +738,7 @@ Return ONLY VALID YAML (no backticks).
 
     # Tag timing mode
     render = cfg.setdefault("render", {})
+    render.setdefault("captions_mode", "all")
     render["timing_mode"] = pacing
 
     # Save directly to this session's config.yml

@@ -256,6 +256,56 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
 
     return tts_files, cta_tuple
 
+def flatten_clips(cfg):
+    clips = []
+
+    if "first_clip" in cfg:
+        clips.append(cfg["first_clip"])
+
+    for c in cfg.get("middle_clips", []):
+        clips.append(c)
+
+    if "last_clip" in cfg:
+        clips.append(cfg["last_clip"])
+
+    return clips
+
+
+def rebuild_clips(cfg, clips):
+    if not clips:
+        return cfg
+
+    cfg["first_clip"] = clips[0]
+
+    if len(clips) > 2:
+        cfg["middle_clips"] = clips[1:-1]
+        cfg["last_clip"] = clips[-1]
+    elif len(clips) == 2:
+        cfg["middle_clips"] = []
+        cfg["last_clip"] = clips[1]
+    else:
+        cfg["middle_clips"] = []
+        cfg.pop("last_clip", None)
+
+    return cfg
+
+
+def reorder_clips(cfg, new_order):
+    """
+    new_order = list of clip IDs in the desired order
+    """
+    clips = flatten_clips(cfg)
+
+    clip_map = {c["id"]: c for c in clips}
+
+    reordered = []
+    for cid in new_order:
+        if cid not in clip_map:
+            raise ValueError(f"Unknown clip id: {cid}")
+        reordered.append(clip_map[cid])
+
+    return rebuild_clips(cfg, reordered)
+
 
 def compute_auto_zoom(video_path: str) -> float:
     """
