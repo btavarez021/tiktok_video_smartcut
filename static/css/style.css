@@ -2403,3 +2403,13 @@ h3 {
 .hidden {
   display: none !important;
 }
+
+.status-warning {
+  color: #facc15 !important;   /* warm yellow */
+  font-weight: 600;
+}
+
+.status-working {
+  color: #fbbf24 !important;   /* brighter gold */
+  font-weight: 600;
+}
