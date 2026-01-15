@@ -77,6 +77,7 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
   // Switch UI into review mode
   captionViewMode = "diff";
 
+    isInRewriteReview = true;
   rewritePending = true;
   enterRewriteReviewMode();
   showPendingRewrite();
@@ -101,6 +102,7 @@ function enterRewriteReviewMode() {
 
 function exitRewriteReviewMode() {
   rewritePending = false;
+  isInRewriteReview = false;
 
   document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
   document.getElementById("captionDiffHeader")?.classList.add("hidden");
