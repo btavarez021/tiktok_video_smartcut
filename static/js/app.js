@@ -103,12 +103,14 @@ function enterRewriteReviewMode() {
 function exitRewriteReviewMode() {
   rewritePending = false;
   isInRewriteReview = false;
+  captionViewMode = "rewritten";   // 🔥 force exit diff mode
 
   document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
   document.getElementById("captionDiffHeader")?.classList.add("hidden");
   document.getElementById("step4CaptionScroll")?.classList.add("hidden");
   document.getElementById("pendingRewriteBadge")?.classList.add("hidden");
 }
+
 
 
 function renderVariantCard(num, tone, text, score, cardId) {
@@ -2207,14 +2209,11 @@ async function applyOverlay() {
 // 🧠 Rewrite path (proposal only)
 // -------------------------------
 if (res.status === "proposed") {
-  if (!isInRewriteReview && !rewritePending) {
+  if (!rewritePending) {
     proposeRewrite(res.proposed, "Overlay rewrite ready");
   }
   return;
 }
-
-
-
 
   // -------------------------------
   // Visual-only path
@@ -3433,9 +3432,7 @@ document.addEventListener("click", async (e) => {
 
   if (!accept && !reject) return;
 
-  // ---------------------------------
-  // ACCEPT
-  // ---------------------------------
+  // ---------------- ACCEPT ----------------
   if (accept) {
     if (!workingCaptionsText || !rewritePending) return;
 
@@ -3456,21 +3453,23 @@ document.addEventListener("click", async (e) => {
       await refreshHookScore();
       await refreshStoryFlowScore();
 
+      workingCaptionsText = lastSavedCaptionsText;
+
       exitRewriteReviewMode();
+
       captionViewMode = "rewritten";
       renderCaptionView();
       syncCaptionToggleUI();
 
       setStatus("overlayStatus", "Rewrite accepted ✓", "success");
+
     } catch (err) {
       console.error(err);
       setStatus("overlayStatus", "Failed to save rewrite", "error");
     }
   }
 
-  // ---------------------------------
-  // REJECT
-  // ---------------------------------
+  // ---------------- REJECT ----------------
   if (reject) {
     workingCaptionsText = lastSavedCaptionsText;
     rewritePending = false;
@@ -3483,7 +3482,6 @@ document.addEventListener("click", async (e) => {
     setStatus("overlayStatus", "Rewrite discarded", "info");
   }
 });
-
 
 // Generate variants (unchanged)
 document.getElementById("generateVariantsBtn")?.addEventListener("click", generateCaptionVariants);
