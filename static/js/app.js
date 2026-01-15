@@ -101,6 +101,25 @@ function enterRewriteReviewMode() {
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
 }
 
+function hardClearRewriteUI() {
+  // Kill rewrite state
+  rewritePending = false;
+  isInRewriteReview = false;
+  rewriteCommitted = true;
+
+  // Hide rewrite UI
+  clearPendingRewrite();
+  exitRewriteReviewMode();
+
+  // Kill warning overlays that look like rewrite UI
+  clearOverlayWarning();
+  document.getElementById("rewriteWarning")?.classList.add("hidden");
+
+  // Force normal caption mode
+  captionViewMode = "rewritten";
+  renderCaptionView();
+  syncCaptionToggleUI();
+}
 
 
 function exitRewriteReviewMode() {
@@ -3480,13 +3499,9 @@ document.addEventListener("click", async (e) => {
 
       workingCaptionsText = lastSavedCaptionsText;
 
-      exitRewriteReviewMode();
+      hardClearRewriteUI();
+    setStatus("overlayStatus", "Rewrite accepted ✓", "success");
 
-      captionViewMode = "rewritten";
-      renderCaptionView();
-      syncCaptionToggleUI();
-
-      setStatus("overlayStatus", "Rewrite accepted ✓", "success");
 
     } catch (err) {
       console.error(err);
@@ -3496,16 +3511,10 @@ document.addEventListener("click", async (e) => {
 
   // ---------------- REJECT ----------------
   if (reject) {
-    workingCaptionsText = lastSavedCaptionsText;
-    rewritePending = false;
-
-    renderCaptionView();
-    renderStep3Diff(lastSavedCaptionsText, lastSavedCaptionsText);
-    renderStep4Diff(lastSavedCaptionsText, lastSavedCaptionsText);
-
-    exitRewriteReviewMode();
-    setStatus("overlayStatus", "Rewrite discarded", "info");
-  }
+  workingCaptionsText = lastSavedCaptionsText;
+  hardClearRewriteUI();
+  setStatus("overlayStatus", "Rewrite discarded", "info");
+}
 });
 
 // Generate variants (unchanged)
