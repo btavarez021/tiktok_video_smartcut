@@ -38,6 +38,19 @@ function renderCaptionView() {
   }
 }
 
+function enterRewriteReviewMode() {
+  document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
+  document.getElementById("captionDiffHeader")?.classList.remove("hidden");
+  document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
+}
+
+
+function exitRewriteReviewMode() {
+  document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
+  document.getElementById("captionDiffHeader")?.classList.add("hidden");
+}
+
+
 
 
 function renderVariantCard(num, tone, text, score, cardId) {
@@ -1549,6 +1562,8 @@ async function improveHook() {
   syncCaptionToggleUI();
   renderCaptionView();
 
+  enterRewriteReviewMode();
+
   // 🔥 Show rewrite decision bar
   document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
   document.getElementById("captionDiffHeader")?.classList.remove("hidden");
@@ -2197,6 +2212,8 @@ if (res.status === "proposed") {
   // 🔥 Force Step-4 into DIFF mode
   captionViewMode = "diff";
   syncCaptionToggleUI();
+  enterRewriteReviewMode();
+
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
 
   // Prevent textarea from overwriting diff
