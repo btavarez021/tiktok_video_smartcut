@@ -3414,13 +3414,22 @@ document.getElementById("showRewritten")?.addEventListener("click", () => {
 document.getElementById("showDiff")?.addEventListener("click", () => {
   syncCaptionToggleUI();
 
-  document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
+  const scroll = document.getElementById("step4CaptionScroll");
+  const bar = document.getElementById("rewriteDecisionBar");
 
-  renderStep4Diff(
-  lastSavedCaptionsText,
-  workingCaptionsText
-);
+  scroll?.classList.remove("hidden");
+
+  // 🔒 HARD RULE: bar visibility is ONLY driven by rewritePending
+  if (rewritePending) {
+    bar?.classList.remove("hidden");
+  } else {
+    bar?.classList.add("hidden");
+  }
+
+  renderStep4Diff(lastSavedCaptionsText, workingCaptionsText);
 });
+
+
 
 document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () => {
   if (!workingCaptionsText) return;
