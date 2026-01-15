@@ -9,6 +9,9 @@ let ACTIVE_SESSION = "default";
 
 let ACTIVE_EXPORT_TASK = null;
 
+let rewriteCommitted = false;
+
+
 let suppressNextPreview = false;
 
 let lastSavedCaptionsText = "";
@@ -2209,7 +2212,7 @@ async function applyOverlay() {
 // 🧠 Rewrite path (proposal only)
 // -------------------------------
 if (res.status === "proposed") {
-  if (!rewritePending) {
+  if (!rewriteCommitted) {
     proposeRewrite(res.proposed, "Overlay rewrite ready");
   }
   return;
@@ -3446,7 +3449,7 @@ document.addEventListener("click", async (e) => {
       });
 
       lastSavedCaptionsText = workingCaptionsText;
-
+      rewriteCommitted = true;
       await loadConfigAndYaml();
       await loadCaptionsFromYaml();
       await refreshOverlayPreview();
