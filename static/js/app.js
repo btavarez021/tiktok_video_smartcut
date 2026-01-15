@@ -1372,7 +1372,7 @@ async function analyzeClips() {
     setStatus(
         "analyzeStatus",
         "Analyzing clips from S3… this can take a bit…",
-        "info",
+        "working",
         false
     );
 
@@ -1440,7 +1440,7 @@ async function generateYaml() {
     setStatus(
         "yamlStatus",
         "Calling LLM to build config.yml storyboard…",
-        "info"
+        "working"
     );
     try {
         await jsonFetch("/api/generate_yaml", {
