@@ -101,13 +101,12 @@ function enterRewriteReviewMode() {
 
 function exitRewriteReviewMode() {
   rewritePending = false;
-  isInRewriteReview = false;
 
   document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
   document.getElementById("captionDiffHeader")?.classList.add("hidden");
   document.getElementById("step4CaptionScroll")?.classList.add("hidden");
+  document.getElementById("pendingRewriteBadge")?.classList.add("hidden");
 }
-
 
 
 function renderVariantCard(num, tone, text, score, cardId) {
@@ -3430,16 +3429,7 @@ document.getElementById("showDiff")?.addEventListener("click", () => {
 
 
 document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () => {
-  if (!workingCaptionsText) return;
-
-  // 🔒 Exit review mode immediately so UI can't resurrect it
-  exitRewriteReviewMode();
-  lockRewriteDecision();
-
-  // 🔥 Force UI out of diff BEFORE any re-renders
-  captionViewMode = "rewritten";
-  renderCaptionView();
-  syncCaptionToggleUI();
+  if (!workingCaptionsText || !rewritePending) return;
 
   try {
     await jsonFetch("/api/save_captions", {
@@ -3450,15 +3440,22 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
       })
     });
 
-    // YAML is now the new truth
     lastSavedCaptionsText = workingCaptionsText;
 
+    // Reload canonical state
     await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
     await refreshOverlayPreview();
     await refreshHookScore();
     await refreshStoryFlowScore();
 
-    clearPendingRewrite();
+    // 🔥 EXIT REVIEW MODE AFTER reload
+    exitRewriteReviewMode();
+
+    captionViewMode = "rewritten";
+    renderCaptionView();
+    syncCaptionToggleUI();
+
     setStatus("overlayStatus", "Rewrite accepted ✓", "success");
 
   } catch (err) {
@@ -3467,24 +3464,18 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
   }
 });
 
-document.getElementById("rejectRewriteBtn")?.addEventListener("click", () => {
-  rewritePending = false;
 
+document.getElementById("rejectRewriteBtn")?.addEventListener("click", () => {
   workingCaptionsText = lastSavedCaptionsText;
+  rewritePending = false;
 
   renderCaptionView();
   renderStep3Diff(lastSavedCaptionsText, lastSavedCaptionsText);
   renderStep4Diff(lastSavedCaptionsText, lastSavedCaptionsText);
 
-  syncCaptionToggleUI();
-  setStatus("overlayStatus", "Rewrite discarded", "info");
-  clearPendingRewrite();
   exitRewriteReviewMode();
+  setStatus("overlayStatus", "Rewrite discarded", "info");
 });
-
-
-
-
 
 // Generate variants (unchanged)
 document.getElementById("generateVariantsBtn")?.addEventListener("click", generateCaptionVariants);
