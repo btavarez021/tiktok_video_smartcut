@@ -2275,7 +2275,8 @@ async function applyOverlay() {
     // 🔥 Always unlock for a new proposal
     rewriteCommitted = false;
 
-    proposeRewrite(res.proposed, "Overlay rewrite ready", "step4");
+    proposeRewrite(res.proposed, "Overlay rewrite ready", "step4")
+    return;
     }
 
 
