@@ -919,7 +919,7 @@ async function uploadFiles() {
         formData.append("files", f);
     }
 
-    setStatus("uploadStatus", "⬆ Uploading…", "info");
+    setStatus("uploadStatus", "⬆ Uploading…", "working", false);
 
     try {
         const session = encodeURIComponent(getActiveSession());
@@ -1483,7 +1483,8 @@ async function saveYaml() {
     if (!yamlTextEl || !statusEl) return;
 
     const raw = yamlTextEl.value || "";
-    setStatus("yamlStatus", "Saving YAML…", "info");
+    setStatus("yamlStatus", "Saving YAML…", "working", false);
+
 
     try {
         await jsonFetch("/api/save_yaml", {
@@ -2418,7 +2419,7 @@ async function saveCaptionMode() {
     const mode = getCaptionMode();
     const session = getActiveSession();
 
-    setStatus("captionModeStatus", "Saving...", "info");
+    setStatus("captionModeStatus", "Saving...", "working", false);
 
     try {
         const resp = await fetch("/api/captions_mode", {
@@ -2470,7 +2471,7 @@ async function saveLayoutMode() {
     if (!sel || !status) return;
 
     const mode = sel.value || "tiktok";
-    setStatus("layoutStatus", "Saving layout mode…", "info");
+    setStatus("layoutStatus", "Saving layout mode…", "working", false);
 
     try {
         await jsonFetch("/api/layout", {
@@ -2497,7 +2498,7 @@ async function saveTtsSettings() {
     const statusEl = document.getElementById("ttsStatus");
     if (!enabledEl || !voiceEl || !statusEl) return;
 
-    setStatus("ttsStatus", "Saving TTS settings…", "info");
+    setStatus("ttsStatus", "Saving TTS settings…", "working", false);
 
     try {
         const session = encodeURIComponent(getActiveSession());
@@ -2540,7 +2541,7 @@ async function saveCtaSettings() {
     const statusEl = document.getElementById("ctaStatus");
     if (!enabledEl || !textEl || !voiceoverEl || !statusEl) return;
 
-    setStatus("ctaStatus", "Saving CTA settings…", "info");
+    setStatus("ctaStatus", "Saving CTA settings…", "working", false);
 
     try {
         await jsonFetch("/api/cta", {
@@ -2635,7 +2636,7 @@ async function saveMusicSettings() {
     const file = fileEl.value || "";
     const volume = parseFloat(volEl.value || "0.25");
 
-    setStatus("musicStatus", "Saving music settings…", "info");
+    setStatus("musicStatus", "Saving music settings…", "working", false);
 
     try {
         const session = encodeURIComponent(getActiveSession());
@@ -2771,7 +2772,7 @@ async function saveFgScale() {
     const auto = document.getElementById("autoFgScale").checked;
     const fg = parseFloat(document.getElementById("fgScale").value || "1.0");
 
-    setStatus("fgStatus", "Saving foreground scale…", "info");
+    setStatus("fgStatus", "Saving foreground scale…", "working", false);
 
     try {
         let yamlObj = jsyaml.load(document.getElementById("yamlText").value) || {};
