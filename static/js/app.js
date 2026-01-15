@@ -76,7 +76,6 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
 
   // Switch UI into review mode
   captionViewMode = "diff";
-  syncCaptionToggleUI();
 
   rewritePending = true;
   enterRewriteReviewMode();
@@ -3415,8 +3414,8 @@ document.getElementById("showDiff")?.addEventListener("click", () => {
   syncCaptionToggleUI();
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
 
-  // Only show decision bar if we are in review mode
-  if (isInRewriteReview) {
+  // 🔥 Only show Accept/Reject when a rewrite is pending
+  if (rewritePending && isInRewriteReview) {
     document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
   } else {
     document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
@@ -3428,12 +3427,18 @@ document.getElementById("showDiff")?.addEventListener("click", () => {
 
 
 
+
 document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () => {
   if (!workingCaptionsText) return;
 
-  // 🔥 MUST exit review first
+  // 🔒 Exit review mode immediately so UI can't resurrect it
   exitRewriteReviewMode();
   lockRewriteDecision();
+
+  // 🔥 Force UI out of diff BEFORE any re-renders
+  captionViewMode = "rewritten";
+  renderCaptionView();
+  syncCaptionToggleUI();
 
   try {
     await jsonFetch("/api/save_captions", {
@@ -3444,16 +3449,13 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
       })
     });
 
+    // YAML is now the new truth
     lastSavedCaptionsText = workingCaptionsText;
 
     await loadConfigAndYaml();
     await refreshOverlayPreview();
     await refreshHookScore();
     await refreshStoryFlowScore();
-
-    captionViewMode = "rewritten";
-    renderCaptionView();
-    syncCaptionToggleUI();
 
     clearPendingRewrite();
     setStatus("overlayStatus", "Rewrite accepted ✓", "success");
@@ -3463,10 +3465,6 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
     setStatus("overlayStatus", "Failed to save rewrite", "error");
   }
 });
-
-
-
-
 
 document.getElementById("rejectRewriteBtn")?.addEventListener("click", () => {
   rewritePending = false;
