@@ -17,12 +17,17 @@ let workingCaptionsText = "";
 
 let rewritePending = false;
 
-
-// ================================
-// Step 4 Caption View (Original vs Rewritten)
-// ================================
+let isInRewriteReview = false;
 
 function renderCaptionView() {
+
+  // 🔥 HARD GATE: never resurrect rewrite UI
+  if (!rewritePending) {
+    document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
+    document.getElementById("captionDiffHeader")?.classList.add("hidden");
+    document.getElementById("step4CaptionScroll")?.classList.add("hidden");
+  }
+
   const box = document.getElementById("captionsText");
   if (!box) return;
 
@@ -31,15 +36,16 @@ function renderCaptionView() {
     box.readOnly = true;
   }
   else if (captionViewMode === "rewritten") {
-  box.value = workingCaptionsText || lastSavedCaptionsText || "";
-  box.readOnly = false;   
-}
+    box.value = workingCaptionsText || lastSavedCaptionsText || "";
+    box.readOnly = false;
+  }
   else {
-    // diff mode — hide textarea so it can't overwrite diff
+    // diff
     box.value = "";
     box.readOnly = true;
   }
 }
+
 
 function showPendingRewrite() {
   document.getElementById("pendingRewriteBadge")?.classList.remove("hidden");
@@ -3476,7 +3482,8 @@ document.getElementById("showDiff")?.addEventListener("click", () => {
 document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () => {
   if (!workingCaptionsText) return;
 
-  lockRewriteDecision();   // 🔒 lock immediately
+  rewritePending = false;          // 🔥 kill review mode first
+  lockRewriteDecision();
 
   try {
     await jsonFetch("/api/save_captions", {
@@ -3490,7 +3497,6 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
     lastSavedCaptionsText = workingCaptionsText;
 
     await loadConfigAndYaml();
-
     await refreshOverlayPreview();
     await refreshHookScore();
     await refreshStoryFlowScore();
@@ -3501,9 +3507,7 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
 
     setStatus("overlayStatus", "Rewrite accepted ✓", "success");
     clearPendingRewrite();
-    workingCaptionsText = lastSavedCaptionsText;   // re-arm for next rewrite
-    exitRewriteReviewMode();                      // fully hide review UI
-
+    exitRewriteReviewMode();
 
   } catch (err) {
     console.error(err);
@@ -3512,10 +3516,10 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
 });
 
 
-document.getElementById("rejectRewriteBtn")?.addEventListener("click", () => {
-  lockRewriteDecision();   // 🔒 lock immediately
 
-  // Revert working copy to last saved YAML
+document.getElementById("rejectRewriteBtn")?.addEventListener("click", () => {
+  rewritePending = false;
+
   workingCaptionsText = lastSavedCaptionsText;
 
   renderCaptionView();
@@ -3523,12 +3527,11 @@ document.getElementById("rejectRewriteBtn")?.addEventListener("click", () => {
   renderStep4Diff(lastSavedCaptionsText, lastSavedCaptionsText);
 
   syncCaptionToggleUI();
-
   setStatus("overlayStatus", "Rewrite discarded", "info");
   clearPendingRewrite();
   exitRewriteReviewMode();
-
 });
+
 
 
 
