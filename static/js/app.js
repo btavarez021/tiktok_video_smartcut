@@ -38,6 +38,21 @@ function renderCaptionView() {
   }
 }
 
+function lockRewriteDecision() {
+  const bar = document.getElementById("rewriteDecisionBar");
+  if (!bar) return;
+
+  bar.querySelectorAll("button").forEach(btn => {
+    btn.disabled = true;
+  });
+
+  // Small delay so user sees it fade
+  setTimeout(() => {
+    bar.classList.add("hidden");
+  }, 200);
+}
+
+
 function enterRewriteReviewMode() {
   document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
   document.getElementById("captionDiffHeader")?.classList.remove("hidden");
@@ -3475,6 +3490,8 @@ document.getElementById("showDiff")?.addEventListener("click", () => {
 document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () => {
   if (!workingCaptionsText) return;
 
+  lockRewriteDecision();   // 🔒 lock immediately
+
   try {
     await jsonFetch("/api/save_captions", {
       method: "POST",
@@ -3492,10 +3509,6 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
     await refreshHookScore();
     await refreshStoryFlowScore();
 
-    // Hide diff + buttons
-    document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
-    document.getElementById("step4CaptionScroll")?.classList.add("hidden");
-
     captionViewMode = "rewritten";
     renderCaptionView();
     syncCaptionToggleUI();
@@ -3508,23 +3521,22 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
   }
 });
 
+
 document.getElementById("rejectRewriteBtn")?.addEventListener("click", () => {
-  // Revert working copy
+  lockRewriteDecision();   // 🔒 lock immediately
+
+  // Revert working copy to last saved YAML
   workingCaptionsText = lastSavedCaptionsText;
 
-  // Clear diffs
+  renderCaptionView();
   renderStep3Diff(lastSavedCaptionsText, lastSavedCaptionsText);
   renderStep4Diff(lastSavedCaptionsText, lastSavedCaptionsText);
 
-  document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
-  document.getElementById("step4CaptionScroll")?.classList.add("hidden");
-
-  captionViewMode = "rewritten";
-  renderCaptionView();
   syncCaptionToggleUI();
 
   setStatus("overlayStatus", "Rewrite discarded", "info");
 });
+
 
 
 
