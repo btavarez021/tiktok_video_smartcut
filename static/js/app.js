@@ -1752,12 +1752,16 @@ async function refreshOverlayPreview() {
 // =============================================
 // Apply selected generated caption variant
 // =============================================
+// =============================================
+// Apply selected generated caption variant (Step 3 = COMMIT)
+// =============================================
 async function applyCaptionVariant(text) {
+  const session = getActiveSession();
+
   const originalText = lastSavedCaptionsText || "";
   const originalCount = countBlocks(originalText);
   const newCount = countBlocks(text);
 
-  // Still keep the mismatch warning
   if (originalCount !== newCount) {
     setStatus(
       "captionsStatus",
@@ -1767,9 +1771,46 @@ async function applyCaptionVariant(text) {
     return;
   }
 
-  // ✅ Proposal mode (NO SAVE here)
-  proposeRewrite(text, "Variant selected");
+  try {
+    setStatus("captionsStatus", "Applying caption…", "info");
+
+    await jsonFetch("/api/save_captions", {
+      method: "POST",
+      body: JSON.stringify({
+        session,
+        text
+      })
+    });
+
+    // 🔑 This variant is now the truth
+    lastSavedCaptionsText = text;
+    workingCaptionsText = text;
+
+    // Reload YAML + editor
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
+    await refreshOverlayPreview();
+
+    // Show what changed (visual only)
+    renderStep3Diff(originalText, text);
+    focusCaptionChanges();
+
+    // 🔥 ABSOLUTELY kill any Step-4 rewrite state
+    rewritePending = false;
+    isInRewriteReview = false;
+    exitRewriteReviewMode();
+    clearPendingRewrite();
+
+    setStatus("captionsStatus", "Caption applied ✓", "success");
+
+    toggleVariantsPanel(true);
+
+  } catch (err) {
+    console.error(err);
+    setStatus("captionsStatus", "Failed to apply caption", "error");
+  }
 }
+
 
 
 // ================================
