@@ -18,11 +18,6 @@ let workingCaptionsText = "";
 // ================================
 // Step 4 Caption View (Original vs Rewritten)
 // ================================
-let diffCollapsed = false;
-let step3DiffCollapsed = false;
-
-
-let captionViewMode = "rewritten";
 
 function renderCaptionView() {
   const box = document.getElementById("captionsText");
@@ -43,16 +38,6 @@ function renderCaptionView() {
   }
 }
 
-function toggleStep4Diff(show) {
-  const scroll = document.getElementById("step4CaptionScroll");
-  const btn = document.getElementById("toggleDiffCollapse");
-
-  if (!scroll) return;
-
-  scroll.classList.toggle("hidden", !show);
-  if (btn) btn.textContent = show ? "Collapse" : "Expand";
-  diffCollapsed = !show;
-}
 
 
 function renderVariantCard(num, tone, text, score, cardId) {
@@ -253,10 +238,6 @@ function renderStep3Diff(oldText, newText) {
 
 // Keep wrapper visible (button lives inside), but respect collapsed state
 wrapper.classList.remove("hidden");
-scroll?.classList.toggle("hidden", step3DiffCollapsed);
-if (toggleBtn) toggleBtn.textContent = step3DiffCollapsed ? "Expand" : "Collapse";
-
-
 
   const max = Math.max(oldLines.length, newLines.length);
 
@@ -279,21 +260,6 @@ if (toggleBtn) toggleBtn.textContent = step3DiffCollapsed ? "Expand" : "Collapse
   }
 }
 
-function toggleCaptionCompare(show) {
-  /* =====================
-     STEP 3 (do NOT hide wrapper; button is inside it)
-  ====================== */
-  const wrapper3 = document.getElementById("captionCompareWrapper");
-  const scroll3  = document.getElementById("step3CaptionScroll");
-  const btn3     = document.getElementById("step3DiffToggle");
-
-  if (wrapper3) {
-    wrapper3.classList.remove("hidden");
-    scroll3?.classList.toggle("hidden", !show);
-    if (btn3) btn3.textContent = show ? "Collapse" : "Expand";
-    step3DiffCollapsed = !show;
-  }
-}
 
 
 function renderStep4Diff(original, rewritten) {
@@ -1573,7 +1539,6 @@ async function improveHook() {
 
       // 🔥 Step-3 (live diff)
       renderStep3Diff(original, workingCaptionsText);
-      toggleCaptionCompare(true);
       focusCaptionChanges();
 
       // 🔥 Step-4 (review diff)
@@ -1697,7 +1662,6 @@ async function applyCaptionVariant(text) {
 
   // Populate comparison
   renderStep3Diff(originalText, text);
-  toggleCaptionCompare(true);
   focusCaptionChanges();
 
   if (originalCount !== newCount) {
@@ -2219,7 +2183,6 @@ if (res.status === "proposed") {
 
   // 🔥 Step 3 (live editor diff)
   renderStep3Diff(original, rewritten);
-  toggleCaptionCompare(true);
   focusCaptionChanges();
 
   // 🔥 Step 4 (review panel diff)
@@ -3023,11 +2986,18 @@ if (captionsBox) {
     workingCaptionsText = current;
     diffDirty = true;
 
-    // Live update Step-3 diff
     renderStep3Diff(base, current);
 
-    // Auto-open compare panel once user edits
-    toggleCaptionCompare(true);
+    const scroll = document.getElementById("step3CaptionScroll");
+    const btn = document.getElementById("step3DiffToggle");
+
+    if (scroll && btn) {
+    scroll.style.display = "block";
+    btn.textContent = "Collapse";
+}
+
+
+
   });
 }
 
@@ -3196,10 +3166,6 @@ if (captionsBox) {
 });
 
 
-  document.getElementById("step4CaptionScroll")
-    ?.classList.toggle("hidden", diffCollapsed);
-
-
     document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () => {
         const session = getActiveSession();
 
@@ -3363,16 +3329,33 @@ if (captionsBox) {
     document
         .getElementById("applyCinematicTimingBtn")
         ?.addEventListener("click", () => applyTiming(true));
-    
-document.getElementById("step3DiffToggle")?.addEventListener("click", () => {
-  step3DiffCollapsed = !step3DiffCollapsed;
-  toggleCaptionCompare(!step3DiffCollapsed);
-});
 
-document.getElementById("toggleDiffCollapse")?.addEventListener("click", () => {
-  toggleStep4Diff(diffCollapsed);
-});
 
+    // STEP 4 — Caption diff collapse
+    document.getElementById("toggleDiffCollapse")?.addEventListener("click", () => {
+    const scroll = document.getElementById("step4CaptionScroll");
+    const btn = document.getElementById("toggleDiffCollapse");
+
+    if (!scroll) return;
+
+    const isHidden = scroll.style.display === "none";
+
+    scroll.style.display = isHidden ? "block" : "none";
+    btn.textContent = isHidden ? "Collapse" : "Expand";
+    });
+
+    // STEP 3 — Caption diff collapse
+    document.getElementById("step3DiffToggle")?.addEventListener("click", () => {
+    const scroll = document.getElementById("step3CaptionScroll");
+    const btn = document.getElementById("step3DiffToggle");
+
+    if (!scroll) return;
+
+    const isHidden = scroll.style.display === "none";
+
+    scroll.style.display = isHidden ? "block" : "none";
+    btn.textContent = isHidden ? "Collapse" : "Expand";
+    });
 
 
     document.getElementById("saveOverlayStyle")?.addEventListener("click", async () => {
@@ -3450,7 +3433,6 @@ document.getElementById("showRewritten")?.addEventListener("click", () => {
 });
 
 document.getElementById("showDiff")?.addEventListener("click", () => {
-  captionViewMode = "diff";
   syncCaptionToggleUI();
 
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
