@@ -1635,6 +1635,7 @@ async function improveHook() {
 
   btn.disabled = true;
   if (statusEl) statusEl.textContent = "Improving hook…";
+  statusEl.className = "status-text status-working";
 
   try {
     const data = await jsonFetch("/api/hook_improve", {
@@ -1772,7 +1773,7 @@ async function applyCaptionVariant(text) {
   }
 
   try {
-    setStatus("captionsStatus", "Applying caption…", "info");
+    setStatus("captionsStatus", "Applying caption…", "working")
 
     await jsonFetch("/api/save_captions", {
       method: "POST",
@@ -2274,7 +2275,8 @@ async function applyOverlay() {
     rewriteMode === "rewrite"
       ? "Applying overlay + rewriting captions…"
       : "Applying visual overlay only…",
-    "info"
+    "working",
+    false
   );
 
   try {
