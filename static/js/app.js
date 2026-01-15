@@ -54,16 +54,11 @@ function lockRewriteDecision() {
   const bar = document.getElementById("rewriteDecisionBar");
   if (!bar) return;
 
-  // Disable buttons immediately to prevent double-clicks
   bar.querySelectorAll("button").forEach(btn => {
     btn.disabled = true;
   });
-
-  // Let the user visually register it, then hide
-  setTimeout(() => {
-    bar.classList.add("hidden");
-  }, 200);
 }
+
 
 function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
   const original = lastSavedCaptionsText || "";
@@ -2214,8 +2209,8 @@ async function applyOverlay() {
 // -------------------------------
 if (res.status === "proposed") {
 
-    rewritePending = true;
     proposeRewrite(res.proposed, "Overlay rewrite ready");
+
 
   return;
 }
@@ -3430,9 +3425,9 @@ document.getElementById("showDiff")?.addEventListener("click", () => {
 document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () => {
   if (!workingCaptionsText) return;
 
-  rewritePending = false;          // 🔥 kill review mode first
-  exitRewriteReviewMode();
+  rewritePending = false;
   lockRewriteDecision();
+  exitRewriteReviewMode();   // 🔥 this is the ONLY place we exit
 
   try {
     await jsonFetch("/api/save_captions", {
@@ -3454,15 +3449,15 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
     renderCaptionView();
     syncCaptionToggleUI();
 
-    setStatus("overlayStatus", "Rewrite accepted ✓", "success");
     clearPendingRewrite();
-    exitRewriteReviewMode();
+    setStatus("overlayStatus", "Rewrite accepted ✓", "success");
 
   } catch (err) {
     console.error(err);
     setStatus("overlayStatus", "Failed to save rewrite", "error");
   }
 });
+
 
 
 
