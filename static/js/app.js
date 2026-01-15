@@ -2267,12 +2267,13 @@ async function applyOverlay() {
     // 🧠 Rewrite proposal path
     // ======================================
     if (res.status === "proposed") {
-      if (!rewriteCommitted) {
-        rewriteCommitted = false;
-        proposeRewrite(res.proposed, "Overlay rewrite ready");
-      }
-      return;
+    // 🔥 Always unlock for a new proposal
+    rewriteCommitted = false;
+
+    proposeRewrite(res.proposed, "Overlay rewrite ready");
+    return;
     }
+
 
     // ======================================
     // 🎨 Visual-only overlay path
