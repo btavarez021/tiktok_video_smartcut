@@ -1,13 +1,15 @@
     <!DOCTYPE html>
     <html lang="en">
     <head>
-        <meta charset="UTF-8" />
-        <title>TikTok Smart Cut • Hotel Reels</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="stylesheet" href="/static/css/style.css" />
-        <script src="/static/js/app.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+    <meta charset="UTF-8" />
+    <title>TikTok Smart Cut • Hotel Reels</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/static/css/style.css" />
+
+    <script defer src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+    <script defer src="/static/js/app.js"></script>
     </head>
+
 
     <body>
     <div class="app-shell">
@@ -555,45 +557,7 @@
                             <div id="variantsOutput" class="variants-output"></div>
 
                         </div>
-                        </div>
-
-                        <!-- Story Flow Score -->
-                        <div id="storyFlowLockedHint" class="hint-text hidden">
-                        🔒 Improve the opening hook to unlock story flow scoring.<br>
-                        Only captions after the hook are evaluated.
-                        </div>
-
-                        <div class="story-flow-card hidden">
-                        <div class="story-flow-header">
-                            <strong>
-                            📖 Story Flow
-                            <span class="tooltip">ⓘ
-                                <span class="tooltiptext tooltip-wide">
-                                Scores how well your captions <b>flow together after the hook</b>.<br><br>
-                                Focuses on pacing, clarity, and keeping curiosity alive.<br><br>
-                                <b>Higher score = viewers are more likely to finish the video.</b>
-                                </span>
-                            </span>
-                            </strong>
-
-                            <span id="storyFlowScoreValue" class="story-flow-value">–/100</span>
-                        </div>
-
-                        <!-- 👇 THIS is the clarity line -->
-                        <p class="hint-text">
-                            Scoring captions after the hook (caption 2+)
-                        </p>
-
-                        <ul id="storyFlowReasons" class="story-flow-reasons"></ul>
-                        <div class="story-flow-actions">
-                            <button id="improveStoryFlowBtn" class="btn ghost small">
-                                ✨ Improve story flow
-                            </button>
-                            <span id="storyFlowStatus" class="hint-text"></span>
-                        </div>
-
-                        </div>
-                        
+                        </div>                        
 
                         <div class="row row-align-center">
                             <button id="saveCaptionsBtn" class="btn secondary">💾 Save captions</button>
@@ -752,7 +716,7 @@
                                 </div>
 
                                 <!-- Scrollable diff area -->
-                                <div id="step4CaptionScroll">
+                                <div id="step4CaptionScroll" class="hidden">
                                     <div id="step4DiffGrid" class="diff-grid"></div>
                                 </div>
 
