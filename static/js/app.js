@@ -86,17 +86,17 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
 
 
 function enterRewriteReviewMode() {
-  isInRewriteReview = true;
-  rewritePending = true;
+  console.log("🔥 ENTERED REWRITE REVIEW MODE");
+  if (!rewritePending) return;
 
   const bar = document.getElementById("rewriteDecisionBar");
   bar?.classList.remove("hidden");
-
   bar?.querySelectorAll("button").forEach(btn => btn.disabled = false);
 
   document.getElementById("captionDiffHeader")?.classList.remove("hidden");
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
 }
+
 
 
 function exitRewriteReviewMode() {
