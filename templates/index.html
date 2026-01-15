@@ -728,15 +728,30 @@
 
                                 <div id="step4CaptionPanel" class="step4-caption-panel">
 
+                                <!-- Header -->
                                 <div id="captionDiffHeader" class="caption-diff-header hidden">
                                     <span>Caption Changes</span>
                                     <button id="toggleDiffCollapse" class="btn ghost small">Collapse</button>
-
                                 </div>
 
+                                <!-- 🔥 Rewrite decision bar (always visible when active) -->
+                                <div id="rewriteDecisionBar" class="rewrite-decision hidden">
+                                    <div class="rewrite-message">
+                                    ✨ Rewrite ready — review the changes
+                                    </div>
+                                    <div class="rewrite-actions">
+                                    <button id="acceptRewriteBtn" class="btn primary">Accept</button>
+                                    <button id="rejectRewriteBtn" class="btn ghost">Reject</button>
+                                    </div>
+                                </div>
+
+                                <!-- Scrollable diff area -->
                                 <div id="step4CaptionScroll">
-                                <div id="step4DiffGrid" class="diff-grid"></div>
+                                    <div id="step4DiffGrid" class="diff-grid"></div>
                                 </div>
+
+                                </div>
+
 
                                 <hr class="soft-divider">
 

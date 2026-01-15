@@ -1532,25 +1532,32 @@ async function improveHook() {
 
     // 🔥 PROPOSAL MODE
     if (data.status === "proposed") {
-      const original = lastSavedCaptionsText || "";
+  const original = lastSavedCaptionsText || "";
 
-      // 🔵 Store rewrite ONLY in working copy
-      workingCaptionsText = data.proposed || "";
+  // 🔵 Store rewrite ONLY in working copy
+  workingCaptionsText = data.proposed || "";
 
-      // 🔥 Step-3 (live diff)
-      renderStep3Diff(original, workingCaptionsText);
-      focusCaptionChanges();
+  // 🔥 Step-3 (live diff)
+  renderStep3Diff(original, workingCaptionsText);
+  focusCaptionChanges();
 
-      // 🔥 Step-4 (review diff)
-      renderStep4Diff(original, workingCaptionsText);
+  // 🔥 Step-4 (review diff)
+  renderStep4Diff(original, workingCaptionsText);
 
-      // 🔥 Force UI into diff mode
-      syncCaptionToggleUI();
-      renderCaptionView();
+  // 🔥 Force UI into diff mode
+  captionViewMode = "diff";
+  syncCaptionToggleUI();
+  renderCaptionView();
 
-      if (statusEl) statusEl.textContent = "Hook rewrite ready — review changes";
-      return;
-    }
+  // 🔥 Show rewrite decision bar
+  document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
+  document.getElementById("captionDiffHeader")?.classList.remove("hidden");
+  document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
+
+  if (statusEl) statusEl.textContent = "Hook rewrite ready — review & accept or reject";
+
+  return;
+}
 
     throw new Error("Unexpected response");
 
@@ -1908,6 +1915,8 @@ async function loadCaptionsFromYaml() {
     await refreshHookScore();
     await refreshStoryFlowScore();
 
+    document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
+
     setCaptionSource("yaml", "🔵 SOURCE: YAML");
     setCaptionInlineStatus("Captions loaded from YAML", "success");
 
@@ -2172,30 +2181,33 @@ async function applyOverlay() {
 // 🧠 Rewrite path (proposal only)
 // -------------------------------
 if (res.status === "proposed") {
-  const el = document.getElementById("captionsText");
-
   const original = lastSavedCaptionsText || "";
   const rewritten = res.proposed || "";
 
-  // Save rewrite as working copy
-    workingCaptionsText = rewritten;
+  // Working copy only
+  workingCaptionsText = rewritten;
 
-
-  // 🔥 Step 3 (live editor diff)
+  // Step 3 diff
   renderStep3Diff(original, rewritten);
   focusCaptionChanges();
 
-  // 🔥 Step 4 (review panel diff)
+  // Step 4 diff
   renderStep4Diff(original, rewritten);
 
-  // Force Step-4 into diff view
+  // 🔥 Force Step-4 into DIFF mode
+  captionViewMode = "diff";
   syncCaptionToggleUI();
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
 
-  // 🔥 This ensures textarea is NOT overwriting the diff
+  // Prevent textarea from overwriting diff
   renderCaptionView();
 
+  // Show Accept / Reject
+  document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
+  document.getElementById("captionDiffHeader")?.classList.remove("hidden");
+
   setStatus("overlayStatus", "Rewrite ready — review changes", "info");
+
   return;
 }
 
@@ -3441,6 +3453,60 @@ document.getElementById("showDiff")?.addEventListener("click", () => {
   lastSavedCaptionsText,
   workingCaptionsText
 );
+});
+
+document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () => {
+  if (!workingCaptionsText) return;
+
+  try {
+    await jsonFetch("/api/save_captions", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        text: workingCaptionsText
+      })
+    });
+
+    lastSavedCaptionsText = workingCaptionsText;
+
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
+    await refreshOverlayPreview();
+    await refreshHookScore();
+    await refreshStoryFlowScore();
+
+    // Hide diff + buttons
+    document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
+    document.getElementById("step4CaptionScroll")?.classList.add("hidden");
+
+    captionViewMode = "rewritten";
+    renderCaptionView();
+    syncCaptionToggleUI();
+
+    setStatus("overlayStatus", "Rewrite accepted ✓", "success");
+
+  } catch (err) {
+    console.error(err);
+    setStatus("overlayStatus", "Failed to save rewrite", "error");
+  }
+});
+
+document.getElementById("rejectRewriteBtn")?.addEventListener("click", () => {
+  // Revert working copy
+  workingCaptionsText = lastSavedCaptionsText;
+
+  // Clear diffs
+  renderStep3Diff(lastSavedCaptionsText, lastSavedCaptionsText);
+  renderStep4Diff(lastSavedCaptionsText, lastSavedCaptionsText);
+
+  document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
+  document.getElementById("step4CaptionScroll")?.classList.add("hidden");
+
+  captionViewMode = "rewritten";
+  renderCaptionView();
+  syncCaptionToggleUI();
+
+  setStatus("overlayStatus", "Rewrite discarded", "info");
 });
 
 
