@@ -2399,3 +2399,7 @@ h3 {
   50% { opacity: 1 }
   100% { opacity: 0.6 }
 }
+
+.hidden {
+  display: none !important;
+}
