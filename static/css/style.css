@@ -2382,3 +2382,20 @@ h3 {
     width: 180px;
   }
 }
+
+.pending-rewrite {
+  background: rgba(255, 193, 7, 0.15);
+  color: #ffcc66;
+  border: 1px solid rgba(255, 193, 7, 0.4);
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  margin-left: 8px;
+  animation: pulsePending 1.8s infinite ease-in-out;
+}
+
+@keyframes pulsePending {
+  0% { opacity: 0.6 }
+  50% { opacity: 1 }
+  100% { opacity: 0.6 }
+}

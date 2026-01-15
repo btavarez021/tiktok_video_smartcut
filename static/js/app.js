@@ -38,18 +38,53 @@ function renderCaptionView() {
   }
 }
 
+function showPendingRewrite() {
+  document.getElementById("pendingRewriteBadge")?.classList.remove("hidden");
+}
+
+function clearPendingRewrite() {
+  document.getElementById("pendingRewriteBadge")?.classList.add("hidden");
+}
+
+
 function lockRewriteDecision() {
   const bar = document.getElementById("rewriteDecisionBar");
   if (!bar) return;
 
+  // Disable buttons immediately to prevent double-clicks
   bar.querySelectorAll("button").forEach(btn => {
     btn.disabled = true;
   });
 
-  // Small delay so user sees it fade
+  // Let the user visually register it, then hide
   setTimeout(() => {
     bar.classList.add("hidden");
   }, 200);
+}
+
+function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
+  const original = lastSavedCaptionsText || "";
+  const proposed = (newText || "").trim();
+  if (!proposed) return;
+
+  workingCaptionsText = proposed;
+
+  // Step 3 diff
+  renderStep3Diff(original, proposed);
+  focusCaptionChanges();
+
+  // Step 4 diff
+  renderStep4Diff(original, proposed);
+
+  // Switch UI into review mode
+  captionViewMode = "diff";
+  syncCaptionToggleUI();
+  renderCaptionView();
+
+  enterRewriteReviewMode();
+  showPendingRewrite();
+
+  setStatus("overlayStatus", `${sourceLabel} — review & accept or reject`, "info");
 }
 
 
@@ -1581,6 +1616,7 @@ async function improveHook() {
 
   // 🔥 Show rewrite decision bar
   document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
+  showPendingRewrite();
   document.getElementById("captionDiffHeader")?.classList.remove("hidden");
   document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
 
@@ -1687,20 +1723,11 @@ async function refreshOverlayPreview() {
 // Apply selected generated caption variant
 // =============================================
 async function applyCaptionVariant(text) {
-  const session = getActiveSession();
-  const el = document.getElementById("captionsText");
-  if (!el) return;
-
-    const originalText = lastSavedCaptionsText || "";
+  const originalText = lastSavedCaptionsText || "";
   const originalCount = countBlocks(originalText);
   const newCount = countBlocks(text);
 
-  workingCaptionsText = text;
-
-  // Populate comparison
-  renderStep3Diff(originalText, text);
-  focusCaptionChanges();
-
+  // Still keep the mismatch warning
   if (originalCount !== newCount) {
     setStatus(
       "captionsStatus",
@@ -1710,33 +1737,8 @@ async function applyCaptionVariant(text) {
     return;
   }
 
-  try {
-    const res = await fetch("/api/save_captions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session, text })
-    });
-
-    if (!res.ok) throw new Error("Failed to save captions");
-
-    lastSavedCaptionsText = text; // 🔑 CRITICAL FIX
-
-    await loadCaptionsFromYaml();
-    await loadConfigAndYaml();
-    await refreshOverlayPreview();
-
-    refreshHookScore();
-    refreshStoryFlowScore();
-
-    setStatus("captionsStatus", "Caption applied ✓", "success");
-
-    // 🔥 Auto-collapse variants after apply
-    toggleVariantsPanel(true);
-
-  } catch (err) {
-    console.error(err);
-    setStatus("captionsStatus", "Failed to apply caption", "error");
-  }
+  // ✅ Proposal mode (NO SAVE here)
+  proposeRewrite(text, "Variant selected");
 }
 
 
@@ -1800,15 +1802,19 @@ async function refreshStoryFlowScore() {
 
     if (!captionsEl || !card || !scoreEl || !reasonsEl) return;
 
-    if (!captionsEl.value.trim()) {
-        card.classList.add("hidden");
-        return;
+    const text = getCurrentCaptionsText();
+
+    if (!text) {
+    card.classList.add("hidden");
+    return;
     }
 
-    const blocks = captionsEl.value
-        .split(/\n\s*\n/)
-        .map(b => b.trim())
-        .filter(Boolean);
+    const blocks = text
+    .split(/\n\s*\n/)
+    .map(b => b.trim())
+    .filter(Boolean)
+    .map(b => b.trim())
+    .filter(Boolean);
 
     // Need at least: hook + 2 middle captions
     if (blocks.length < 3) {
@@ -1870,7 +1876,7 @@ function updateImproveButtons(hookScore, storyScore) {
     // Disable Rewrite Mode if no captions exist
     // ================================
     function updateRewriteModeAvailability() {
-    const text = document.getElementById("captionsText")?.value.trim();
+    const text = getCurrentCaptionsText();
     const rewriteRadio = document.querySelector('input[name="captionRewriteMode"][value="rewrite"]');
     const captionBox = document.querySelector(".caption-mode");
 
@@ -1949,6 +1955,7 @@ async function loadCaptionsFromYaml() {
 
     setCaptionSource("yaml", "🔵 SOURCE: YAML");
     setCaptionInlineStatus("Captions loaded from YAML", "success");
+    clearPendingRewrite();
 
   } catch (err) {
     console.error(err);
@@ -2236,6 +2243,7 @@ if (res.status === "proposed") {
 
   // Show Accept / Reject
   document.getElementById("rewriteDecisionBar")?.classList.remove("hidden");
+  showPendingRewrite();
   document.getElementById("captionDiffHeader")?.classList.remove("hidden");
 
   setStatus("overlayStatus", "Rewrite ready — review changes", "info");
@@ -2267,16 +2275,6 @@ diffDirty = false;
 }
 }
 
-// confirm
-document.getElementById("confirmRewriteBtn")?.addEventListener("click", async ()=>{
-    document.getElementById("rewritePreviewModal").classList.add("hidden");
-    applyOverlay(); // calls overlay rewrite for real
-});
-
-// cancel
-document.getElementById("cancelRewriteBtn")?.addEventListener("click", ()=>{
-    document.getElementById("rewritePreviewModal").classList.add("hidden");
-});
 
 document
   .querySelector('input[name="captionRewriteMode"][value="visual"]')
@@ -2286,38 +2284,6 @@ document
   .querySelector('input[name="captionRewriteMode"][value="rewrite"]')
   ?.addEventListener("change", refreshHookScore);
 
-
-
-async function previewRewrite() {
-    const session = getActiveSession();
-    const rewriteActive = document.querySelector('input[name="captionRewriteMode"][value="rewrite"]')?.checked;
-
-    if (!rewriteActive) {
-        alert("Enable Rewrite Mode first to preview changes.");
-        return;
-    }
-
-    const res = await jsonFetch("/api/variants", {
-        method: "POST",
-        body: JSON.stringify({
-            session,
-            modes: { rewrite: true }     // preview uses rewrite only
-        }),
-    });
-
-    const variants = res.variants || [];
-
-    // UI panel or modal popup preview
-    showRewritePreview(
-    variants[0]?.text || "",
-    variants[1]?.text || ""
-    );
-    }
-
-function showRewritePreview(original, rewritten) {
-    const msg = `Original:\n\n${original}\n\n---\n\nRewrite Preview:\n\n${rewritten}`;
-    alert(msg);     // basic now — later we replace with nice UI popup
-}
 
 // Timings
 async function applyTiming(smart) {
@@ -2355,6 +2321,11 @@ async function applyTiming(smart) {
 function getRewriteMode(){
   return document.querySelector('input[name="captionRewriteMode"]:checked')?.value || "visual";
 }
+
+function getCurrentCaptionsText() {
+  return (workingCaptionsText || lastSavedCaptionsText || "").trim();
+}
+
 
 
 function getCaptionMode(){
@@ -3514,6 +3485,7 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
     syncCaptionToggleUI();
 
     setStatus("overlayStatus", "Rewrite accepted ✓", "success");
+    clearPendingRewrite();
 
   } catch (err) {
     console.error(err);
@@ -3535,6 +3507,7 @@ document.getElementById("rejectRewriteBtn")?.addEventListener("click", () => {
   syncCaptionToggleUI();
 
   setStatus("overlayStatus", "Rewrite discarded", "info");
+  clearPendingRewrite();
 });
 
 
