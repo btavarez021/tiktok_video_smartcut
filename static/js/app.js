@@ -64,6 +64,8 @@ function lockRewriteDecision() {
 
 
 function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
+
+    rewriteCommitted = false;
   const original = lastSavedCaptionsText || "";
   const proposed = (newText || "").trim();
   if (!proposed) return;
@@ -2266,6 +2268,7 @@ async function applyOverlay() {
     // ======================================
     if (res.status === "proposed") {
       if (!rewriteCommitted) {
+        rewriteCommitted = false;
         proposeRewrite(res.proposed, "Overlay rewrite ready");
       }
       return;
