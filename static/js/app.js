@@ -63,7 +63,7 @@ function lockRewriteDecision() {
 }
 
 
-function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
+function proposeRewrite(newText, sourceLabel = "Rewrite ready", source = "step3") {
 
     rewriteCommitted = false;
   const original = lastSavedCaptionsText || "";
@@ -74,7 +74,12 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
 
   // Step 3 diff
   renderStep3Diff(original, proposed);
-  focusCaptionChanges();
+
+    // Only auto-scroll if coming from Step 3
+    if (source === "step3") {
+    focusCaptionChanges();
+    }
+
 
   // Step 4 diff
   renderStep4Diff(original, proposed);
@@ -2270,8 +2275,7 @@ async function applyOverlay() {
     // 🔥 Always unlock for a new proposal
     rewriteCommitted = false;
 
-    proposeRewrite(res.proposed, "Overlay rewrite ready");
-    return;
+    proposeRewrite(res.proposed, "Overlay rewrite ready", "step4");
     }
 
 
