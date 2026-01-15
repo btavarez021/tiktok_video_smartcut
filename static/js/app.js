@@ -15,6 +15,9 @@ let lastSavedCaptionsText = "";
 
 let workingCaptionsText = "";
 
+let rewritePending = false;
+
+
 // ================================
 // Step 4 Caption View (Original vs Rewritten)
 // ================================
@@ -81,6 +84,7 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
   syncCaptionToggleUI();
   renderCaptionView();
 
+  rewritePending = true;
   enterRewriteReviewMode();
   showPendingRewrite();
 
@@ -89,10 +93,11 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
 
 
 function enterRewriteReviewMode() {
+  if (!rewritePending) return;
+
   const bar = document.getElementById("rewriteDecisionBar");
   bar?.classList.remove("hidden");
 
-  // ✅ re-enable buttons for new rewrite proposals
   bar?.querySelectorAll("button").forEach(btn => {
     btn.disabled = false;
   });
@@ -103,7 +108,10 @@ function enterRewriteReviewMode() {
 
 
 
+
 function exitRewriteReviewMode() {
+  rewritePending = false;
+
   document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
   document.getElementById("captionDiffHeader")?.classList.add("hidden");
   document.getElementById("step4CaptionScroll")?.classList.add("hidden");
