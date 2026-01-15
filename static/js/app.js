@@ -21,12 +21,6 @@ let isInRewriteReview = false;
 
 function renderCaptionView() {
 
-  // 🔥 HARD GATE: never resurrect rewrite UI
-  if (!rewritePending) {
-    document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
-    document.getElementById("captionDiffHeader")?.classList.add("hidden");
-    document.getElementById("step4CaptionScroll")?.classList.add("hidden");
-  }
 
   const box = document.getElementById("captionsText");
   if (!box) return;
@@ -88,7 +82,6 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready") {
   // Switch UI into review mode
   captionViewMode = "diff";
   syncCaptionToggleUI();
-  renderCaptionView();
 
   rewritePending = true;
   enterRewriteReviewMode();
@@ -3438,6 +3431,7 @@ document.getElementById("acceptRewriteBtn")?.addEventListener("click", async () 
   if (!workingCaptionsText) return;
 
   rewritePending = false;          // 🔥 kill review mode first
+  exitRewriteReviewMode();
   lockRewriteDecision();
 
   try {
