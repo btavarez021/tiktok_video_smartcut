@@ -3645,6 +3645,21 @@ layoutModeEl?.addEventListener("change", async () => {
     }
 });
 
+// ================================
+// CAPTION MODE — Auto-save
+// ================================
+const captionModeEl = document.getElementById("captionModeSelect");
+
+captionModeEl?.addEventListener("change", async () => {
+    try {
+        setStatus("captionModeStatus", "Saving…", "working", false);
+        await saveCaptionMode();
+        setStatus("captionModeStatus", "Saved ✓", "success");
+    } catch {
+        setStatus("captionModeStatus", "Save failed", "error");
+    }
+});
+
 
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
