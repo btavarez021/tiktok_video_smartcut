@@ -65,6 +65,20 @@ function renderCaptionView() {
   }
 }
 
+function showAutoSaveStatus(id, message = "Saved ✓", timeout = 1500) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.textContent = message;
+    el.className = "status-text status-success subtle";
+
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => {
+        el.textContent = "";
+    }, timeout);
+}
+
+
 
 function showPendingRewrite() {
   document.getElementById("pendingRewriteBadge")?.classList.remove("hidden");
@@ -2629,9 +2643,7 @@ async function saveTtsSettings({ silent = false } = {}) {
         if (!silent) {
             setStatus("ttsStatus", "TTS saved ✓", "success");
         } else {
-            // subtle confirmation
-            statusEl.textContent = "Saved ✓";
-            statusEl.className = "status-text status-success subtle";
+            showAutoSaveStatus("ttsStatus");
         }
 
     } catch (err) {
