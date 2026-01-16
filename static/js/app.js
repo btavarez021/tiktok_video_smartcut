@@ -3437,10 +3437,6 @@ if (captionsBox) {
         loadSessionDropdown();
     });
 
-    // Attach button handler
-    document.getElementById("saveCaptionModeBtn")
-        .addEventListener("click", saveCaptionMode);
-
     document.getElementById("refreshSessionsBtn")?.addEventListener("click", loadSessions);
 
     // Stepper & logs
