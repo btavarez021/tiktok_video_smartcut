@@ -2617,40 +2617,42 @@ async function saveTtsSettings({ silent = false } = {}) {
     if (!enabledEl || !voiceEl || !statusEl) return;
 
     const enabled = enabledEl.checked;
-    const voice = voiceEl.value || "shimmer";
-
-    if (!silent) {
-        setStatus("ttsStatus", "Saving TTS…", "working", false);
-    }
+    const voice = voiceEl.value;
 
     try {
         const session = encodeURIComponent(getActiveSession());
         const data = await jsonFetch(`/api/config?session=${session}`);
         const cfg = data.config || {};
 
-        cfg.tts = { enabled, voice };
+        cfg.tts = {
+            enabled,
+            voice
+        };
 
-        const yamlText = jsyaml.dump(cfg);
-
-        await jsonFetch("/api/save_yaml", {
+        await jsonFetch("/api/save_config", {
             method: "POST",
             body: JSON.stringify({
-                yaml: yamlText,
                 session: getActiveSession(),
-            }),
+                config: cfg
+            })
         });
 
+        // ✅ feedback
         if (!silent) {
             setStatus("ttsStatus", "TTS saved ✓", "success");
         } else {
             showAutoSaveStatus("ttsStatus");
         }
 
+        // ✅ THIS IS THE KEY LINE
+        await loadConfigAndYaml();   // refresh preview + parsed YAML
+
     } catch (err) {
         console.error(err);
-        setStatus("ttsStatus", "Error saving TTS", "error");
+        setStatus("ttsStatus", "Failed to save TTS", "error");
     }
 }
+
 
 
 // CTA
