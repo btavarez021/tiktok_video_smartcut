@@ -2596,49 +2596,48 @@ async function saveLayoutMode() {
 
 // TTS
 async function saveTtsSettings({ silent = false } = {}) {
-  const enabledEl = document.getElementById("ttsEnabled");
-  const voiceEl = document.getElementById("ttsVoice");
-  const statusEl = document.getElementById("ttsStatus");
+    const enabledEl = document.getElementById("ttsEnabled");
+    const voiceEl = document.getElementById("ttsVoice");
+    const statusEl = document.getElementById("ttsStatus");
 
-  if (!enabledEl || !voiceEl || !statusEl) return;
+    if (!enabledEl || !voiceEl || !statusEl) return;
 
-  const enabled = enabledEl.checked;
-  const voice = voiceEl.value || "alloy";
-
-  if (!silent) {
-    setStatus("ttsStatus", "Saving voice settings…", "working", false);
-  }
-
-  try {
-    const session = encodeURIComponent(getActiveSession());
-    const data = await jsonFetch(`/api/config?session=${session}`);
-    const cfg = data.config || {};
-
-    cfg.tts = {
-      enabled,
-      voice
-    };
-
-    const yamlText = jsyaml.dump(cfg);
-
-    await jsonFetch("/api/save_yaml", {
-      method: "POST",
-      body: JSON.stringify({
-        yaml: yamlText,
-        session: getActiveSession(),
-      }),
-    });
+    const enabled = enabledEl.checked;
+    const voice = voiceEl.value || "shimmer";
 
     if (!silent) {
-      setStatus("ttsStatus", "Voice settings saved ✓", "success");
+        setStatus("ttsStatus", "Saving TTS…", "working", false);
     }
 
-    await loadConfigAndYaml();
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        const cfg = data.config || {};
 
-  } catch (err) {
-    console.error(err);
-    setStatus("ttsStatus", "Error saving voice settings", "error");
-  }
+        cfg.tts = { enabled, voice };
+
+        const yamlText = jsyaml.dump(cfg);
+
+        await jsonFetch("/api/save_yaml", {
+            method: "POST",
+            body: JSON.stringify({
+                yaml: yamlText,
+                session: getActiveSession(),
+            }),
+        });
+
+        if (!silent) {
+            setStatus("ttsStatus", "TTS saved ✓", "success");
+        } else {
+            // subtle confirmation
+            statusEl.textContent = "Saved ✓";
+            statusEl.className = "status-text status-success subtle";
+        }
+
+    } catch (err) {
+        console.error(err);
+        setStatus("ttsStatus", "Error saving TTS", "error");
+    }
 }
 
 
