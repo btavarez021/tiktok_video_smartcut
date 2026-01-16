@@ -2653,8 +2653,6 @@ async function saveTtsSettings({ silent = false } = {}) {
     }
 }
 
-
-
 // CTA
 async function saveCtaSettings({ silent = false } = {}) {
     const enabledEl = document.getElementById("ctaEnabled");
@@ -2702,6 +2700,7 @@ async function saveCtaSettings({ silent = false } = {}) {
         setStatus("ctaStatus", "Failed to save CTA", "error");
     }
 }
+
 
 // Music: load available tracks (global)
 async function loadMusicTracks() {
@@ -2849,6 +2848,7 @@ document.getElementById("ctaText")?.addEventListener("input", () => {
         saveCtaSettings({ silent: true });
     }, 400);
 });
+
 
 
 // Auto Caption Style Selector
@@ -3664,7 +3664,6 @@ if (captionsBox) {
     await previewOverlay("fast");
     });
 
-    document.getElementById("saveCtaBtn")?.addEventListener("click", saveCtaSettings);
     document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
     document.getElementById("saveLayoutBtn")?.addEventListener("click", saveLayoutMode);
 
