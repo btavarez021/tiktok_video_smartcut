@@ -2523,3 +2523,12 @@ h3 {
 }
 
 
+.flash {
+  animation: flashGreen 0.6s ease;
+}
+
+@keyframes flashGreen {
+  0% { box-shadow: 0 0 0 rgba(0,0,0,0); }
+  50% { box-shadow: 0 0 0 4px rgba(0, 200, 120, 0.6); }
+  100% { box-shadow: 0 0 0 rgba(0,0,0,0); }
+}

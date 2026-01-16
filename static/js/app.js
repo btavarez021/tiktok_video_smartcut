@@ -2844,6 +2844,23 @@ ctaVoiceoverEl?.addEventListener("change", async () => {
     showAutoSaveStatus("ctaStatus");
 });
 
+// ================================
+// CTA — Text auto-save (FIX)
+// ================================
+const ctaTextEl = document.getElementById("ctaText");
+let ctaSaveTimer = null;
+
+ctaTextEl?.addEventListener("input", () => {
+    const row = document.getElementById("ctaRow");
+    if (row) flashElement(row);   // ✅ flash container, not input
+
+    clearTimeout(ctaSaveTimer);
+    ctaSaveTimer = setTimeout(async () => {
+        await saveCtaSettings({ silent: true });
+        showAutoSaveStatus("ctaStatus");
+    }, 400);
+});
+
 
 
 // Auto Caption Style Selector
