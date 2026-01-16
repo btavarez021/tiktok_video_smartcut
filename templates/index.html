@@ -403,24 +403,26 @@
                             STORYBOARD TIMELINE (Clip Order)
                         ================================ -->
                         <div class="storyboard-panel">
-                        <h3>
-                            🎬 Storyboard Order
-                            <span class="tooltip">ⓘ
-                            <span class="tooltiptext">
-                                Drag clips to change the story flow.<br>
-                                This changes which caption goes first, middle, and last.
-                            </span>
-                            </span>
-                        </h3>
+  <h3 class="storyboard-title">
+    🎬 Storyboard Order
+    <span class="tooltip">ⓘ
+      <span class="tooltiptext">
+        Adjust clip order to control story flow.<br>
+        First clip = hook.
+      </span>
+    </span>
+  </h3>
 
-                        <div id="storyboardTimeline" class="storyboard-timeline"></div>
+  <div id="storyboardTimeline" class="storyboard-timeline"></div>
 
-                        <button id="applyOrderBtn" class="btn secondary small">
-                            Apply Clip Order
-                        </button>
+  <div class="storyboard-actions">
+    <button id="applyOrderBtn" class="btn secondary small">
+      Apply Clip Order
+    </button>
+    <span id="storyboardStatus" class="hint-text"></span>
+  </div>
+</div>
 
-                        <div id="storyboardStatus" class="hint-text"></div>
-                        </div>
 
 
                         <!-- ================================

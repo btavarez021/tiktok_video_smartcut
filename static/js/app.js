@@ -1495,36 +1495,33 @@ function renderStoryboardTimeline(cfg) {
   const container = document.getElementById("storyboardTimeline");
   if (!container) return;
 
-  // ✅ ensure visible when rendering
-  container.classList.remove("hidden");
-  container.style.display = "block";
-
   container.innerHTML = "";
 
   const clips = [];
-  if (cfg?.first_clip) clips.push({ ...cfg.first_clip, _role: "first_clip" });
-  (cfg?.middle_clips || []).forEach(c => clips.push({ ...c, _role: "middle" }));
-  if (cfg?.last_clip) clips.push({ ...cfg.last_clip, _role: "last_clip" });
+  if (cfg.first_clip) clips.push(cfg.first_clip);
+  (cfg.middle_clips || []).forEach(c => clips.push(c));
+  if (cfg.last_clip) clips.push(cfg.last_clip);
 
   clips.forEach((clip, idx) => {
     const el = document.createElement("div");
-    el.className = "story-clip";
-    el.dataset.index = idx;
-    el.dataset.file = clip.file;
+    el.className = "storyboard-clip";
 
     el.innerHTML = `
-      <div class="clip-name">${clip.file}</div>
-      <div class="clip-text">${clip.text || ""}</div>
+      <div class="clip-content">
+        <div class="clip-name">${clip.file || "Clip"}</div>
+        <div class="clip-caption">${clip.text?.slice(0, 60) || "—"}</div>
+      </div>
 
       <div class="clip-controls">
-        <button class="btn ghost small" onclick="moveClip(${idx}, -1)">▲</button>
-        <button class="btn ghost small" onclick="moveClip(${idx}, 1)">▼</button>
+        <button onclick="moveClip(${idx}, -1)" title="Move up">▲</button>
+        <button onclick="moveClip(${idx}, 1)" title="Move down">▼</button>
       </div>
     `;
 
     container.appendChild(el);
   });
 }
+
 
 
 async function moveClip(index, direction) {

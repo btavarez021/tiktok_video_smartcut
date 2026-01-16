@@ -2419,3 +2419,101 @@ h3 {
   gap: 6px;
 }
 
+/* Storyboard container */
+.storyboard-panel {
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #141416;
+  border: 1px solid #232326;
+}
+
+.storyboard-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  opacity: 0.9;
+}
+
+/* Timeline */
+.storyboard-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Clip card */
+.storyboard-clip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #1a1a1d;
+  border: 1px solid #2a2a2f;
+  transition: background 0.15s ease, border 0.15s ease;
+}
+
+.storyboard-clip:hover {
+  background: #1f1f24;
+  border-color: #3a3a40;
+}
+
+/* Clip text */
+.clip-content {
+  overflow: hidden;
+}
+
+.clip-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clip-caption {
+  font-size: 12px;
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Controls (hidden by default) */
+.clip-controls {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.storyboard-clip:hover .clip-controls {
+  opacity: 1;
+}
+
+/* Arrow buttons */
+.clip-controls button {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.clip-controls button:hover {
+  background: #2a2a30;
+  color: #fff;
+}
+
+/* Bottom actions */
+.storyboard-actions {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+
