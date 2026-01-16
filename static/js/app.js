@@ -2656,31 +2656,50 @@ async function saveTtsSettings({ silent = false } = {}) {
 
 
 // CTA
-async function saveCtaSettings() {
+async function saveCtaSettings({ silent = false } = {}) {
     const enabledEl = document.getElementById("ctaEnabled");
     const textEl = document.getElementById("ctaText");
-    const voiceoverEl = document.getElementById("ctaVoiceover");
+    const voiceEl = document.getElementById("ctaVoiceover");
     const statusEl = document.getElementById("ctaStatus");
-    if (!enabledEl || !textEl || !voiceoverEl || !statusEl) return;
 
-    setStatus("ctaStatus", "Saving CTA settings…", "working", false);
+    if (!enabledEl || !textEl || !voiceEl || !statusEl) return;
+
+    const enabled = enabledEl.checked;
+    const text = textEl.value.trim();
+    const voiceover = voiceEl.checked;
 
     try {
-        await jsonFetch("/api/cta", {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        const cfg = data.config || {};
+
+        cfg.cta = {
+            enabled,
+            text,
+            voiceover
+        };
+
+        await jsonFetch("/api/save_config", {
             method: "POST",
             body: JSON.stringify({
-                enabled: enabledEl.checked,
-                text: textEl.value || "",
-                voiceover: voiceoverEl.checked,
                 session: getActiveSession(),
-            }),
+                config: cfg
+            })
         });
 
-        setStatus("ctaStatus", "CTA settings saved.", "success");
+        // ✅ Status feedback
+        if (!silent) {
+            setStatus("ctaStatus", "CTA saved ✓", "success");
+        } else {
+            showAutoSaveStatus("ctaStatus");
+        }
+
+        // ✅ Keep UI + YAML preview in sync
         await loadConfigAndYaml();
+
     } catch (err) {
         console.error(err);
-        setStatus("ctaStatus", `Error saving CTA: ${err.message}`, "error");
+        setStatus("ctaStatus", "Failed to save CTA", "error");
     }
 }
 
@@ -2808,6 +2827,29 @@ function initMusicVolumeSlider() {
         lbl.textContent = Number(slider.value).toFixed(2);
     });
 }
+
+// ================================
+// CTA — Auto-save wiring
+// ================================
+document.getElementById("ctaEnabled")?.addEventListener("change", () => {
+    saveCtaSettings({ silent: true });
+});
+
+document.getElementById("ctaVoiceover")?.addEventListener("change", () => {
+    saveCtaSettings({ silent: true });
+});
+
+// CTA text → debounce (typing)
+let ctaSaveTimer = null;
+
+document.getElementById("ctaText")?.addEventListener("input", () => {
+    clearTimeout(ctaSaveTimer);
+
+    ctaSaveTimer = setTimeout(() => {
+        saveCtaSettings({ silent: true });
+    }, 400);
+});
+
 
 // Auto Caption Style Selector
 function autoSelectCaptionStyle(selectedMode) {
