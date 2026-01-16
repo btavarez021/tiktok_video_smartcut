@@ -2671,11 +2671,7 @@ async function saveCtaSettings({ silent = false } = {}) {
         const data = await jsonFetch(`/api/config?session=${session}`);
         const cfg = data.config || {};
 
-        cfg.cta = {
-            enabled,
-            text,
-            voiceover
-        };
+        cfg.cta = { enabled, text, voiceover };
 
         await jsonFetch("/api/save_config", {
             method: "POST",
@@ -2685,17 +2681,15 @@ async function saveCtaSettings({ silent = false } = {}) {
             })
         });
 
-        // ✅ VISUAL CONFIRMATION (THIS IS THE RIGHT PLACE)
+        // ✅ FLASH AFTER SAVE (THIS IS THE RIGHT PLACE)
         flashElement(textEl);
 
-        // ✅ Status feedback
         if (!silent) {
             setStatus("ctaStatus", "CTA saved ✓", "success");
         } else {
             showAutoSaveStatus("ctaStatus");
         }
 
-        // ✅ Keep UI + YAML preview in sync
         await loadConfigAndYaml();
 
     } catch (err) {
@@ -2703,6 +2697,7 @@ async function saveCtaSettings({ silent = false } = {}) {
         setStatus("ctaStatus", "Failed to save CTA", "error");
     }
 }
+
 
 
 // Music: load available tracks (global)
@@ -2831,23 +2826,19 @@ function initMusicVolumeSlider() {
 }
 
 // ================================
-// CTA — Auto-save + flash (FIXED)
+// CTA — Auto-save (FINAL)
 // ================================
 const ctaTextEl = document.getElementById("ctaText");
 
 let ctaSaveTimer = null;
 
 ctaTextEl?.addEventListener("input", () => {
-    // 🔥 Immediate visual feedback
-    flashElement(ctaTextEl);
-
     clearTimeout(ctaSaveTimer);
-    ctaSaveTimer = setTimeout(async () => {
-        await saveCtaSettings({ silent: true });
-        showAutoSaveStatus("ctaStatus");
+
+    ctaSaveTimer = setTimeout(() => {
+        saveCtaSettings({ silent: true });
     }, 400);
 });
-
 
 
 // Auto Caption Style Selector
