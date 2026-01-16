@@ -2516,4 +2516,7 @@ h3 {
   gap: 12px;
 }
 
+#saveLayoutBtn {
+  display: none;
+}
 

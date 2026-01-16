@@ -3630,6 +3630,21 @@ musicVolumeEl?.addEventListener("input", () => {
   }, 300);
 });
 
+// ================================
+// LAYOUT MODE — Auto-save
+// ================================
+const layoutModeEl = document.getElementById("layoutMode");
+
+layoutModeEl?.addEventListener("change", async () => {
+    try {
+        setStatus("layoutStatus", "Saving…", "working", false);
+        await saveLayoutMode();
+        setStatus("layoutStatus", "Saved ✓", "success");
+    } catch {
+        setStatus("layoutStatus", "Save failed", "error");
+    }
+});
+
 
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
