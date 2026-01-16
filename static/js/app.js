@@ -34,6 +34,16 @@ function debounce(fn, wait = 350) {
   };
 }
 
+function syncTtsUIState() {
+  const enabled = document.getElementById("ttsEnabled")?.checked;
+  const voiceSelect = document.getElementById("ttsVoice");
+
+  if (!voiceSelect) return;
+
+  voiceSelect.disabled = !enabled;
+  voiceSelect.style.opacity = enabled ? "1" : "0.5";
+}
+
 
 function renderCaptionView() {
 
@@ -3611,8 +3621,10 @@ const ttsVoiceEl = document.getElementById("ttsVoice");
 
 // Toggle → instant auto-save
 ttsEnabledEl?.addEventListener("change", () => {
+  syncTtsUIState();
   saveTtsSettings({ silent: true });
 });
+
 
 // Voice change → instant auto-save
 ttsVoiceEl?.addEventListener("change", () => {
