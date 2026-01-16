@@ -1503,19 +1503,18 @@ async function loadConfigAndYaml() {
         const session = encodeURIComponent(getActiveSession());
         const data = await jsonFetch(`/api/config?session=${session}`);
 
-        const cfg = data.config || {};
-
         yamlTextEl.value = data.yaml || "# No config.yml yet.";
-        yamlPreviewEl.textContent = JSON.stringify(cfg, null, 2);
+        yamlPreviewEl.textContent = JSON.stringify(data.config || {}, null, 2);
 
-        // 🔥 Render storyboard timeline from real config.yml
-        renderStoryboardTimeline(cfg);
+        // 🔥 THIS is what was missing
+        renderStoryboardTimeline(data.config);
 
     } catch (err) {
         yamlTextEl.value = "";
         yamlPreviewEl.textContent = `Error loading config: ${err.message}`;
     }
 }
+
 
 function renderStoryboardTimeline(cfg) {
     const container = document.getElementById("storyboardTimeline");
