@@ -2413,3 +2413,9 @@ h3 {
   color: #fbbf24 !important;   /* brighter gold */
   font-weight: 600;
 }
+
+.story-clip .clip-controls {
+  display: flex;
+  gap: 6px;
+}
+

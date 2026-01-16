@@ -951,38 +951,6 @@ async function uploadFiles() {
     }
 }
 
-function renderStoryboardTimeline(cfg) {
-    const container = document.getElementById("storyboardTimeline");
-    if (!container) return;
-
-    container.innerHTML = "";
-
-    const clips = [];
-
-    if (cfg.first_clip) clips.push({ ...cfg.first_clip, _role: "first_clip" });
-    (cfg.middle_clips || []).forEach(c => clips.push({ ...c, _role: "middle" }));
-    if (cfg.last_clip) clips.push({ ...cfg.last_clip, _role: "last_clip" });
-
-    clips.forEach((clip, idx) => {
-        const el = document.createElement("div");
-        el.className = "story-clip";
-        el.dataset.index = idx;
-        el.dataset.file = clip.file;
-
-        el.innerHTML = `
-            <div class="clip-name">${clip.file}</div>
-            <div class="clip-text">${clip.text || ""}</div>
-
-            <div class="clip-controls">
-                <button class="btn ghost small" onclick="moveClip(${idx}, -1)">▲</button>
-                <button class="btn ghost small" onclick="moveClip(${idx}, 1)">▼</button>
-            </div>
-        `;
-
-        container.appendChild(el);
-    });
-}
-
 
 function initUploadUI() {
     const dropZone = document.getElementById("dropZone");
@@ -1524,36 +1492,40 @@ async function loadConfigAndYaml() {
 
 
 function renderStoryboardTimeline(cfg) {
-    const container = document.getElementById("storyboardTimeline");
-    if (!container) return;
+  const container = document.getElementById("storyboardTimeline");
+  if (!container) return;
 
-    container.innerHTML = "";
+  // ✅ ensure visible when rendering
+  container.classList.remove("hidden");
+  container.style.display = "block";
 
-    const clips = [];
+  container.innerHTML = "";
 
-    if (cfg.first_clip) clips.push({ ...cfg.first_clip, _role: "first_clip" });
-    (cfg.middle_clips || []).forEach(c => clips.push({ ...c, _role: "middle" }));
-    if (cfg.last_clip) clips.push({ ...cfg.last_clip, _role: "last_clip" });
+  const clips = [];
+  if (cfg?.first_clip) clips.push({ ...cfg.first_clip, _role: "first_clip" });
+  (cfg?.middle_clips || []).forEach(c => clips.push({ ...c, _role: "middle" }));
+  if (cfg?.last_clip) clips.push({ ...cfg.last_clip, _role: "last_clip" });
 
-    clips.forEach((clip, idx) => {
-        const el = document.createElement("div");
-        el.className = "story-clip";
-        el.dataset.index = idx;
-        el.dataset.file = clip.file;
+  clips.forEach((clip, idx) => {
+    const el = document.createElement("div");
+    el.className = "story-clip";
+    el.dataset.index = idx;
+    el.dataset.file = clip.file;
 
-        el.innerHTML = `
-            <div class="clip-name">${clip.file}</div>
-            <div class="clip-text">${clip.text || ""}</div>
+    el.innerHTML = `
+      <div class="clip-name">${clip.file}</div>
+      <div class="clip-text">${clip.text || ""}</div>
 
-            <div class="clip-controls">
-                <button class="btn ghost small" onclick="moveClip(${idx}, -1)">▲</button>
-                <button class="btn ghost small" onclick="moveClip(${idx}, 1)">▼</button>
-            </div>
-        `;
+      <div class="clip-controls">
+        <button class="btn ghost small" onclick="moveClip(${idx}, -1)">▲</button>
+        <button class="btn ghost small" onclick="moveClip(${idx}, 1)">▼</button>
+      </div>
+    `;
 
-        container.appendChild(el);
-    });
+    container.appendChild(el);
+  });
 }
+
 
 async function moveClip(index, direction) {
     const session = getActiveSession();
@@ -2143,6 +2115,8 @@ async function loadCaptionsFromYaml() {
     // Do NOT let Step-4 lock the editor here
     captionViewMode = "rewritten";
 
+    
+    renderStoryboardTimeline(data.config);
     renderCaptionView();
 
 
