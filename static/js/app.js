@@ -2660,7 +2660,6 @@ async function saveCtaSettings({ silent = false } = {}) {
     const textEl = document.getElementById("ctaText");
     const voiceEl = document.getElementById("ctaVoiceover");
     const statusEl = document.getElementById("ctaStatus");
-    const rowEl = document.getElementById("ctaRow");
 
     if (!enabledEl || !textEl || !voiceEl || !statusEl) return;
 
@@ -2683,17 +2682,12 @@ async function saveCtaSettings({ silent = false } = {}) {
             })
         });
 
-        // ✅ Visual feedback
-        if (rowEl) flashElement(rowEl);
-
-        // ✅ Status (single source of truth)
         if (!silent) {
             setStatus("ctaStatus", "CTA saved ✓", "success");
         } else {
             showAutoSaveStatus("ctaStatus");
         }
 
-        // ✅ Keep UI in sync
         await loadConfigAndYaml();
 
     } catch (err) {
@@ -2831,20 +2825,23 @@ function initMusicVolumeSlider() {
 }
 
 // ================================
-// CTA — Auto-save (FINAL)
+// CTA — Checkbox auto-save
 // ================================
-const ctaTextEl = document.getElementById("ctaText");
+const ctaEnabledEl = document.getElementById("ctaEnabled");
+const ctaVoiceoverEl = document.getElementById("ctaVoiceover");
 
-let ctaSaveTimer = null;
+// Enable CTA overlay → instant auto-save
+ctaEnabledEl?.addEventListener("change", async () => {
+    flashElement(document.getElementById("ctaRow"));
+    await saveCtaSettings({ silent: true });
+    showAutoSaveStatus("ctaStatus");
+});
 
-ctaTextEl?.addEventListener("input", () => {
-    flashElement(ctaTextEl); // optional, harmless
-
-    clearTimeout(ctaSaveTimer);
-    ctaSaveTimer = setTimeout(async () => {
-        await saveCtaSettings({ silent: true });
-        showAutoSaveStatus("ctaStatus");
-    }, 400);
+// Include in voiceover → instant auto-save
+ctaVoiceoverEl?.addEventListener("change", async () => {
+    flashElement(document.getElementById("ctaRow"));
+    await saveCtaSettings({ silent: true });
+    showAutoSaveStatus("ctaStatus");
 });
 
 
