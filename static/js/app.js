@@ -2585,46 +2585,52 @@ async function saveLayoutMode() {
 
 
 // TTS
-async function saveTtsSettings() {
-    const enabledEl = document.getElementById("ttsEnabled");
-    const voiceEl = document.getElementById("ttsVoice");
-    const statusEl = document.getElementById("ttsStatus");
-    if (!enabledEl || !voiceEl || !statusEl) return;
+async function saveTtsSettings({ silent = false } = {}) {
+  const enabledEl = document.getElementById("ttsEnabled");
+  const voiceEl = document.getElementById("ttsVoice");
+  const statusEl = document.getElementById("ttsStatus");
 
-    setStatus("ttsStatus", "Saving TTS settings…", "working", false);
+  if (!enabledEl || !voiceEl || !statusEl) return;
 
-    try {
-        const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
-        const cfg = data.config || {};
+  const enabled = enabledEl.checked;
+  const voice = voiceEl.value || "alloy";
 
-        cfg.tts = {
-            enabled: enabledEl.checked,
-            voice: voiceEl.value || "alloy",
-        };
+  if (!silent) {
+    setStatus("ttsStatus", "Saving voice settings…", "working", false);
+  }
 
-        if (cfg.render) {
-            delete cfg.render.tts_enabled;
-            delete cfg.render.tts_voice;
-        }
+  try {
+    const session = encodeURIComponent(getActiveSession());
+    const data = await jsonFetch(`/api/config?session=${session}`);
+    const cfg = data.config || {};
 
-        const yamlText = jsyaml.dump(cfg);
+    cfg.tts = {
+      enabled,
+      voice
+    };
 
-        await jsonFetch("/api/save_yaml", {
-            method: "POST",
-            body: JSON.stringify({
-                yaml: yamlText,
-                session: getActiveSession(),
-            }),
-        });
+    const yamlText = jsyaml.dump(cfg);
 
-        setStatus("ttsStatus", "TTS settings saved.", "success");
-        await loadConfigAndYaml();
-    } catch (err) {
-        console.error(err);
-        setStatus("ttsStatus", `Error saving TTS: ${err.message}`, "error");
+    await jsonFetch("/api/save_yaml", {
+      method: "POST",
+      body: JSON.stringify({
+        yaml: yamlText,
+        session: getActiveSession(),
+      }),
+    });
+
+    if (!silent) {
+      setStatus("ttsStatus", "Voice settings saved ✓", "success");
     }
+
+    await loadConfigAndYaml();
+
+  } catch (err) {
+    console.error(err);
+    setStatus("ttsStatus", "Error saving voice settings", "error");
+  }
 }
+
 
 // CTA
 async function saveCtaSettings() {
@@ -3593,10 +3599,26 @@ if (captionsBox) {
     await previewOverlay("fast");
     });
 
-    document.getElementById("saveTtsBtn")?.addEventListener("click", saveTtsSettings);
     document.getElementById("saveCtaBtn")?.addEventListener("click", saveCtaSettings);
     document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
     document.getElementById("saveLayoutBtn")?.addEventListener("click", saveLayoutMode);
+
+// ================================
+// TTS — Auto-save wiring
+// ================================
+const ttsEnabledEl = document.getElementById("ttsEnabled");
+const ttsVoiceEl = document.getElementById("ttsVoice");
+
+// Toggle → instant auto-save
+ttsEnabledEl?.addEventListener("change", () => {
+  saveTtsSettings({ silent: true });
+});
+
+// Voice change → instant auto-save
+ttsVoiceEl?.addEventListener("change", () => {
+  saveTtsSettings({ silent: true });
+});
+  
 
 // ================================
 // MUSIC — Auto-save wiring (CLEAN)
