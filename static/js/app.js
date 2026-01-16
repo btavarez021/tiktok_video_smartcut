@@ -2685,6 +2685,9 @@ async function saveCtaSettings({ silent = false } = {}) {
             })
         });
 
+        // ✅ VISUAL CONFIRMATION (THIS IS THE RIGHT PLACE)
+        flashElement(textEl);
+
         // ✅ Status feedback
         if (!silent) {
             setStatus("ctaStatus", "CTA saved ✓", "success");
@@ -2828,24 +2831,20 @@ function initMusicVolumeSlider() {
 }
 
 // ================================
-// CTA — Auto-save wiring
+// CTA — Auto-save + flash (FIXED)
 // ================================
-document.getElementById("ctaEnabled")?.addEventListener("change", () => {
-    saveCtaSettings({ silent: true });
-});
+const ctaTextEl = document.getElementById("ctaText");
 
-document.getElementById("ctaVoiceover")?.addEventListener("change", () => {
-    saveCtaSettings({ silent: true });
-});
-
-// CTA text → debounce (typing)
 let ctaSaveTimer = null;
 
-document.getElementById("ctaText")?.addEventListener("input", () => {
-    clearTimeout(ctaSaveTimer);
+ctaTextEl?.addEventListener("input", () => {
+    // 🔥 Immediate visual feedback
+    flashElement(ctaTextEl);
 
-    ctaSaveTimer = setTimeout(() => {
-        saveCtaSettings({ silent: true });
+    clearTimeout(ctaSaveTimer);
+    ctaSaveTimer = setTimeout(async () => {
+        await saveCtaSettings({ silent: true });
+        showAutoSaveStatus("ctaStatus");
     }, 400);
 });
 
