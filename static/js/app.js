@@ -1512,6 +1512,80 @@ async function loadConfigAndYaml() {
     }
 }
 
+function renderStoryboardTimeline(cfg) {
+    const container = document.getElementById("storyboardTimeline");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    const clips = [];
+
+    if (cfg.first_clip) clips.push({ ...cfg.first_clip, _role: "first_clip" });
+    (cfg.middle_clips || []).forEach(c => clips.push({ ...c, _role: "middle" }));
+    if (cfg.last_clip) clips.push({ ...cfg.last_clip, _role: "last_clip" });
+
+    clips.forEach((clip, idx) => {
+        const el = document.createElement("div");
+        el.className = "story-clip";
+        el.dataset.index = idx;
+        el.dataset.file = clip.file;
+
+        el.innerHTML = `
+            <div class="clip-name">${clip.file}</div>
+            <div class="clip-text">${clip.text || ""}</div>
+
+            <div class="clip-controls">
+                <button class="btn ghost small" onclick="moveClip(${idx}, -1)">▲</button>
+                <button class="btn ghost small" onclick="moveClip(${idx}, 1)">▼</button>
+            </div>
+        `;
+
+        container.appendChild(el);
+    });
+}
+
+async function moveClip(index, direction) {
+    const session = getActiveSession();
+
+    const data = await jsonFetch(`/api/config?session=${encodeURIComponent(session)}`);
+    const cfg = data.config;
+
+    if (!cfg) return;
+
+    const clips = [];
+
+    if (cfg.first_clip) clips.push(cfg.first_clip);
+    (cfg.middle_clips || []).forEach(c => clips.push(c));
+    if (cfg.last_clip) clips.push(cfg.last_clip);
+
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= clips.length) return;
+
+    // swap
+    [clips[index], clips[newIndex]] = [clips[newIndex], clips[index]];
+
+    // rebuild YAML shape
+    const newCfg = {
+        ...cfg,
+        first_clip: clips[0],
+        middle_clips: clips.slice(1, -1),
+        last_clip: clips.length > 1 ? clips[clips.length - 1] : null
+    };
+
+    await jsonFetch("/api/save_config", {
+        method: "POST",
+        body: JSON.stringify({
+            session,
+            config: newCfg
+        })
+    });
+
+    // Reload everything
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
+}
+
+
 
 async function saveYaml() {
     const yamlTextEl = document.getElementById("yamlText");

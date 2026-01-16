@@ -243,6 +243,20 @@ def route_story_flow_improve():
     session = sanitize_session(data.get("session", "default"))
     return jsonify(api_story_flow_improve(session))
 
+@app.route("/api/save_config", methods=["POST"])
+def save_config_api():
+    data = request.json
+    session = sanitize_session(data["session"])
+    cfg = data["config"]
+
+    path = get_config_path(session)
+
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
+
+    return {"status": "ok"}
+
+
 @app.route("/api/reorder_clips", methods=["POST"])
 def api_reorder_clips():
     data = request.json
