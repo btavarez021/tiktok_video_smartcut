@@ -845,21 +845,28 @@ function initStepper() {
     if (!steps.length) return;
 
     const observer = new IntersectionObserver(
-        (entries) => {
-            entries.forEach((entry) => {
-                if (entry.isIntersecting) {
-                    const id = "#" + entry.target.id;
-                    stepButtons.forEach((btn) => {
-                        if (btn.dataset.target === id) {
-                            stepButtons.forEach((b) => b.classList.remove("active"));
-                            btn.classList.add("active");
-                        }
-                    });
+    (entries) => {
+        entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+
+            const id = "#" + entry.target.id;
+
+            stepButtons.forEach((btn) => {
+                if (btn.dataset.target === id) {
+                    stepButtons.forEach((b) => b.classList.remove("active"));
+                    btn.classList.add("active");
                 }
             });
-        },
-        { threshold: 0.4 }
-    );
+
+            // 🔥 When Step 3 becomes visible, build the timeline
+            if (id === "#step-3") {
+                loadConfigAndYaml();
+            }
+        });
+    },
+    { threshold: 0.4 }
+);
+
 
     steps.forEach((s) => observer.observe(s));
 }
