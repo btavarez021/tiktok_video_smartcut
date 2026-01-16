@@ -4,6 +4,10 @@
 let previewAudio = null;
 let previewPlaying = false;
 
+let workingClipOrder = [];
+let clipOrderDirty = false;
+
+
 // 🔵 Active session (hotel / batch)
 let ACTIVE_SESSION = "default";
 
@@ -1497,24 +1501,27 @@ function renderStoryboardTimeline(cfg) {
 
   container.innerHTML = "";
 
-  const clips = [];
-  if (cfg.first_clip) clips.push(cfg.first_clip);
-  (cfg.middle_clips || []).forEach(c => clips.push(c));
-  if (cfg.last_clip) clips.push(cfg.last_clip);
+  // Initialize working order once
+  if (!workingClipOrder.length) {
+    workingClipOrder = [];
+    if (cfg.first_clip) workingClipOrder.push(cfg.first_clip);
+    (cfg.middle_clips || []).forEach(c => workingClipOrder.push(c));
+    if (cfg.last_clip) workingClipOrder.push(cfg.last_clip);
+  }
 
-  clips.forEach((clip, idx) => {
+  workingClipOrder.forEach((clip, idx) => {
     const el = document.createElement("div");
     el.className = "storyboard-clip";
 
     el.innerHTML = `
       <div class="clip-content">
-        <div class="clip-name">${clip.file || "Clip"}</div>
+        <div class="clip-name">${clip.file}</div>
         <div class="clip-caption">${clip.text?.slice(0, 60) || "—"}</div>
       </div>
 
       <div class="clip-controls">
-        <button onclick="moveClip(${idx}, -1)" title="Move up">▲</button>
-        <button onclick="moveClip(${idx}, 1)" title="Move down">▼</button>
+        <button onclick="moveClip(${idx}, -1)">▲</button>
+        <button onclick="moveClip(${idx}, 1)">▼</button>
       </div>
     `;
 
@@ -1524,46 +1531,32 @@ function renderStoryboardTimeline(cfg) {
 
 
 
-async function moveClip(index, direction) {
-    const session = getActiveSession();
 
-    const data = await jsonFetch(`/api/config?session=${encodeURIComponent(session)}`);
-    const cfg = data.config;
+function moveClip(index, direction) {
+  const newIndex = index + direction;
+  if (
+    newIndex < 0 ||
+    newIndex >= workingClipOrder.length
+  ) return;
 
-    if (!cfg) return;
+  [workingClipOrder[index], workingClipOrder[newIndex]] =
+    [workingClipOrder[newIndex], workingClipOrder[index]];
 
-    const clips = [];
+  clipOrderDirty = true;
 
-    if (cfg.first_clip) clips.push(cfg.first_clip);
-    (cfg.middle_clips || []).forEach(c => clips.push(c));
-    if (cfg.last_clip) clips.push(cfg.last_clip);
+  renderStoryboardTimeline({
+    first_clip: workingClipOrder[0],
+    middle_clips: workingClipOrder.slice(1, -1),
+    last_clip: workingClipOrder[workingClipOrder.length - 1]
+  });
 
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= clips.length) return;
-
-    // swap
-    [clips[index], clips[newIndex]] = [clips[newIndex], clips[index]];
-
-    // rebuild YAML shape
-    const newCfg = {
-        ...cfg,
-        first_clip: clips[0],
-        middle_clips: clips.slice(1, -1),
-        last_clip: clips.length > 1 ? clips[clips.length - 1] : null
-    };
-
-    await jsonFetch("/api/save_config", {
-        method: "POST",
-        body: JSON.stringify({
-            session,
-            config: newCfg
-        })
-    });
-
-    // Reload everything
-    await loadConfigAndYaml();
-    await loadCaptionsFromYaml();
+  setStatus(
+    "storyboardStatus",
+    "Clip order updated — apply to save",
+    "working"
+  );
 }
+
 
 
 
@@ -3154,6 +3147,45 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("captionsText")?.addEventListener("input", () => {
   diffDirty = true;
 });
+
+document.getElementById("applyOrderBtn")?.addEventListener("click", async () => {
+  if (!clipOrderDirty) {
+    setStatus("storyboardStatus", "No changes to apply", "info");
+    return;
+  }
+
+  const session = getActiveSession();
+
+  const newCfg = {
+    first_clip: workingClipOrder[0],
+    middle_clips: workingClipOrder.slice(1, -1),
+    last_clip: workingClipOrder.length > 1
+      ? workingClipOrder[workingClipOrder.length - 1]
+      : null
+  };
+
+  try {
+    await jsonFetch("/api/save_config", {
+      method: "POST",
+      body: JSON.stringify({
+        session,
+        config: newCfg
+      })
+    });
+
+    clipOrderDirty = false;
+    workingClipOrder = [];
+
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
+
+    setStatus("storyboardStatus", "Clip order applied ✓", "success");
+  } catch (err) {
+    console.error(err);
+    setStatus("storyboardStatus", "Failed to save clip order", "error");
+  }
+});
+
 
 const captionsBox = document.getElementById("captionsText");
 
