@@ -944,6 +944,34 @@ async function uploadFiles() {
     }
 }
 
+function renderStoryboardTimeline(cfg) {
+  const container = document.getElementById("storyboardTimeline");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const clips = [];
+
+  if (cfg.first_clip) clips.push(cfg.first_clip);
+  (cfg.middle_clips || []).forEach(c => clips.push(c));
+  if (cfg.last_clip) clips.push(cfg.last_clip);
+
+  clips.forEach((clip, idx) => {
+    const el = document.createElement("div");
+    el.className = "story-clip";
+    el.dataset.file = clip.file;
+    el.dataset.index = idx;
+
+    el.innerHTML = `
+      <span class="clip-index">${idx + 1}</span>
+      <span class="clip-label">${clip.text || clip.file}</span>
+    `;
+
+    container.appendChild(el);
+  });
+}
+
+
 function initUploadUI() {
     const dropZone = document.getElementById("dropZone");
     const fileInput = document.getElementById("uploadFiles");
@@ -1469,13 +1497,21 @@ async function loadConfigAndYaml() {
     try {
         const session = encodeURIComponent(getActiveSession());
         const data = await jsonFetch(`/api/config?session=${session}`);
+
+        const cfg = data.config || {};
+
         yamlTextEl.value = data.yaml || "# No config.yml yet.";
-        yamlPreviewEl.textContent = JSON.stringify(data.config || {}, null, 2);
+        yamlPreviewEl.textContent = JSON.stringify(cfg, null, 2);
+
+        // 🔥 Render storyboard timeline from real config.yml
+        renderStoryboardTimeline(cfg);
+
     } catch (err) {
         yamlTextEl.value = "";
         yamlPreviewEl.textContent = `Error loading config: ${err.message}`;
     }
 }
+
 
 async function saveYaml() {
     const yamlTextEl = document.getElementById("yamlText");

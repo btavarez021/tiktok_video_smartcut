@@ -400,6 +400,30 @@
                         </div>
 
                         <!-- ================================
+                            STORYBOARD TIMELINE (Clip Order)
+                        ================================ -->
+                        <div class="storyboard-panel">
+                        <h3>
+                            🎬 Storyboard Order
+                            <span class="tooltip">ⓘ
+                            <span class="tooltiptext">
+                                Drag clips to change the story flow.<br>
+                                This changes which caption goes first, middle, and last.
+                            </span>
+                            </span>
+                        </h3>
+
+                        <div id="storyboardTimeline" class="storyboard-timeline"></div>
+
+                        <button id="applyOrderBtn" class="btn secondary small">
+                            Apply Clip Order
+                        </button>
+
+                        <div id="storyboardStatus" class="hint-text"></div>
+                        </div>
+
+
+                        <!-- ================================
                             HOOK SCORE (Primary Entry Point)
                         ================================ -->
                         <div class="hook-score-card">
@@ -469,15 +493,6 @@
 
                         <ul id="storyFlowReasons" class="story-flow-reasons"></ul>
                         </div>
-
-                        <div id="storyboardTimeline">
-                        <div class="story-clip" data-file="rooftop.mov">Rooftop</div>
-                        <div class="story-clip" data-file="lobby.mov">Lobby</div>
-                        <div class="story-clip" data-file="cocktail.mov">Cocktail</div>
-                        </div>
-
-                        <button id="applyOrderBtn">Apply Order</button>
-
 
                         <!-- ================================
                             CAPTION VARIANTS + HOOK LAB
