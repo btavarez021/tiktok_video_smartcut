@@ -26,8 +26,16 @@ let rewritePending = false;
 
 let isInRewriteReview = false;
 
-function renderCaptionView() {
+function debounce(fn, wait = 350) {
+  let t = null;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait);
+  };
+}
 
+
+function renderCaptionView() {
 
   const box = document.getElementById("captionsText");
   if (!box) return;
@@ -2709,19 +2717,21 @@ async function loadMusicSettingsFromYaml() {
 }
 
 // Music: save settings into YAML
-async function saveMusicSettings() {
+async function saveMusicSettings({ silent = false } = {}) {
     const enabledEl = document.getElementById("musicEnabled");
     const fileEl = document.getElementById("musicFile");
     const volEl = document.getElementById("musicVolume");
     const statusEl = document.getElementById("musicStatus");
 
-    if (!enabledEl || !fileEl || !volEl || !statusEl) return;
+    if (!enabledEl || !fileEl || !volEl) return;
 
     const enabled = enabledEl.checked;
     const file = fileEl.value || "";
     const volume = parseFloat(volEl.value || "0.25");
 
-    setStatus("musicStatus", "Saving music settings…", "working", false);
+    if (!silent) {
+        setStatus("musicStatus", "Saving music…", "working", false);
+    }
 
     try {
         const session = encodeURIComponent(getActiveSession());
@@ -2740,17 +2750,16 @@ async function saveMusicSettings() {
 
         await jsonFetch("/api/save_yaml", {
             method: "POST",
-            body: JSON.stringify({
-                yaml: yamlText,
-                session: getActiveSession(),
-            }),
+            body: JSON.stringify({ yaml: yamlText, session: getActiveSession() })
         });
 
-        setStatus("musicStatus", "Music settings saved.", "success");
-        await loadConfigAndYaml();
+        if (!silent) {
+            setStatus("musicStatus", "Music saved ✓", "success");
+        }
+
     } catch (err) {
         console.error(err);
-        setStatus("musicStatus", "Error saving music: " + err.message, "error");
+        setStatus("musicStatus", "Failed to save music", "error");
     }
 }
 
@@ -3586,7 +3595,35 @@ if (captionsBox) {
     document.getElementById("saveCtaBtn")?.addEventListener("click", saveCtaSettings);
     document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
     document.getElementById("saveLayoutBtn")?.addEventListener("click", saveLayoutMode);
-    document.getElementById("saveMusicBtn")?.addEventListener("click", saveMusicSettings);
+
+    // ================================
+// MUSIC — Auto-save wiring (CLEAN)
+// ================================
+const musicEnabledEl = document.getElementById("musicEnabled");
+const musicFileEl = document.getElementById("musicFile");
+const musicVolumeEl = document.getElementById("musicVolume");
+
+// Checkbox → instant auto-save
+musicEnabledEl?.addEventListener("change", () => {
+  saveMusicSettings({ silent: true });
+});
+
+// Track dropdown → instant auto-save
+musicFileEl?.addEventListener("change", () => {
+  saveMusicSettings({ silent: true });
+});
+
+// Volume slider → debounced auto-save
+let musicSaveTimer = null;
+
+musicVolumeEl?.addEventListener("input", () => {
+  clearTimeout(musicSaveTimer);
+
+  musicSaveTimer = setTimeout(() => {
+    saveMusicSettings({ silent: true });
+  }, 300);
+});
+
 
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
