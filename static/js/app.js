@@ -2654,6 +2654,7 @@ async function saveTtsSettings({ silent = false } = {}) {
 }
 
 // CTA
+
 async function saveCtaSettings({ silent = false } = {}) {
     const enabledEl = document.getElementById("ctaEnabled");
     const textEl = document.getElementById("ctaText");
@@ -2700,6 +2701,7 @@ async function saveCtaSettings({ silent = false } = {}) {
         setStatus("ctaStatus", "Failed to save CTA", "error");
     }
 }
+
 
 
 
@@ -2836,12 +2838,15 @@ const ctaTextEl = document.getElementById("ctaText");
 let ctaSaveTimer = null;
 
 ctaTextEl?.addEventListener("input", () => {
-    clearTimeout(ctaSaveTimer);
+    flashElement(ctaTextEl); // optional, harmless
 
-    ctaSaveTimer = setTimeout(() => {
-        saveCtaSettings({ silent: true });
+    clearTimeout(ctaSaveTimer);
+    ctaSaveTimer = setTimeout(async () => {
+        await saveCtaSettings({ silent: true });
+        showAutoSaveStatus("ctaStatus");
     }, 400);
 });
+
 
 
 // Auto Caption Style Selector
