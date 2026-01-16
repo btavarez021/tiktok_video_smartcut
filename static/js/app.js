@@ -945,30 +945,35 @@ async function uploadFiles() {
 }
 
 function renderStoryboardTimeline(cfg) {
-  const container = document.getElementById("storyboardTimeline");
-  if (!container) return;
+    const container = document.getElementById("storyboardTimeline");
+    if (!container) return;
 
-  container.innerHTML = "";
+    container.innerHTML = "";
 
-  const clips = [];
+    const clips = [];
 
-  if (cfg.first_clip) clips.push(cfg.first_clip);
-  (cfg.middle_clips || []).forEach(c => clips.push(c));
-  if (cfg.last_clip) clips.push(cfg.last_clip);
+    if (cfg.first_clip) clips.push({ ...cfg.first_clip, _role: "first_clip" });
+    (cfg.middle_clips || []).forEach(c => clips.push({ ...c, _role: "middle" }));
+    if (cfg.last_clip) clips.push({ ...cfg.last_clip, _role: "last_clip" });
 
-  clips.forEach((clip, idx) => {
-    const el = document.createElement("div");
-    el.className = "story-clip";
-    el.dataset.file = clip.file;
-    el.dataset.index = idx;
+    clips.forEach((clip, idx) => {
+        const el = document.createElement("div");
+        el.className = "story-clip";
+        el.dataset.index = idx;
+        el.dataset.file = clip.file;
 
-    el.innerHTML = `
-      <span class="clip-index">${idx + 1}</span>
-      <span class="clip-label">${clip.text || clip.file}</span>
-    `;
+        el.innerHTML = `
+            <div class="clip-name">${clip.file}</div>
+            <div class="clip-text">${clip.text || ""}</div>
 
-    container.appendChild(el);
-  });
+            <div class="clip-controls">
+                <button class="btn ghost small" onclick="moveClip(${idx}, -1)">▲</button>
+                <button class="btn ghost small" onclick="moveClip(${idx}, 1)">▼</button>
+            </div>
+        `;
+
+        container.appendChild(el);
+    });
 }
 
 
