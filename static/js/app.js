@@ -2729,8 +2729,8 @@ async function saveMusicSettings({ silent = false } = {}) {
     const file = fileEl.value || "";
     const volume = parseFloat(volEl.value || "0.25");
 
-    if (!silent) {
-        setStatus("musicStatus", "Saving music…", "working", false);
+    if (!silent && statusEl) {
+        setStatus("musicStatus", "Saving…", "working", false);
     }
 
     try {
@@ -2740,6 +2740,7 @@ async function saveMusicSettings({ silent = false } = {}) {
 
         cfg.music = { enabled, file, volume };
 
+        // Clean legacy render keys
         if (cfg.render) {
             delete cfg.render.music_enabled;
             delete cfg.render.music_file;
@@ -2750,16 +2751,21 @@ async function saveMusicSettings({ silent = false } = {}) {
 
         await jsonFetch("/api/save_yaml", {
             method: "POST",
-            body: JSON.stringify({ yaml: yamlText, session: getActiveSession() })
+            body: JSON.stringify({
+                yaml: yamlText,
+                session: getActiveSession(),
+            }),
         });
 
-        if (!silent) {
-            setStatus("musicStatus", "Music saved ✓", "success");
+        if (!silent && statusEl) {
+            setStatus("musicStatus", "Saved ✓", "success");
         }
 
     } catch (err) {
         console.error(err);
-        setStatus("musicStatus", "Failed to save music", "error");
+        if (!silent && statusEl) {
+            setStatus("musicStatus", "Save failed", "error");
+        }
     }
 }
 
@@ -3596,16 +3602,16 @@ if (captionsBox) {
     document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
     document.getElementById("saveLayoutBtn")?.addEventListener("click", saveLayoutMode);
 
-    // ================================
+// ================================
 // MUSIC — Auto-save wiring (CLEAN)
 // ================================
 const musicEnabledEl = document.getElementById("musicEnabled");
 const musicFileEl = document.getElementById("musicFile");
 const musicVolumeEl = document.getElementById("musicVolume");
 
-// Checkbox → instant auto-save
-musicEnabledEl?.addEventListener("change", () => {
-  saveMusicSettings({ silent: true });
+// Music auto-save
+document.getElementById("musicEnabled")?.addEventListener("change", () => {
+    saveMusicSettings({ silent: true });
 });
 
 // Track dropdown → instant auto-save
