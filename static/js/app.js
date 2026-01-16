@@ -3665,7 +3665,6 @@ if (captionsBox) {
     });
 
     document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
-    document.getElementById("saveLayoutBtn")?.addEventListener("click", saveLayoutMode);
 
 // ================================
 // TTS — Auto-save wiring
