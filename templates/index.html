@@ -645,7 +645,9 @@
                                         </span>
                                     </span>
                                     </h3>
-
+                                    <div class="hint-text subtle">
+                                        Rewrite mode changes caption wording when applied — original captions can be restored
+                                    </div>
 
                                     <label class="caption-reset-label">
                                     <input type="radio" name="captionRewriteMode" value="visual" checked>
@@ -684,6 +686,9 @@
                                     <option value="descriptive">Literal Descriptive</option>
                                     <option value="influencer">Influencer Voice</option>
                                     </select>
+                                    <p class="hint-text subtle">
+                                    Affects font, animation, pacing — not wording unless Rewrite is enabled
+                                    </p>
 
                                     <div id="overlayStyleStatus" class="status-text"></div>
 
@@ -778,9 +783,20 @@
                                     </div>
 
                                     <!-- 5️⃣ APPLY -->
+                                     <p>All other settings in this step save automatically</p>
                                     <button id="applyOverlayBtn" class="btn secondary full" style="margin-top:24px;">
                                     ✨ Apply Overlay & Style
+                                    <span class="tooltip">ⓘ
+                                    <span class="tooltiptext tooltip-wide">
+                                        This action commits visual styling and optional caption rewrites.<br><br>
+                                        Other settings save automatically.
+                                    </span>
+                                    </span>
                                     </button>
+                                    <p class="hint-text subtle" style="margin-top:6px;">
+                                    Applies visual style & rewrites captions (if enabled)
+                                    </p>
+
 
                                     <div id="overlayStatus" class="status-text"></div>
 
@@ -852,6 +868,10 @@
                                     <div id="ctaRow" class="cta-row">
                                         <input id="ctaText" class="input" placeholder="Tap to book with today’s deals 🔗" />
                                     </div>
+                                    <p class="hint-text subtle">
+                                        CTA text saves as you type
+                                    </p>
+
 
                                     <div class="checkbox-row">
                                         <input type="checkbox" id="ctaVoiceover" />
@@ -881,6 +901,7 @@
                                             <option value="classic">Classic (bottom bar)</option>
                                         </select>
                                     </div>
+                                    <p class="hint-text subtle">Layout saves automatically</p>
 
                                     <div id="layoutStatus" class="status-text status-info"></div>
 
@@ -922,7 +943,7 @@
                                     <div class="range-value"><span id="musicVolumeLabel">0.25</span></div>
 
                                     <div class="row">
-                                        <button id="musicPreviewBtn" class="btn primary">▶ Preview</button>
+                                        <button id="musicPreviewBtn" class="btn secondary">▶ Preview</button>
                                     </div>
 
                                     <div id="musicStatus" class="status-text status-info"></div>
@@ -936,6 +957,10 @@
                                         <input type="checkbox" id="autoFgScale" onchange="saveFgScale()" />
                                         <label for="autoFgScale">Auto Zoom (recommended)</label>
                                     </div>
+                                    <p class="hint-text subtle">
+                                    Auto zoom adapts per clip — manual overrides apply to all clips
+                                    </p>
+
 
                                     <!-- Slider only shown when auto is OFF -->
                                     <div id="manualFgScaleContainer">
