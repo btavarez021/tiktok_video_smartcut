@@ -2574,23 +2574,11 @@ h3 {
 
 
 /* ================================
-   MOBILE SESSION PANEL TOGGLE
+   MOBILE SESSION PANEL (ONLY)
 ================================ */
 
-/* Desktop: sidebar always visible */
-@media (min-width: 901px) {
-  .side-column {
-    display: block;
-  }
-
-  #mobileSessionBtn {
-    display: none;
-  }
-}
-
-/* Mobile: sidebar hidden by default */
 @media (max-width: 900px) {
-  .side-column {
+  #sidebarSessionCard {
     position: fixed;
     top: 0;
     right: 0;
@@ -2599,15 +2587,14 @@ h3 {
     height: 100vh;
 
     background: var(--bg);
-    z-index: 200;
+    z-index: 300;
 
     transform: translateX(100%);
     transition: transform 0.3s ease;
     overflow-y: auto;
   }
 
-  /* OPEN STATE */
-  .side-column.open {
+  #sidebarSessionCard.open {
     transform: translateX(0);
   }
 }
