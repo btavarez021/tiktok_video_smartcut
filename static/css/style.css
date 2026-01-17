@@ -26,9 +26,6 @@
     box-sizing: border-box;
     font-family: var(--font);
 }
-body {
-    overflow-y: auto;
-}
 
 body {
     background: var(--bg);
@@ -44,6 +41,14 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    padding: 20px 28px;
+    overflow-y: auto;
 }
 
 .main-column {
@@ -1041,6 +1046,12 @@ h3 {
     100% { transform: translateX(0); }
 }
 
+/* Drop step-card below session UI */
+.card,
+.step-card {
+    position: relative;
+    z-index: 1 !important;
+}
 
 .error-flash {
     animation: errorFlash 0.5s;
@@ -2501,6 +2512,12 @@ h3 {
   border-radius: 999px; /* keeps pill look */
 }
 
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
 
 .side-column {
   display: flex;
@@ -2561,7 +2578,11 @@ h3 {
 /* ================================
    DESKTOP SIDEBAR
 ================================ */
-
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+}
 
 .side-column {
   position: sticky;
@@ -2614,6 +2635,13 @@ body.no-scroll {
 }
 
 
+/* Collapse to single column on smaller screens */
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Mobile behavior */
 @media (max-width: 900px) {
 
@@ -2644,6 +2672,12 @@ body.no-scroll {
   }
 }
 
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
 
 /* Desktop placement */
 #sidebarSessionCard {
@@ -2700,29 +2734,8 @@ body.no-scroll {
 
 
 .layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
-    gap: 20px;
-    padding: 20px 28px;
-    align-items: start;
-}
-
-.side-column {
-    position: sticky;
-    top: 16px;
-    z-index: 20;
-}
-
-
-.card,
-.step-card {
-    position: static;
-    z-index: auto;
-}
-
-
-.card .btn,
-.card button {
-    position: relative;
-    z-index: 5;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
 }
