@@ -975,82 +975,64 @@
 
                         </div>
                     </section>
+               
                 <!-- ================================
-                    STEP 5 · EXPORT & DOWNLOAD
+                 STEP 5
                 ================================== -->
                 <section class="card step-card" id="step-5">
-                <div class="card-header">
-                    <div class="session-tag active-session-tag">
-                    Session: <span class="sessionLabel"></span>
+                    <div class="card-header">
+                        <div class="session-tag active-session-tag"> Session: <span class="sessionLabel"></span></div>
+
+                        <h2>
+                            Step 5 · Export & Download
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext">
+                                    Render your final vertical MP4 using all settings above.<br>
+                                    Export uploads to S3 → gives you a download link.
+                                </span>
+                            </span>
+                        </h2>
+
+                        <p class="card-subtitle">
+                            Finalize your reel and download the exported MP4.
+                        </p>
                     </div>
 
-                    <h2>
-                    Step 5 · Export & Download
-                    <span class="tooltip">ⓘ
-                        <span class="tooltiptext">
-                        Final render step.<br>
-                        Builds your TikTok-ready video using YAML, captions, style, timing, and media.
-                        </span>
-                    </span>
-                    </h2>
+                    <div class="card-body">
 
-                    <p class="card-subtitle">
-                    Render your final video and download the result.
-                    </p>
-                </div>
+                        <h3>
+                            Render Mode
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext">
+                                    Standard = fast draft<br>
+                                    Optimized = high-quality final export
+                                </span>
+                            </span>
+                        </h3>
 
-                <div class="card-body">
+                        <div id="exportModeContainer" class="row radio-row render-controls">
+                            <label class="radio">
+                                <input type="radio" name="exportMode" value="standard" checked />
+                                <span>Standard (fast)</span>
+                            </label>
 
-                    <h3 class="section-label">Export Options</h3>
+                            <label class="radio">
+                                <input type="radio" name="exportMode" value="optimized" />
+                                <span>Optimized (HQ)</span>
+                            </label>
+                        </div>
 
-                    <div class="checkbox-row">
-                    <input type="checkbox" id="exportIncludeCaptions" checked />
-                    <label for="exportIncludeCaptions">Include captions</label>
+                        <button id="exportBtn" class="btn primary">🎥 Render & Export</button>
+                        <button id="cancelExportBtn" class="btn danger hidden">Cancel</button>
+
+                        <div id="exportStatus" class="hint-text"></div>
+
+                        <div id="downloadArea" class="download-area"></div>
+
                     </div>
-
-                    <div class="checkbox-row">
-                    <input type="checkbox" id="exportIncludeMusic" checked />
-                    <label for="exportIncludeMusic">Include background music</label>
-                    </div>
-
-                    <div class="checkbox-row">
-                    <input type="checkbox" id="exportIncludeTTS" />
-                    <label for="exportIncludeTTS">Include voiceover (TTS)</label>
-                    </div>
-
-                    <hr class="section-divider" />
-
-                    <h3 class="section-label">Render</h3>
-
-                    <div class="row">
-                    <button id="exportBtn" class="btn primary">
-                        🚀 Render Video
-                    </button>
-
-                    <button id="exportStatusBtn" class="btn ghost" disabled>
-                        ⏳ Waiting
-                    </button>
-                    </div>
-
-                    <div id="exportStatus" class="hint-text" style="margin-top:10px;"></div>
-
-                    <hr class="divider" />
-
-                    <h3 class="section-label">Download</h3>
-
-                    <div class="row">
-                    <a id="downloadLink"
-                        class="btn-download hidden"
-                        href="#"
-                        download>
-                        ⬇ Download Video
-                    </a>
-                    </div>
-
-                </div>
                 </section>
 
-                </section>
+            </section> <!-- END LEFT MAIN COLUMN -->
 
                 <!-- =========================
                         RIGHT SIDEBAR (DESKTOP)
