@@ -2683,3 +2683,9 @@ body.no-scroll {
 #sidebarSessionCard {
   grid-column: 2;
 }
+
+/* Force session manager into the same grid row as the sidebar */
+#sidebarSessionCard {
+  grid-column: 2;
+  grid-row: 1;
+}
