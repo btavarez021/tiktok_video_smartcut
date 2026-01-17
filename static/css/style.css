@@ -2639,61 +2639,20 @@ h3 {
 /* ================================
    MOBILE SESSION PANEL
 ================================ */
+
 @media (max-width: 900px) {
 
-  /* Hide normal sidebar */
+  /* Hide desktop sidebar on mobile */
   .side-column {
     display: none;
   }
 
-  /* Session manager becomes slide panel */
-  #sidebarSessionCard {
-    display: block;
-    position: fixed;
-    top: 0;
-    right: 0;
-
-    width: 92%;
-    max-width: 420px;
-    height: 100vh;
-
-    background: var(--bg);
-    z-index: 9999;
-
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
-    overflow-y: auto;
-  }
-
-  #sidebarSessionCard.open {
-    transform: translateX(0);
-  }
-}
-
-/* Lock background scroll */
-body.no-scroll {
-  overflow: hidden;
-}
-
-/* ================================
-   MOBILE SESSION PANEL (FINAL)
-================================ */
-@media (max-width: 900px) {
-
-  /* Hide sidebar column (log/chat) on mobile */
-  .side-column {
-    display: none;
-  }
-
-  /* Slide-in session panel */
   #sidebarSessionCard {
     position: fixed;
     top: 0;
     right: 0;
     left: auto;
 
-    display: block;              /* ✅ important */
-    visibility: visible;         /* ✅ safety */
     width: 92%;
     max-width: 420px;
     height: 100vh;
@@ -2713,9 +2672,8 @@ body.no-scroll {
   }
 }
 
-/* Prevent background scroll when mobile session is open */
+/* Prevent background scroll */
 body.no-scroll {
   overflow: hidden;
   height: 100vh;
 }
-
