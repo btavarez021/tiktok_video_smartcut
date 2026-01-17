@@ -43,6 +43,14 @@ body {
     height: 100vh;
 }
 
+.layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    padding: 20px 28px;
+    overflow-y: auto;
+}
+
 .main-column {
     min-width: 0;
 }
@@ -2504,6 +2512,13 @@ h3 {
   border-radius: 999px; /* keeps pill look */
 }
 
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
 .side-column {
   display: flex;
   flex-direction: column;
@@ -2563,6 +2578,11 @@ h3 {
 /* ================================
    DESKTOP SIDEBAR
 ================================ */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+}
 
 .side-column {
   position: sticky;
@@ -2645,6 +2665,13 @@ body.no-scroll {
   }
 }
 
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
 /* Desktop placement */
 #sidebarSessionCard {
   grid-column: 2;
@@ -2699,10 +2726,32 @@ body.no-scroll {
 }
 
 
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+
 /* =========================================================
    MAIN APP GRID — DESKTOP
    ========================================================= */
 
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: 1fr; /* FORCE single row */
+  gap: 20px;
+
+  padding: 20px 28px;
+
+  /* THIS is the scroll container */
+  height: calc(100vh - 140px); /* header + stepper */
+  overflow-y: auto;
+
+  align-items: start;
+}
 
 /* Left column */
 .main-column {
@@ -2758,6 +2807,14 @@ body.no-scroll {
 
 @media (max-width: 900px) {
 
+  /* Single column layout */
+  .layout {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    height: auto;
+    overflow: visible;
+  }
+
   /* Hide desktop sidebar */
   .side-column {
     display: none;
@@ -2800,13 +2857,19 @@ body.no-scroll {
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: 1fr;
   gap: 20px;
+
+  padding: 20px 28px;
+  height: calc(100vh - 140px);
+  overflow-y: auto;
+
   align-items: start;
 }
 
 /* 🔥 FORCE MAIN LAYOUT GRID */
-.layout {
-  display: grid;
+main.layout {
+  display: grid !important;
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 20px;
   align-items: start;
