@@ -139,6 +139,9 @@ async function saveOverlayStyle({ silent = false } = {}) {
             })
         });
 
+        // 🔑 THIS IS THE FIX
+        await loadConfigAndYaml();
+
         if (!silent) {
             setStatus("overlayStyleStatus", "Style saved ✓", "success");
         } else {
@@ -150,6 +153,7 @@ async function saveOverlayStyle({ silent = false } = {}) {
         setStatus("overlayStyleStatus", "Failed to save style", "error");
     }
 }
+
 
 
 
