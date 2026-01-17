@@ -53,14 +53,21 @@ function syncFgScaleUI() {
     manualContainer.style.display = autoEl.checked ? "none" : "block";
 }
 
-function glowActiveSessionTag() {
-  const tag = document.querySelector(".active-session-tag");
-  if (!tag) return;
+function animateSessionGlow() {
+  const tags = document.querySelectorAll(".active-session-tag");
 
-  tag.classList.remove("session-glow");
-  void tag.offsetWidth; // force reflow
-  tag.classList.add("session-glow");
+  if (!tags.length) {
+    console.warn("[SESSION] No active-session-tag found");
+    return;
+  }
+
+  tags.forEach(tag => {
+    tag.classList.remove("session-glow");
+    void tag.offsetWidth; // force reflow
+    tag.classList.add("session-glow");
+  });
 }
+
 
 
 function syncMusicUIState() {
@@ -698,8 +705,13 @@ function setActiveSession(name) {
     loadSessionDropdown();
     loadSessions();
     sidebarLoadSessions();
-    // 🔥 Visual confirmation of session switch
-    setTimeout(glowActiveSessionTag, 50);
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => 
+      {
+        animateSessionGlow();
+      });
+  });
 
 }
 
@@ -4040,4 +4052,8 @@ updateRewriteModeAvailability();
 
         showSessionToast(`Switched to “${selected}”`);
     });
+
+    // Initial visual confirmation
+  setTimeout(animateSessionGlow, 300);
+
 });
