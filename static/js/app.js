@@ -71,19 +71,13 @@ function animateSessionGlow() {
 // ================================
 // Mobile Session Panel Toggle
 // ================================
-function toggleMobileSessionPanel(forceClose = false) {
+function toggleMobileSessionPanel() {
   const panel = document.getElementById("sidebarSessionCard");
   const btn = document.getElementById("mobileSessionBtn");
-
   if (!panel || !btn) return;
 
-  const isOpen = forceClose
-    ? false
-    : panel.classList.toggle("open");
-
-  if (forceClose) {
-    panel.classList.remove("open");
-  }
+  const isOpen = panel.classList.toggle("open");
+  console.log("[MOBILE] toggle session panel", { isOpen, panel });
 
   document.body.classList.toggle("no-scroll", isOpen);
   btn.textContent = isOpen ? "Close Sessions" : "Sessions";
