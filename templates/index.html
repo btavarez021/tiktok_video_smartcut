@@ -980,66 +980,13 @@
                     <!-- ================================
                         STEP 5
                     ================================== -->
-                    <section class="card step-card" id="step-5">
-                        <div class="card-header">
-                            <div class="session-tag active-session-tag"> Session: <span class="sessionLabel"></span></div>
-
-                            <h2>
-                                Step 5 · Export & Download
-                                <span class="tooltip">ⓘ
-                                    <span class="tooltiptext">
-                                        Render your final vertical MP4 using all settings above.<br>
-                                        Export uploads to S3 → gives you a download link.
-                                    </span>
-                                </span>
-                            </h2>
-
-                            <p class="card-subtitle">
-                                Finalize your reel and download the exported MP4.
-                            </p>
-                        </div>
-
-                        <div class="card-body">
-
-                            <h3>
-                                Render Mode
-                                <span class="tooltip">ⓘ
-                                    <span class="tooltiptext">
-                                        Standard = fast draft<br>
-                                        Optimized = high-quality final export
-                                    </span>
-                                </span>
-                            </h3>
-
-                            <div id="exportModeContainer" class="row radio-row render-controls">
-                                <label class="radio">
-                                    <input type="radio" name="exportMode" value="standard" checked />
-                                    <span>Standard (fast)</span>
-                                </label>
-
-                                <label class="radio">
-                                    <input type="radio" name="exportMode" value="optimized" />
-                                    <span>Optimized (HQ)</span>
-                                </label>
-                            </div>
-
-                            <button id="exportBtn" class="btn primary">🎥 Render & Export</button>
-                            <button id="cancelExportBtn" class="btn danger hidden">Cancel</button>
-
-                            <div id="exportStatus" class="hint-text"></div>
-
-                            <div id="downloadArea" class="download-area"></div>
-
-                        </div>
-                    </section>
-
-                </section> <!-- END LEFT MAIN COLUMN -->
-
-                <!-- RIGHT SIDEBAR -->
+                    <!-- RIGHT SIDEBAR -->
                 <aside class="side-column">
 
-                    <!-- Live Log -->
+                <!-- Sidebar Dock Wrapper -->
+                <div class="sidebar-stack" id="sidebarDock">
 
+                    <!-- Live Log -->
                     <section class="card log-card">
                     <div class="card-header log-header">
                         <div>
@@ -1049,7 +996,6 @@
                         </p>
                         </div>
 
-                        <!-- Log Controls -->
                         <div class="log-controls">
                         <label class="checkbox-row">
                             <input type="checkbox" id="autoScrollLogs" checked />
@@ -1063,31 +1009,35 @@
                     </div>
                     </section>
 
-                    <!-- Chat Assistant -->
+                    <!-- Creative Assistant -->
                     <section class="card chat-card">
-                        <div class="card-header">
-                            <h2>Creative Assistant</h2>
-                            <p class="card-subtitle">
-                                Ask for hooks, storylines, thumbnails, or caption ideas.
-                            </p>
-                        </div>
+                    <div class="card-header">
+                        <h2>Creative Assistant</h2>
+                        <p class="card-subtitle">
+                        Ask for hooks, storylines, thumbnails, or caption ideas.
+                        </p>
+                    </div>
 
-                        <div class="card-body">
-                            <textarea
-                                id="chatInput"
-                                class="textarea"
-                                rows="3"
-                                placeholder="E.g. 'Give me 3 hook ideas for these clips focusing on the rooftop pool.'"
-                            ></textarea>
-                            <button id="chatSendBtn" class="btn secondary full">💬 Ask the assistant</button>
+                    <div class="card-body">
+                        <textarea
+                        id="chatInput"
+                        class="textarea"
+                        rows="3"
+                        placeholder="E.g. 'Give me 3 hook ideas for these clips focusing on the rooftop pool.'"
+                        ></textarea>
 
-                            <div id="chatOutput" class="chat-output"></div>
-                        </div>
+                        <button id="chatSendBtn" class="btn secondary full">
+                        💬 Ask the assistant
+                        </button>
+
+                        <div id="chatOutput" class="chat-output"></div>
+                    </div>
                     </section>
 
+                </div>
                 </aside>
-            
 
+        
             <!-- ================================
                     SIDEBAR SESSION MANAGER v2
                 ================================ -->

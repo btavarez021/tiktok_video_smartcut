@@ -2731,3 +2731,46 @@ body.no-scroll {
 .log-card .log-view {
   max-height: 120px;
 }
+
+/* Desktop layout */
+@media (min-width: 1024px) {
+  #sidebarSessionCard {
+    position: sticky;
+    top: 16px;
+
+    /* Visually align with sidebar */
+    width: 100%;
+    max-width: 360px;
+
+    /* Push it to the right column */
+    margin-left: auto;
+    margin-right: 0;
+
+    /* Match sidebar spacing */
+    margin-top: 12px;
+  }
+
+  /* Ensure sidebar itself behaves like a column */
+  .side-column {
+    position: relative;
+  }
+}
+
+@media (max-width: 1023px) {
+  #sidebarSessionCard {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+
+  #sidebarSessionCard.open {
+    transform: translateX(0);
+  }
+}
+
+.side-column {
+  border-left: 1px solid rgba(255,255,255,0.06);
+  padding-left: 16px;
+}
