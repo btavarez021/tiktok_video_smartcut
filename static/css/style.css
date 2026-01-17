@@ -1468,48 +1468,7 @@ h3 {
    =========================================================== */
 @media (max-width: 768px) {
 
-    /* 1. Sidebar slide-up: highest layer on the entire page */
-    #sidebarSessionCard {
-        position: fixed !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: -100% !important;
-        background: var(--card);
-        border-top-left-radius: 16px;
-        border-top-right-radius: 16px;
-        padding: 18px;
-        box-shadow: 0 -14px 40px rgba(0,0,0,0.75);
-        max-height: 70vh;
-        overflow-y: auto;
 
-        /* THE MAGIC FIX */
-        z-index: 2147483647 !important;
-        transform: none !important;
-    }
-
-    /* Slide-up state */
-    #sidebarSessionCard.open {
-        bottom: 0 !important;
-    }
-
-    /* 2. Floating button stays above everything EXCEPT the sidebar */
-    .mobile-session-btn {
-        z-index: 2147483000 !important;
-        position: fixed !important;
-    }
-
-    /* 3. Push EVERYTHING ELSE DOWN in stack context */
-    .layout,
-    .app-shell,
-    .card,
-    .step-card,
-    .log-view,
-    .chat-card {
-        position: relative !important;
-        z-index: 0 !important;
-    }
-
-    /* 4. Ensure header doesn't overlap the sidebar */
     .app-header {
         z-index: 1 !important;
         position: relative !important;
@@ -2614,9 +2573,6 @@ h3 {
   }
 }
 
-#sidebarSessionCard {
-  transform: translateX(0);
-}
 
 
 /* ================================
