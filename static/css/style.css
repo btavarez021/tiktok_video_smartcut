@@ -2671,3 +2671,15 @@ body.no-scroll {
     transform: translateX(0);
   }
 }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* Desktop placement */
+#sidebarSessionCard {
+  grid-column: 2;
+}
