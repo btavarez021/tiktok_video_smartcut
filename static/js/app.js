@@ -69,17 +69,14 @@ function animateSessionGlow() {
 }
 
 function toggleMobileSessionPanel() {
-  const panel = document.getElementById("sidebarSessionCard");
+  const panel = document.querySelector(".side-column");
   const btn = document.getElementById("mobileSessionBtn");
 
   if (!panel || !btn) return;
 
   const isOpen = panel.classList.toggle("open");
 
-  // 🔒 Lock / unlock background scroll
   document.body.classList.toggle("no-scroll", isOpen);
-
-  // Button label
   btn.textContent = isOpen ? "Close Sessions" : "Sessions";
 }
 

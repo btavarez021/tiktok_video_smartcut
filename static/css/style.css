@@ -2574,33 +2574,40 @@ h3 {
 
 
 /* ================================
-   MOBILE SESSION PANEL (ONLY)
+   MOBILE SIDEBAR (CORRECT)
 ================================ */
-
 @media (max-width: 900px) {
-  #sidebarSessionCard {
+  .side-column {
     position: fixed;
     top: 0;
     right: 0;
+
     width: 92%;
     max-width: 420px;
     height: 100vh;
 
     background: var(--bg);
-    z-index: 300;
+    z-index: 200;
 
     transform: translateX(100%);
     transition: transform 0.3s ease;
     overflow-y: auto;
   }
 
-  #sidebarSessionCard.open {
+  .side-column.open {
     transform: translateX(0);
   }
 }
 
-/* Prevent background scroll when mobile session is open */
-body.no-scroll {
-  overflow: hidden;
-  height: 100vh;
+@media (min-width: 901px) {
+  .side-column {
+    position: static;
+    transform: none;
+    height: auto;
+    z-index: auto;
+  }
+
+  #mobileSessionBtn {
+    display: none;
+  }
 }
