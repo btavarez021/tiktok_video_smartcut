@@ -2613,3 +2613,64 @@ h3 {
     transform: translateX(0);
   }
 }
+
+#sidebarSessionCard {
+  transform: translateX(0);
+}
+
+
+/* ================================
+   DESKTOP SIDEBAR
+================================ */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+}
+
+.side-column {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ================================
+   MOBILE SESSION PANEL
+================================ */
+@media (max-width: 900px) {
+
+  /* Hide normal sidebar */
+  .side-column {
+    display: none;
+  }
+
+  /* Session manager becomes slide panel */
+  #sidebarSessionCard {
+    display: block;
+    position: fixed;
+    top: 0;
+    right: 0;
+
+    width: 92%;
+    max-width: 420px;
+    height: 100vh;
+
+    background: var(--bg);
+    z-index: 9999;
+
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+  }
+
+  #sidebarSessionCard.open {
+    transform: translateX(0);
+  }
+}
+
+/* Lock background scroll */
+body.no-scroll {
+  overflow: hidden;
+}

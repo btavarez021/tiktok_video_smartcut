@@ -83,6 +83,7 @@ function toggleMobileSessionPanel() {
   btn.textContent = isOpen ? "Close Sessions" : "Sessions";
 }
 
+
 function syncMusicUIState() {
   const enabled = document.getElementById("musicEnabled")?.checked;
   const hint = document.getElementById("musicDisabledHint");
