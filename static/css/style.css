@@ -2549,6 +2549,6 @@ h3 {
 }
 
 .active-session-tag.session-glow {
-  animation: sessionTagGlow 1.1s ease-out;
+  animation: sessionTagGlow 2s ease-out;
   border-radius: 999px; /* keeps pill look */
 }
