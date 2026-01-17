@@ -53,6 +53,14 @@ function syncFgScaleUI() {
     manualContainer.style.display = autoEl.checked ? "none" : "block";
 }
 
+function syncMusicUIState() {
+  const enabled = document.getElementById("musicEnabled")?.checked;
+  const hint = document.getElementById("musicDisabledHint");
+
+  if (!hint) return;
+
+  hint.style.display = enabled ? "none" : "block";
+}
 
 
 function renderCaptionView() {
@@ -3705,18 +3713,20 @@ if (captionsBox) {
     });
 
 
-    document.getElementById("saveOverlayStyle")?.addEventListener("click", async () => {
-    const style = document.getElementById("overlayStyle")?.value || "default";
+ // ================================
+// OVERLAY STYLE — Auto-save
+// ================================
+const overlayStyleEl = document.getElementById("overlayStyle");
 
-    setStatus(
-        "overlayStyleStatus",
-        `✔ Overlay style selected (${style})`,
-        "success"
-    );
+overlayStyleEl?.addEventListener("change", async () => {
+    try {
+        await saveOverlayStyle({ silent: true });
+        showAutoSaveStatus("overlayStyleStatus");
+    } catch (e) {
+        setStatus("overlayStyleStatus", "Save failed", "error");
+    }
+});
 
-    // 🔥 Preview immediately
-    await previewOverlay("fast");
-    });
 
 // ================================
 // Foreground Scale — Auto-save wiring
