@@ -53,6 +53,16 @@ function syncFgScaleUI() {
     manualContainer.style.display = autoEl.checked ? "none" : "block";
 }
 
+function glowActiveSessionTag() {
+  const tag = document.querySelector(".active-session-tag");
+  if (!tag) return;
+
+  tag.classList.remove("session-glow");
+  void tag.offsetWidth; // force reflow
+  tag.classList.add("session-glow");
+}
+
+
 function syncMusicUIState() {
   const enabled = document.getElementById("musicEnabled")?.checked;
   const hint = document.getElementById("musicDisabledHint");
@@ -688,12 +698,8 @@ function setActiveSession(name) {
     loadSessionDropdown();
     loadSessions();
     sidebarLoadSessions();
-
-    document.querySelectorAll('.session-tag').forEach(tag => {
-    tag.classList.remove('pulse-once');
-    void tag.offsetWidth;
-    tag.classList.add('pulse-once');
-    });
+    // 🔥 Visual confirmation of session switch
+    setTimeout(glowActiveSessionTag, 50);
 
 }
 

@@ -2533,28 +2533,22 @@ h3 {
   100% { box-shadow: 0 0 0 rgba(0,0,0,0); }
 }
 
-.session-card {
-  position: relative;
-  overflow: hidden; /* keep this */
+@keyframes sessionTagGlow {
+  0% {
+    box-shadow: 0 0 0 rgba(80, 200, 120, 0);
+    background-color: rgba(80, 200, 120, 0.05);
+  }
+  40% {
+    box-shadow: 0 0 16px rgba(80, 200, 120, 0.8);
+    background-color: rgba(80, 200, 120, 0.18);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(80, 200, 120, 0);
+    background-color: rgba(80, 200, 120, 0.05);
+  }
 }
 
-.session-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-
-  background: radial-gradient(
-    circle at top center,
-    rgba(0, 255, 180, 0.45),
-    transparent 70%
-  );
-
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  pointer-events: none;
-}
-
-.session-card.active::before {
-  opacity: 1;
+.active-session-tag.session-glow {
+  animation: sessionTagGlow 1.1s ease-out;
+  border-radius: 999px; /* keeps pill look */
 }
