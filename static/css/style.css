@@ -2598,3 +2598,9 @@ h3 {
     transform: translateX(0);
   }
 }
+
+/* Prevent background scroll when mobile session is open */
+body.no-scroll {
+  overflow: hidden;
+  height: 100vh;
+}

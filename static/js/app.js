@@ -76,6 +76,10 @@ function toggleMobileSessionPanel() {
 
   const isOpen = panel.classList.toggle("open");
 
+  // 🔒 Lock / unlock background scroll
+  document.body.classList.toggle("no-scroll", isOpen);
+
+  // Button label
   btn.textContent = isOpen ? "Close Sessions" : "Sessions";
 }
 
