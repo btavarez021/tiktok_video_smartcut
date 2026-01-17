@@ -2613,10 +2613,3 @@ h3 {
     transform: translateX(0);
   }
 }
-
-/* Lock background scroll */
-body.no-scroll {
-  overflow: hidden;
-  height: 100vh;
-}
-
