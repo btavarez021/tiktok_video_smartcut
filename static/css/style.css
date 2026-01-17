@@ -2866,3 +2866,16 @@ body.no-scroll {
 
   align-items: start;
 }
+
+/* 🔥 FORCE MAIN LAYOUT GRID */
+main.layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+.side-column {
+  grid-column: 2;
+  align-self: start;
+}
