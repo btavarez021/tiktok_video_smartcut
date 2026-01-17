@@ -2680,34 +2680,42 @@ body.no-scroll {
 ================================ */
 @media (max-width: 900px) {
 
-  /* Hide desktop sidebar */
+  /* Hide sidebar column (log/chat) on mobile */
   .side-column {
-    display: none !important;
+    display: none;
   }
 
-  /* Mobile slide-in session panel */
+  /* Slide-in session panel */
   #sidebarSessionCard {
     position: fixed;
     top: 0;
     right: 0;
+    left: auto;
+
+    display: block;              /* ✅ important */
+    visibility: visible;         /* ✅ safety */
     width: 92%;
     max-width: 420px;
     height: 100vh;
 
     background: var(--bg);
-    z-index: 999999;
+    z-index: 99999;
 
     transform: translateX(100%);
     transition: transform 0.3s ease;
     overflow-y: auto;
+
+    box-shadow: -12px 0 30px rgba(0,0,0,0.35);
   }
 
   #sidebarSessionCard.open {
     transform: translateX(0);
   }
-
-  /* Lock background scroll */
-  body.no-scroll {
-    overflow: hidden;
-  }
 }
+
+/* Prevent background scroll when mobile session is open */
+body.no-scroll {
+  overflow: hidden;
+  height: 100vh;
+}
+

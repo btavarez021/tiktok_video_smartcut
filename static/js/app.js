@@ -74,14 +74,15 @@ function animateSessionGlow() {
 function toggleMobileSessionPanel() {
   const panel = document.getElementById("sidebarSessionCard");
   const btn = document.getElementById("mobileSessionBtn");
-
   if (!panel || !btn) return;
 
   const isOpen = panel.classList.toggle("open");
+  console.log("[MOBILE] toggle session panel", { isOpen, panel });
 
   document.body.classList.toggle("no-scroll", isOpen);
   btn.textContent = isOpen ? "Close Sessions" : "Sessions";
 }
+
 
 
 function syncMusicUIState() {
@@ -3328,6 +3329,7 @@ async function sendChat() {
 // Init wiring
 // ================================
 document.addEventListener("DOMContentLoaded", async () => {
+
     // Load stored session
     try {
         const stored = localStorage.getItem("activeSession");
@@ -3766,16 +3768,19 @@ if (captionsBox) {
  // ================================
 // OVERLAY STYLE — Auto-save
 // ================================
+const overlayStyleEl = document.getElementById("overlayStyle");
+
 overlayStyleEl?.addEventListener("change", async () => {
   if (suppressNextPreview) {
     suppressNextPreview = false;
     return;
   }
 
-  await saveOverlayStyle({ silent: true });
-  showAutoSaveStatus("overlayStyleStatus");
-  previewOverlay("fast");
+  await saveOverlayStyle({ silent: true });     // saves + reloads config/yaml
+  showAutoSaveStatus("overlayStyleStatus");     // shows "Saved ✓"
+  await previewOverlay("fast");                 // preview refresh
 });
+
 
 
 
