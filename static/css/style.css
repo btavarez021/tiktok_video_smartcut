@@ -43,14 +43,6 @@ body {
     height: 100vh;
 }
 
-.layout {
-    display: grid;
-    grid-template-columns: 1fr 340px;
-    gap: 24px;
-    padding: 20px 28px;
-    overflow-y: auto;
-}
-
 .main-column {
     min-width: 0;
 }
@@ -2512,12 +2504,6 @@ h3 {
   border-radius: 999px; /* keeps pill look */
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-  align-items: start;
-}
 
 .side-column {
   display: flex;
@@ -2578,11 +2564,7 @@ h3 {
 /* ================================
    DESKTOP SIDEBAR
 ================================ */
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-}
+
 
 .side-column {
   position: sticky;
@@ -2635,13 +2617,6 @@ body.no-scroll {
 }
 
 
-/* Collapse to single column on smaller screens */
-@media (max-width: 1100px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* Mobile behavior */
 @media (max-width: 900px) {
 
@@ -2672,12 +2647,6 @@ body.no-scroll {
   }
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-  align-items: start;
-}
 
 /* Desktop placement */
 #sidebarSessionCard {
