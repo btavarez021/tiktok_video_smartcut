@@ -3766,16 +3766,17 @@ if (captionsBox) {
  // ================================
 // OVERLAY STYLE — Auto-save
 // ================================
-const overlayStyleEl = document.getElementById("overlayStyle");
-
 overlayStyleEl?.addEventListener("change", async () => {
-    try {
-        await saveOverlayStyle({ silent: true });
-        showAutoSaveStatus("overlayStyleStatus");
-    } catch (e) {
-        setStatus("overlayStyleStatus", "Save failed", "error");
-    }
+  if (suppressNextPreview) {
+    suppressNextPreview = false;
+    return;
+  }
+
+  await saveOverlayStyle({ silent: true });
+  showAutoSaveStatus("overlayStyleStatus");
+  previewOverlay("fast");
 });
+
 
 
 // ================================
@@ -3895,18 +3896,6 @@ captionModeEl?.addEventListener("change", async () => {
     document.getElementById("previewFull")?.addEventListener("click", () => previewOverlay("full"));
     document.getElementById("previewStyleBtn")?.addEventListener("click", () => previewOverlay("fast")); // button you already have
 
-
-    // Auto-refresh preview when style changes
-    const overlayStyleSelect = document.getElementById("overlayStyle");
-    if (overlayStyleSelect) {
-        overlayStyleSelect.addEventListener("change", () => {
-            if (suppressNextPreview) {
-                suppressNextPreview = false;
-                return;
-            }
-            previewOverlay("fast");
-        });
-    }
 
 // Watch live typing unlock rewrite mode
 document.getElementById("captionsText")?.addEventListener("input", updateRewriteModeAvailability);
