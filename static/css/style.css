@@ -2755,22 +2755,3 @@ body.no-scroll {
     position: relative;
   }
 }
-
-@media (max-width: 1023px) {
-  #sidebarSessionCard {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
-  }
-
-  #sidebarSessionCard.open {
-    transform: translateX(0);
-  }
-}
-
-.side-column {
-  border-left: 1px solid rgba(255,255,255,0.06);
-  padding-left: 16px;
-}
