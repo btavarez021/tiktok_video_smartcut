@@ -65,6 +65,22 @@ function renderCaptionView() {
   }
 }
 
+
+function syncCtaUIState() {
+    const enabled = document.getElementById("ctaEnabled")?.checked;
+    const textEl = document.getElementById("ctaText");
+    const voiceEl = document.getElementById("ctaVoiceover");
+    const rowEl = document.getElementById("ctaRow");
+
+    if (!textEl || !voiceEl || !rowEl) return;
+
+    textEl.disabled = !enabled;
+    voiceEl.disabled = !enabled;
+
+    rowEl.style.opacity = enabled ? "1" : "0.5";
+}
+
+
 function showAutoSaveStatus(id, message = "Saved ✓", timeout = 1500) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -2684,8 +2700,6 @@ async function saveCtaSettings({ silent = false } = {}) {
 
         if (!silent) {
             setStatus("ctaStatus", "CTA saved ✓", "success");
-        } else {
-            showAutoSaveStatus("ctaStatus");
         }
 
         await loadConfigAndYaml();
@@ -2830,36 +2844,42 @@ function initMusicVolumeSlider() {
 const ctaEnabledEl = document.getElementById("ctaEnabled");
 const ctaVoiceoverEl = document.getElementById("ctaVoiceover");
 
-// Enable CTA overlay → instant auto-save
 ctaEnabledEl?.addEventListener("change", async () => {
+    syncCtaUIState();
+
+    await saveCtaSettings({ silent: true });
+
     flashElement(document.getElementById("ctaRow"));
+    showAutoSaveStatus("ctaStatus");
+});
+
+ctaVoiceoverEl?.addEventListener("change", async () => {
     await saveCtaSettings({ silent: true });
     showAutoSaveStatus("ctaStatus");
 });
 
-// Include in voiceover → instant auto-save
-ctaVoiceoverEl?.addEventListener("change", async () => {
-    flashElement(document.getElementById("ctaRow"));
-    await saveCtaSettings({ silent: true });
-    showAutoSaveStatus("ctaStatus");
-});
 
 // ================================
-// CTA — Text auto-save (FIX)
+// CTA — Text auto-save (FINAL)
 // ================================
 const ctaTextEl = document.getElementById("ctaText");
+const ctaRowEl = document.getElementById("ctaRow");
+
 let ctaSaveTimer = null;
 
 ctaTextEl?.addEventListener("input", () => {
-    const row = document.getElementById("ctaRow");
-    if (row) flashElement(row);   // ✅ flash container, not input
-
     clearTimeout(ctaSaveTimer);
+
     ctaSaveTimer = setTimeout(async () => {
         await saveCtaSettings({ silent: true });
+
+        // ✅ flash ONLY after save succeeds
+        if (ctaRowEl) flashElement(ctaRowEl);
+
         showAutoSaveStatus("ctaStatus");
     }, 400);
 });
+
 
 
 
@@ -3226,6 +3246,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Sync labels
     updateSessionLabels();
     sidebarSyncActiveLabel();
+
+    syncCtaUIState();
 
     // YAML preview toggle
     const toggleBtn = document.getElementById("toggleYamlPreviewBtn");
