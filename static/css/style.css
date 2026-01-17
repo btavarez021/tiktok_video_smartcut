@@ -2573,3 +2573,13 @@ h3 {
 }
 
 
+/* Ensure session panel can appear above content */
+#sidebarSessionCard {
+  position: relative;
+  z-index: 50;
+}
+
+/* Mobile open state */
+#sidebarSessionCard.open {
+  display: block;
+}
