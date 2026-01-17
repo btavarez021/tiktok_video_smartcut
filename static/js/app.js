@@ -68,8 +68,11 @@ function animateSessionGlow() {
   });
 }
 
+// ================================
+// Mobile Session Panel Toggle
+// ================================
 function toggleMobileSessionPanel() {
-  const panel = document.querySelector(".side-column");
+  const panel = document.getElementById("sidebarSessionCard");
   const btn = document.getElementById("mobileSessionBtn");
 
   if (!panel || !btn) return;
@@ -79,11 +82,6 @@ function toggleMobileSessionPanel() {
   document.body.classList.toggle("no-scroll", isOpen);
   btn.textContent = isOpen ? "Close Sessions" : "Sessions";
 }
-
-
-
-
-
 
 function syncMusicUIState() {
   const enabled = document.getElementById("musicEnabled")?.checked;

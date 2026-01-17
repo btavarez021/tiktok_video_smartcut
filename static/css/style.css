@@ -2574,40 +2574,49 @@ h3 {
 
 
 /* ================================
-   MOBILE SIDEBAR (CORRECT)
+   DESKTOP SIDEBAR (DEFAULT)
+================================ */
+.side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ================================
+   MOBILE SESSION PANEL
 ================================ */
 @media (max-width: 900px) {
+
+  /* Hide entire sidebar by default */
   .side-column {
+    display: none;
+  }
+
+  /* Slide-in session panel */
+  #sidebarSessionCard {
     position: fixed;
     top: 0;
     right: 0;
-
     width: 92%;
     max-width: 420px;
     height: 100vh;
 
     background: var(--bg);
-    z-index: 200;
+    z-index: 9999;
 
     transform: translateX(100%);
     transition: transform 0.3s ease;
     overflow-y: auto;
   }
 
-  .side-column.open {
+  #sidebarSessionCard.open {
     transform: translateX(0);
   }
 }
 
-@media (min-width: 901px) {
-  .side-column {
-    position: static;
-    transform: none;
-    height: auto;
-    z-index: auto;
-  }
-
-  #mobileSessionBtn {
-    display: none;
-  }
+/* Lock background scroll */
+body.no-scroll {
+  overflow: hidden;
+  height: 100vh;
 }
+
