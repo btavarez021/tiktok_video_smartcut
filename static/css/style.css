@@ -26,6 +26,9 @@
     box-sizing: border-box;
     font-family: var(--font);
 }
+body {
+    overflow-y: auto;
+}
 
 body {
     background: var(--bg);
@@ -2703,8 +2706,20 @@ body.no-scroll {
 
 
 .layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-  align-items: start;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 20px;
+    padding: 20px 28px;
+    align-items: start;
+}
+
+.side-column {
+    position: sticky;
+    top: 16px;
+    z-index: 20;
+}
+
+.main-column {
+    position: relative;
+    z-index: 1;
 }
