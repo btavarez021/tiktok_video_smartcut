@@ -44,6 +44,16 @@ function syncTtsUIState() {
   voiceSelect.style.opacity = enabled ? "1" : "0.5";
 }
 
+function syncFgScaleUI() {
+    const autoEl = document.getElementById("autoFgScale");
+    const manualContainer = document.getElementById("manualFgScaleContainer");
+
+    if (!autoEl || !manualContainer) return;
+
+    manualContainer.style.display = autoEl.checked ? "none" : "block";
+}
+
+
 
 function renderCaptionView() {
 
@@ -2970,42 +2980,51 @@ async function saveYamlToServer() {
     });
 }
 
-// Foreground scale
-async function saveFgScale() {
-    const auto = document.getElementById("autoFgScale").checked;
-    const fg = parseFloat(document.getElementById("fgScale").value || "1.0");
+// ================================
+// Foreground Scale — Save (supports silent)
+// ================================
+async function saveFgScale({ silent = false } = {}) {
+    const autoEl = document.getElementById("autoFgScale");
+    const scaleEl = document.getElementById("fgScale");
+    const statusEl = document.getElementById("fgStatus");
 
-    setStatus("fgStatus", "Saving foreground scale…", "working", false);
+    if (!autoEl || !scaleEl || !statusEl) return;
+
+    const auto = autoEl.checked;
+    const scale = parseFloat(scaleEl.value || "1.0");
 
     try {
-        let yamlObj = jsyaml.load(document.getElementById("yamlText").value) || {};
-        yamlObj.render = yamlObj.render || {};
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        const cfg = data.config || {};
 
-        yamlObj.render.fgscale_mode = auto ? "auto" : "manual";
-        yamlObj.render.fgscale = auto ? null : fg;
+        cfg.foreground_scale = {
+            auto,
+            scale
+        };
 
-        document.getElementById("yamlText").value = jsyaml.dump(yamlObj);
-
-        await saveYamlToServer();
-
-        await jsonFetch("/api/fgscale", {
+        await jsonFetch("/api/save_config", {
             method: "POST",
             body: JSON.stringify({
                 session: getActiveSession(),
-                fgscale_mode: auto ? "auto" : "manual",
-                fgscale: auto ? null : fg,
-            }),
+                config: cfg
+            })
         });
 
+        if (!silent) {
+            setStatus("fgStatus", "Foreground scale saved ✓", "success");
+        } else {
+            showAutoSaveStatus("fgStatus");
+        }
 
-
-        setStatus("fgStatus", "Foreground scale saved.", "success");
         await loadConfigAndYaml();
+
     } catch (err) {
         console.error(err);
-        setStatus("fgStatus", "Error saving scale: " + err.message, "error");
+        setStatus("fgStatus", "Failed to save foreground scale", "error");
     }
 }
+
 
 function initFgScaleSlider() {
     const range = document.getElementById("fgScale");
@@ -3297,6 +3316,7 @@ document.getElementById("applyOrderBtn")?.addEventListener("click", async () => 
     workingClipOrder = [];
 
     await loadConfigAndYaml();
+    syncFgScaleUI();
     await loadCaptionsFromYaml();
 
     setStatus("storyboardStatus", "Clip order applied ✓", "success");
@@ -3698,7 +3718,29 @@ if (captionsBox) {
     await previewOverlay("fast");
     });
 
-    document.getElementById("saveFgScaleBtn")?.addEventListener("click", saveFgScale);
+// ================================
+// Foreground Scale — Auto-save wiring
+// ================================
+const autoFgEl = document.getElementById("autoFgScale");
+const fgScaleEl = document.getElementById("fgScale");
+
+let fgSaveTimer = null;
+
+// Auto zoom checkbox → instant save
+autoFgEl?.addEventListener("change", async () => {
+    syncFgScaleUI();
+    await saveFgScale({ silent: true });
+});
+
+// Manual scale slider → debounced save
+fgScaleEl?.addEventListener("input", () => {
+    clearTimeout(fgSaveTimer);
+
+    fgSaveTimer = setTimeout(async () => {
+        await saveFgScale({ silent: true });
+    }, 300);
+});
+
 
 // ================================
 // TTS — Auto-save wiring
