@@ -2573,13 +2573,41 @@ h3 {
 }
 
 
-/* Ensure session panel can appear above content */
-#sidebarSessionCard {
-  position: relative;
-  z-index: 50;
+/* ================================
+   MOBILE SESSION PANEL TOGGLE
+================================ */
+
+/* Desktop: sidebar always visible */
+@media (min-width: 901px) {
+  .side-column {
+    display: block;
+  }
+
+  #mobileSessionBtn {
+    display: none;
+  }
 }
 
-/* Mobile open state */
-#sidebarSessionCard.open {
-  display: block;
+/* Mobile: sidebar hidden by default */
+@media (max-width: 900px) {
+  .side-column {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 92%;
+    max-width: 420px;
+    height: 100vh;
+
+    background: var(--bg);
+    z-index: 200;
+
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+  }
+
+  /* OPEN STATE */
+  .side-column.open {
+    transform: translateX(0);
+  }
 }

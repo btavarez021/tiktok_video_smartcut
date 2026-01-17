@@ -69,18 +69,16 @@ function animateSessionGlow() {
 }
 
 function toggleMobileSessionPanel() {
-  const panel = document.getElementById("sidebarSessionCard");
+  const panel = document.querySelector(".side-column");
   const btn = document.getElementById("mobileSessionBtn");
 
   if (!panel || !btn) return;
 
-  const isOpen = panel.classList.toggle("mobile-open");
+  const isOpen = panel.classList.toggle("open");
 
-  document.body.classList.toggle("session-open", isOpen);
-
-  // Button text toggle
-  btn.textContent = isOpen ? "Close" : "Sessions";
+  btn.textContent = isOpen ? "Close Sessions" : "Sessions";
 }
+
 
 
 
@@ -3365,13 +3363,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ================================
 // Mobile Session Panel toggle
 // ================================
-document
-  .getElementById("mobileSessionBtn")
-  ?.addEventListener("click", toggleMobileSessionPanel);
 
-document
-  .getElementById("mobileCloseSessionBtn")
-  ?.addEventListener("click", toggleMobileSessionPanel);
+  document
+    .getElementById("mobileSessionBtn")
+    ?.addEventListener("click", toggleMobileSessionPanel);
+
+  document
+    .getElementById("mobileCloseSessionBtn")
+    ?.addEventListener("click", toggleMobileSessionPanel);
+
 
 
 document.getElementById("applyOrderBtn")?.addEventListener("click", async () => {
