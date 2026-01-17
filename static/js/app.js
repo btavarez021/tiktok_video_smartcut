@@ -71,14 +71,17 @@ function animateSessionGlow() {
 function toggleMobileSessionPanel() {
   const panel = document.getElementById("sidebarSessionCard");
   const btn = document.getElementById("mobileSessionBtn");
-  if (!panel) return;
+
+  if (!panel || !btn) return;
 
   const isOpen = panel.classList.toggle("mobile-open");
 
-  if (btn) {
-    btn.textContent = isOpen ? "Close Sessions" : "Sessions";
-  }
+  document.body.classList.toggle("session-open", isOpen);
+
+  // Button text toggle
+  btn.textContent = isOpen ? "Close" : "Sessions";
 }
+
 
 
 
