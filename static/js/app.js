@@ -2842,15 +2842,11 @@ async function saveMusicSettings({ silent = false } = {}) {
     const volEl = document.getElementById("musicVolume");
     const statusEl = document.getElementById("musicStatus");
 
-    if (!enabledEl || !fileEl || !volEl) return;
+    if (!enabledEl || !fileEl || !volEl || !statusEl) return;
 
     const enabled = enabledEl.checked;
     const file = fileEl.value || "";
     const volume = parseFloat(volEl.value || "0.25");
-
-    if (!silent && statusEl) {
-        setStatus("musicStatus", "Saving…", "working", false);
-    }
 
     try {
         const session = encodeURIComponent(getActiveSession());
@@ -2859,34 +2855,29 @@ async function saveMusicSettings({ silent = false } = {}) {
 
         cfg.music = { enabled, file, volume };
 
-        // Clean legacy render keys
-        if (cfg.render) {
-            delete cfg.render.music_enabled;
-            delete cfg.render.music_file;
-            delete cfg.render.music_volume;
-        }
-
-        const yamlText = jsyaml.dump(cfg);
-
-        await jsonFetch("/api/save_yaml", {
+        await jsonFetch("/api/save_config", {
             method: "POST",
             body: JSON.stringify({
-                yaml: yamlText,
                 session: getActiveSession(),
-            }),
+                config: cfg
+            })
         });
 
-        if (!silent && statusEl) {
-            setStatus("musicStatus", "Saved ✓", "success");
+        // ✅ THIS IS THE MISSING PIECE
+        await loadConfigAndYaml();
+
+        if (!silent) {
+            setStatus("musicStatus", "Music saved ✓", "success");
+        } else {
+            showAutoSaveStatus("musicStatus");
         }
 
     } catch (err) {
         console.error(err);
-        if (!silent && statusEl) {
-            setStatus("musicStatus", "Save failed", "error");
-        }
+        setStatus("musicStatus", "Failed to save music", "error");
     }
 }
+
 
 // Music volume label live update
 function initMusicVolumeSlider() {
