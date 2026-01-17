@@ -112,6 +112,45 @@ function showAutoSaveStatus(id, message = "Saved ✓", timeout = 1500) {
     }, timeout);
 }
 
+// ================================
+// OVERLAY STYLE — Save (SAFE)
+// ================================
+async function saveOverlayStyle({ silent = false } = {}) {
+    const selectEl = document.getElementById("overlayStyle");
+    const statusEl = document.getElementById("overlayStyleStatus");
+
+    if (!selectEl || !statusEl) return;
+
+    const style = selectEl.value;
+
+    try {
+        const session = encodeURIComponent(getActiveSession());
+        const data = await jsonFetch(`/api/config?session=${session}`);
+        const cfg = data.config || {};
+
+        cfg.render = cfg.render || {};
+        cfg.render.overlay_style = style;
+
+        await jsonFetch("/api/save_config", {
+            method: "POST",
+            body: JSON.stringify({
+                session: getActiveSession(),
+                config: cfg
+            })
+        });
+
+        if (!silent) {
+            setStatus("overlayStyleStatus", "Style saved ✓", "success");
+        } else {
+            showAutoSaveStatus("overlayStyleStatus");
+        }
+
+    } catch (err) {
+        console.error(err);
+        setStatus("overlayStyleStatus", "Failed to save style", "error");
+    }
+}
+
 
 
 function showPendingRewrite() {
