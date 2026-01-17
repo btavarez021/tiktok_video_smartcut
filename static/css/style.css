@@ -2741,3 +2741,113 @@ body.no-scroll {
 }
 
 
+/* ================================
+   MAIN APP LAYOUT (DESKTOP)
+================================ */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  padding: 20px 28px;
+  align-items: start;
+}
+
+/* Main content */
+.main-column {
+  min-width: 0;
+}
+
+/* ================================
+   RIGHT SIDEBAR (DESKTOP)
+================================ */
+
+.side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  position: sticky;
+  top: 16px;
+
+  height: calc(100vh - 32px);
+  overflow-y: auto;
+
+  padding-left: 16px;
+  border-left: 1px solid rgba(255,255,255,0.06);
+
+  background: linear-gradient(
+    to right,
+    rgba(255,255,255,0.02),
+    rgba(255,255,255,0)
+  );
+
+  z-index: 20;
+}
+
+/* Sidebar cards should never be constrained */
+.side-column .card {
+  overflow: visible;
+}
+
+/* ================================
+   SESSION MANAGER (DESKTOP)
+================================ */
+
+/* On desktop it behaves like a normal sidebar card */
+#sidebarSessionCard {
+  position: static;
+  width: 100%;
+  height: auto;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ================================
+   MOBILE BEHAVIOR
+================================ */
+
+@media (max-width: 900px) {
+
+  /* Collapse layout to single column */
+  .layout {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  /* Hide desktop sidebar completely */
+  .side-column {
+    display: none;
+  }
+
+  /* Slide-in mobile session manager */
+  #sidebarSessionCard {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: auto;
+
+    width: 92%;
+    max-width: 420px;
+    height: 100vh;
+
+    background: var(--bg);
+    z-index: 99999;
+
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+
+    box-shadow: -12px 0 30px rgba(0,0,0,0.35);
+  }
+
+  #sidebarSessionCard.open {
+    transform: translateX(0);
+  }
+}
+
+/* Prevent background scroll when mobile panel open */
+body.no-scroll {
+  overflow: hidden;
+  height: 100vh;
+}

@@ -975,6 +975,81 @@
 
                         </div>
                     </section>
+                <!-- ================================
+                    STEP 5 · EXPORT & DOWNLOAD
+                ================================== -->
+                <section class="card step-card" id="step-5">
+                <div class="card-header">
+                    <div class="session-tag active-session-tag">
+                    Session: <span class="sessionLabel"></span>
+                    </div>
+
+                    <h2>
+                    Step 5 · Export & Download
+                    <span class="tooltip">ⓘ
+                        <span class="tooltiptext">
+                        Final render step.<br>
+                        Builds your TikTok-ready video using YAML, captions, style, timing, and media.
+                        </span>
+                    </span>
+                    </h2>
+
+                    <p class="card-subtitle">
+                    Render your final video and download the result.
+                    </p>
+                </div>
+
+                <div class="card-body">
+
+                    <h3 class="section-label">Export Options</h3>
+
+                    <div class="checkbox-row">
+                    <input type="checkbox" id="exportIncludeCaptions" checked />
+                    <label for="exportIncludeCaptions">Include captions</label>
+                    </div>
+
+                    <div class="checkbox-row">
+                    <input type="checkbox" id="exportIncludeMusic" checked />
+                    <label for="exportIncludeMusic">Include background music</label>
+                    </div>
+
+                    <div class="checkbox-row">
+                    <input type="checkbox" id="exportIncludeTTS" />
+                    <label for="exportIncludeTTS">Include voiceover (TTS)</label>
+                    </div>
+
+                    <hr class="section-divider" />
+
+                    <h3 class="section-label">Render</h3>
+
+                    <div class="row">
+                    <button id="exportBtn" class="btn primary">
+                        🚀 Render Video
+                    </button>
+
+                    <button id="exportStatusBtn" class="btn ghost" disabled>
+                        ⏳ Waiting
+                    </button>
+                    </div>
+
+                    <div id="exportStatus" class="hint-text" style="margin-top:10px;"></div>
+
+                    <hr class="divider" />
+
+                    <h3 class="section-label">Download</h3>
+
+                    <div class="row">
+                    <a id="downloadLink"
+                        class="btn-download hidden"
+                        href="#"
+                        download>
+                        ⬇ Download Video
+                    </a>
+                    </div>
+
+                </div>
+                </section>
+
                 </section>
 
                 <!-- =========================
