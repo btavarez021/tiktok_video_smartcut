@@ -2732,26 +2732,3 @@ body.no-scroll {
   max-height: 120px;
 }
 
-/* Desktop layout */
-@media (min-width: 1024px) {
-  #sidebarSessionCard {
-    position: sticky;
-    top: 16px;
-
-    /* Visually align with sidebar */
-    width: 100%;
-    max-width: 360px;
-
-    /* Push it to the right column */
-    margin-left: auto;
-    margin-right: 0;
-
-    /* Match sidebar spacing */
-    margin-top: 12px;
-  }
-
-  /* Ensure sidebar itself behaves like a column */
-  .side-column {
-    position: relative;
-  }
-}
