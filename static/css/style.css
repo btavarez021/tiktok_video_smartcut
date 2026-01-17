@@ -2552,3 +2552,22 @@ h3 {
   animation: sessionTagGlow 2s ease-out;
   border-radius: 999px; /* keeps pill look */
 }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+.side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.side-column {
+  position: sticky;
+  top: 16px;
+  height: fit-content;
+}

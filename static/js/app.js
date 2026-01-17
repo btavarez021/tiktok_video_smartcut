@@ -68,6 +68,18 @@ function animateSessionGlow() {
   });
 }
 
+function toggleMobileSessionPanel() {
+  const panel = document.getElementById("sidebarSessionCard");
+  const btn = document.getElementById("mobileSessionBtn");
+  if (!panel) return;
+
+  const isOpen = panel.classList.toggle("mobile-open");
+
+  if (btn) {
+    btn.textContent = isOpen ? "Close Sessions" : "Sessions";
+  }
+}
+
 
 
 function syncMusicUIState() {
@@ -3346,6 +3358,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("captionsText")?.addEventListener("input", () => {
   diffDirty = true;
 });
+
+// ================================
+// Mobile Session Panel toggle
+// ================================
+document
+  .getElementById("mobileSessionBtn")
+  ?.addEventListener("click", toggleMobileSessionPanel);
+
+document
+  .getElementById("mobileCloseSessionBtn")
+  ?.addEventListener("click", toggleMobileSessionPanel);
+
 
 document.getElementById("applyOrderBtn")?.addEventListener("click", async () => {
   if (!clipOrderDirty) {
