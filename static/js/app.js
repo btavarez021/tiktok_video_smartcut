@@ -3517,36 +3517,6 @@ if (captionsBox) {
     }
   });
 
-
-    // MOBILE SESSION PANEL
-    const mobileSessionBtn = document.getElementById("mobileSessionBtn");
-    const sidebarPanel = document.getElementById("sidebarSessionCard");
-    const mobileCloseBtn = document.getElementById("mobileCloseSessionBtn");
-
-    if (mobileSessionBtn && sidebarPanel) {
-        mobileSessionBtn.addEventListener("click", () => {
-            sidebarPanel.classList.add("open");
-        });
-
-        if (mobileCloseBtn) {
-            mobileCloseBtn.addEventListener("click", () => {
-                sidebarPanel.classList.remove("open");
-            });
-        }
-
-        // Single outside-click handler
-        document.addEventListener("click", (e) => {
-            if (!sidebarPanel.classList.contains("open")) return;
-
-            const clickedInside =
-                sidebarPanel.contains(e.target) ||
-                e.target === mobileSessionBtn;
-            if (!clickedInside) {
-                sidebarPanel.classList.remove("open");
-            }
-        });
-    }
-
     // SIDEBAR SESSION BUTTONS
     document.getElementById("sidebarCreateBtn")?.addEventListener("click", async () => {
         const input = document.getElementById("sidebarNewSessionInput");
