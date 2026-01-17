@@ -2596,25 +2596,28 @@ h3 {
    MOBILE SESSION PANEL
 ================================ */
 
+/* ================================
+   MOBILE SESSION PANEL
+================================ */
 @media (max-width: 900px) {
 
-  /* Hide desktop sidebar on mobile */
+  /* Hide desktop sidebar */
   .side-column {
     display: none;
   }
 
+  /* Session panel (off-canvas) */
   #sidebarSessionCard {
     position: fixed;
     top: 0;
     right: 0;
-    left: auto;
 
     width: 92%;
     max-width: 420px;
     height: 100vh;
 
     background: var(--bg);
-    z-index: 99999;
+    z-index: 9999;
 
     transform: translateX(100%);
     transition: transform 0.3s ease;
@@ -2627,6 +2630,7 @@ h3 {
     transform: translateX(0);
   }
 }
+
 
 /* Prevent background scroll */
 body.no-scroll {
