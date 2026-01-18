@@ -156,13 +156,23 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
         # ---------------------------------------------
         # 🔥 CAPTIONS_MODE controls narration too
         # ---------------------------------------------
-        caption_mode = (cfg.get("render", {}).get("captions_mode") or "all").lower()
+        render_cfg = cfg.get("render", {})
+        caption_mode = (render_cfg.get("captions_mode") or "all").lower()
+        narration_mode = (render_cfg.get("narration_mode") or "all").lower()
+
 
         # Skip TTS for clips without captions
-        if caption_mode == "none" or (caption_mode == "first_only" and idx > 0):
-            log_step(f"[TTS] Skipping narration on clip {idx+1} due to captions_mode={caption_mode}")
+        # Narration rules (independent of captions)
+        if narration_mode == "none":
+            log_step(f"[TTS] Narration disabled (narration_mode=none) on clip {idx+1}")
             tts_files.append(None)
             continue
+
+        if narration_mode == "first_only" and idx > 0:
+            log_step(f"[TTS] Narration first_only → skipping clip {idx+1}")
+            tts_files.append(None)
+            continue
+
 
         
         if not text:
