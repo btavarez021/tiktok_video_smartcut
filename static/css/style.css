@@ -2625,6 +2625,15 @@ body.no-scroll {
   max-height: 120px;
 }
 
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+
 /* Left column */
 .main-column {
   grid-column: 1;
