@@ -227,9 +227,10 @@ textarea::-webkit-scrollbar-thumb,
 
 .log-card,
 .chat-card {
-  height: auto;
+    height: 50%;
+    display: flex;
+    flex-direction: column;
 }
-
 
 /* ---------------------------------------
    Lists & Analyses
