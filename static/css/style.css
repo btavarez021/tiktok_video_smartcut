@@ -43,14 +43,6 @@ body {
     height: 100vh;
 }
 
-.layout {
-    display: grid;
-    grid-template-columns: 1fr 340px;
-    gap: 24px;
-    padding: 20px 28px;
-    overflow-y: auto;
-}
-
 .main-column {
     min-width: 0;
 }
@@ -2506,14 +2498,6 @@ h3 {
   border-radius: 999px; /* keeps pill look */
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-  align-items: start;
-}
-
-
 /* ================================
    MOBILE SESSION PANEL
 ================================ */
@@ -2544,17 +2528,6 @@ h3 {
   #sidebarSessionCard.open {
     transform: translateX(0);
   }
-}
-
-
-
-/* ================================
-   DESKTOP SIDEBAR
-================================ */
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
 }
 
 /* ================================
@@ -2630,13 +2603,6 @@ body.no-scroll {
   }
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-  align-items: start;
-}
-
 .sidebar-label {
   font-size: 12px;
   letter-spacing: 0.08em;
@@ -2657,34 +2623,6 @@ body.no-scroll {
 
 .log-card .log-view {
   max-height: 120px;
-}
-
-
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-  align-items: start;
-}
-
-
-/* =========================================================
-   MAIN APP GRID — DESKTOP
-   ========================================================= */
-
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  grid-template-rows: 1fr; /* FORCE single row */
-  gap: 20px;
-
-  padding: 20px 28px;
-
-  /* THIS is the scroll container */
-  height: calc(100vh - 140px); /* header + stepper */
-  overflow-y: auto;
-
-  align-items: start;
 }
 
 /* Left column */
