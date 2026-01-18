@@ -1203,16 +1203,28 @@ function initUploadUI() {
             }
         };
 
-        xhr.onload = () => {
+                xhr.onload = () => {
             if (xhr.status === 200) {
                 const resp = JSON.parse(xhr.responseText);
-                statusEl.textContent = `✅ Uploaded ${resp.uploaded?.length || 0} file(s).`;
+                const count = resp.uploaded?.length || 0;
+
+                statusEl.textContent = `✅ Uploaded ${count} file(s).`;
                 progressBar.style.width = "100%";
+
+                // ✅ visually mark as completed (optional polish)
+                markPreviewUploaded();
+
+                // Refresh S3 manager list (raw/processed)
                 loadUploadManager();
+
+                // ✅ auto-clear selected uploads list after a short pause
+                clearSelectedUploadsUI({ delayMs: 2200 });
+
             } else {
                 statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
             }
         };
+
 
         xhr.onerror = () => {
             statusEl.textContent = "❌ Upload error.";
@@ -1221,6 +1233,39 @@ function initUploadUI() {
         xhr.send(formData);
     });
 }
+
+    function clearSelectedUploadsUI({ showToast = true, delayMs = 2200 } = {}) {
+        // Show a short success pause so user sees confirmation
+        setTimeout(() => {
+            selectedFiles = [];
+            preview.innerHTML = "";
+            fileInput.value = ""; // important: allows re-uploading same filename(s)
+            uploadBtn.disabled = true;
+
+            // Optional: collapse progress UI after done
+            progressWrapper.classList.add("hidden");
+            progressBar.style.width = "0%";
+
+            if (showToast) {
+                // Keep your existing status line
+                // (no-op if you prefer)
+            }
+        }, delayMs);
+    }
+
+    function markPreviewUploaded() {
+        // Visually mark the preview rows as done before clearing
+        preview.querySelectorAll(".preview-item").forEach((row) => {
+            row.classList.add("uploaded");
+            const x = row.querySelector(".preview-remove");
+            if (x) {
+                x.disabled = true;
+                x.style.opacity = "0.4";
+                x.style.cursor = "not-allowed";
+            }
+        });
+    }
+
 
 // ================================
 // Manage uploads already in S3

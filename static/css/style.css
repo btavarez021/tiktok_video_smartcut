@@ -2508,7 +2508,7 @@ h3 {
 }
 
 .active-session-tag.session-glow {
-  animation: sessionTagGlow 2s ease-out;
+  animation: sessionTagGlow 3s ease-out;
   border-radius: 999px; /* keeps pill look */
 }
 
@@ -2878,4 +2878,15 @@ main.layout {
 .side-column {
   grid-column: 2;
   align-self: start;
+}
+.preview-item.uploaded {
+  opacity: 0.6;
+  filter: grayscale(0.2);
+}
+
+.preview-item.uploaded::after {
+  content: " ✓ Uploaded";
+  margin-left: 8px;
+  font-size: 12px;
+  opacity: 0.8;
 }
