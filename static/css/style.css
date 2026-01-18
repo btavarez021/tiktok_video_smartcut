@@ -48,7 +48,7 @@ body {
     grid-template-columns: 1fr 340px;
     gap: 24px;
     padding: 20px 28px;
-    overflow-y: visible;
+    overflow-y: auto;
 }
 
 .main-column {
@@ -2675,12 +2675,15 @@ body.no-scroll {
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: 1fr; /* FORCE single row */
   gap: 20px;
+
   padding: 20px 28px;
 
-  /* 🔑 CRITICAL */
-  height: auto;
-  overflow: visible;
+  /* THIS is the scroll container */
+  height: calc(100vh - 140px); /* header + stepper */
+  overflow-y: auto;
+
   align-items: start;
 }
 
@@ -2769,14 +2772,11 @@ body.no-scroll {
   gap: 20px;
 
   padding: 20px 28px;
-
-  /* 🔑 critical: let BODY scroll */
-  height: auto;
-  overflow: visible;
+  height: calc(100vh - 140px);
+  overflow-y: auto;
 
   align-items: start;
 }
-
 
 
 .side-column {
@@ -2803,21 +2803,24 @@ body.no-scroll {
 .app-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;  /* ✅ allow page to grow */
+  height: 100vh;
 }
-
 
 /* =========================================================
    DESKTOP LAYOUT (>= 901px)
    ========================================================= */
-/* ============================
-   DESKTOP GRID — SCROLL TOGETHER
-============================ */
+
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 20px;
+
   padding: 20px 28px;
+
+  /* desktop scroll container */
+  height: calc(100vh - 140px); /* header + stepper */
+  overflow-y: auto;
+
   align-items: start;
 }
 
@@ -2948,4 +2951,19 @@ body.no-scroll {
   .mobile-close-btn {
     display: none !important;
   }
+}
+
+/* =========================================================
+   DESKTOP — PAGE SCROLLS, SIDEBAR SCROLLS WITH CONTENT
+   ========================================================= */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  padding: 20px 28px;
+
+  /* 🔑 CRITICAL */
+  height: auto;
+  overflow: visible;
+  align-items: start;
 }
