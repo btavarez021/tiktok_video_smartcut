@@ -43,14 +43,6 @@ body {
     height: 100vh;
 }
 
-.layout {
-    display: grid;
-    grid-template-columns: 1fr 340px;
-    gap: 24px;
-    padding: 20px 28px;
-    overflow-y: auto;
-}
-
 .main-column {
     min-width: 0;
 }
@@ -1189,12 +1181,6 @@ h3 {
         width: 100%;
     }
 
-    .side-column {
-        order: 10;
-        position: sticky;
-        top: 80px;
-        height: fit-content;
-    }
 
     #exportModeContainer {
         flex-wrap: wrap !important;
@@ -2512,35 +2498,6 @@ h3 {
   border-radius: 999px; /* keeps pill look */
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-  align-items: start;
-}
-
-.side-column {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.side-column {
-  position: sticky;
-  top: 16px;
-  height: fit-content;
-}
-
-
-/* ================================
-   DESKTOP SIDEBAR (DEFAULT)
-================================ */
-.side-column {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
 /* ================================
    MOBILE SESSION PANEL
 ================================ */
@@ -2571,25 +2528,6 @@ h3 {
   #sidebarSessionCard.open {
     transform: translateX(0);
   }
-}
-
-
-
-/* ================================
-   DESKTOP SIDEBAR
-================================ */
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-}
-
-.side-column {
-  position: sticky;
-  top: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
 }
 
 /* ================================
@@ -2665,44 +2603,6 @@ body.no-scroll {
   }
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-  align-items: start;
-}
-
-/* Desktop placement */
-#sidebarSessionCard {
-  grid-column: 2;
-}
-
-/* Force session manager into the same grid row as the sidebar */
-#sidebarSessionCard {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.side-column {
-  position: sticky;
-  top: 16px;
-  height: calc(100vh - 32px);
-  overflow-y: auto;
-}
-
-.side-column {
-  border-left: 1px solid rgba(255,255,255,0.06);
-  padding-left: 16px;
-}
-
-.side-column {
-  background: linear-gradient(
-    to right,
-    rgba(255,255,255,0.02),
-    rgba(255,255,255,0)
-  );
-}
-
 .sidebar-label {
   font-size: 12px;
   letter-spacing: 0.08em;
@@ -2725,34 +2625,6 @@ body.no-scroll {
   max-height: 120px;
 }
 
-
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-  align-items: start;
-}
-
-
-/* =========================================================
-   MAIN APP GRID — DESKTOP
-   ========================================================= */
-
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  grid-template-rows: 1fr; /* FORCE single row */
-  gap: 20px;
-
-  padding: 20px 28px;
-
-  /* THIS is the scroll container */
-  height: calc(100vh - 140px); /* header + stepper */
-  overflow-y: auto;
-
-  align-items: start;
-}
-
 /* Left column */
 .main-column {
   grid-column: 1;
@@ -2763,29 +2635,6 @@ body.no-scroll {
 /* =========================================================
    RIGHT SIDEBAR — DESKTOP
    ========================================================= */
-
-.side-column {
-  grid-column: 2;
-  grid-row: 1;
-
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-
-  position: static;
-  top: 16px;
-
-  height: fit-content;
-
-  padding-left: 16px;
-  border-left: 1px solid rgba(255,255,255,0.06);
-
-  background: linear-gradient(
-    to right,
-    rgba(255,255,255,0.02),
-    rgba(255,255,255,0)
-  );
-}
 
 /* Sidebar cards must NOT clip */
 .side-column .card {
@@ -2867,14 +2716,6 @@ body.no-scroll {
   align-items: start;
 }
 
-/* 🔥 FORCE MAIN LAYOUT GRID */
-main.layout {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-  align-items: start;
-}
-
 .side-column {
   grid-column: 2;
   align-self: start;
@@ -2889,4 +2730,20 @@ main.layout {
   margin-left: 8px;
   font-size: 12px;
   opacity: 0.8;
+}
+
+/* ================================
+   FINAL SAFETY OVERRIDES (DESKTOP)
+================================ */
+
+.side-column {
+  position: static !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+#sidebarSessionCard {
+  position: static !important;
+  transform: none !important;
+  height: auto !important;
 }
