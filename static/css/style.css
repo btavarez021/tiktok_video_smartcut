@@ -2716,11 +2716,6 @@ body.no-scroll {
     overflow: visible;
   }
 
-  /* Hide desktop sidebar */
-  .side-column {
-    display: none;
-  }
-
   /* Slide-in mobile session panel */
   #sidebarSessionCard {
     position: fixed;
