@@ -2675,15 +2675,12 @@ body.no-scroll {
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
-  grid-template-rows: 1fr; /* FORCE single row */
   gap: 20px;
-
   padding: 20px 28px;
 
-  /* THIS is the scroll container */
-  height: calc(100vh - 140px); /* header + stepper */
-  overflow-y: auto;
-
+  /* 🔑 CRITICAL */
+  height: auto;
+  overflow: visible;
   align-items: start;
 }
 
