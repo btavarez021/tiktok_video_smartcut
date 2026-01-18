@@ -2702,50 +2702,29 @@ body.no-scroll {
   height: auto;
 }
 
-/* =========================================================
-   MOBILE BEHAVIOR
-   ========================================================= */
-
+/* ============================
+   MOBILE LAYOUT — STACK
+============================ */
 @media (max-width: 900px) {
 
-  /* Single column layout */
   .layout {
-    grid-template-columns: 1fr;
+    display: block;        /* 🔑 disable grid */
     padding: 16px;
     height: auto;
     overflow: visible;
   }
 
-  /* Slide-in mobile session panel */
-  #sidebarSessionCard {
-    position: fixed;
-    top: 0;
-    right: 0;
-
-    width: 92%;
-    max-width: 420px;
-    height: 100vh;
-
-    background: var(--bg);
-    z-index: 99999;
-
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
-
-    overflow-y: auto;
-    box-shadow: -12px 0 30px rgba(0,0,0,0.35);
+  .main-column {
+    width: 100%;
   }
 
-  #sidebarSessionCard.open {
-    transform: translateX(0);
+  .side-column {
+    display: block;        /* show log + chat */
+    width: 100%;
+    margin-top: 24px;
   }
 }
 
-/* Lock background scroll when mobile panel open */
-body.no-scroll {
-  overflow: hidden;
-  height: 100vh;
-}
 
 /* =========================================================
    MAIN APP GRID — DESKTOP
@@ -2778,4 +2757,30 @@ body.no-scroll {
   margin-left: 8px;
   font-size: 12px;
   opacity: 0.8;
+}
+
+
+/* ============================
+   DESKTOP GRID (AUTHORITATIVE)
+============================ */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  padding: 20px 28px;
+  height: calc(100vh - 140px);
+  overflow-y: auto;
+  align-items: start;
+}
+
+.main-column {
+  grid-column: 1;
+}
+
+.side-column {
+  grid-column: 2;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
