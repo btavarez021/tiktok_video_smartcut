@@ -235,10 +235,10 @@ textarea::-webkit-scrollbar-thumb,
 
 .log-card,
 .chat-card {
-  display: flex;
-  flex-direction: column;
+    height: 50%;
+    display: flex;
+    flex-direction: column;
 }
-
 
 /* ---------------------------------------
    Lists & Analyses
@@ -2772,7 +2772,7 @@ body.no-scroll {
   flex-direction: column;
   gap: 16px;
 
-  position: sticky;
+  position: static;
   top: 16px;
 
   height: fit-content;
