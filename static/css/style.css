@@ -2704,10 +2704,17 @@ body.no-scroll {
    MAIN APP GRID — DESKTOP
    ========================================================= */
 .layout {
-  height: auto;
-  overflow: visible;
-}
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: 1fr;
+  gap: 20px;
 
+  padding: 20px 28px;
+  height: calc(100vh - 140px);
+  overflow-y: auto;
+
+  align-items: start;
+}
 
 .side-column {
   grid-column: 2;
