@@ -2803,8 +2803,9 @@ body.no-scroll {
 .app-shell {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;  /* ✅ allow page to grow */
 }
+
 
 /* =========================================================
    DESKTOP LAYOUT (>= 901px)
