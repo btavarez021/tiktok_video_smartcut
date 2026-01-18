@@ -225,13 +225,6 @@ textarea::-webkit-scrollbar-thumb,
     gap: 22px;
 }
 
-.log-card,
-.chat-card {
-    height: 50%;
-    display: flex;
-    flex-direction: column;
-}
-
 /* ---------------------------------------
    Lists & Analyses
 ---------------------------------------- */
@@ -2622,8 +2615,9 @@ body.no-scroll {
 }
 
 .log-card .log-view {
-  max-height: 120px;
+  max-height: none;
 }
+
 
 /* Left column */
 .main-column {
@@ -2704,17 +2698,10 @@ body.no-scroll {
    MAIN APP GRID — DESKTOP
    ========================================================= */
 .layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  grid-template-rows: 1fr;
-  gap: 20px;
-
-  padding: 20px 28px;
-  height: calc(100vh - 140px);
-  overflow-y: auto;
-
-  align-items: start;
+  height: auto;
+  overflow: visible;
 }
+
 
 .side-column {
   grid-column: 2;
