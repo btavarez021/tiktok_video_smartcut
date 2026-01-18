@@ -2803,26 +2803,12 @@ body.no-scroll {
 .app-shell {
   display: flex;
   flex-direction: column;
-  height: 100vh;
 }
 
 /* =========================================================
    DESKTOP LAYOUT (>= 901px)
    ========================================================= */
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-
-  padding: 20px 28px;
-
-  /* desktop scroll container */
-  height: calc(100vh - 140px); /* header + stepper */
-  overflow-y: auto;
-
-  align-items: start;
-}
 
 .main-column {
   grid-column: 1;
@@ -2860,14 +2846,6 @@ body.no-scroll {
 
 @media (max-width: 900px) {
 
-  /* Disable grid → stack everything */
-  .layout {
-    display: block;
-    padding: 16px;
-    height: auto;
-    overflow: visible;
-  }
-
   .main-column {
     width: 100%;
   }
@@ -2884,6 +2862,17 @@ body.no-scroll {
    ========================================================= */
 
 @media (max-width: 900px) {
+
+  .layout {
+    display: block;
+    padding: 16px;
+    height: auto;
+    overflow: visible;
+  }
+
+  .side-column {
+    display: none;
+  }
 
   #sidebarSessionCard {
     position: fixed;
@@ -2954,7 +2943,7 @@ body.no-scroll {
 }
 
 /* =========================================================
-   DESKTOP — PAGE SCROLLS, SIDEBAR SCROLLS WITH CONTENT
+   FINAL DESKTOP LAYOUT — BODY SCROLLS
    ========================================================= */
 .layout {
   display: grid;
@@ -2962,8 +2951,7 @@ body.no-scroll {
   gap: 20px;
   padding: 20px 28px;
 
-  /* 🔑 CRITICAL */
-  height: auto;
-  overflow: visible;
+  height: auto !important;
+  overflow: visible !important;
   align-items: start;
 }
