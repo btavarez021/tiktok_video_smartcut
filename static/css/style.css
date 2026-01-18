@@ -48,7 +48,7 @@ body {
     grid-template-columns: 1fr 340px;
     gap: 24px;
     padding: 20px 28px;
-    overflow-y: auto;
+    overflow-y: visible;
 }
 
 .main-column {
