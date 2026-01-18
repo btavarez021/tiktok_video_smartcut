@@ -2772,11 +2772,14 @@ body.no-scroll {
   gap: 20px;
 
   padding: 20px 28px;
-  height: calc(100vh - 140px);
-  overflow-y: auto;
+
+  /* 🔑 critical: let BODY scroll */
+  height: auto;
+  overflow: visible;
 
   align-items: start;
 }
+
 
 
 .side-column {
