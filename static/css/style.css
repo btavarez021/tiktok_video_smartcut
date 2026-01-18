@@ -2519,6 +2519,11 @@ h3 {
 ================================ */
 @media (max-width: 900px) {
 
+  /* Hide entire sidebar by default */
+  .side-column {
+    display: none;
+  }
+
   /* Slide-in session panel */
   #sidebarSessionCard {
     position: fixed;
@@ -2558,6 +2563,11 @@ h3 {
 
 @media (max-width: 900px) {
 
+  /* Hide desktop sidebar on mobile */
+  .side-column {
+    display: none;
+  }
+
   #sidebarSessionCard {
     position: fixed;
     top: 0;
@@ -2593,9 +2603,9 @@ body.no-scroll {
 /* Mobile behavior */
 @media (max-width: 900px) {
 
-.side-column {
-    display: block;      /* show log + chat */
-    margin-top: 24px;    /* spacing below main */
+  /* Hide the desktop right sidebar */
+  .side-column {
+    display: none;
   }
 
   /* Slide-in Session Manager */
@@ -2702,29 +2712,55 @@ body.no-scroll {
   height: auto;
 }
 
-/* ============================
-   MOBILE LAYOUT — STACK
-============================ */
+/* =========================================================
+   MOBILE BEHAVIOR
+   ========================================================= */
+
 @media (max-width: 900px) {
 
+  /* Single column layout */
   .layout {
-    display: block;        /* 🔑 disable grid */
+    grid-template-columns: 1fr;
     padding: 16px;
     height: auto;
     overflow: visible;
   }
 
-  .main-column {
-    width: 100%;
+  /* Hide desktop sidebar */
+  .side-column {
+    display: none;
   }
 
-  .side-column {
-    display: block;        /* show log + chat */
-    width: 100%;
-    margin-top: 24px;
+  /* Slide-in mobile session panel */
+  #sidebarSessionCard {
+    position: fixed;
+    top: 0;
+    right: 0;
+
+    width: 92%;
+    max-width: 420px;
+    height: 100vh;
+
+    background: var(--bg);
+    z-index: 99999;
+
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+
+    overflow-y: auto;
+    box-shadow: -12px 0 30px rgba(0,0,0,0.35);
+  }
+
+  #sidebarSessionCard.open {
+    transform: translateX(0);
   }
 }
 
+/* Lock background scroll when mobile panel open */
+body.no-scroll {
+  overflow: hidden;
+  height: 100vh;
+}
 
 /* =========================================================
    MAIN APP GRID — DESKTOP
@@ -2759,28 +2795,160 @@ body.no-scroll {
   opacity: 0.8;
 }
 
+/* =========================================================
+   LAYOUT SYSTEM — SINGLE SOURCE OF TRUTH
+   ========================================================= */
 
-/* ============================
-   DESKTOP GRID (AUTHORITATIVE)
-============================ */
+/* ---------- APP SHELL ---------- */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* =========================================================
+   DESKTOP LAYOUT (>= 901px)
+   ========================================================= */
+
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 20px;
+
   padding: 20px 28px;
-  height: calc(100vh - 140px);
+
+  /* desktop scroll container */
+  height: calc(100vh - 140px); /* header + stepper */
   overflow-y: auto;
+
   align-items: start;
 }
 
 .main-column {
   grid-column: 1;
+  min-width: 0;
 }
 
 .side-column {
   grid-column: 2;
-  align-self: start;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  align-self: start;
+}
+
+/* Sidebar cards should never clip */
+.side-column .card {
+  overflow: visible;
+}
+
+/* Session Manager behaves like a normal card on desktop */
+@media (min-width: 901px) {
+  #sidebarSessionCard {
+    position: static;
+    transform: none;
+    width: 100%;
+    height: auto;
+    box-shadow: none;
+    z-index: auto;
+  }
+}
+
+/* =========================================================
+   MOBILE LAYOUT (<= 900px)
+   ========================================================= */
+
+@media (max-width: 900px) {
+
+  /* Disable grid → stack everything */
+  .layout {
+    display: block;
+    padding: 16px;
+    height: auto;
+    overflow: visible;
+  }
+
+  .main-column {
+    width: 100%;
+  }
+
+  .side-column {
+    display: block;
+    width: 100%;
+    margin-top: 24px;
+  }
+}
+
+/* =========================================================
+   MOBILE SESSION MANAGER (SLIDE-IN PANEL)
+   ========================================================= */
+
+@media (max-width: 900px) {
+
+  #sidebarSessionCard {
+    position: fixed;
+    top: 0;
+    right: 0;
+
+    width: 92%;
+    max-width: 420px;
+    height: 100vh;
+
+    background: var(--bg);
+    z-index: 99999;
+
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+
+    box-shadow: -12px 0 30px rgba(0,0,0,0.35);
+  }
+
+  #sidebarSessionCard.open {
+    transform: translateX(0);
+  }
+
+  /* prevent background scroll when open */
+  body.no-scroll {
+    overflow: hidden;
+    height: 100vh;
+  }
+}
+
+/* =========================================================
+   MOBILE SESSION BUTTON
+   ========================================================= */
+
+@media (min-width: 769px) {
+  .mobile-session-btn {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-session-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 99999;
+
+    background: #7f5cff;
+    color: #fff;
+
+    padding: 12px 18px;
+    border-radius: 50px;
+    border: none;
+
+    font-size: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+
+    display: block !important;
+  }
+}
+
+/* Desktop: hide mobile close button */
+@media (min-width: 769px) {
+  .mobile-close-btn {
+    display: none !important;
+  }
 }
