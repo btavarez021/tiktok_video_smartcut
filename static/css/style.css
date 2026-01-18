@@ -2731,19 +2731,3 @@ body.no-scroll {
   font-size: 12px;
   opacity: 0.8;
 }
-
-/* ================================
-   FINAL SAFETY OVERRIDES (DESKTOP)
-================================ */
-
-.side-column {
-  position: static !important;
-  height: auto !important;
-  overflow: visible !important;
-}
-
-#sidebarSessionCard {
-  position: static !important;
-  transform: none !important;
-  height: auto !important;
-}
