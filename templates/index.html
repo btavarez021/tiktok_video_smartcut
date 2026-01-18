@@ -1,143 +1,1120 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>TikTok Smart Cut • Hotel Reels</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="/static/css/style.css" />
-  <script defer src="https://na01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fnpm%2Fjs-yaml%404%2Fdist%2Fjs-yaml.min.js&data=05%7C02%7C%7Cf979f7dd24c444b018b208de5624dc7d%7C84df9e7fe9f640afb435aaaaaaaaaaaa%7C1%7C0%7C639042913472982755%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=8bhCuy2dk5ALAe5wXgnpPg4PkDW0qEDOi07RhzB1lRE%3D&reserved=0"></script>
-  <script defer src="/static/js/app.js"></script>
-</head>
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8" />
+        <title>TikTok Smart Cut • Hotel Reels</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" href="/static/css/style.css" />
 
-<body>
-<div class="app-shell">
+        <script defer src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+        <script defer src="/static/js/app.js"></script>
+        </head>
 
-<!-- HEADER -->
-<header class="app-header">
-  <div class="brand">
-    <div class="brand-logo">TS</div>
-    <div class="brand-text">
-      <h1>TikTok Smart Cut</h1>
-      <p>Hotel & travel reels, on autopilot.</p>
-    </div>
-  </div>
-  <div class="header-meta">
-    <span class="tag">Dark Studio Mode</span>
-    <span class="tag tag-outline">Powered by OpenAI</span>
-  </div>
-</header>
 
-<!-- STEPPER -->
-<nav class="stepper">
-  <button class="step active" data-target="#step-1"><span class="step-index">1</span><span class="step-label">Upload & Analyze</span></button>
-  <button class="step" data-target="#step-2"><span class="step-index">2</span><span class="step-label">Storyboard YAML</span></button>
-  <button class="step" data-target="#step-3"><span class="step-index">3</span><span class="step-label">Captions</span></button>
-  <button class="step" data-target="#step-4"><span class="step-index">4</span><span class="step-label">Style & Timing</span></button>
-  <button class="step" data-target="#step-5"><span class="step-index">5</span><span class="step-label">Export</span></button>
-</nav>
+        <body>
+        <div class="app-shell">
 
-<!-- MAIN GRID -->
-<main class="layout">
+            <!-- HEADER -->
+            <header class="app-header">
+                <div class="brand">
+                    <div class="brand-logo">TS</div>
+                    <div class="brand-text">
+                        <h1>TikTok Smart Cut</h1>
+                        <p>Hotel & travel reels, on autopilot.</p>
+                    </div>
+                </div>
 
-<!-- LEFT COLUMN -->
-<section class="main-column">
+                <div class="header-meta">
+                    <span class="tag">Dark Studio Mode</span>
+                    <span class="tag tag-outline">Powered by OpenAI</span>
+                </div>
+            </header>
 
-<!-- STEP 1 -->
-<section class="card step-card" id="step-1">
-  <div class="card-header">
-    <div class="session-tag active-session-tag">Session: <span class="sessionLabel"></span></div>
-    <h2>Step 1 · Upload & Analyze Clips</h2>
-  </div>
-  <div class="card-body">
-    <!-- step 1 content unchanged -->
-  </div>
-</section>
+            <!-- STEPPER NAV -->
+            <nav class="stepper">
+                <button class="step active" data-target="#step-1">
+                    <span class="step-index">1</span>
+                    <span class="step-label">Upload & Analyze</span>
+                </button>
 
-<!-- STEP 2 -->
-<section class="card step-card" id="step-2">
-  <div class="card-header">
-    <div class="session-tag active-session-tag">Session: <span class="sessionLabel"></span></div>
-    <h2>Step 2 · Generate Storyboard YAML</h2>
-  </div>
-  <div class="card-body">
-    <!-- step 2 content unchanged -->
-  </div>
-</section>
+                <button class="step" data-target="#step-2">
+                    <span class="step-index">2</span>
+                    <span class="step-label">Storyboard YAML</span>
+                </button>
 
-<!-- STEP 3 -->
-<section class="card step-card" id="step-3">
-  <div class="card-header">
-    <div class="session-tag active-session-tag">Session: <span class="sessionLabel"></span></div>
-    <h2>Step 3 · Story & Words</h2>
-  </div>
+                <button class="step" data-target="#step-3">
+                    <span class="step-index">3</span>
+                    <span class="step-label">Captions</span>
+                </button>
 
-  <!-- 🔴 FIX: EVERYTHING BELOW MUST STAY INSIDE card-body -->
-  <div class="card-body">
+                <button class="step" data-target="#step-4">
+                    <span class="step-index">4</span>
+                    <span class="step-label">Style & Timing</span>
+                </button>
 
-    <!-- ALL step-3 content -->
-    <!-- captions, hook score, variants, storyboard, save buttons -->
+                <button class="step" data-target="#step-5">
+                    <span class="step-index">5</span>
+                    <span class="step-label">Export & Download</span>
+                </button>
+            </nav>
 
-  </div>
-</section>
+            <!-- MAIN GRID (2 columns) -->
+            <main class="layout">
 
-<!-- STEP 4 -->
-<section class="card step-card" id="step-4">
-  <div class="card-header">
-    <div class="session-tag active-session-tag">Session: <span class="sessionLabel"></span></div>
-    <h2>Step 4 · Delivery & Style</h2>
-  </div>
+                <!-- LEFT MAIN COLUMN -->
+                <section class="main-column">
+                
+                    
+                
+                    <!-- ================================
+                        STEP 1
+                    ================================== -->
+                    <section class="card step-card" id="step-1">
+                        <div class="card-header">
+                            <div class="session-tag active-session-tag">
+                                Session: <span class="sessionLabel"></span>
+                            </div>
 
-  <div class="card-body accordion">
 
-    <!-- ALL accordion sections -->
-    <!-- captions & timing -->
-    <!-- voice + CTA -->
-    <!-- caption layout -->
-    <!-- music + scale -->
+                            <h2>
+                                Step 1 · Upload & Analyze Clips
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Upload raw clips → They go into <b>raw_uploads/{session}/</b>.<br>
+                                        The AI analyzes: room type, angles, transitions, aesthetic.
+                                    </span>
+                                </span>
+                            </h2>
 
-  </div>
-</section>
+                            <p class="card-subtitle">
+                                Upload from your device. AI will generate travel-style descriptions for each clip.
+                            </p>
+                        </div>
 
-<!-- STEP 5 -->
-<section class="card step-card" id="step-5">
-  <div class="card-header">
-    <div class="session-tag active-session-tag">Session: <span class="sessionLabel"></span></div>
-    <h2>Step 5 · Export & Download</h2>
-  </div>
-  <div class="card-body">
-    <!-- export content -->
-  </div>
-</section>
+                        <div class="card-body">
 
-</section><!-- END main-column -->
+                            <!-- Section Label -->
+                            <h3 class="section-label">1. Upload Videos</h3>
 
-<!-- RIGHT SIDEBAR -->
-<aside class="side-column">
-  <div class="sidebar-stack" id="sidebarDock">
+                            <!-- Upload -->
+                            <div class="card-subsection">
+                                <h3>
+                                    Upload to S3
+                                    <span class="tooltip">ⓘ
+                                        <span class="tooltiptext">
+                                            Drag & drop as many clips as you want.<br>
+                                            They’re uploaded into the current session folder.
+                                        </span>
+                                    </span>
+                                </h3>
 
-    <section id="sidebarSessionCard" class="card session-card">
-      <button id="mobileCloseSessionBtn" class="mobile-close-btn">✕ Close</button>
-      <div class="card-header"><h2>Session Manager</h2></div>
-      <div class="card-body"></div>
-    </section>
+                                <p class="hint-text">
+                                    Drop videos or click to browse.<br>
+                                    Files go to <code>raw_uploads/{session}/</code>.
+                                </p>
 
-    <section class="card log-card">
-      <div class="card-header"><h2>Live Log</h2></div>
-      <div class="card-body"><pre id="statusLog"></pre></div>
-    </section>
+                                <div id="dropZone" class="upload-dropzone">
+                                    <p>📂 Drop videos here or click to browse</p>
+                                    <input id="uploadFiles" type="file" multiple hidden />
+                                </div>
 
-    <section class="card chat-card">
-      <div class="card-header"><h2>Creative Assistant</h2></div>
-      <div class="card-body"></div>
-    </section>
+                                <button id="uploadBtn" class="btn secondary" disabled>⬆ Upload</button>
+                                <div id="uploadPreview" class="upload-preview"></div>
 
-  </div>
-</aside>
+                                <div id="uploadProgressWrapper" class="progress-wrapper hidden">
+                                    <div id="uploadProgress" class="progress-bar"></div>
+                                </div>
 
-</main>
+                                <div id="uploadStatus" class="hint-text"></div>
+                            </div>
 
-<button id="mobileSessionBtn" class="mobile-session-btn">Sessions</button>
+                            <hr class="section-divider" />
 
-</div>
-</body>
-</html>
+                            <!-- Upload Manager -->
+                            <section class="upload-manager">
+                                <div class="header-row" onclick="toggleUploadManager()">
+                                    <h2>
+                                        Upload Manager
+                                        <span class="tooltip">ⓘ
+                                            <span class="tooltiptext">
+                                                RAW = included in your reel.<br>
+                                                PROCESSED = archived / excluded.<br><br>
+                                                Move clips back & forth easily.
+                                            </span>
+                                        </span>
+                                    </h2>
+                                    <span id="uploadManagerToggle" class="collapse-icon">▼</span>
+                                </div>
+
+                                <div id="uploadManagerContent" class="collapsed">
+                                    <!-- Section Label -->
+                                    <h3 class="section-label">2. Manage Uploads</h3>
+
+                                    <div class="hint-text" id="uploadManagerSessionLabel" style="margin-bottom: 6px;">
+                                        Session: <strong id="uploadManagerSession"></strong>
+                                    </div>
+
+                                    <p class="hint-text">
+                                        Raw uploads = included in analysis + export.<br>
+                                        Move unused clips to Processed to hide them from your project.
+                                    </p>
+
+                                    <button class="btn ghost small" onclick="loadUploadManager()">↻ Refresh</button>
+
+                                    <div class="uploads-container">
+                                        <div class="upload-column">
+                                            <h3>
+                                                Raw Uploads
+                                                <span class="tooltip">ⓘ
+                                                    <span class="tooltiptext">
+                                                        Anything here will appear in your reel after YAML generation.
+                                                    </span>
+                                                </span>
+                                            </h3>
+                                            <div id="rawUploads" class="upload-list"></div>
+                                        </div>
+
+                                        <div class="upload-column">
+                                            <h3>
+                                                Processed
+                                                <span class="tooltip">ⓘ
+                                                    <span class="tooltiptext">
+                                                        Store unused or duplicate clips here.<br>
+                                                        They won’t be included in analysis or export.
+                                                    </span>
+                                                </span>
+                                            </h3>
+                                            <div id="processedUploads" class="upload-list"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <hr class="divider" />
+
+                            <!-- Analyze -->
+                            <h3 class="section-label">3. Analyze Videos</h3>
+                            <div class="row">
+                                <button id="analyzeBtn" class="btn primary">🔍 Analyze clips from S3</button>
+                                <button id="refreshAnalysesBtn" class="btn ghost">↻ Refresh analyses</button>
+                            </div>
+
+                            <div id="analyzeStatus" class="hint-text"></div>
+
+                            <div class="card-subsection">
+                                <h3>
+                                    Detected Clips & Analyses
+                                    <span class="tooltip">ⓘ
+                                        <span class="tooltiptext">
+                                            AI identifies:<br>
+                                            • room features<br>
+                                            • pool/beach views<br>
+                                            • transitions<br>
+                                            • movement speed<br>
+                                            • good hook moments
+                                        </span>
+                                    </span>
+                                </h3>
+
+                                <ul id="analysesList" class="analysis-list"></ul>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <!-- ================================
+                        STEP 2
+                    ================================== -->
+                    <section class="card step-card" id="step-2">
+                        <div class="card-header">
+                            <div class="session-tag active-session-tag"> Session: <span class="sessionLabel"></span></div>
+        
+                            <h2>
+                                Step 2 · Generate Storyboard YAML
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        YAML controls the structure of your reel:<br>
+                                        • clip order<br>
+                                        • text per clip<br>
+                                        • overlay / pacing choices<br>
+                                        • CTA<br>
+                                        • music + render settings<br>
+                                        You can fully customize it before exporting.
+                                    </span>
+                                </span>
+                            </h2>
+
+                            <p class="card-subtitle">
+                                Build <code>config.yml</code> using AI analyses from Step 1.
+                            </p>
+                        </div>
+
+                        <div class="card-body">
+
+                            <div class="row">
+                                <button id="generateYamlBtn" class="btn primary">📄 Generate YAML from analyses</button>
+                                <button id="refreshYamlBtn" class="btn ghost">↻ Reload YAML</button>
+                            </div>
+
+                            <div id="yamlStatus" class="hint-text"></div>
+
+                            <div class="split">
+                                <div class="split-panel">
+                                    <label class="field-label">
+                                        config.yml
+                                        <span class="tooltip">ⓘ
+                                            <span class="tooltiptext">
+                                                This is the main configuration file.<br>
+                                                Edit freely — all changes affect your final render.
+                                            </span>
+                                        </span>
+                                    </label>
+
+                                    <textarea id="yamlText" class="textarea code" rows="20"></textarea>
+
+                                    <div class="row">
+                                        <button id="saveYamlBtn" class="btn secondary">💾 Save YAML</button>
+                                    </div>
+                                </div>
+
+                                <div class="split-panel" id="yamlPreviewWrapper">
+
+                                <!-- Mobile toggle button (hidden on desktop) -->
+                                <button id="toggleYamlPreviewBtn" class="btn ghost small" style="display:none;">
+                                    ▼ Show Parsed Preview
+                                </button>
+
+                                <!-- Preview container -->
+                                <div id="yamlPreviewContainer">
+                                    <h3>
+                                        Preview (Parsed)
+                                        <span class="tooltip">ⓘ
+                                            <span class="tooltiptext">
+                                                Not the raw YAML — this shows how it is interpreted by the system.<br>
+                                                Useful for catching formatting mistakes.
+                                            </span>
+                                        </span>
+                                    </h3>
+
+                                    <div id="yamlPreview" class="yaml-preview"></div>
+                                </div>
+
+                            </div>
+
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <section class="card step-card" id="step-3">
+                        <div class="card-header">
+                            <div class="session-tag active-session-tag"> Session: <span class="sessionLabel"></span></div>
+
+                            <h2>
+                                Step 3 · Story & Words <span style="opacity:.65;font-size:.8em;">✏️ What we say</span>
+
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Captions are mapped to clips in order:<br>
+                                        1. first_clip<br>
+                                        2. middle_clips[…]<br>
+                                        3. last_clip<br>
+                                        One paragraph per clip.
+                                    </span>
+                                </span>
+                            </h2>
+
+                            <p class="card-subtitle">
+                                Refine or rewrite AI captions before rendering.
+                            </p>
+                            
+                            <div class="row">
+                                <button class="btn secondary small" onclick="regenerateCaptionsFromClips()">
+                                🔄 Generate captions from filenames
+                            </button>
+
+                            <p class="hint-text subtle">
+                                Overwrites captions using:
+                                • Clip labels (if present)
+                                • Otherwise, cleaned filenames
+                                No AI rewriting involved.
+                            </p>
+                            </div>
+
+                            <div class="row">
+                                <button id="loadCaptionsFromYamlBtn" class="btn ghost">
+                                    ⤵ Load captions from YAML
+                                </button>
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Reloads captions exactly as stored in config.yml.<br>
+                                        Use this to undo manual edits or sync after other actions.
+                                    </span>
+                                </span>
+
+                            </div>
+
+                            <!-- ✅ SOURCE BADGE (persistent state) -->
+                            <div id="captionStatus"
+                                class="caption-source source-none">
+                            SOURCE: —
+                            </div>
+
+                            <label class="field-label">
+                                Captions
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Write one block per clip separated by an empty line.<br>
+                                        Example:<br>
+                                        [Caption 1]<br>
+                                        (blank line)<br>
+                                        [Caption 2]<br>
+                                        (blank line)<br>
+                                        [Caption 3]
+                                    </span>
+                                </span>
+                            </label>
+
+                            <textarea id="captionsText" class="textarea" rows="12"></textarea>
+
+                            <!-- Step 3 — Caption Changes (live) -->
+                            <div id="captionCompareWrapper" class="step4-caption-panel" style="margin-top:16px;">
+
+                            <div class="caption-diff-header">
+                                <span>Caption Changes</span>
+                                <button id="step3DiffToggle" class="btn ghost small">Collapse</button>
+                            </div>
+
+                            <div id="step3CaptionScroll" class="step4CaptionScroll">
+                                <div id="step3DiffGrid" class="diff-grid"></div>
+                            </div>
+
+                            </div>
+
+
+                            <!-- ✅ INLINE STATUS (new, immediate feedback) -->
+                            <div id="captionInlineStatus"
+                                class="caption-inline-status hidden">
+                            </div>
+
+                            <!-- ================================
+                                STORYBOARD TIMELINE (Clip Order)
+                            ================================ -->
+                            <div class="storyboard-panel">
+                            <h3 class="storyboard-title">
+                                🎬 Storyboard Order
+                                <span class="tooltip">ⓘ
+                                <span class="tooltiptext">
+                                    Adjust clip order to control story flow.<br>
+                                    First clip = hook.
+                                </span>
+                                </span>
+                            </h3>
+
+                            <div id="storyboardTimeline" class="storyboard-timeline"></div>
+
+                            <div class="storyboard-actions">
+                                <button id="applyOrderBtn" class="btn secondary small">
+                                Apply Clip Order
+                                </button>
+                                <span id="storyboardStatus" class="hint-text"></span>
+                            </div>
+                            </div>
+
+
+
+                            <!-- ================================
+                                HOOK SCORE (Primary Entry Point)
+                            ================================ -->
+                            <div class="hook-score-card">
+
+                            <div class="hook-score-header">
+                                <strong>
+                                Hook Score
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext tooltip-wide">
+                                    Scores how strong your <b>first caption</b> is at stopping scroll.<br><br>
+                                    Based on curiosity, clarity, emotional pull, and pacing.<br><br>
+                                    <b>Higher score = more people keep watching.</b>
+                                    </span>
+                                </span>
+                                </strong>
+
+                                <span id="hookScoreValue" class="hook-score-value">–/100</span>
+                            </div>
+
+                            <!-- Current hook -->
+                            <div id="hookScoreHook" class="hook-score-hook">
+                                (no opening caption yet)
+                            </div>
+
+                            <!-- Why it scored this way -->
+                            <ul id="hookScoreReasons" class="hook-score-reasons"></ul>
+                            <span id="hookScoreStatus" class="hint-text"></span>
+
+                            <!-- CTA -->
+                            <div class="hook-score-actions">
+                                <button id="openHookLabBtn" class="btn primary small">
+                                🔍 Find better hooks
+                                </button>
+                                <p class="hint-text subtle">
+                                Click to generate stronger openings for this video.
+                                </p>
+                            </div>
+
+                            </div>
+
+                            <!-- ================================
+                                STORY FLOW (Locked by Hook)
+                            ================================ -->
+                            <div id="storyFlowLockedHint" class="hint-text hidden">
+                            🔒 Improve the opening hook to unlock story flow scoring.
+                            </div>
+
+                            <div class="story-flow-card hidden">
+                            <div class="story-flow-header">
+                                <strong>
+                                📖 Story Flow
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext tooltip-wide">
+                                    Scores how well captions <b>after the hook</b> flow together.<br><br>
+                                    Focuses on pacing, clarity, and keeping curiosity alive.<br><br>
+                                    <b>Higher score = viewers are more likely to finish the video.</b>
+                                    </span>
+                                </span>
+                                </strong>
+
+                                <span id="storyFlowScoreValue" class="story-flow-value">–/100</span>
+                            </div>
+
+                            <p class="hint-text subtle">
+                                Scoring captions after the hook (caption 2+)
+                            </p>
+
+                            <ul id="storyFlowReasons" class="story-flow-reasons"></ul>
+                            </div>
+
+                            <!-- ================================
+                                CAPTION VARIANTS + HOOK LAB
+                            ================================ -->
+                            <div class="variants-drawer closed" id="variantsDrawer">
+
+                            <div class="variants-header" onclick="toggleVariantsPanel()">
+                                <span>🧠 Caption Variants & Hook Lab</span>
+                                <button class="btn ghost small" id="variantsToggleBtn">Expand</button>
+                            </div>
+
+                            <div class="variants-body">
+
+                                <p class="hint-text subtle">
+                                This is your sandbox. Click <b>Use This</b> to apply a version — don’t forget to save when you’re ready.
+                                </p>
+
+
+                                <p class="hint-text subtle">
+                                Best flow: <b>Pick a Hook → Generate Variants → Choose the best story</b>
+                                </p>
+
+                                <!-- 🧲 Hook Lab -->
+                                <div id="hookLab" class="hook-lab hidden">
+
+                                <div class="hook-lab-header">
+
+                                    <!-- Top row: title + generate -->
+                                    <div class="hook-lab-title-row">
+                                    <div class="hook-lab-title">
+                                        🧲 Hook Lab
+                                        <span class="tooltip">ⓘ
+                                        <span class="tooltiptext tooltip-wide">
+                                            Generates alternate opening lines for your video.<br><br>
+                                            Each hook is scored for:
+                                            • curiosity
+                                            • emotional pull
+                                            • scroll-stopping power<br><br>
+                                            Pick one → then generate stories that follow it.
+                                        </span>
+                                        </span>
+                                    </div>
+
+                                    <div class="hook-lab-actions">
+                                        <span id="hookLabStatus" class="hook-lab-status"></span>
+                                        <button id="generateHooksBtn" class="btn primary">
+                                        Generate Hooks
+                                        </button>
+                                    </div>
+                                    </div>
+
+                                    <!-- Selected hook bar -->
+                                    <div id="selectedHookBar" class="selected-hook-bar hidden">
+                                    <div class="selected-hook-label">Selected hook</div>
+                                    <div id="selectedHookDisplay" class="selected-hook-text"></div>
+                                    <div class="selected-hook-hint">
+                                        Caption variants will use this hook as the opening line.
+                                    </div>
+                                    </div>
+
+                                </div>
+
+                                <!-- Hooks grid -->
+                                <div id="hookLabOutput" class="hook-lab-grid"></div>
+
+                                <hr />
+
+                                </div>
+
+
+
+                                <!-- Caption Modes -->
+                                <div class="checkbox-grid">
+                                <label><input type="checkbox" id="mode_rewrite"> Rewrite captions</label>
+                                <label><input type="checkbox" id="mode_punchy"> Punchy & energetic</label>
+                                <label><input type="checkbox" id="mode_story"> Storytelling</label>
+                                <label><input type="checkbox" id="mode_influencer"> Influencer voice</label>
+                                <label><input type="checkbox" id="mode_minimal"> Minimal · Luxury</label>
+                                </div>
+
+                                <button id="generateVariantsBtn" class="btn secondary small" style="margin-top:10px;">
+                                ⚡ Generate Caption Variants
+                                </button>
+
+                                <div id="variantsInlineStatus" class="inline-status hidden"></div>
+                                <div id="variantsOutput" class="variants-output"></div>
+
+                            </div>
+                            </div>                        
+
+                            <div class="row row-align-center">
+                                <button id="saveCaptionsBtn" class="btn secondary">💾 Save captions</button>
+                                <div id="captionsStatus" class="hint-text"></div>
+                            </div>
+                        </div>
+                        </div>
+                    </section>
+                    <!-- ================================
+                        // STEP 4 = PRESENTATION & STYLE
+                        // Visual preview only — no content mutation unless Apply is clicked  
+                    ================================== -->
+                    <section class="card step-card" id="step-4">
+                        <div class="card-header">
+                            <div class="session-tag active-session-tag"> Session: <span class="sessionLabel"></span></div>
+
+                            <h2>
+                                Step 4 · Delivery & Style <span style="opacity:.65;font-size:.8em;">🎬 How it’s presented</span>
+
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Choose how your final reel should look, sound, and feel.<br>
+                                        Controls: overlay style, pacing, voiceovers, CTA, music, and scale.
+                                    </span>
+                                </span>
+                            </h2>
+
+                            <p class="card-subtitle">
+                                Overlay, timing, voiceover, CTA, music, and scaling settings.
+                            </p>
+                        </div>
+
+                        <div class="card-body accordion">
+
+                            <!-- Captions & Timing -->
+                            <div class="acc-section">
+                                <button class="acc-header">
+                                    ✍️ Captions & Timing
+                                    <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Overlay style controls fonts and animation.<br>
+                                        Rewrite mode changes wording.<br>
+                                        Timing affects pacing.
+                                    </span>
+                                    </span>
+                                </button>
+
+                                <div class="acc-body">
+
+                                    <!-- 1️⃣ REWRITE BEHAVIOR -->
+                                    <h3 class="rewrite-section">
+                                    Rewrite Behavior
+                                    <span class="tooltip">ⓘ
+                                        <span class="tooltiptext tooltip-wide">
+                                        <b>Visual Only</b> changes fonts, layout, and animation only.<br><br>
+                                        <b>Rewrite captions</b> lets AI reword your captions to match the selected style.<br><br>
+                                        💡 Use Step 3 if you want to control wording manually.
+                                        </span>
+                                    </span>
+                                    </h3>
+                                    <div class="hint-text subtle">
+                                        Rewrite mode changes caption wording when applied — original captions can be restored
+                                    </div>
+
+                                    <label class="caption-reset-label">
+                                    <input type="radio" name="captionRewriteMode" value="visual" checked>
+                                    Visual Only (No wording change)
+                                    </label>
+
+                                    <label class="caption-reset-label">
+                                    <input type="radio" name="captionRewriteMode" value="rewrite">
+                                    Rewrite captions to match style
+                                    </label>
+
+                                    <div id="rewriteWarning" class="status-text status-warning hidden"></div>
+
+                                    <hr class="soft-divider">
+
+                                    <!-- 2️⃣ CAPTION STYLE -->
+                                    <h3 class="style-section">Caption Style</h3>
+
+                                    <label class="field-label">
+                                    Overlay Style Preset
+                                    <span class="tooltip">ⓘ
+                                        <span class="tooltiptext tooltip-wide">
+                                        Controls <b>visual tone & caption energy</b>.<br><br>
+
+                                        <b>Punchy</b> and <b>Influencer</b> styles may generate emojis for energy.<br>
+                                        Emojis are optimized for <b>voice + pacing</b> and may not always render visually.
+                                        </span>
+                                    </span>
+                                    </label>
+
+                                    <select id="overlayStyle" class="select">
+                                    <option value="ai_recommended">✨ AI Caption Director (auto)</option>
+                                    <option value="travel_blog">Travel blogger</option>
+                                    <option value="punchy">Punchy + Energetic</option>
+                                    <option value="cinematic">Cinematic & Moody</option>
+                                    <option value="descriptive">Literal Descriptive</option>
+                                    <option value="influencer">Influencer Voice</option>
+                                    </select>
+                                    <p class="hint-text subtle">
+                                    Affects font, animation, pacing — not wording unless Rewrite is enabled
+                                    </p>
+
+                                    <div id="overlayStyleStatus" class="status-text"></div>
+
+                                    <hr class="soft-divider">
+
+                                    <!-- 3️⃣ CAPTION USAGE -->
+                                    <h3 class="usage-section">Caption Usage</h3>
+
+                                    <label class="field-label">
+                                    Caption Mode
+                                    <span class="tooltip">ⓘ
+                                        <span class="tooltiptext">
+                                        Controls <b>where captions appear</b>, not what they say.<br><br>
+                                        • All Clips → captions on every clip<br>
+                                        • Hook Only → first clip only<br>
+                                        • None → no captions shown
+                                        </span>
+                                    </span>
+                                    </label>
+
+                                    <select id="captionModeSelect" class="select">
+                                    <option value="all">All Clips (recommended)</option>
+                                    <option value="first_only">Hook Only</option>
+                                    <option value="none">No Captions</option>
+                                    </select>
+
+                                    <div id="captionModeStatus" class="status-text"></div>
+
+                                    <hr class="soft-divider">
+
+                                    <div id="step4CaptionPanel" class="step4-caption-panel">
+
+                                    <!-- Header -->
+                                    <div id="captionDiffHeader" class="caption-diff-header hidden">
+                                        <span>Caption Changes</span>
+                                        <span id="pendingRewriteBadge" class="pending-rewrite hidden">
+                                        ⚠ Pending changes
+                                        </span>
+                                        <button id="toggleDiffCollapse" class="btn ghost small">Collapse</button>
+                                    </div>
+
+                                    
+
+
+                                    <!-- 🔥 Rewrite decision bar (always visible when active) -->
+                                    <div id="rewriteDecisionBar" class="rewrite-decision hidden">
+                                    <div class="rewrite-message">
+                                        ✨ Rewrite ready — review the changes
+                                    </div>
+
+                                    <div class="rewrite-actions">
+                                        <button id="acceptRewriteBtn" class="btn primary" data-action="accept-rewrite">
+                                            Accept
+                                        </button>
+                                        <button id="rejectRewriteBtn" class="btn ghost" data-action="reject-rewrite">
+                                            Reject
+                                        </button>
+                                    </div>
+                                </div>
+
+
+                                    <!-- Scrollable diff area -->
+                                    <div id="step4CaptionScroll" class="hidden">
+                                        <div id="step4DiffGrid" class="diff-grid"></div>
+                                    </div>
+
+                                    </div>
+
+
+                                    <hr class="soft-divider">
+
+                                    <!-- 4️⃣ LIVE PREVIEW -->
+                                    <div id="overlayPreviewWrapper" style="text-align:center;margin-top:24px;">
+
+                                    <h4 style="opacity:.75;margin-bottom:8px;">Live Overlay Preview</h4>
+                                    <p class="hint-text">
+                                    Preview shows <b>visual styling only</b> (font, layout, animation).<br>
+                                    Caption wording updates only after clicking <b>Apply Overlay & Style</b>.
+                                    </p>
+
+
+                                    <div id="overlayPreviewMock">
+                                        <div id="overlayPreviewBox">
+                                        Preview loads here…
+                                        </div>
+                                    </div>
+
+                                    <div class="preview-actions" style="margin-top:12px;">
+                                        <button id="previewFast" class="btn small">⚡ Fast Preview</button>
+                                        <button id="previewFull" class="btn small ghost">🎥 Full Preview</button>
+                                    </div>
+                                    </div>
+
+                                    <!-- 5️⃣ APPLY -->
+                                     <p>All other settings in this step save automatically</p>
+                                    <button id="applyOverlayBtn" class="btn secondary full" style="margin-top:24px;">
+                                    ✨ Apply Overlay & Style
+                                    <span class="tooltip">ⓘ
+                                    <span class="tooltiptext tooltip-wide">
+                                        This action commits visual styling and optional caption rewrites.<br><br>
+                                        Other settings save automatically.
+                                    </span>
+                                    </span>
+                                    </button>
+                                    <p class="hint-text subtle" style="margin-top:6px;">
+                                    Applies visual style & rewrites captions (if enabled)
+                                    </p>
+
+
+                                    <div id="overlayStatus" class="status-text"></div>
+
+                                    <hr class="soft-divider">
+
+                                    <!-- 6️⃣ TIMING -->
+                                    <h3>Timings</h3>
+
+                                    <div class="row">
+                                    <button id="applyStandardTimingBtn" class="btn ghost small">⏱ Standard</button>
+                                    <button id="applyCinematicTimingBtn" class="btn ghost small">🎬 Cinematic</button>
+                                    </div>
+
+                                    <div id="timingStatus" class="hint-text"></div>
+
+                                </div>
+                                </div>
+
+
+
+                                    
+                            <!-- Voice + CTA -->
+                            <div class="acc-section">
+                                <button class="acc-header">
+                                    🎤 Voice (TTS) & CTA
+                                </button>
+
+                                <div class="acc-body">
+
+                                    <h3>Voice (TTS)</h3>
+
+                                    <div class="checkbox-row">
+                                        <input type="checkbox" id="ttsEnabled" />
+                                        <label for="ttsEnabled">Enable TTS voiceover</label>
+                                    </div>
+
+                                    <label class="field-label">Voice</label>
+                                    <select id="ttsVoice" class="select">
+                                        <option value="alloy">Alloy</option>
+                                        <option value="verse">Verse</option>
+                                        <option value="ballad">Ballad</option>
+                                        <option value="nova">Nova</option>
+                                        <option value="shimmer">Shimmer</option>
+                                        <option value="coral">Coral</option>
+                                        <option value="echo">Echo</option>
+                                        <option value="fable">Fable</option>
+                                        <option value="onyx">Onyx</option>
+                                        <option value="ash">Ash</option>
+                                        <option value="sage">Sage</option>
+                                        <option value="marin">Marin</option>
+                                        <option value="cedar">Cedar</option>
+                                    </select>
+
+                                    <div id="ttsStatus" class="status-text status-info"></div>
+
+                                    <h3>CTA</h3>
+
+                                    <div class="checkbox-row">
+                                        <input type="checkbox" id="ctaEnabled" />
+                                        <label for="ctaEnabled">Enable CTA overlay</label>
+                                    </div>
+
+                                    <label class="field-label">CTA text</label>
+                                    <span class="tooltip">ⓘ
+                                    <span class="tooltiptext">
+                                        Emojis are allowed here, but may be simplified in the final video for compatibility.
+                                    </span>
+                                    </span>
+                                    <div id="ctaRow" class="cta-row">
+                                        <input id="ctaText" class="input" placeholder="Tap to book with today’s deals 🔗" />
+                                    </div>
+                                    <p class="hint-text subtle">
+                                        CTA text saves as you type
+                                    </p>
+
+
+                                    <div class="checkbox-row">
+                                        <input type="checkbox" id="ctaVoiceover" />
+                                        <label for="ctaVoiceover">Include in voiceover</label>
+                                    </div>
+
+                                    <div id="ctaStatus" class="status-text status-info"></div>
+
+                                </div>
+                            </div>
+
+                            <!-- Caption Layout -->
+                            <div class="acc-section">
+                                <button class="acc-header">
+                                    📝 Caption Layout
+                                </button>
+
+                                <div class="acc-body">
+
+                                    <label class="field-label">
+                                        Choose Caption Style
+                                    </label>
+
+                                    <div class="form-row">
+                                        <select id="layoutMode" class="select">
+                                            <option value="tiktok">TikTok (recommended)</option>
+                                            <option value="classic">Classic (bottom bar)</option>
+                                        </select>
+                                    </div>
+                                    <p class="hint-text subtle">Layout saves automatically</p>
+
+                                    <div id="layoutStatus" class="status-text status-info"></div>
+
+                                    <p class="hint">
+                                    • TikTok = bold centered captions<br>
+                                    • Classic = subtle bottom captions<br>
+                                    Affects placement only — text and style remain unchanged.
+                                    </p>
+
+
+                                </div>
+                            </div>
+
+                            <!-- Music + Scale -->
+                            <div class="acc-section">
+                                <button class="acc-header">
+                                    🎵 Music & Foreground Scale
+                                </button>
+
+                                <div class="acc-body">
+
+                                    <h3>Background Music</h3>
+
+                                    <div class="checkbox-row">
+                                        <input type="checkbox" id="musicEnabled" />
+                                        <label for="musicEnabled">Enable background music</label>
+                                    </div>
+                                    <div class="hint-text subtle" id="musicDisabledHint">
+                                    Music is disabled — you can still preview tracks
+                                    </div>
+
+                                    <label class="field-label">Music track</label>
+                                    <select id="musicFile" class="select">
+                                        <option value="">– No music –</option>
+                                    </select>
+
+                                    <label class="field-label" style="margin-top:8px;">Volume</label>
+                                    <input id="musicVolume" type="range" min="0" max="1" step="0.05" value="0.25" />
+                                    <div class="range-value"><span id="musicVolumeLabel">0.25</span></div>
+
+                                    <div class="row">
+                                        <button id="musicPreviewBtn" class="btn secondary">▶ Preview</button>
+                                    </div>
+
+                                    <div id="musicStatus" class="status-text status-info"></div>
+
+                                    <h3>Foreground Scale</h3>
+                                    <p class="card-subtitle">
+                                        Automatically zooms videos to remove thick blur borders. Turn off to manually set zoom.
+                                    </p>
+
+                                    <div class="checkbox-row">
+                                        <input type="checkbox" id="autoFgScale" onchange="saveFgScale()" />
+                                        <label for="autoFgScale">Auto Zoom (recommended)</label>
+                                    </div>
+                                    <p class="hint-text subtle">
+                                    Auto zoom adapts per clip — manual overrides apply to all clips
+                                    </p>
+
+
+                                    <!-- Slider only shown when auto is OFF -->
+                                    <div id="manualFgScaleContainer">
+                                        <label class="field-label">Manual Zoom</label>
+                                        <input id="fgScale" type="range" min="0.8" max="1.3" step="0.05" value="1.0" />
+                                        <div class="range-value"><span id="fgScaleValue">1.0</span>x</div>
+                                    </div>
+
+                                    <div id="fgStatus" class="status-text status-info"></div>
+
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+               
+                <!-- ================================
+                 STEP 5
+                ================================== -->
+                <section class="card step-card" id="step-5">
+                    <div class="card-header">
+                        <div class="session-tag active-session-tag"> Session: <span class="sessionLabel"></span></div>
+
+                        <h2>
+                            Step 5 · Export & Download
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext">
+                                    Render your final vertical MP4 using all settings above.<br>
+                                    Export uploads to S3 → gives you a download link.
+                                </span>
+                            </span>
+                        </h2>
+
+                        <p class="card-subtitle">
+                            Finalize your reel and download the exported MP4.
+                        </p>
+                    </div>
+
+                    <div class="card-body">
+
+                        <h3>
+                            Render Mode
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext">
+                                    Standard = fast draft<br>
+                                    Optimized = high-quality final export
+                                </span>
+                            </span>
+                        </h3>
+
+                        <div id="exportModeContainer" class="row radio-row render-controls">
+                            <label class="radio">
+                                <input type="radio" name="exportMode" value="standard" checked />
+                                <span>Standard (fast)</span>
+                            </label>
+
+                            <label class="radio">
+                                <input type="radio" name="exportMode" value="optimized" />
+                                <span>Optimized (HQ)</span>
+                            </label>
+                        </div>
+
+                        <button id="exportBtn" class="btn primary">🎥 Render & Export</button>
+                        <button id="cancelExportBtn" class="btn danger hidden">Cancel</button>
+
+                        <div id="exportStatus" class="hint-text"></div>
+
+                        <div id="downloadArea" class="download-area"></div>
+
+                    </div>
+                </section>
+
+            </section> <!-- END LEFT MAIN COLUMN -->
+
+                <!-- =========================
+                        RIGHT SIDEBAR (DESKTOP)
+                    ========================== -->
+                    <aside class="side-column">
+
+                    <div class="sidebar-stack" id="sidebarDock">
+
+                        <!-- SESSION MANAGER -->
+                        <section id="sidebarSessionCard" class="card session-card">
+                        <button id="mobileCloseSessionBtn" class="mobile-close-btn">✕ Close</button>
+
+                        <div class="card-header">
+                            <h2>Session Manager</h2>
+                            <p class="card-subtitle">Manage your video sessions</p>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="active-session-box">
+                            <p class="label">Active session</p>
+                            <div id="sidebarActiveSession" class="active-session-name">default</div>
+                            </div>
+
+                            <label class="field-label">Create new session</label>
+                            <div class="session-row">
+                            <input id="sidebarNewSessionInput" class="input" />
+                            <button id="sidebarCreateBtn" class="btn secondary small">Create</button>
+                            </div>
+
+                            <hr />
+
+                            <label class="field-label">Switch session</label>
+                            <div class="session-row">
+                            <select id="sidebarSessionDropdown" class="select"></select>
+                            <button id="sidebarSwitchBtn" class="btn secondary small">Switch</button>
+                            </div>
+
+                            <button id="sidebarDeleteBtn"
+                            class="btn ghost full"
+                            style="margin-top:12px;color:#ff6b6b;">
+                            Delete Active Session
+                            </button>
+
+                            <div id="sidebarSessionToastArea"></div>
+                        </div>
+                        </section>
+
+                        <!-- LIVE LOG -->
+                        <section class="card log-card">
+                        <div class="card-header log-header">
+                            <div>
+                            <h2>Live Log</h2>
+                            <p class="card-subtitle">Backend actions</p>
+                            </div>
+                            <label class="checkbox-row">
+                            <input type="checkbox" id="autoScrollLogs" checked /> Auto-scroll
+                            </label>
+                        </div>
+                        <div class="card-body">
+                            <pre id="statusLog" class="log-view"></pre>
+                        </div>
+                        </section>
+
+                        <!-- CHAT -->
+                        <section class="card chat-card">
+                        <div class="card-header">
+                            <h2>Creative Assistant</h2>
+                            <p class="card-subtitle">Ask for ideas & hooks</p>
+                        </div>
+                        <div class="card-body">
+                            <textarea id="chatInput" class="textarea" rows="3"></textarea>
+                            <button id="chatSendBtn" class="btn secondary full">💬 Ask</button>
+                            <div id="chatOutput" class="chat-output"></div>
+                        </div>
+                        </section>
+
+                    </div>
+                    </aside>                    
+
+                </main>
+
+                <!-- MOBILE SESSION BUTTON -->
+                <button id="mobileSessionBtn" class="mobile-session-btn">Sessions</button>
+
+                </div>
+                </body>
+                </html>
