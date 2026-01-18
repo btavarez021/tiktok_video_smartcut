@@ -1171,6 +1171,19 @@ function initUploadUI() {
         updatePreview();
     });
 
+    function markPreviewUploaded() {
+        // Visually mark the preview rows as done before clearing
+        preview.querySelectorAll(".preview-item").forEach((row) => {
+            row.classList.add("uploaded");
+            const x = row.querySelector(".preview-remove");
+            if (x) {
+                x.disabled = true;
+                x.style.opacity = "0.4";
+                x.style.cursor = "not-allowed";
+            }
+        });
+    }
+
     uploadBtn.addEventListener("click", () => {
         if (!selectedFiles.length) {
             setStatus(
@@ -1253,18 +1266,7 @@ function initUploadUI() {
         }, delayMs);
     }
 
-    function markPreviewUploaded() {
-        // Visually mark the preview rows as done before clearing
-        preview.querySelectorAll(".preview-item").forEach((row) => {
-            row.classList.add("uploaded");
-            const x = row.querySelector(".preview-remove");
-            if (x) {
-                x.disabled = true;
-                x.style.opacity = "0.4";
-                x.style.cursor = "not-allowed";
-            }
-        });
-    }
+    
 
 
 // ================================
