@@ -2809,18 +2809,14 @@ body.no-scroll {
 /* =========================================================
    DESKTOP LAYOUT (>= 901px)
    ========================================================= */
-
+/* ============================
+   DESKTOP GRID — SCROLL TOGETHER
+============================ */
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 20px;
-
   padding: 20px 28px;
-
-  /* desktop scroll container */
-  height: calc(100vh - 140px); /* header + stepper */
-  overflow-y: auto;
-
   align-items: start;
 }
 
