@@ -1184,6 +1184,25 @@ function initUploadUI() {
         });
     }
 
+    function clearSelectedUploadsUI({ showToast = true, delayMs = 2200 } = {}) {
+        // Show a short success pause so user sees confirmation
+        setTimeout(() => {
+            selectedFiles = [];
+            preview.innerHTML = "";
+            fileInput.value = ""; // important: allows re-uploading same filename(s)
+            uploadBtn.disabled = true;
+
+            // Optional: collapse progress UI after done
+            progressWrapper.classList.add("hidden");
+            progressBar.style.width = "0%";
+
+            if (showToast) {
+                // Keep your existing status line
+                // (no-op if you prefer)
+            }
+        }, delayMs);
+    }
+
     uploadBtn.addEventListener("click", () => {
         if (!selectedFiles.length) {
             setStatus(
@@ -1245,28 +1264,7 @@ function initUploadUI() {
 
         xhr.send(formData);
     });
-}
-
-    function clearSelectedUploadsUI({ showToast = true, delayMs = 2200 } = {}) {
-        // Show a short success pause so user sees confirmation
-        setTimeout(() => {
-            selectedFiles = [];
-            preview.innerHTML = "";
-            fileInput.value = ""; // important: allows re-uploading same filename(s)
-            uploadBtn.disabled = true;
-
-            // Optional: collapse progress UI after done
-            progressWrapper.classList.add("hidden");
-            progressBar.style.width = "0%";
-
-            if (showToast) {
-                // Keep your existing status line
-                // (no-op if you prefer)
-            }
-        }, delayMs);
-    }
-
-    
+} 
 
 
 // ================================
