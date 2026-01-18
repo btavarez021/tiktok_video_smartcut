@@ -2519,11 +2519,6 @@ h3 {
 ================================ */
 @media (max-width: 900px) {
 
-  /* Hide entire sidebar by default */
-  .side-column {
-    display: none;
-  }
-
   /* Slide-in session panel */
   #sidebarSessionCard {
     position: fixed;
@@ -2563,11 +2558,6 @@ h3 {
 
 @media (max-width: 900px) {
 
-  /* Hide desktop sidebar on mobile */
-  .side-column {
-    display: none;
-  }
-
   #sidebarSessionCard {
     position: fixed;
     top: 0;
@@ -2603,9 +2593,9 @@ body.no-scroll {
 /* Mobile behavior */
 @media (max-width: 900px) {
 
-  /* Hide the desktop right sidebar */
-  .side-column {
-    display: none;
+.side-column {
+    display: block;      /* show log + chat */
+    margin-top: 24px;    /* spacing below main */
   }
 
   /* Slide-in Session Manager */
