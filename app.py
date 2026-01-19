@@ -202,9 +202,10 @@ def route_generate_hooks():
     try:
         data = request.get_json(force=True) or {}
         session = sanitize_session(data.get("session", "default"))
+        intent = data.get("intent")
 
         from assistant_api import api_generate_hooks
-        result = api_generate_hooks(session)
+        result = api_generate_hooks(session, intent=intent)
 
         return jsonify(result)
 

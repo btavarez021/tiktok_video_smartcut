@@ -277,7 +277,7 @@ def api_improve_hook(session: str) -> Dict[str, Any]:
         "reasons": score["reasons"]
     }
 
-def api_generate_hooks(session: str):
+def api_generate_hooks(session: str, intent: str | None = None):
     print("[HOOK_LAB] Generating hooks for", session)
     session = sanitize_session(session)
     cfg = _load_config(session)
@@ -339,8 +339,25 @@ Return JSON:
 
         # Sort best first
         hooks.sort(key=lambda x: x["score"], reverse=True)
-        print("[HOOK_LAB] Generating hooks for", session)
-        return {"hooks": hooks}
+
+        # 🎯 Intent-based recommendation
+        intent = cfg.get("intent", "discovery")
+        best = choose_best_hook(hooks, intent)
+
+        if best:
+            for h in hooks:
+                if h["text"] == best["text"]:
+                    h["recommended"] = True
+                    h["reason"] = best["reason"]
+
+
+        print("[HOOK_LAB] Hooks generated with intent:", intent)
+
+        return {
+            "hooks": hooks,
+            "intent": intent
+        }
+
 
     except Exception as e:
         log_error("[HOOK_LAB]", e)
@@ -899,6 +916,41 @@ def reorder_storyboard(session, new_order):
     log_step(f"[REORDER] Updated clip order for session '{session}'")
     return cfg
 
+def choose_best_hook(hooks, intent="discovery"):
+    """
+    Returns the best hook and reason based on intent.
+    """
+
+    if not hooks:
+        return None
+
+    # Sort by score first (baseline)
+    hooks_sorted = sorted(hooks, key=lambda h: h.get("score", 0), reverse=True)
+
+    if intent == "discovery":
+        best = hooks_sorted[0]
+        reason = "Highest curiosity and scroll-stopping potential"
+
+    elif intent == "personal":
+        best = max(hooks, key=lambda h: h.get("emotional", h.get("score", 0)))
+        reason = "Strong emotional pull and relatability"
+
+    elif intent == "aesthetic":
+        best = min(hooks, key=lambda h: len(h.get("text", "")))
+        reason = "Clean, minimal phrasing that fits aesthetic content"
+
+    elif intent == "informational":
+        best = max(hooks, key=lambda h: h.get("clarity", h.get("score", 0)))
+        reason = "Clear promise and informational value"
+
+    else:
+        best = hooks_sorted[0]
+        reason = "Best overall performance"
+
+    return {
+        "text": best["text"],
+        "reason": reason
+    }
 
 
 # -------------------------------

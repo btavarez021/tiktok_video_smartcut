@@ -24,6 +24,8 @@ let workingCaptionsText = "";
 
 let rewritePending = false;
 
+let currentIntent = "discovery";
+
 let isInRewriteReview = false;
 
 function debounce(fn, wait = 350) {
@@ -346,7 +348,11 @@ async function generateHooks() {
   try {
     res = await jsonFetch("/api/hooks", {
       method: "POST",
-      body: JSON.stringify({ session: getActiveSession() })
+      body: JSON.stringify({
+      session: getActiveSession(),
+      intent: currentIntent || "discovery"
+    })
+
     });
   } catch (e) {
     console.warn("Hook fetch warning:", e);
@@ -380,10 +386,26 @@ function renderHookLab(hooks) {
 
   hooks
     .filter(h => h && h.text)
-    .sort((a, b) => (b.score || 0) - (a.score || 0))
-    .forEach(h => {
+    .sort((a, b) => {
+    if (a.recommended) return -1;
+    if (b.recommended) return 1;
+    return (b.score || 0) - (a.score || 0);
+  }).forEach(h => {
+      const isRecommended = h.recommended === true;
+      const reason = h.reason || "";
+
       const card = document.createElement("div");
       card.className = "hookCard";
+
+      if (isRecommended) {
+        card.classList.add("recommended");
+
+        const badge = document.createElement("div");
+        badge.className = "ai-recommended-badge";
+        badge.textContent = "🤖 AI Recommended";
+        badge.title = reason;
+        card.appendChild(badge);
+      }
 
       const textSpan = document.createElement("span");
       textSpan.className = "hookText";
@@ -404,7 +426,6 @@ function renderHookLab(hooks) {
   const lab = document.getElementById("hookLab");
   if (lab) lab.classList.remove("hidden");
 }
-
 
 
 function selectHook(text) {
@@ -3388,6 +3409,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     sidebarSyncActiveLabel();
 
     syncCtaUIState();
+
+    document.querySelectorAll(".intent-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".intent-btn")
+      .forEach(b => b.classList.remove("active"));
+
+    btn.classList.add("active");
+    currentIntent = btn.dataset.intent;
+
+    // Persist intent in session
+    saveIntent(currentIntent);
+
+    // Refresh hook score + recommendations
+    refreshHookScore();
+  });
+});
+
+function saveIntent(intent) {
+  jsonFetch("/api/save_config", {
+    method: "POST",
+    body: JSON.stringify({
+      session: getActiveSession(),
+      config: { intent }
+    })
+  });
+}
 
     // YAML preview toggle
     const toggleBtn = document.getElementById("toggleYamlPreviewBtn");
