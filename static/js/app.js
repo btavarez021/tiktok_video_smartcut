@@ -46,6 +46,22 @@ function syncTtsUIState() {
   voiceSelect.style.opacity = enabled ? "1" : "0.5";
 }
 
+async function loadIntentFromConfig() {
+  try {
+    const res = await jsonFetch("/api/config");
+    const intent = res?.intent || "discovery";
+
+    currentIntent = intent;
+
+    const select = document.getElementById("intentSelect");
+    if (select) select.value = intent;
+
+  } catch (e) {
+    console.warn("Failed to load intent, using default");
+  }
+}
+
+
 function syncFgScaleUI() {
     const autoEl = document.getElementById("autoFgScale");
     const manualContainer = document.getElementById("manualFgScaleContainer");
@@ -689,6 +705,8 @@ function getActiveSession() {
 function setActiveSession(name) {
     const safe = sanitizeSessionName(name);
     ACTIVE_SESSION = safe;
+
+    loadIntentFromConfig();
 
     // Update label chips
     updateSessionLabels();
@@ -3395,6 +3413,7 @@ async function sendChat() {
 // Init wiring
 // ================================
 document.addEventListener("DOMContentLoaded", async () => {
+  loadIntentFromConfig();
 
     // Load stored session
     try {
@@ -3410,21 +3429,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     syncCtaUIState();
 
-    document.querySelectorAll(".intent-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".intent-btn")
-      .forEach(b => b.classList.remove("active"));
+    const intentSelect = document.getElementById("intentSelect");
 
-    btn.classList.add("active");
-    currentIntent = btn.dataset.intent;
+    if (intentSelect) {
+      intentSelect.addEventListener("change", () => {
+        currentIntent = intentSelect.value;
 
-    // Persist intent in session
-    saveIntent(currentIntent);
+        // Persist intent in session
+        saveIntent(currentIntent);
 
-    // Refresh hook score + recommendations
-    refreshHookScore();
-  });
-});
+        // Refresh hook score + AI recommendations
+        refreshHookScore();
+      });
+    }
+
 
 function saveIntent(intent) {
   jsonFetch("/api/save_config", {

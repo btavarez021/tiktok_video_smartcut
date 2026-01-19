@@ -446,27 +446,20 @@
 
         <!-- 🎯 Video Intent (NEW) -->
         <div class="intent-selector">
-            <label class="intent-label">🎯 Video goal</label>
+        <label for="intentSelect" class="intent-label">🎯 Video goal</label>
 
-            <div class="intent-options">
-            <button class="intent-btn active" data-intent="discovery">
-                🚀 Discovery
-            </button>
-            <button class="intent-btn" data-intent="personal">
-                🤝 Personal
-            </button>
-            <button class="intent-btn" data-intent="aesthetic">
-                ✨ Aesthetic
-            </button>
-            <button class="intent-btn" data-intent="informational">
-                🧠 Informational
-            </button>
-            </div>
+        <select id="intentSelect" class="intent-dropdown">
+            <option value="discovery">🚀 Discovery (reach & growth)</option>
+            <option value="personal">🤝 Personal (story & connection)</option>
+            <option value="aesthetic">✨ Aesthetic (vibe & visuals)</option>
+            <option value="informational">🧠 Informational (teach & explain)</option>
+        </select>
 
-            <p class="hint-text subtle">
+        <p class="hint-text subtle">
             Used to recommend the strongest hook and captions.
-            </p>
+        </p>
         </div>
+
 
         <!-- Current hook -->
         <div id="hookScoreHook" class="hook-score-hook">

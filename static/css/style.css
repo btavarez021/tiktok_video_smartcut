@@ -3026,3 +3026,19 @@ body.no-scroll {
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
+
+.intent-dropdown {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #1a1a1b;
+  color: #e5e5e7;
+  border: 1px solid #2e2e31;
+  font-size: 14px;
+}
+
+.intent-dropdown:focus {
+  outline: none;
+  border-color: #6a9eff;
+  box-shadow: 0 0 0 1px rgba(106,158,255,0.4);
+}
