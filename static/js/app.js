@@ -576,7 +576,6 @@ function selectHook(text) {
   }
 
   selectedHook = text;
-  hookLocked = true;
 
   updateHookLockUI();
 
@@ -600,6 +599,7 @@ function selectHook(text) {
     label.textContent = text;
   }
 }
+
 
 function highlightHookLab() {
   const lab = document.getElementById("hookLab");
