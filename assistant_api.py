@@ -982,24 +982,37 @@ def choose_best_variant(variants: list, intent: str):
 
     best = max(variants, key=score)
 
-    if intent == "discovery":
-        reason = "Strong hook energy and scroll-stopping tone"
-    elif intent == "personal":
-        reason = "Narrative flow and emotional progression"
-    elif intent == "aesthetic":
-        reason = "Clean pacing and minimal aesthetic"
-    else:
-        reason = "Balanced hook strength and story flow"
+    def build_reason(best, variants, intent):
+        hook = best.get("hook_score", 0)
+        flow = best.get("story_flow", 0)
+        tone = best.get("tone", "").lower()
 
+        avg_hook = sum(v.get("hook_score", 0) for v in variants) / len(variants)
+        avg_flow = sum(v.get("story_flow", 0) for v in variants) / len(variants)
+
+        if intent == "discovery":
+            if hook > avg_hook + 10:
+                return "Strongest hook language compared to other variants"
+            if "punchy" in tone:
+                return "Punchy, high-energy tone optimized for discovery"
+            return "Best overall hook performance for discovery"
+
+        if intent == "personal":
+            if flow > avg_flow + 10:
+                return "Stronger narrative flow than other variants"
+            return "Most natural storytelling progression"
+
+        if intent == "aesthetic":
+            if "minimal" in tone:
+                return "Clean, minimal phrasing that fits aesthetic content"
+            return "Most visually calm and balanced pacing"
+
+        return "Best balance of hook strength and story flow"
 
     return {
-        "id": best.get("id"),
-        "reason": reason
+    "id": best.get("id"),
+    "reason": build_reason(best, variants, intent)
     }
-
-
-
-
 
 # -------------------------------
 # Analyze APIs (per session)
