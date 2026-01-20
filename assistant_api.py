@@ -958,10 +958,15 @@ def choose_best_variant(variants: list, intent: str):
 
     import random
 
-    # Add small randomness to avoid same pick every time
+    # -------------------------------------------------
+    # Small randomness to avoid same variant every time
+    # -------------------------------------------------
     for v in variants:
         v["tie_breaker"] = random.random() * 0.01
 
+    # ------------------
+    # Scoring function
+    # ------------------
     def score(v):
         hook = v.get("hook_score", 0)
         flow = v.get("story_flow", 0)
@@ -982,6 +987,9 @@ def choose_best_variant(variants: list, intent: str):
 
     best = max(variants, key=score)
 
+    # ---------------------------------
+    # Dynamic, comparative explanation
+    # ---------------------------------
     def build_reason(best, variants, intent):
         hook = best.get("hook_score", 0)
         flow = best.get("story_flow", 0)
@@ -990,28 +998,41 @@ def choose_best_variant(variants: list, intent: str):
         avg_hook = sum(v.get("hook_score", 0) for v in variants) / len(variants)
         avg_flow = sum(v.get("story_flow", 0) for v in variants) / len(variants)
 
+        # Discovery = hook dominance
         if intent == "discovery":
             if hook > avg_hook + 10:
-                return "Strongest hook language compared to other variants"
+                return "Stronger hook language than other variants"
             if "punchy" in tone:
                 return "Punchy, high-energy tone optimized for discovery"
             return "Best overall hook performance for discovery"
 
+        # Personal = flow dominance
         if intent == "personal":
             if flow > avg_flow + 10:
-                return "Stronger narrative flow than other variants"
-            return "Most natural storytelling progression"
+                return "More natural storytelling flow than other variants"
+            return "Smooth narrative progression that feels personal"
 
+        # Aesthetic = calm & minimal
         if intent == "aesthetic":
             if "minimal" in tone:
                 return "Clean, minimal phrasing that fits aesthetic content"
-            return "Most visually calm and balanced pacing"
+            if flow >= avg_flow:
+                return "Balanced pacing with a visually calm tone"
+            return "Most refined visual rhythm among variants"
 
-        return "Best balance of hook strength and story flow"
+        # Informational / fallback
+        if hook > avg_hook and flow > avg_flow:
+            return "Strong balance of clarity and engagement"
+        if hook > avg_hook:
+            return "Clear, engaging opening compared to other variants"
+        if flow > avg_flow:
+            return "More structured and easy to follow than alternatives"
+
+        return "Best overall balance across generated variants"
 
     return {
-    "id": best.get("id"),
-    "reason": build_reason(best, variants, intent)
+        "id": best.get("id"),
+        "reason": build_reason(best, variants, intent)
     }
 
 # -------------------------------
@@ -1519,11 +1540,16 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
 
     best = choose_best_variant(variants, intent)
 
+    for v in variants:
+        v.pop("recommended", None)
+        v.pop("recommend_reason", None)
+
     if best:
         for v in variants:
-            if v.get("id") == best.get("id"):
+            if v.get("id") == best["id"]:
                 v["recommended"] = True
-                v["recommend_reason"] = best.get("reason")
+                v["recommend_reason"] = best["reason"]
+
 
 
 
