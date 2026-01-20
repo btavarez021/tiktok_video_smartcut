@@ -481,16 +481,39 @@ function renderHookLab(hooks) {
       if (isRecommended) {
         card.classList.add("recommended");
 
+        const confidence = h.confidence || "close";
+
+        const confidenceText =
+          confidence === "clear"
+            ? "Clear winner"
+            : confidence === "moderate"
+            ? "Strong pick"
+            : "Close call";
+
         const badge = document.createElement("div");
         badge.className = "ai-recommended-badge";
-        badge.textContent = "🤖 AI Recommended";
+        badge.dataset.confidence = confidence; // 🔥 THIS enables color cues
+        badge.innerHTML = `
+          <span class="ai-badge-main">🤖 AI Recommended</span>
+          <span class="ai-badge-confidence">${confidenceText}</span>
+        `;
         badge.title = reason;
+
         card.appendChild(badge);
+
       }
 
       const textSpan = document.createElement("span");
       textSpan.className = "hookText";
       textSpan.textContent = h.text;
+
+      if (isRecommended && reason) {
+          const why = document.createElement("div");
+          why.className = "hookWhy subtle";
+          why.textContent = reason;
+          card.appendChild(why);
+        }
+
 
       const scoreSpan = document.createElement("span");
       scoreSpan.className = "hookScore";
@@ -502,6 +525,13 @@ function renderHookLab(hooks) {
       card.addEventListener("click", () => selectHook(h.text));
 
       out.appendChild(card);
+
+      if (selectedHook) {
+        document.querySelectorAll(".hookCard").forEach(card => {
+          card.classList.add("locked");
+        });
+      }
+
     });
 
   const lab = document.getElementById("hookLab");
@@ -530,6 +560,16 @@ function clearSelectedHook() {
 
 
 function selectHook(text) {
+  // 🚫 HARD LOCK: do nothing if already locked
+  if (selectedHook && selectedHook !== text) {
+    setStatus(
+      "hookLabStatus",
+      "🔒 Hook is locked — clear it to choose another",
+      "info"
+    );
+    return;
+  }
+
   selectedHook = text;
   hookLocked = true;
 
@@ -540,9 +580,8 @@ function selectHook(text) {
     c.classList.remove("selected")
   );
 
-  // Highlight clicked one
-  const cards = document.querySelectorAll(".hookCard");
-  cards.forEach(c => {
+  // Highlight selected
+  document.querySelectorAll(".hookCard").forEach(c => {
     if (c.querySelector(".hookText")?.textContent === text) {
       c.classList.add("selected");
     }

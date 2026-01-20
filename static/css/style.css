@@ -3134,3 +3134,14 @@ button.disabled {
   box-shadow: none;
   opacity: 0.85;
 }
+
+.hookCard.locked {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.hookWhy {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 6px;
+}
