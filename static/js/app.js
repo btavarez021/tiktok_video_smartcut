@@ -2020,6 +2020,12 @@ async function generateCaptionVariants() {
 
     const data = await res.json();
 
+    console.log("[VARIANTS] response:", data);
+
+  // quick badge sanity check
+  console.log("[VARIANTS] recommended count:", (data.variants || []).filter(v => v.recommended).length);
+
+
     data.variants.sort((a, b) => {
     if (a.recommended) return -1;
     if (b.recommended) return 1;
@@ -3453,12 +3459,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
 
-function saveIntent(intent) {
-  jsonFetch("/api/save_config", {
+async function saveIntent(intent) {
+  const session = getActiveSession();
+  const sessionQ = encodeURIComponent(session);
+
+  // 1) Load current config
+  const data = await jsonFetch(`/api/config?session=${sessionQ}`);
+  const cfg = data.config || {};
+
+  // 2) Update ONLY intent
+  cfg.intent = intent;
+
+  // 3) Save merged config
+  await jsonFetch("/api/save_config", {
     method: "POST",
     body: JSON.stringify({
-      session: getActiveSession(),
-      config: { intent }
+      session,
+      config: cfg
     })
   });
 }
