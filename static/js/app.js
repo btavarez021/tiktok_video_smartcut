@@ -316,6 +316,13 @@ function exitRewriteReviewMode() {
   document.getElementById("pendingRewriteBadge")?.classList.add("hidden");
 }
 
+function toggleVariantWhy(cardId) {
+  const el = document.getElementById(`${cardId}_why`);
+  if (!el) return;
+
+  el.classList.toggle("hidden");
+}
+
 
 
 function renderVariantCard(num, variant, cardId) {
@@ -324,26 +331,35 @@ function renderVariantCard(num, variant, cardId) {
   const recommended = variant.recommended === true;
   const reason = variant.recommend_reason || "";
 
+  const escaped = text.replace(/`/g, "\\`");
+
   const badge = recommended
-    ? `<div class="ai-recommended-badge" title="${reason}">
-         🤖 AI Recommended
-       </div>`
+    ? `<div class="ai-recommended-badge">🤖 AI Recommended</div>`
     : "";
 
-  const escaped = text.replace(/`/g, "\\`");
+  const whyToggle = recommended && reason
+    ? `
+      <div class="variantWhyToggle"
+           onclick="toggleVariantWhy('${cardId}')">
+        Why this won ▾
+      </div>
+      <div class="variantWhy hidden" id="${cardId}_why">
+        ${reason}
+      </div>
+    `
+    : "";
 
   return `
     <div class="variantCard ${recommended ? "recommended" : ""}" id="${cardId}">
       ${badge}
-      ${recommended && reason
-      ? `<div class="variantReason">${reason}</div>`
-      : ""}
 
       <div class="variantHeader">
         <h4>Version ${num}</h4>
       </div>
 
       ${tone ? `<div class="variantTone">${tone}</div>` : ""}
+
+      ${whyToggle}
 
       <pre style="white-space:pre-wrap">${text}</pre>
 
@@ -353,6 +369,7 @@ function renderVariantCard(num, variant, cardId) {
     </div>
   `;
 }
+
 
 function updateVariantStoryScore(id, flow) {
   const el = document.querySelector(`#${id} .storyScoreValue`);

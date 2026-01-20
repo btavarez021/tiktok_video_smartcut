@@ -3068,3 +3068,26 @@ body.no-scroll {
   margin: 4px 0 8px;
   padding-left: 2px;
 }
+
+.variantWhyToggle {
+  font-size: 12px;
+  color: #a78bfa;
+  cursor: pointer;
+  margin: 4px 0 6px;
+  user-select: none;
+}
+
+.variantWhyToggle:hover {
+  text-decoration: underline;
+}
+
+.variantWhy {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.hidden {
+  display: none;
+}
