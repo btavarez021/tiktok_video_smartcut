@@ -1488,16 +1488,21 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
 
 
         # Tone bias
-        if "punchy" in tone:
+        if is_punchy:
             hook_score += 15
-        if "story" in tone:
+        if is_story:
             flow_score += 15
-        if "minimal" in tone:
+        if is_minimal:
             flow_score += 10
 
         v["id"] = idx
         v["hook_score"] = hook_score
         v["story_flow"] = flow_score
+
+    #Clear any previous recommendations
+    for v in variants:
+        v.pop("recommended", None)
+        v.pop("recommended_reason", None)
 
     best = choose_best_variant(variants, intent)
 
