@@ -367,9 +367,10 @@ function renderVariantCard(num, variant, cardId) {
 
   const badge = recommended
   ? `<div class="ai-recommended-badge"
-         title="Recommended based on hook strength, story flow, and your selected intent.">
-        🤖 AI Recommended · ${confidenceText}
-     </div>`
+        title="Recommended based on hook strength, story flow, and your selected intent.">
+      <span class="ai-badge-main">🤖 AI Recommended</span>
+      <span class="ai-badge-confidence">${confidenceText}</span>
+    </div>`
   : "";
 
 
