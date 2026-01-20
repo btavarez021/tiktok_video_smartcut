@@ -317,27 +317,33 @@ function exitRewriteReviewMode() {
 
 
 
-function renderVariantCard(num, tone, text, score, cardId) {
-  let badge = "";
+function renderVariantCard(num, variant, cardId) {
+  const text = variant.text || "";
+  const tone = variant.tone || "";
+  const recommended = variant.recommended === true;
+  const reason = variant.recommend_reason || "";
 
-  if (score !== null && score !== undefined) {
-    if (score >= 85) badge = `<span class="hookBadge great">🔥 ${score}</span>`;
-    else if (score >= 70) badge = `<span class="hookBadge ok">⭐ ${score}</span>`;
-    else badge = `<span class="hookBadge weak">⚠ ${score}</span>`;
-  }
+  const badge = recommended
+    ? `<div class="ai-recommended-badge" title="${reason}">
+         🤖 AI Recommended
+       </div>`
+    : "";
+
+  const escaped = text.replace(/`/g, "\\`");
 
   return `
-    <div class="variantCard" id="${cardId}">
+    <div class="variantCard ${recommended ? "recommended" : ""}" id="${cardId}">
+      ${badge}
+
       <div class="variantHeader">
         <h4>Version ${num}</h4>
-        ${badge}
       </div>
 
       ${tone ? `<div class="variantTone">${tone}</div>` : ""}
 
       <pre style="white-space:pre-wrap">${text}</pre>
 
-      <button class="btn small" onclick="applyCaptionVariant(\`${text.replace(/`/g,"\\`")}\`)">
+      <button onclick="applyCaptionVariant(\`${escaped}\`)">
         Use This
       </button>
     </div>
@@ -2014,24 +2020,27 @@ async function generateCaptionVariants() {
 
     const data = await res.json();
 
+    data.variants.sort((a, b) => {
+    if (a.recommended) return -1;
+    if (b.recommended) return 1;
+    return (b.hook_score || 0) - (a.hook_score || 0);
+  });
+
+
     const box = document.getElementById("variantsOutput");
     box.innerHTML = "";
 
     for (let i = 0; i < data.variants.length; i++) {
-      const variant = data.variants[i];
-      const text = variant.text || "";
-      const tone = variant.tone || "";
+    const variant = data.variants[i];
 
-      const cardId = `variant_${i}`;
+    const cardId = `variant_${i}`;
 
-      box.innerHTML += renderVariantCard(
-        i + 1,
-        tone,
-        text,
-        null,
-        cardId
-      );
-    }
+    box.innerHTML += renderVariantCard(
+      i + 1,
+      variant,     // 👈 pass full variant
+      cardId
+    );
+  }
 
     // ✅ Success AFTER render
     setVariantsStatus("Variants generated ✓", "success");

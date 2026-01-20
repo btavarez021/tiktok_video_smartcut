@@ -952,6 +952,37 @@ def choose_best_hook(hooks, intent="discovery"):
         "reason": reason
     }
 
+def choose_best_variant(variants: list, intent: str):
+    """
+    Pick best variant based on intent + scores.
+    Variants already contain hook_score + flow_score.
+    """
+
+    if not variants:
+        return None
+
+    def score(v):
+        hook = v.get("hook_score", 0)
+        flow = v.get("story_flow", 0)
+
+        if intent == "discovery":
+            return hook * 0.7 + flow * 0.3
+        elif intent == "personal":
+            return hook * 0.4 + flow * 0.6
+        elif intent == "aesthetic":
+            return flow * 0.7 + hook * 0.3
+        elif intent == "informational":
+            return (hook + flow) / 2
+        else:
+            return hook * 0.6 + flow * 0.4
+
+    best = max(variants, key=score)
+
+    return {
+        "id": best.get("id"),
+        "reason": f"Best match for {intent} intent with strong pacing and clarity"
+    }
+
 
 # -------------------------------
 # Analyze APIs (per session)
@@ -1386,6 +1417,20 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
             "text": r.choices[0].message.content.strip(),
             "tone": "Rewrite + Story",
         })
+
+
+    # 🎯 Intent-based recommendation
+    cfg = _load_config(session)
+    intent = cfg.get("intent", "discovery")
+
+    best = choose_best_variant(variants, intent)
+
+    if best:
+        for v in variants:
+            if v.get("id") == best["id"]:
+                v["recommended"] = True
+                v["recommend_reason"] = best["reason"]
+
 
     # --------------------------------------------------
     # Cap to UI max (defensive)

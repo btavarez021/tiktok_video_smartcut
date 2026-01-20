@@ -3042,3 +3042,15 @@ body.no-scroll {
   border-color: #6a9eff;
   box-shadow: 0 0 0 1px rgba(106,158,255,0.4);
 }
+
+
+.ai-recommended-badge {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7c3aed, #22d3ee);
+  color: #fff;
+}
