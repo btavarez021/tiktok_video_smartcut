@@ -52,6 +52,7 @@ async function loadIntentFromConfig() {
     const intent = res?.intent || "discovery";
 
     currentIntent = intent;
+    refreshHookScore();
 
     const select = document.getElementById("intentSelect");
     if (select) select.value = intent;
@@ -417,7 +418,7 @@ function renderHookLab(hooks) {
     return (b.score || 0) - (a.score || 0);
   }).forEach(h => {
       const isRecommended = h.recommended === true;
-      const reason = h.reason || "";
+      const reason = h.recommend_reason || "";
 
       const card = document.createElement("div");
       card.className = "hookCard";
