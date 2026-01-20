@@ -301,7 +301,40 @@ def api_improve_hook(session: str) -> Dict[str, Any]:
         "reasons": score["reasons"]
     }
 
+def choose_best_hook(hooks, intent="discovery"):
+    if not hooks:
+        return None
+
+    intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
+
+    def score(h):
+        base = h.get("score", 0)
+        tone = h.get("tone", "").lower()
+
+        for t in intent_cfg["tone_bias"]:
+            if t in tone:
+                base += 3
+
+        return base
+
+    scored = sorted(hooks, key=score, reverse=True)
+    best = scored[0]
+
+    avg = sum(h.get("score", 0) for h in hooks) / len(hooks)
+
+    if best["score"] > avg + 8:
+        reason = "Higher curiosity and scroll-stopping power than other hooks"
+    else:
+        reason = "Best overall hook for this video goal"
+
+    return {
+        "text": best["text"],
+        "reason": reason
+    }
+
 def api_generate_hooks(session: str, intent: str | None = None):
+
+    
     print("[HOOK_LAB] Generating hooks for", session)
     session = sanitize_session(session)
     cfg = _load_config(session)
@@ -377,6 +410,7 @@ Return JSON:
 
         # 🎯 Intent-based recommendation
         intent = cfg.get("intent", "discovery")
+        print("choose_best_hook exists:", "choose_best_hook" in globals())
         best = choose_best_hook(hooks, intent)
 
         if best:
@@ -520,7 +554,9 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+            {"role": "system", "content": "Return ONLY valid JSON. No markdown. No commentary."},
+            {"role": "user", "content": prompt}],
             temperature=0.4,
         )
 
@@ -971,36 +1007,6 @@ def reorder_storyboard(session, new_order):
     log_step(f"[REORDER] Updated clip order for session '{session}'")
     return cfg
 
-def choose_best_hook(hooks, intent="discovery"):
-    if not hooks:
-        return None
-
-    intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
-
-    def score(h):
-        base = h.get("score", 0)
-        tone = h.get("tone", "").lower()
-
-        for t in intent_cfg["tone_bias"]:
-            if t in tone:
-                base += 3
-
-        return base
-
-    scored = sorted(hooks, key=score, reverse=True)
-    best = scored[0]
-
-    avg = sum(h.get("score", 0) for h in hooks) / len(hooks)
-
-    if best["score"] > avg + 8:
-        reason = "Higher curiosity and scroll-stopping power than other hooks"
-    else:
-        reason = "Best overall hook for this video goal"
-
-    return {
-        "text": best["text"],
-        "reason": reason
-    }
 
 def build_variant_reason(best, variants, intent):
     hook = best.get("hook_score", 0)
@@ -1857,7 +1863,10 @@ Return JSON ONLY:
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+            {"role": "system", "content": "Return ONLY valid JSON. No markdown. No extra text."},
+            {"role": "user", "content": prompt}
+            ],
             temperature=0.5,
         )
 

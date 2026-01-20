@@ -261,7 +261,7 @@ function proposeRewrite(newText, sourceLabel = "Rewrite ready", source = "step3"
 
     isInRewriteReview = true;
   rewritePending = true;
-  
+ 
   enterRewriteReviewMode();
   showPendingRewrite();
 
@@ -852,7 +852,7 @@ function setActiveSession(name) {
     sidebarLoadSessions();
 
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => 
+    requestAnimationFrame(() =>
       {
         animateSessionGlow();
       });
@@ -1394,7 +1394,7 @@ function initUploadUI() {
 
         xhr.send(formData);
     });
-} 
+}
 
 
 // ================================
@@ -1544,7 +1544,7 @@ function renderUploadList(elementId, items, kind, labels = {}) {
         btn.textContent = "🧠 Suggest label";
         }
     });
-    });   
+    });  
 
     // ================================
     // 🎬 LOAD CLIP PREVIEWS
@@ -1605,7 +1605,7 @@ function renderUploadList(elementId, items, kind, labels = {}) {
 
 }
 
-    
+   
 
 async function saveClipLabel(file, label) {
   if (!file) return;
@@ -2006,7 +2006,7 @@ if (!workingCaptionsText && !lastSavedCaptionsText) {
 
     scoreEl.textContent = `${score}/100`;
     hookEl.textContent = data.hook || "(no opening caption yet)";
-    
+   
 
     // Reset classes
     card.classList.remove("good", "ok", "bad");
@@ -2499,7 +2499,7 @@ async function loadCaptionsFromYaml() {
     // Do NOT let Step-4 lock the editor here
     captionViewMode = "rewritten";
 
-    
+   
     renderStoryboardTimeline(data.config);
     renderCaptionView();
 
@@ -2623,7 +2623,7 @@ async function saveCaptions() {
                 session: getActiveSession(),
             }),
         });
-        
+       
 
         lastSavedCaptionsText = text;   // 🔑 THIS IS REQUIRED
 
@@ -3704,7 +3704,7 @@ if (captionsBox) {
   const drawer = document.getElementById("variantsDrawer");
   drawer?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  highlightHookLab(); 
+  highlightHookLab();
 });
 
     }
@@ -3717,11 +3717,11 @@ if (captionsBox) {
     .getElementById("hookLab")
     ?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  highlightHookLab();   
+  highlightHookLab();  
 });
 
 
-    
+   
 
     document.addEventListener("keydown", (e) => {
         if (
@@ -4083,7 +4083,7 @@ ttsEnabledEl?.addEventListener("change", () => {
 ttsVoiceEl?.addEventListener("change", () => {
   saveTtsSettings({ silent: true });
 });
-  
+ 
 
 // ================================
 // MUSIC — Auto-save wiring (CLEAN)
