@@ -334,6 +334,9 @@ function renderVariantCard(num, variant, cardId) {
   return `
     <div class="variantCard ${recommended ? "recommended" : ""}" id="${cardId}">
       ${badge}
+      ${recommended && reason
+      ? `<div class="variantReason">${reason}</div>`
+      : ""}
 
       <div class="variantHeader">
         <h4>Version ${num}</h4>
@@ -2029,7 +2032,8 @@ async function generateCaptionVariants() {
     data.variants.sort((a, b) => {
     if (a.recommended) return -1;
     if (b.recommended) return 1;
-    return (b.hook_score || 0) - (a.hook_score || 0);
+    return ((b.hook_score || 0) + (b.story_flow || 0)) -
+       ((a.hook_score || 0) + (a.story_flow || 0));
   });
 
 

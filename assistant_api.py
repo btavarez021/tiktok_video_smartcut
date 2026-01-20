@@ -956,12 +956,47 @@ def choose_best_variant(variants: list, intent: str):
     if not variants:
         return None
 
-    best = variants[0]  # already generated in best-first order
+    import random
+
+    # Add small randomness to avoid same pick every time
+    for v in variants:
+        v["tie_breaker"] = random.random() * 0.01
+
+    def score(v):
+        hook = v.get("hook_score", 0)
+        flow = v.get("story_flow", 0)
+        jitter = v.get("tie_breaker", 0)
+
+        if intent == "discovery":
+            base = hook * 0.7 + flow * 0.3
+        elif intent == "personal":
+            base = hook * 0.4 + flow * 0.6
+        elif intent == "aesthetic":
+            base = flow * 0.7 + hook * 0.3
+        elif intent == "informational":
+            base = (hook + flow) / 2
+        else:
+            base = hook * 0.6 + flow * 0.4
+
+        return base + jitter
+
+    best = max(variants, key=score)
+
+    if intent == "discovery":
+        reason = "Strong hook energy and scroll-stopping tone"
+    elif intent == "personal":
+        reason = "Narrative flow and emotional progression"
+    elif intent == "aesthetic":
+        reason = "Clean pacing and minimal aesthetic"
+    else:
+        reason = "Balanced hook strength and story flow"
+
 
     return {
-        "text": best["text"],
-        "reason": f"Best match for {intent} intent based on tone and structure"
+        "id": best.get("id"),
+        "reason": reason
     }
+
 
 
 
@@ -1412,6 +1447,14 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
         text = v.get("text", "")
         tone = v.get("tone", "").lower()
 
+        is_punchy = "punchy" in tone
+        is_story = "story" in tone
+        is_minimal = "minimal" in tone
+        is_rewrite = "rewrite" in tone
+
+
+
+
         # Simple heuristics (fast + deterministic)
         hook_score = 0
         flow_score = 0
@@ -1426,6 +1469,24 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
         blocks = [b for b in text.split("\n\n") if b.strip()]
         flow_score += min(len(blocks) * 10, 40)
 
+        # -------------------------
+        # Intent-based bias
+        # -------------------------
+        if intent == "discovery":
+            if is_punchy:
+                hook_score += 5
+            if is_rewrite:
+                hook_score -= 2
+
+        elif intent == "aesthetic":
+            if is_minimal:
+                flow_score += 5
+
+        elif intent == "personal":
+            if is_story:
+                flow_score += 5
+
+
         # Tone bias
         if "punchy" in tone:
             hook_score += 15
@@ -1438,14 +1499,14 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
         v["hook_score"] = hook_score
         v["story_flow"] = flow_score
 
-
     best = choose_best_variant(variants, intent)
 
     if best:
         for v in variants:
-            if v.get("text") == best["text"]:
+            if v.get("id") == best.get("id"):
                 v["recommended"] = True
-                v["recommend_reason"] = best["reason"]
+                v["recommend_reason"] = best.get("reason")
+
 
 
 
