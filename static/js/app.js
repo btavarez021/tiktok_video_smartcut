@@ -46,6 +46,11 @@ function syncTtsUIState() {
   voiceSelect.style.opacity = enabled ? "1" : "0.5";
 }
 
+const autoSaveStoryboardOrder = debounce(() => {
+  saveStoryboardOrder({ silent: true });
+}, 600);
+
+
 async function loadIntentFromConfig() {
   try {
     const res = await jsonFetch("/api/config");
@@ -333,9 +338,12 @@ function renderVariantCard(num, variant, cardId) {
 
   const escaped = text.replace(/`/g, "\\`");
 
-  const badge = recommended
-    ? `<div class="ai-recommended-badge">🤖 AI Recommended</div>`
-    : "";
+const badge = recommended
+  ? `<div class="ai-recommended-badge"
+          title="Chosen by AI based on your video goal and caption flow">
+       🤖 AI Recommended
+     </div>`
+  : "";
 
   const whyToggle = recommended && reason
     ? `
@@ -1797,17 +1805,20 @@ function moveClip(index, direction) {
 
   clipOrderDirty = true;
 
-  renderStoryboardTimeline({
-    first_clip: workingClipOrder[0],
-    middle_clips: workingClipOrder.slice(1, -1),
-    last_clip: workingClipOrder[workingClipOrder.length - 1]
-  });
+renderStoryboardTimeline({
+  first_clip: workingClipOrder[0],
+  middle_clips: workingClipOrder.slice(1, -1),
+  last_clip: workingClipOrder[workingClipOrder.length - 1]
+});
 
-  setStatus(
-    "storyboardStatus",
-    "Clip order updated — apply to save",
-    "working"
-  );
+// ⬇️ ADD THIS
+autoSaveStoryboardOrder();
+
+setStatus(
+  "storyboardStatus",
+  "Saving clip order…",
+  "working"
+);
 }
 
 
@@ -3533,13 +3544,51 @@ async function saveIntent(intent) {
     .getElementById("mobileCloseSessionBtn")
     ?.addEventListener("click", toggleMobileSessionPanel);
 
+async function saveStoryboardOrder({ silent = false } = {}) {
+  if (!clipOrderDirty) return;
+
+  const session = getActiveSession();
+
+  const newCfg = {
+    first_clip: workingClipOrder[0],
+    middle_clips: workingClipOrder.slice(1, -1),
+    last_clip: workingClipOrder.length > 1
+      ? workingClipOrder[workingClipOrder.length - 1]
+      : null
+  };
+
+  try {
+    await jsonFetch("/api/save_config", {
+      method: "POST",
+      body: JSON.stringify({
+        session,
+        config: newCfg
+      })
+    });
+
+    clipOrderDirty = false;
+    workingClipOrder = [];
+
+    await loadConfigAndYaml();
+    syncFgScaleUI();
+    await loadCaptionsFromYaml();
+
+    if (!silent) {
+      setStatus("storyboardStatus", "Clip order saved ✓", "success");
+    } else {
+      showAutoSaveStatus("storyboardStatus", "Order saved ✓");
+    }
+
+  } catch (err) {
+    console.error(err);
+    setStatus("storyboardStatus", "Failed to save clip order", "error");
+  }
+}
 
 
 document.getElementById("applyOrderBtn")?.addEventListener("click", async () => {
-  if (!clipOrderDirty) {
-    setStatus("storyboardStatus", "No changes to apply", "info");
-    return;
-  }
+  await saveStoryboardOrder();
+});
 
   const session = getActiveSession();
 
