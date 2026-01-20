@@ -7,8 +7,6 @@ let previewPlaying = false;
 let workingClipOrder = [];
 let clipOrderDirty = false;
 
-let hookLocked = false;
-
 
 // 🔵 Active session (hotel / batch)
 let ACTIVE_SESSION = "default";
@@ -526,13 +524,13 @@ function renderHookLab(hooks) {
 
       out.appendChild(card);
 
-      if (selectedHook) {
+    });
+
+  if (selectedHook) {
         document.querySelectorAll(".hookCard").forEach(card => {
           card.classList.add("locked");
         });
       }
-
-    });
 
   const lab = document.getElementById("hookLab");
   if (lab) lab.classList.remove("hidden");
@@ -542,21 +540,28 @@ function updateHookLockUI() {
   const improveBtn = document.getElementById("improveHookBtn");
   const bar = document.getElementById("hookLockedBar");
 
-  const isLocked = !!selectedHook; // the source of truth
+  const isLocked = !!selectedHook;
 
   if (improveBtn) improveBtn.disabled = isLocked;
-
-  if (bar) {
-    bar.classList.toggle("hidden", !isLocked);
-  }
+  if (bar) bar.classList.toggle("hidden", !isLocked);
 }
+
 
 
 function clearSelectedHook() {
   selectedHook = null;
-  hookLocked = false;
+
+  // 🔓 Remove all lock visuals
+  document.querySelectorAll(".hookCard").forEach(card => {
+    card.classList.remove("locked", "selected");
+  });
+
+  // Hide selected hook bar (if present)
+  document.getElementById("selectedHookBar")?.classList.add("hidden");
+
   updateHookLockUI();
 }
+
 
 
 function selectHook(text) {
