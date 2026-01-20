@@ -1405,6 +1405,40 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
     cfg = _load_config(session)
     intent = cfg.get("intent", "discovery")
 
+    # --------------------------------------------------
+    # Attach lightweight scores to variants (REQUIRED)
+    # --------------------------------------------------
+    for idx, v in enumerate(variants):
+        text = v.get("text", "")
+        tone = v.get("tone", "").lower()
+
+        # Simple heuristics (fast + deterministic)
+        hook_score = 0
+        flow_score = 0
+
+        # Hook strength
+        if any(word in text.lower() for word in ["you", "this", "watch", "wait", "from"]):
+            hook_score += 20
+        if "!" in text:
+            hook_score += 10
+
+        # Flow / structure
+        blocks = [b for b in text.split("\n\n") if b.strip()]
+        flow_score += min(len(blocks) * 10, 40)
+
+        # Tone bias
+        if "punchy" in tone:
+            hook_score += 15
+        if "story" in tone:
+            flow_score += 15
+        if "minimal" in tone:
+            flow_score += 10
+
+        v["id"] = idx
+        v["hook_score"] = hook_score
+        v["story_flow"] = flow_score
+
+
     best = choose_best_variant(variants, intent)
 
     if best:
