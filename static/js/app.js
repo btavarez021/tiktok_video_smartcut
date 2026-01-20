@@ -366,10 +366,12 @@ function renderVariantCard(num, variant, cardId) {
       : "Close call";
 
   const badge = recommended
-    ? `<div class="ai-recommended-badge">
-          🤖 AI Recommended · ${confidenceText}
-      </div>`
-    : "";
+  ? `<div class="ai-recommended-badge"
+         title="Recommended based on hook strength, story flow, and your selected intent.">
+        🤖 AI Recommended · ${confidenceText}
+     </div>`
+  : "";
+
 
 
   const whyToggle = recommended && reason
@@ -508,26 +510,17 @@ function renderHookLab(hooks) {
 
 function updateHookLockUI() {
   const improveBtn = document.getElementById("improveHookBtn");
-  const lockBadge = document.getElementById("hookLockedBadge");
+  const bar = document.getElementById("hookLockedBar");
 
-  if (hookLocked) {
-    if (improveBtn) {
-      improveBtn.disabled = true;
-      improveBtn.classList.add("disabled");
-    }
-    if (lockBadge) {
-      lockBadge.classList.remove("hidden");
-    }
-  } else {
-    if (improveBtn) {
-      improveBtn.disabled = false;
-      improveBtn.classList.remove("disabled");
-    }
-    if (lockBadge) {
-      lockBadge.classList.add("hidden");
-    }
+  const isLocked = !!selectedHook; // the source of truth
+
+  if (improveBtn) improveBtn.disabled = isLocked;
+
+  if (bar) {
+    bar.classList.toggle("hidden", !isLocked);
   }
 }
+
 
 function clearSelectedHook() {
   selectedHook = null;
@@ -3740,6 +3733,17 @@ if (captionsBox) {
         }
     });
 
+    document.getElementById("clearHookBtn")?.addEventListener("click", () => {
+  clearSelectedHook();
+
+  // optional: unselect UI highlight
+  document.querySelectorAll(".hookCard").forEach(c => c.classList.remove("selected"));
+
+  // optional: hide selected hook bar if you use it
+  document.getElementById("selectedHookBar")?.classList.add("hidden");
+
+  setStatus("hookLabStatus", "Hook unlocked", "info");
+});
 
 
   document.getElementById("improveStoryFlowBtn")?.addEventListener("click", async () => {
@@ -4304,5 +4308,6 @@ updateRewriteModeAvailability();
 
     // Initial visual confirmation
   setTimeout(animateSessionGlow, 300);
+    updateHookLockUI();
 
 });

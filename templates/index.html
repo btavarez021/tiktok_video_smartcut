@@ -429,10 +429,7 @@
         <div class="hook-score-header">
             <strong>
             Hook Score
-            <span id="hookLockedBadge" class="hook-lock hidden">
-            🔒 Hook locked by you
-            </span>
-
+            
             <span class="tooltip">ⓘ
                 <span class="tooltiptext tooltip-wide">
                 Scores how strong your <b>first caption</b> is at stopping scroll.<br><br>
@@ -463,6 +460,11 @@
 
 
         <select id="intentSelect" class="intent-dropdown">
+            <div class="hint-text subtle" id="intentHint"
+                title="Discovery favors hooks. Personal favors story flow. Aesthetic favors pacing.">
+            Intent guides how AI evaluates hooks and storytelling.
+            </div>
+
             <option value="discovery">🚀 Discovery (reach & growth)</option>
             <option value="personal">🤝 Personal (story & connection)</option>
             <option value="aesthetic">✨ Aesthetic (vibe & visuals)</option>
@@ -593,6 +595,11 @@
                 </div>
                 </div>
 
+            </div>
+            <div id="hookLockedBar" class="hook-locked-bar hidden"
+                title="You selected a hook. AI improvements will not override it.">
+            <span>🔒 Hook locked — AI will build around your selection</span>
+            <button id="clearHookBtn" class="btn ghost small" type="button">Clear</button>
             </div>
 
             <!-- Hooks grid -->
