@@ -398,6 +398,26 @@ Return JSON:
         log_error("[HOOK_LAB]", e)
         return {"hooks": []}
 
+FEEDBACK_DIR = "variant_feedback"
+
+def log_variant_feedback(session, data):
+    path = os.path.join(FEEDBACK_DIR, session)
+    os.makedirs(path, exist_ok=True)
+    with open(os.path.join(path, "choices.json"), "a") as f:
+        f.write(json.dumps(data) + "\n")
+def api_variant_feedback():
+    data = request.json or {}
+    session = data.get("session", "default")
+
+    log_variant_feedback(session, {
+        "variant_id": data.get("variant_id"),
+        "intent": data.get("intent"),
+        "tone": data.get("tone"),
+        "timestamp": time.time()
+    })
+
+    return {"status": "ok"}
+
 
 def api_generate_body_from_hook(session, hook, style):
     cfg = _load_config(session)
@@ -990,6 +1010,8 @@ def build_variant_reason(best, variants, intent):
     avg_hook = sum(v.get("hook_score", 0) for v in variants) / len(variants)
     avg_flow = sum(v.get("story_flow", 0) for v in variants) / len(variants)
 
+    if best.get("uses_selected_hook"):
+        return "Preserves your selected hook while improving structure."
     if intent == "discovery":
         if hook > avg_hook + 8:
             return "Stronger opening hook than other variants"
@@ -1011,6 +1033,17 @@ def build_variant_reason(best, variants, intent):
         return "Clearer structure and explanation than alternatives"
 
     return "Best overall balance across variants"
+
+SESSION_PREFS_DIR = "session_prefs"
+os.makedirs(SESSION_PREFS_DIR, exist_ok=True)
+
+def save_session_pref(session, key, value):
+    path = os.path.join(SESSION_PREFS_DIR, sanitize_session(session) + ".json")
+    data = {}
+    if os.path.exists(path):
+        data = json.load(open(path))
+    data[key] = value
+    json.dump(data, open(path, "w"), indent=2)
 
 
 def choose_best_variant(variants: list, intent: str):
@@ -1043,11 +1076,24 @@ def choose_best_variant(variants: list, intent: str):
 
     scored.sort(key=lambda v: v["_score"], reverse=True)
     best = scored[0]
+    second = scored[1] if len(scored) > 1 else None
+
+    gap = best["_score"] - (second["_score"] if second else 0)
+
+    if gap > 12:
+        confidence = "clear"
+    elif gap > 5:
+        confidence = "moderate"
+    else:
+        confidence = "close"
+
 
     return {
         "id": best["id"],
-        "reason": build_variant_reason(best, variants, intent)
-    }
+        "reason": build_variant_reason(best, variants, intent),
+        "confidence": confidence
+        }
+
 
 
 # -------------------------------
@@ -1501,7 +1547,10 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
         is_minimal = "minimal" in tone
         is_rewrite = "rewrite" in tone
 
-
+        if hook_locked:
+            v["uses_selected_hook"] = True
+        else:
+            v["uses_selected_hook"] = False
 
 
         # Simple heuristics (fast + deterministic)
@@ -1531,16 +1580,16 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
         v["hook_score"] = hook_score
         v["story_flow"] = flow_score
 
-    import random
+        import random
 
-    jitter = random.random() * 0.5  # tiny randomness
-    v["hook_score"] += jitter
-    v["story_flow"] += jitter
+        jitter = random.random() * 0.5  # tiny randomness
+        v["hook_score"] += jitter
+        v["story_flow"] += jitter
 
 
 
     best = choose_best_variant(variants, intent)
-    #Clear any previous recommendations
+
     for v in variants:
         v.pop("recommended", None)
         v.pop("recommend_reason", None)
@@ -1550,6 +1599,10 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
             if v.get("id") == best["id"]:
                 v["recommended"] = True
                 v["recommend_reason"] = best["reason"]
+
+                # ✅ SAVE SESSION PREFERENCES HERE
+                save_session_pref(session, "last_best_tone", v.get("tone"))
+                save_session_pref(session, "last_intent", intent)
 
 
 

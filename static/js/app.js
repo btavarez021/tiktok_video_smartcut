@@ -7,6 +7,8 @@ let previewPlaying = false;
 let workingClipOrder = [];
 let clipOrderDirty = false;
 
+let hookLocked = false;
+
 
 // 🔵 Active session (hotel / batch)
 let ACTIVE_SESSION = "default";
@@ -339,12 +341,36 @@ function renderVariantCard(num, variant, cardId) {
 
   const escaped = text.replace(/`/g, "\\`");
 
-const badge = recommended
-  ? `<div class="ai-recommended-badge"
-          title="Chosen by AI based on your video goal and caption flow">
-       🤖 AI Recommended
-     </div>`
-  : "";
+  const confidence = variant.confidence;
+
+  const confidenceHint =
+    recommended && confidence === "close"
+      ? `<div class="variantConfidence subtle">
+          ⚖️ Very close — another option may perform similarly
+        </div>`
+      : recommended && confidence === "moderate"
+      ? `<div class="variantConfidence">
+          👍 Strong choice based on intent
+        </div>`
+      : recommended && confidence === "clear"
+      ? `<div class="variantConfidence strong">
+          ⭐ Clear best choice for your goal
+        </div>`
+      : "";
+
+  const confidenceText =
+    confidence === "clear"
+      ? "Clear winner"
+      : confidence === "moderate"
+      ? "Strong pick"
+      : "Close call";
+
+  const badge = recommended
+    ? `<div class="ai-recommended-badge">
+          🤖 AI Recommended · ${confidenceText}
+      </div>`
+    : "";
+
 
   const whyToggle = recommended && reason
     ? `
@@ -369,6 +395,7 @@ const badge = recommended
       ${tone ? `<div class="variantTone">${tone}</div>` : ""}
 
       ${whyToggle}
+      ${confidenceHint}
 
       <pre style="white-space:pre-wrap">${text}</pre>
 
@@ -479,9 +506,41 @@ function renderHookLab(hooks) {
   if (lab) lab.classList.remove("hidden");
 }
 
+function updateHookLockUI() {
+  const improveBtn = document.getElementById("improveHookBtn");
+  const lockBadge = document.getElementById("hookLockedBadge");
+
+  if (hookLocked) {
+    if (improveBtn) {
+      improveBtn.disabled = true;
+      improveBtn.classList.add("disabled");
+    }
+    if (lockBadge) {
+      lockBadge.classList.remove("hidden");
+    }
+  } else {
+    if (improveBtn) {
+      improveBtn.disabled = false;
+      improveBtn.classList.remove("disabled");
+    }
+    if (lockBadge) {
+      lockBadge.classList.add("hidden");
+    }
+  }
+}
+
+function clearSelectedHook() {
+  selectedHook = null;
+  hookLocked = false;
+  updateHookLockUI();
+}
+
 
 function selectHook(text) {
   selectedHook = text;
+  hookLocked = true;
+
+  updateHookLockUI();
 
   // Remove previous highlight
   document.querySelectorAll(".hookCard").forEach(c =>
@@ -785,6 +844,9 @@ function setActiveSession(name) {
 
     // Sidebar label
     sidebarSyncActiveLabel();
+
+    workingClipOrder = [];
+    clipOrderDirty = false;
 
     // UI refresh actions
     loadUploadManager();
@@ -2165,7 +2227,21 @@ async function refreshOverlayPreview() {
 // =============================================
 // Apply selected generated caption variant (Step 3 = COMMIT)
 // =============================================
-async function applyCaptionVariant(text) {
+async function applyCaptionVariant(text, meta = {}) {
+  const { id, tone, intent } = meta;
+
+  fetch("/api/variant_feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session: getActiveSession(),
+      variant_id: id,
+      intent,
+      tone,
+      chosen: true
+    })
+  });
+
   const session = getActiveSession();
 
   const originalText = lastSavedCaptionsText || "";
@@ -4066,8 +4142,11 @@ captionModeEl?.addEventListener("change", async () => {
 
     document.getElementById("exportBtn")?.addEventListener("click", exportVideo);
     document.getElementById("chatSendBtn")?.addEventListener("click", sendChat);
-    document.getElementById("improveHookBtn")?.addEventListener("click", improveHook);
-    // PREVIEW REWRITE — must be inside DOMContentLoaded so button exists
+    document.getElementById("improveHookBtn")?.addEventListener("click", async () => {
+    clearSelectedHook();   // 🔓 unlock user-forced hook
+    await improveHook();   // 🤖 give control back to AI
+  });
+      // PREVIEW REWRITE — must be inside DOMContentLoaded so button exists
     document.getElementById("previewRewriteBtn")?.addEventListener("click", () => {
         console.log("Preview Rewrite CLICKED"); // Debug check
         previewRewrite();
