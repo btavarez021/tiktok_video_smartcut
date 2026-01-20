@@ -139,46 +139,6 @@ function renderCaptionView() {
   }
 }
 
-async function saveStoryboardOrder({ silent = false } = {}) {
-  if (!clipOrderDirty) return;
-
-  const session = getActiveSession();
-
-  const newCfg = {
-    first_clip: workingClipOrder[0],
-    middle_clips: workingClipOrder.slice(1, -1),
-    last_clip: workingClipOrder.length > 1
-      ? workingClipOrder[workingClipOrder.length - 1]
-      : null
-  };
-
-  try {
-    await jsonFetch("/api/save_config", {
-      method: "POST",
-      body: JSON.stringify({
-        session,
-        config: newCfg
-      })
-    });
-
-    clipOrderDirty = false;
-    workingClipOrder = [];
-
-    await loadConfigAndYaml();
-    syncFgScaleUI();
-    await loadCaptionsFromYaml();
-
-    if (!silent) {
-      setStatus("storyboardStatus", "Clip order saved ✓", "success");
-    } else {
-      showAutoSaveStatus("storyboardStatus", "Order saved ✓");
-    }
-
-  } catch (err) {
-    console.error(err);
-    setStatus("storyboardStatus", "Failed to save clip order", "error");
-  }
-}
 
 
 function syncCtaUIState() {
@@ -3584,12 +3544,6 @@ async function saveIntent(intent) {
   document
     .getElementById("mobileCloseSessionBtn")
     ?.addEventListener("click", toggleMobileSessionPanel);
-
-
-document.getElementById("applyOrderBtn")?.addEventListener("click", async () => {
-  await saveStoryboardOrder();
-});
-
 
 const captionsBox = document.getElementById("captionsText");
 
