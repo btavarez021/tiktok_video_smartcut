@@ -359,21 +359,20 @@ function renderVariantCard(num, variant, cardId) {
       : "";
 
   const confidenceText =
-    confidence === "clear"
-      ? "Clear winner"
-      : confidence === "moderate"
-      ? "Strong pick"
-      : "Close call";
+  confidence === "clear"
+    ? "Clear winner"
+    : confidence === "moderate"
+    ? "Strong pick"
+    : "Close call";
 
-  const badge = recommended
+const badge = recommended
   ? `<div class="ai-recommended-badge"
-        title="Recommended based on hook strength, story flow, and your selected intent.">
+         data-confidence="${confidence}"
+         title="Recommended based on hook strength, story flow, and your selected intent.">
       <span class="ai-badge-main">🤖 AI Recommended</span>
       <span class="ai-badge-confidence">${confidenceText}</span>
     </div>`
   : "";
-
-
 
   const whyToggle = recommended && reason
     ? `

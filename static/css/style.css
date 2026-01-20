@@ -3025,15 +3025,19 @@ body.no-scroll {
 
 .ai-recommended-badge {
   display: inline-flex;
-  flex-direction: column;   /* ✅ stacks text */
+  flex-direction: column;
   align-items: flex-start;
 
-  max-width: 100%;
   padding: 6px 10px;
-
-  background: rgba(80, 140, 255, 0.15);
-  color: #4f8bff;
   border-radius: 10px;
+
+  background: rgba(80, 140, 255, 0.12);
+  color: #e5e5e7;
+
+  font-size: 12px;
+  line-height: 1.2;
+
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 
@@ -3103,12 +3107,30 @@ button.disabled {
 }
 
 .ai-badge-main {
-  font-size: 12px;
   font-weight: 600;
-  line-height: 1.2;
 }
 
 .ai-badge-confidence {
   font-size: 11px;
-  opacity: 0.75;
+  opacity: 0.8;
+}
+
+.ai-recommended-badge[data-confidence="clear"] {
+  border: 1px solid rgba(40, 208, 93, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(40, 208, 93, 0.25),
+    0 0 12px rgba(40, 208, 93, 0.45);
+}
+
+.ai-recommended-badge[data-confidence="clear"] {
+  border: 1px solid rgba(40, 208, 93, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(40, 208, 93, 0.25),
+    0 0 12px rgba(40, 208, 93, 0.45);
+}
+
+.ai-recommended-badge[data-confidence="close"] {
+  border: 1px solid rgba(180, 180, 180, 0.4);
+  box-shadow: none;
+  opacity: 0.85;
 }
