@@ -3590,39 +3590,6 @@ document.getElementById("applyOrderBtn")?.addEventListener("click", async () => 
   await saveStoryboardOrder();
 });
 
-  const session = getActiveSession();
-
-  const newCfg = {
-    first_clip: workingClipOrder[0],
-    middle_clips: workingClipOrder.slice(1, -1),
-    last_clip: workingClipOrder.length > 1
-      ? workingClipOrder[workingClipOrder.length - 1]
-      : null
-  };
-
-  try {
-    await jsonFetch("/api/save_config", {
-      method: "POST",
-      body: JSON.stringify({
-        session,
-        config: newCfg
-      })
-    });
-
-    clipOrderDirty = false;
-    workingClipOrder = [];
-
-    await loadConfigAndYaml();
-    syncFgScaleUI();
-    await loadCaptionsFromYaml();
-
-    setStatus("storyboardStatus", "Clip order applied ✓", "success");
-  } catch (err) {
-    console.error(err);
-    setStatus("storyboardStatus", "Failed to save clip order", "error");
-  }
-});
-
 
 const captionsBox = document.getElementById("captionsText");
 
