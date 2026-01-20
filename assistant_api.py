@@ -83,7 +83,31 @@ def _load_config(session: str) -> dict:
             return yaml.safe_load(f) or {}
     except Exception:
         return {}
-    
+
+INTENT_PROFILE = {
+    "discovery": {
+        "hook_weight": 0.7,
+        "flow_weight": 0.3,
+        "tone_bias": ["punchy", "influencer"],
+    },
+    "personal": {
+        "hook_weight": 0.4,
+        "flow_weight": 0.6,
+        "tone_bias": ["story"],
+    },
+    "aesthetic": {
+        "hook_weight": 0.3,
+        "flow_weight": 0.7,
+        "tone_bias": ["minimal", "cinematic"],
+    },
+    "informational": {
+        "hook_weight": 0.5,
+        "flow_weight": 0.5,
+        "tone_bias": ["rewrite", "descriptive"],
+    }
+}
+
+
 # ================================
 # Emoji-safe text helper
 # ================================
@@ -331,10 +355,21 @@ Return JSON:
         for text in data.get("hooks", []):
             score = score_hook_text(text)["score"]
             clean = strip_emojis(text).strip()
+            lower = clean.lower()
+
+            if any(w in lower for w in ["wait", "watch", "this", "you", "from"]):
+                tone = "punchy"
+            elif any(w in lower for w in ["calm", "quiet", "slow", "peaceful"]):
+                tone = "cinematic"
+            else:
+                tone = "neutral"
+
             hooks.append({
                 "text": clean,
-                "score": score
+                "score": score,
+                "tone": tone
             })
+
 
 
         # Sort best first
@@ -917,123 +952,103 @@ def reorder_storyboard(session, new_order):
     return cfg
 
 def choose_best_hook(hooks, intent="discovery"):
-    """
-    Returns the best hook and reason based on intent.
-    """
-
     if not hooks:
         return None
 
-    # Sort by score first (baseline)
-    hooks_sorted = sorted(hooks, key=lambda h: h.get("score", 0), reverse=True)
+    intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
 
-    if intent == "discovery":
-        best = hooks_sorted[0]
-        reason = "Highest curiosity and scroll-stopping potential"
+    def score(h):
+        base = h.get("score", 0)
+        tone = h.get("tone", "").lower()
 
-    elif intent == "personal":
-        best = max(hooks, key=lambda h: h.get("emotional", h.get("score", 0)))
-        reason = "Strong emotional pull and relatability"
+        for t in intent_cfg["tone_bias"]:
+            if t in tone:
+                base += 3
 
-    elif intent == "aesthetic":
-        best = min(hooks, key=lambda h: len(h.get("text", "")))
-        reason = "Clean, minimal phrasing that fits aesthetic content"
+        return base
 
-    elif intent == "informational":
-        best = max(hooks, key=lambda h: h.get("clarity", h.get("score", 0)))
-        reason = "Clear promise and informational value"
+    scored = sorted(hooks, key=score, reverse=True)
+    best = scored[0]
 
+    avg = sum(h.get("score", 0) for h in hooks) / len(hooks)
+
+    if best["score"] > avg + 8:
+        reason = "Higher curiosity and scroll-stopping power than other hooks"
     else:
-        best = hooks_sorted[0]
-        reason = "Best overall performance"
+        reason = "Best overall hook for this video goal"
 
     return {
         "text": best["text"],
         "reason": reason
     }
 
+def build_variant_reason(best, variants, intent):
+    hook = best.get("hook_score", 0)
+    flow = best.get("story_flow", 0)
+    tone = (best.get("tone") or "").lower()
+
+    avg_hook = sum(v.get("hook_score", 0) for v in variants) / len(variants)
+    avg_flow = sum(v.get("story_flow", 0) for v in variants) / len(variants)
+
+    if intent == "discovery":
+        if hook > avg_hook + 8:
+            return "Stronger opening hook than other variants"
+        if "punchy" in tone:
+            return "Punchier tone optimized for discovery"
+        return "Best overall hook performance for reach"
+
+    if intent == "personal":
+        if flow > avg_flow + 8:
+            return "More natural storytelling flow than other options"
+        return "Stronger emotional progression for personal content"
+
+    if intent == "aesthetic":
+        if "minimal" in tone:
+            return "Cleaner, more minimal pacing than other variants"
+        return "Calmest visual rhythm for aesthetic content"
+
+    if intent == "informational":
+        return "Clearer structure and explanation than alternatives"
+
+    return "Best overall balance across variants"
+
+
 def choose_best_variant(variants: list, intent: str):
     if not variants:
         return None
 
-    import random
+    intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
 
-    # -------------------------------------------------
-    # Small randomness to avoid same variant every time
-    # -------------------------------------------------
-    for v in variants:
-        v["tie_breaker"] = random.random() * 0.01
-
-    # ------------------
-    # Scoring function
-    # ------------------
     def score(v):
         hook = v.get("hook_score", 0)
         flow = v.get("story_flow", 0)
-        jitter = v.get("tie_breaker", 0)
+        tone = (v.get("tone") or "").lower()
 
-        if intent == "discovery":
-            base = hook * 0.7 + flow * 0.3
-        elif intent == "personal":
-            base = hook * 0.4 + flow * 0.6
-        elif intent == "aesthetic":
-            base = flow * 0.7 + hook * 0.3
-        elif intent == "informational":
-            base = (hook + flow) / 2
-        else:
-            base = hook * 0.6 + flow * 0.4
+        base = (
+            hook * intent_cfg["hook_weight"] +
+            flow * intent_cfg["flow_weight"]
+        )
 
-        return base + jitter
+        # soft tone bias (never dominant)
+        for t in intent_cfg["tone_bias"]:
+            if t in tone:
+                base += 3
 
-    best = max(variants, key=score)
+        return base
 
-    # ---------------------------------
-    # Dynamic, comparative explanation
-    # ---------------------------------
-    def build_reason(best, variants, intent):
-        hook = best.get("hook_score", 0)
-        flow = best.get("story_flow", 0)
-        tone = best.get("tone", "").lower()
+    scored = [
+        {**v, "_score": score(v)}
+        for v in variants
+    ]
 
-        avg_hook = sum(v.get("hook_score", 0) for v in variants) / len(variants)
-        avg_flow = sum(v.get("story_flow", 0) for v in variants) / len(variants)
-
-        # Discovery = hook dominance
-        if intent == "discovery":
-            if hook > avg_hook + 10:
-                return "Stronger hook language than other variants"
-            if "punchy" in tone:
-                return "Punchy, high-energy tone optimized for discovery"
-            return "Best overall hook performance for discovery"
-
-        # Personal = flow dominance
-        if intent == "personal":
-            if flow > avg_flow + 10:
-                return "More natural storytelling flow than other variants"
-            return "Smooth narrative progression that feels personal"
-
-        # Aesthetic = calm & minimal
-        if intent == "aesthetic":
-            if "minimal" in tone:
-                return "Clean, minimal phrasing that fits aesthetic content"
-            if flow >= avg_flow:
-                return "Balanced pacing with a visually calm tone"
-            return "Most refined visual rhythm among variants"
-
-        # Informational / fallback
-        if hook > avg_hook and flow > avg_flow:
-            return "Strong balance of clarity and engagement"
-        if hook > avg_hook:
-            return "Clear, engaging opening compared to other variants"
-        if flow > avg_flow:
-            return "More structured and easy to follow than alternatives"
-
-        return "Best overall balance across generated variants"
+    scored.sort(key=lambda v: v["_score"], reverse=True)
+    best = scored[0]
 
     return {
-        "id": best.get("id"),
-        "reason": build_reason(best, variants, intent)
+        "id": best["id"],
+        "reason": build_variant_reason(best, variants, intent)
     }
+
 
 # -------------------------------
 # Analyze APIs (per session)
@@ -1503,23 +1518,6 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
         blocks = [b for b in text.split("\n\n") if b.strip()]
         flow_score += min(len(blocks) * 10, 40)
 
-        # -------------------------
-        # Intent-based bias
-        # -------------------------
-        if intent == "discovery":
-            if is_punchy:
-                hook_score += 5
-            if is_rewrite:
-                hook_score -= 2
-
-        elif intent == "aesthetic":
-            if is_minimal:
-                flow_score += 5
-
-        elif intent == "personal":
-            if is_story:
-                flow_score += 5
-
 
         # Tone bias
         if is_punchy:
@@ -1533,13 +1531,16 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
         v["hook_score"] = hook_score
         v["story_flow"] = flow_score
 
-    #Clear any previous recommendations
-    for v in variants:
-        v.pop("recommended", None)
-        v.pop("recommended_reason", None)
+    import random
+
+    jitter = random.random() * 0.5  # tiny randomness
+    v["hook_score"] += jitter
+    v["story_flow"] += jitter
+
+
 
     best = choose_best_variant(variants, intent)
-
+    #Clear any previous recommendations
     for v in variants:
         v.pop("recommended", None)
         v.pop("recommend_reason", None)
