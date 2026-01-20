@@ -1822,7 +1822,57 @@ setStatus(
 );
 }
 
+// ================================
+// Storyboard Order — Save (AUTO)
+// ================================
+async function saveStoryboardOrder({ silent = false } = {}) {
+  try {
+    const session = getActiveSession();
+    const sessionQ = encodeURIComponent(session);
 
+    // 1️⃣ Load latest config
+    const data = await jsonFetch(`/api/config?session=${sessionQ}`);
+    const cfg = data.config || {};
+
+    // 2️⃣ Rebuild storyboard from workingClipOrder
+    cfg.first_clip = workingClipOrder[0] || null;
+
+    if (workingClipOrder.length > 2) {
+      cfg.middle_clips = workingClipOrder.slice(1, -1);
+    } else {
+      cfg.middle_clips = [];
+    }
+
+    cfg.last_clip =
+      workingClipOrder.length > 1
+        ? workingClipOrder[workingClipOrder.length - 1]
+        : null;
+
+    // 3️⃣ Save config
+    await jsonFetch("/api/save_config", {
+      method: "POST",
+      body: JSON.stringify({
+        session,
+        config: cfg
+      })
+    });
+
+    // 🔑 THIS is what you were missing
+    await loadCaptionsFromYaml();
+
+    if (!silent) {
+      setStatus("storyboardStatus", "Clip order saved ✓", "success");
+    } else {
+      showAutoSaveStatus("storyboardStatus");
+    }
+
+    clipOrderDirty = false;
+
+  } catch (err) {
+    console.error("Failed to save storyboard order:", err);
+    setStatus("storyboardStatus", "Failed to save order", "error");
+  }
+}
 
 
 async function saveYaml() {
