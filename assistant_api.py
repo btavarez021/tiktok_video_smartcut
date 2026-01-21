@@ -546,25 +546,10 @@ Return JSON:
         log_error("[HOOK_LAB]", e)
         return {"hooks": []}
 
-FEEDBACK_DIR = "variant_feedback"
 
-def log_variant_feedback(session, data):
-    path = os.path.join(FEEDBACK_DIR, session)
-    os.makedirs(path, exist_ok=True)
-    with open(os.path.join(path, "choices.json"), "a") as f:
-        f.write(json.dumps(data) + "\n")
 def api_variant_feedback():
     data = request.json or {}
-    session = data.get("session", "default")
-
-    log_variant_feedback(session, {
-        "variant_id": data.get("variant_id"),
-        "intent": data.get("intent"),
-        "tone": data.get("tone"),
-        "timestamp": time.time()
-    })
-
-    return {"status": "ok"}
+    return record_variant_feedback(data)
 
 
 def api_generate_body_from_hook(session, hook, style):

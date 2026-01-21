@@ -2395,18 +2395,6 @@ async function refreshOverlayPreview() {
 async function applyCaptionVariant(text, meta = {}) {
   const { id, tone, intent } = meta;
 
-  fetch("/api/variant_feedback", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      session: getActiveSession(),
-      variant_id: id,
-      intent,
-      tone,
-      chosen: true
-    })
-  });
-
   const session = getActiveSession();
 
   const originalText = lastSavedCaptionsText || "";
