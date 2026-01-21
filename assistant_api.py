@@ -1247,9 +1247,9 @@ def choose_best_variant(variants: list, intent: str):
     gap = best["_base"] - (second["_base"] if second else 0)
 
     # 2) Now confidence is REAL
-    if gap > 12:
+    if gap > 100:
         confidence = "clear"
-    elif gap > 5:
+    elif gap > 50:
         confidence = "moderate"
     else:
         confidence = "close"
