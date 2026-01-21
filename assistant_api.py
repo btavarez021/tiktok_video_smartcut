@@ -134,6 +134,43 @@ def _load_aggregates():
         except json.JSONDecodeError:
             return {}
 
+def get_feedback_adjustment(intent: str, tone: str, confidence: str) -> float:
+    # Never adjust if we're already confident
+    if confidence == "clear":
+        return 0.0
+
+    tone = tone or "unknown"
+    key = f"{intent}||{tone}"
+
+    aggs = _load_aggregates()
+    row = aggs.get(key)
+    if not row:
+        return 0.0
+
+    views = float(row.get("views", 0) or 0)
+    chosen = float(row.get("chosen", 0) or 0)
+
+    # Guardrail: don't trust tiny samples
+    if views < 5:
+        return 0.0
+
+    ratio = chosen / views  # 0..1
+    MAX_BOOST = 5.0
+
+    adj = (ratio - 0.5) * MAX_BOOST
+
+    # scale by confidence
+    if confidence == "moderate":
+        adj *= 0.5
+
+    # clamp to safety
+    if adj > MAX_BOOST:
+        adj = MAX_BOOST
+    if adj < -MAX_BOOST:
+        adj = -MAX_BOOST
+
+    return round(adj, 2)
+
 def _atomic_write_json(path, data):
     tmp_path = f"{path}.tmp"
     with open(tmp_path, "w", encoding="utf-8") as f:
@@ -405,6 +442,33 @@ def _update_aggregate(aggs, event):
             row["recommended_chosen"] += 1
 
     row["last_updated"] = _utc_iso()
+
+def get_feedback_adjustment(intent, tone, confidence):
+    if confidence == "clear":
+        return 0
+
+    aggs = _load_aggregates()
+    key = f"{intent}||{tone}"
+
+    if key not in aggs:
+        return 0
+
+    row = aggs[key]
+    views = row.get("views", 0)
+    chosen = row.get("chosen", 0)
+
+    if views < 5:  # 🔒 minimum data guardrail
+        return 0
+
+    preference_ratio = chosen / views
+    MAX_BOOST = 5
+
+    adjustment = (preference_ratio - 0.5) * MAX_BOOST
+
+    if confidence == "moderate":
+        adjustment *= 0.5
+
+    return round(adjustment, 2)
 
 
 def record_variant_feedback(payload: dict):
@@ -1157,7 +1221,7 @@ def choose_best_variant(variants: list, intent: str):
 
     intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
 
-    def score(v):
+    def base_score(v):
         hook = v.get("hook_score", 0)
         flow = v.get("story_flow", 0)
         tone = (v.get("tone") or "").lower()
@@ -1174,17 +1238,15 @@ def choose_best_variant(variants: list, intent: str):
 
         return base
 
-    scored = [
-        {**v, "_score": score(v)}
-        for v in variants
-    ]
+    # 1) Score everything by your ORIGINAL scoring
+    scored = [{**v, "_base": base_score(v)} for v in variants]
+    scored.sort(key=lambda v: v["_base"], reverse=True)
 
-    scored.sort(key=lambda v: v["_score"], reverse=True)
     best = scored[0]
     second = scored[1] if len(scored) > 1 else None
+    gap = best["_base"] - (second["_base"] if second else 0)
 
-    gap = best["_score"] - (second["_score"] if second else 0)
-
+    # 2) Now confidence is REAL
     if gap > 12:
         confidence = "clear"
     elif gap > 5:
@@ -1192,12 +1254,24 @@ def choose_best_variant(variants: list, intent: str):
     else:
         confidence = "close"
 
+    # 3) Apply feedback ONLY when NOT clear
+    def final_score(v):
+        fb = get_feedback_adjustment(
+            intent=intent,
+            tone=v.get("tone") or "unknown",
+            confidence=confidence
+        )
+        return v["_base"] + fb
+
+    if confidence != "clear":
+        scored.sort(key=final_score, reverse=True)
+        best = scored[0]
 
     return {
         "id": best["id"],
         "reason": build_variant_reason(best, variants, intent),
         "confidence": confidence
-        }
+    }
 
 
 
