@@ -3142,3 +3142,13 @@ line-clamp: 2; /* Standard property */
   border-color: #8e44ad;
   box-shadow: 0 0 12px rgba(142, 68, 173, 0.9);
 }
+
+@media (max-width: 480px) {
+  .hookCard.selected.recommended {
+    box-shadow: 0 0 8px rgba(142, 68, 173, 0.6);
+  }
+}
+
+.hookCard.locked {
+  pointer-events: none;
+}
