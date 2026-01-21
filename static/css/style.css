@@ -3050,28 +3050,6 @@ body.no-scroll {
 }
 
 
-.ai-recommended-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
-  padding: 4px 8px;
-  border-radius: 999px;
-
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.2;
-
-  background: rgba(34, 197, 94, 0.15); /* default green tint */
-  border: 1px solid #22c55e;
-  color: #eafff1;
-
-  white-space: nowrap;
-}
 
 .variantCard .ai-recommended-badge {
   position: absolute;
@@ -3200,7 +3178,34 @@ button.disabled {
   opacity: 0.6;
 }
 
-.hookWhy,
+.hookWhy {
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.85;
+  margin-top: 6px;
+
+  max-width: 100%;
+  box-sizing: border-box;
+
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+
+  overflow: hidden;
+}
+
+@media (max-width: 480px) {
+  .hookWhy {
+    -webkit-line-clamp: 3;
+    font-size: 11px;
+  }
+}
+
+
 .variantWhy {
 font-size: 12px;
 line-height: 1.4;
@@ -3237,22 +3242,27 @@ line-clamp: 2; /* Standard property */
    Hook AI Badge (Inline, Clean)
 =============================== */
 
+/* Hook AI badge — INLINE, mobile safe */
 .hook-ai-badge {
-  position: static;            /* 🔥 NOT absolute */
-  margin-bottom: 6px;
+  position: static;
+  display: inline-block;
 
+  margin-bottom: 6px;
   align-self: flex-start;
 
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: 6px;
 
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
+
+  white-space: nowrap;
 
   background: rgba(34, 197, 94, 0.12);
   border: 1px solid #22c55e;
   color: #c7f9dd;
 }
+
 
 .hook-ai-badge[data-confidence="clear"] {
   border-color: #22c55e;

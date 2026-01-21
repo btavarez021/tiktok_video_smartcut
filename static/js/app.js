@@ -548,7 +548,10 @@ function renderHookLab(hooks) {
             <span class="ai-badge-main">🤖 AI Recommended</span>
             <span class="ai-badge-confidence">${confText}</span>
           </div>
-          <div class="ai-badge-nudge">${nudge}</div>
+          <div class="ai-badge-nudge subtle">
+            ${nudge}
+          </div>
+
         `;
 
         // Keep the tooltip, but don’t rely on it
