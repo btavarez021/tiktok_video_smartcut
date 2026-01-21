@@ -67,6 +67,25 @@ async function loadIntentFromConfig() {
   }
 }
 
+function sendVariantFeedback({
+  variantId,
+  intent,
+  tone,
+  action
+}) {
+  return fetch("/api/variant_feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session: getActiveSession(),
+      variant_id: variantId,
+      intent,
+      tone,
+      action   // "viewed" | "clicked" | "chosen"
+    })
+  });
+}
+
 
 function syncFgScaleUI() {
     const autoEl = document.getElementById("autoFgScale");
@@ -336,56 +355,103 @@ function renderVariantCard(num, variant, cardId) {
   const tone = variant.tone || "";
   const recommended = variant.recommended === true;
   const reason = variant.recommend_reason || "";
+  const confidence = variant.confidence || "close";
 
   const escaped = text.replace(/`/g, "\\`");
 
-  const confidence = variant.confidence;
-
+  // ----------------------------
+  // Confidence copy (AI-facing)
+  // ----------------------------
   const confidenceHint =
     recommended && confidence === "close"
       ? `<div class="variantConfidence subtle">
-          ⚖️ Very close — another option may perform similarly
-        </div>`
+           ⚖️ Very close — another option may perform similarly
+         </div>`
       : recommended && confidence === "moderate"
       ? `<div class="variantConfidence">
-          👍 Strong choice based on intent
-        </div>`
+           👍 Strong choice based on intent
+         </div>`
       : recommended && confidence === "clear"
       ? `<div class="variantConfidence strong">
-          ⭐ Clear best choice for your goal
-        </div>`
+           ⭐ Clear best choice for your goal
+         </div>`
       : "";
 
   const confidenceText =
-  confidence === "clear"
-    ? "Clear winner"
-    : confidence === "moderate"
-    ? "Strong pick"
-    : "Close call";
+    confidence === "clear"
+      ? "Clear winner"
+      : confidence === "moderate"
+      ? "Strong pick"
+      : "Close call";
 
-const badge = recommended
-  ? `<div class="ai-recommended-badge"
-         data-confidence="${confidence}"
-         title="Recommended based on hook strength, story flow, and your selected intent.">
-      <span class="ai-badge-main">🤖 AI Recommended</span>
-      <span class="ai-badge-confidence">${confidenceText}</span>
-    </div>`
-  : "";
-
-  const whyToggle = recommended && reason
-    ? `
-      <div class="variantWhyToggle"
-           onclick="toggleVariantWhy('${cardId}')">
-        Why this won ▾
-      </div>
-      <div class="variantWhy hidden" id="${cardId}_why">
-        ${reason}
-      </div>
-    `
+  // ----------------------------
+  // AI badge (visual only)
+  // ----------------------------
+  const badge = recommended
+    ? `<div class="ai-recommended-badge"
+           data-confidence="${confidence}"
+           title="Recommended based on hook strength, story flow, and your selected intent.">
+         <span class="ai-badge-main">🤖 AI Recommended</span>
+         <span class="ai-badge-confidence">${confidenceText}</span>
+       </div>`
     : "";
 
+  // ----------------------------
+  // Why this won (explainability)
+  // ----------------------------
+  const whyToggle =
+    recommended && reason
+      ? `
+        <div class="variantWhyToggle"
+             onclick="toggleVariantWhy('${cardId}')">
+          Why this won ▾
+        </div>
+        <div class="variantWhy hidden" id="${cardId}_why">
+          ${reason}
+        </div>
+      `
+      : "";
+
+  // ----------------------------
+  // 🔁 Feedback hooks (NEW)
+  // ----------------------------
+  const feedbackAttrs = `
+    onclick="sendVariantFeedback({
+      variantId: '${cardId}',
+      intent: currentIntent,
+      tone: '${tone}',
+      action: 'clicked'
+    })"
+  `;
+
+  const useButtonFeedback = `
+    onclick="
+      sendVariantFeedback({
+        variantId: '${cardId}',
+        intent: currentIntent,
+        tone: '${tone}',
+        action: 'chosen'
+      });
+      applyCaptionVariant(\`${escaped}\`)
+    "
+  `;
+
+  // ----------------------------
+  // Final render
+  // ----------------------------
   return `
-    <div class="variantCard ${recommended ? "recommended" : ""}" id="${cardId}">
+    <div class="variantCard ${recommended ? "recommended" : ""}"
+     id="${cardId}"
+     onclick="sendVariantFeedback({
+       variantId: '${cardId}',
+       intent: '${intent}',
+       tone: '${tone}',
+       confidence: '${confidence}',
+       recommended: ${recommended},
+       action: 'viewed'
+     })">
+         ${feedbackAttrs}>
+
       ${badge}
 
       <div class="variantHeader">
@@ -399,12 +465,13 @@ const badge = recommended
 
       <pre style="white-space:pre-wrap">${text}</pre>
 
-      <button onclick="applyCaptionVariant(\`${escaped}\`)">
+      <button ${useButtonFeedback}>
         Use This
       </button>
     </div>
   `;
 }
+
 
 
 function updateVariantStoryScore(id, flow) {
