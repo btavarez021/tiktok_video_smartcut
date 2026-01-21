@@ -1221,6 +1221,9 @@ def choose_best_variant(variants: list, intent: str):
 
     intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
 
+    # --------------------------------------------------
+    # 1️⃣ BASE SCORE (pure AI logic)
+    # --------------------------------------------------
     def base_score(v):
         hook = v.get("hook_score", 0)
         flow = v.get("story_flow", 0)
@@ -1238,7 +1241,6 @@ def choose_best_variant(variants: list, intent: str):
 
         return base
 
-    # 1) Score everything by your ORIGINAL scoring
     scored = [{**v, "_base": base_score(v)} for v in variants]
     scored.sort(key=lambda v: v["_base"], reverse=True)
 
@@ -1246,33 +1248,70 @@ def choose_best_variant(variants: list, intent: str):
     second = scored[1] if len(scored) > 1 else None
     gap = best["_base"] - (second["_base"] if second else 0)
 
-    # 2) Now confidence is REAL
-    if gap > 100:
+    # --------------------------------------------------
+    # 2️⃣ CONFIDENCE (deterministic)
+    # --------------------------------------------------
+    if gap > 12:
         confidence = "clear"
-    elif gap > 50:
+    elif gap > 5:
         confidence = "moderate"
     else:
         confidence = "close"
 
-    # 3) Apply feedback ONLY when NOT clear
+    # attach confidence to ALL variants (important)
+    for v in scored:
+        v["confidence"] = confidence
+
+    print(
+        "[V3 BASE]",
+        "intent=", intent,
+        "winner=", best.get("tone"),
+        "gap=", round(gap, 2),
+        "confidence=", confidence
+    )
+
+    # --------------------------------------------------
+    # 3️⃣ FEEDBACK-AWARE FINAL SCORE
+    # --------------------------------------------------
     def final_score(v):
         fb = get_feedback_adjustment(
             intent=intent,
             tone=v.get("tone") or "unknown",
-            confidence=confidence
+            confidence=confidence,
+            recommended=v.get("recommended", False)
         )
-        return v["_base"] + fb
 
+        # safety clamp (prevents overlearning)
+        fb = max(min(fb, 6), -6)
+
+        final = v["_base"] + fb
+        v["_final"] = final
+
+        print(
+            "[V3 FEEDBACK]",
+            "tone=", v.get("tone"),
+            "base=", round(v["_base"], 2),
+            "fb=", round(fb, 2),
+            "final=", round(final, 2)
+        )
+
+        return final
+
+    # --------------------------------------------------
+    # 4️⃣ APPLY FEEDBACK ONLY IF UNCERTAIN
+    # --------------------------------------------------
     if confidence != "clear":
         scored.sort(key=final_score, reverse=True)
         best = scored[0]
 
+    # --------------------------------------------------
+    # 5️⃣ RETURN DECISION
+    # --------------------------------------------------
     return {
         "id": best["id"],
         "reason": build_variant_reason(best, variants, intent),
         "confidence": confidence
     }
-
 
 
 # -------------------------------
