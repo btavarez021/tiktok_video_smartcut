@@ -134,8 +134,19 @@ def _load_aggregates():
         except json.JSONDecodeError:
             return {}
 
-def get_feedback_adjustment(intent: str, tone: str, confidence: str) -> float:
-    # Never adjust if we're already confident
+def get_feedback_adjustment(
+    intent: str,
+    tone: str,
+    confidence: str,
+    recommended: bool = False
+) -> float:
+    """
+    Feedback Loop v3:
+    - Never adjust if confidence is clear
+    - Learn from aggregate user choices
+    - Never overpower base score
+    """
+
     if confidence == "clear":
         return 0.0
 
@@ -150,24 +161,25 @@ def get_feedback_adjustment(intent: str, tone: str, confidence: str) -> float:
     views = float(row.get("views", 0) or 0)
     chosen = float(row.get("chosen", 0) or 0)
 
-    # Guardrail: don't trust tiny samples
+    # 🔒 guardrail: insufficient data
     if views < 5:
         return 0.0
 
     ratio = chosen / views  # 0..1
-    MAX_BOOST = 5.0
 
+    MAX_BOOST = 5.0
     adj = (ratio - 0.5) * MAX_BOOST
 
-    # scale by confidence
+    # reduce impact if already somewhat confident
     if confidence == "moderate":
         adj *= 0.5
 
-    # clamp to safety
-    if adj > MAX_BOOST:
-        adj = MAX_BOOST
-    if adj < -MAX_BOOST:
-        adj = -MAX_BOOST
+    # recommended variants get slightly less boost
+    if recommended:
+        adj *= 0.8
+
+    # clamp
+    adj = max(min(adj, MAX_BOOST), -MAX_BOOST)
 
     return round(adj, 2)
 
