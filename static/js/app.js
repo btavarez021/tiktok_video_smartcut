@@ -437,12 +437,11 @@ async function generateHooks() {
     console.warn("Hook fetch warning:", e);
   }
 
-  const hooks = res?.hooks;
-
   if (Array.isArray(hooks) && hooks.length > 0) {
-    renderHookLab(hooks);
-    status.textContent = `✓ ${hooks.length} hooks generated`;
-    status.className = "hook-lab-status success";
+  lastGeneratedHooks = hooks;      // ✅ ADD THIS LINE
+  renderHookLab(hooks);
+  status.textContent = `✓ ${hooks.length} hooks generated`;
+  status.className = "hook-lab-status success";
   } else {
     status.textContent = "⚠ Failed to generate hooks";
     status.className = "hook-lab-status error";
@@ -452,7 +451,9 @@ async function generateHooks() {
   btn.textContent = "Generate Hooks";
 }
 
+let lastGeneratedHooks = [];
 let selectedHook = null;
+
 
 function renderHookLab(hooks) {
   const out = document.getElementById("hookLabOutput");
@@ -571,6 +572,7 @@ function clearSelectedHook() {
   document.getElementById("selectedHookBar")?.classList.add("hidden");
 
   updateHookLockUI();
+  if (lastGeneratedHooks.length) renderHookLab(lastGeneratedHooks);
 }
 
 
@@ -589,6 +591,11 @@ function selectHook(text) {
   selectedHook = text;
 
   updateHookLockUI();
+
+  // 🔥 Re-render so AI green recommended border is removed after user selection
+if (lastGeneratedHooks.length) {
+  renderHookLab(lastGeneratedHooks);
+}
 
   // Remove previous highlight
   document.querySelectorAll(".hookCard").forEach(c =>
