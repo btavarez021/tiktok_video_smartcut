@@ -71,6 +71,8 @@ function sendVariantFeedback({
   variantId,
   intent,
   tone,
+  confidence,
+  recommended,
   action
 }) {
   return fetch("/api/variant_feedback", {
@@ -81,7 +83,9 @@ function sendVariantFeedback({
       variant_id: variantId,
       intent,
       tone,
-      action   // "viewed" | "clicked" | "chosen"
+      confidence,
+      recommended,
+      action
     })
   });
 }
@@ -403,7 +407,7 @@ function renderVariantCard(num, variant, cardId) {
     recommended && reason
       ? `
         <div class="variantWhyToggle"
-             onclick="toggleVariantWhy('${cardId}')">
+             onclick="toggleVariantWhy('${cardId}'); event.stopPropagation();">
           Why this won ▾
         </div>
         <div class="variantWhy hidden" id="${cardId}_why">
@@ -420,7 +424,7 @@ function renderVariantCard(num, variant, cardId) {
          id="${cardId}"
          onclick="sendVariantFeedback({
            variantId: '${cardId}',
-           intent: '${currentIntent}',   // ✅ FIXED
+           intent: '${currentIntent}',
            tone: '${tone}',
            confidence: '${confidence}',
            recommended: ${recommended},
@@ -441,13 +445,16 @@ function renderVariantCard(num, variant, cardId) {
       <pre style="white-space:pre-wrap">${text}</pre>
 
       <button onclick="
+        event.stopPropagation();
         sendVariantFeedback({
           variantId: '${cardId}',
-          intent: '${currentIntent}',   // ✅ FIXED
+          intent: '${currentIntent}',
           tone: '${tone}',
+          confidence: '${confidence}',
+          recommended: ${recommended},
           action: 'chosen'
         });
-        applyCaptionVariant(\`${escaped}\`)
+        applyCaptionVariant(\`${escaped}\`);
       ">
         Use This
       </button>
