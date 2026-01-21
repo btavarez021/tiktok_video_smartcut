@@ -466,19 +466,29 @@ function renderHookLab(hooks) {
   hooks
     .filter(h => h && h.text)
     .sort((a, b) => {
-    if (a.recommended) return -1;
-    if (b.recommended) return 1;
-    return (b.score || 0) - (a.score || 0);
-  }).forEach(h => {
+      if (a.recommended) return -1;
+      if (b.recommended) return 1;
+      return (b.score || 0) - (a.score || 0);
+    })
+    .forEach(h => {
       const isRecommended = h.recommended === true;
+      const isSelected = selectedHook === h.text;
       const reason = h.recommend_reason || "";
 
       const card = document.createElement("div");
       card.className = "hookCard";
 
-      if (isRecommended) {
-        card.classList.add("recommended");
+      // --- Visual priority rules ---
+      if (isRecommended && !selectedHook) {
+        card.classList.add("recommended"); // AI owns decision
+      }
 
+      if (isSelected) {
+        card.classList.add("selected"); // User always wins
+      }
+
+      // --- AI Recommended badge (AI-driven, not selection-driven) ---
+      if (isRecommended) {
         const confidence = h.confidence || "close";
 
         const confidenceText =
@@ -490,47 +500,49 @@ function renderHookLab(hooks) {
 
         const badge = document.createElement("div");
         badge.className = "ai-recommended-badge";
-        badge.dataset.confidence = confidence; // 🔥 THIS enables color cues
+        badge.dataset.confidence = confidence;
         badge.innerHTML = `
           <span class="ai-badge-main">🤖 AI Recommended</span>
           <span class="ai-badge-confidence">${confidenceText}</span>
         `;
-        badge.title = reason;
+        badge.title =
+          "Recommended based on hook strength, story flow, and your selected intent.";
 
         card.appendChild(badge);
-
       }
 
+      // --- Hook text ---
       const textSpan = document.createElement("span");
       textSpan.className = "hookText";
       textSpan.textContent = h.text;
+      card.appendChild(textSpan);
 
-      if (isRecommended && reason) {
-          const why = document.createElement("div");
-          why.className = "hookWhy subtle";
-          why.textContent = reason;
-          card.appendChild(why);
-        }
+      // --- Why this (only when AI is still in control) ---
+      if (isRecommended && reason && !selectedHook) {
+        const why = document.createElement("div");
+        why.className = "hookWhy subtle";
+        why.textContent = reason;
+        card.appendChild(why);
+      }
 
-
+      // --- Score ---
       const scoreSpan = document.createElement("span");
       scoreSpan.className = "hookScore";
       scoreSpan.textContent = `🔥 ${h.score ?? 0}`;
-
-      card.appendChild(textSpan);
       card.appendChild(scoreSpan);
 
+      // --- Selection handler ---
       card.addEventListener("click", () => selectHook(h.text));
 
       out.appendChild(card);
-
     });
 
+  // --- Lock visual state once user selects a hook ---
   if (selectedHook) {
-        document.querySelectorAll(".hookCard").forEach(card => {
-          card.classList.add("locked");
-        });
-      }
+    document.querySelectorAll(".hookCard").forEach(card => {
+      card.classList.add("locked");
+    });
+  }
 
   const lab = document.getElementById("hookLab");
   if (lab) lab.classList.remove("hidden");
