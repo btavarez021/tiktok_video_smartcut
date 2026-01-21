@@ -360,7 +360,7 @@ function renderVariantCard(num, variant, cardId) {
   const escaped = text.replace(/`/g, "\\`");
 
   // ----------------------------
-  // Confidence copy (AI-facing)
+  // Confidence copy
   // ----------------------------
   const confidenceHint =
     recommended && confidence === "close"
@@ -385,7 +385,7 @@ function renderVariantCard(num, variant, cardId) {
       : "Close call";
 
   // ----------------------------
-  // AI badge (visual only)
+  // AI badge
   // ----------------------------
   const badge = recommended
     ? `<div class="ai-recommended-badge"
@@ -397,7 +397,7 @@ function renderVariantCard(num, variant, cardId) {
     : "";
 
   // ----------------------------
-  // Why this won (explainability)
+  // Why this won
   // ----------------------------
   const whyToggle =
     recommended && reason
@@ -413,44 +413,19 @@ function renderVariantCard(num, variant, cardId) {
       : "";
 
   // ----------------------------
-  // 🔁 Feedback hooks (NEW)
-  // ----------------------------
-  const feedbackAttrs = `
-    onclick="sendVariantFeedback({
-      variantId: '${cardId}',
-      intent: currentIntent,
-      tone: '${tone}',
-      action: 'clicked'
-    })"
-  `;
-
-  const useButtonFeedback = `
-    onclick="
-      sendVariantFeedback({
-        variantId: '${cardId}',
-        intent: currentIntent,
-        tone: '${tone}',
-        action: 'chosen'
-      });
-      applyCaptionVariant(\`${escaped}\`)
-    "
-  `;
-
-  // ----------------------------
-  // Final render
+  // Final render (FIXED)
   // ----------------------------
   return `
     <div class="variantCard ${recommended ? "recommended" : ""}"
-     id="${cardId}"
-     onclick="sendVariantFeedback({
-       variantId: '${cardId}',
-       intent: '${intent}',
-       tone: '${tone}',
-       confidence: '${confidence}',
-       recommended: ${recommended},
-       action: 'viewed'
-     })">
-         ${feedbackAttrs}>
+         id="${cardId}"
+         onclick="sendVariantFeedback({
+           variantId: '${cardId}',
+           intent: '${currentIntent}',   // ✅ FIXED
+           tone: '${tone}',
+           confidence: '${confidence}',
+           recommended: ${recommended},
+           action: 'viewed'
+         })">
 
       ${badge}
 
@@ -465,13 +440,20 @@ function renderVariantCard(num, variant, cardId) {
 
       <pre style="white-space:pre-wrap">${text}</pre>
 
-      <button ${useButtonFeedback}>
+      <button onclick="
+        sendVariantFeedback({
+          variantId: '${cardId}',
+          intent: '${currentIntent}',   // ✅ FIXED
+          tone: '${tone}',
+          action: 'chosen'
+        });
+        applyCaptionVariant(\`${escaped}\`)
+      ">
         Use This
       </button>
     </div>
   `;
 }
-
 
 
 function updateVariantStoryScore(id, flow) {
