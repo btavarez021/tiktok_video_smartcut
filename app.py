@@ -167,8 +167,12 @@ def api_delete_upload_route():
 @app.route("/api/variant_feedback", methods=["POST"])
 def variant_feedback():
     payload = request.get_json(force=True) or {}
-    result = record_variant_feedback(payload)
-    return jsonify(result), 200
+
+    # Normalize camelCase → snake_case (frontend safety)
+    if "variantId" in payload and "variant_id" not in payload:
+        payload["variant_id"] = payload.pop("variantId")
+
+    return jsonify(record_variant_feedback(payload)), 200
 
 @app.route("/api/feedback_aggregates", methods=["GET"])
 def feedback_aggregates():
@@ -196,15 +200,6 @@ def api_set_label_route():
 
     result = api_set_label(session, filename, label)
     return jsonify(result)
-
-@app.route("/api/variant_feedback", methods=["POST"])
-def variant_feedback():
-    data = request.get_json(force=True) or {}
-
-    record_variant_feedback(data)
-
-    return jsonify({"status": "ok"})
-
 
 @app.route("/repair_label", methods=["POST"])
 def repair_label_route():
