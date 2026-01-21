@@ -505,7 +505,7 @@ function renderHookLab(hooks) {
             : "Close call";
 
         const badge = document.createElement("div");
-        badge.className = "ai-recommended-badge";
+        badge.className = "ai-recommended-badge hook-ai-badge";
         badge.dataset.confidence = confidence;
         badge.innerHTML = `
           <span class="ai-badge-main">🤖 AI Recommended</span>
