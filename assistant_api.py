@@ -1251,9 +1251,9 @@ def choose_best_variant(variants: list, intent: str):
     # --------------------------------------------------
     # 2️⃣ CONFIDENCE (deterministic)
     # --------------------------------------------------
-    if gap > 12:
+    if gap > 100:
         confidence = "clear"
-    elif gap > 5:
+    elif gap > 50:
         confidence = "moderate"
     else:
         confidence = "close"
