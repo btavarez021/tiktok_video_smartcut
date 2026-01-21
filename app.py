@@ -45,7 +45,8 @@ from assistant_api import (
     api_clip_preview, 
     repair_label,
     api_generate_variants,
-    reorder_storyboard
+    reorder_storyboard,
+    record_variant_feedback
 )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -180,6 +181,14 @@ def api_set_label_route():
 
     result = api_set_label(session, filename, label)
     return jsonify(result)
+
+@app.route("/api/variant_feedback", methods=["POST"])
+def variant_feedback():
+    data = request.get_json(force=True) or {}
+
+    record_variant_feedback(data)
+
+    return jsonify({"status": "ok"})
 
 
 @app.route("/repair_label", methods=["POST"])

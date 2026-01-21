@@ -332,6 +332,38 @@ def choose_best_hook(hooks, intent="discovery"):
         "reason": reason
     }
 
+def record_variant_feedback(data: dict):
+    """
+    Feedback loop v1:
+    Records how users interact with AI-generated variants.
+    """
+
+    session = data.get("session")
+    variant_id = data.get("variantId")
+    intent = data.get("intent")
+    tone = data.get("tone")
+    confidence = data.get("confidence")
+    recommended = data.get("recommended")
+    action = data.get("action")  # viewed | clicked | chosen
+
+    # v1: log only (safe, zero risk)
+    print("[VARIANT FEEDBACK]", {
+        "session": session,
+        "variant_id": variant_id,
+        "intent": intent,
+        "tone": tone,
+        "confidence": confidence,
+        "recommended": recommended,
+        "action": action
+    })
+
+    # Later (v2+):
+    # - persist to session JSON
+    # - bias scoring
+    # - build user profile
+
+    return True
+
 def api_generate_hooks(session: str, intent: str | None = None):
 
     
