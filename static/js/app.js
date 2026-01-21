@@ -457,6 +457,41 @@ let lastGeneratedHooks = [];
 let selectedHook = null;
 
 
+// ================================
+// Hook Lab — Confidence-aware UI helpers
+// ================================
+function normalizeConfidence(c) {
+  const v = (c || "").toLowerCase();
+  if (v === "clear" || v === "moderate" || v === "close") return v;
+  return "close";
+}
+
+function confidenceLabel(c) {
+  if (c === "clear") return "Clear winner";
+  if (c === "moderate") return "Strong pick";
+  return "Close call";
+}
+
+function confidenceNudgeText(c) {
+  if (c === "clear") return "⭐ Strong AI pick for your goal";
+  if (c === "moderate") return "👍 Good fit for your intent";
+  return "⚖️ Multiple strong options — trust your instinct";
+}
+
+function shouldHighlightRecommended(conf) {
+  // Confidence-aware highlight rules
+  // - clear: strong highlight
+  // - moderate: normal highlight
+  // - close: no green border highlight (reduces “AI yelling”)
+  return conf !== "close";
+}
+
+function shouldAutoShowWhy(conf) {
+  // Only auto-show why for CLEAR picks (otherwise too noisy)
+  return conf === "clear";
+}
+
+
 function renderHookLab(hooks) {
   const out = document.getElementById("hookLabOutput");
   out.innerHTML = "";
@@ -485,43 +520,64 @@ function renderHookLab(hooks) {
       // If user selected ANY hook, AI visuals are suppressed
       const allowAiHighlight = !selectedHook;
 
-      if (isRecommended && allowAiHighlight) {
-        card.classList.add("recommended");
-      }
-
       if (isSelected) {
         card.classList.add("selected");
       }
 
-      // 🤖 AI badge — only when allowed
+      // 🤖 AI badge — confidence-aware + never overlays text
       if (isRecommended && allowAiHighlight) {
-        const confidence = h.confidence || "close";
+        const conf = normalizeConfidence(h.confidence);
+        const confText = confidenceLabel(conf);
+        const nudge = confidenceNudgeText(conf);
 
-        const confidenceText =
-          confidence === "clear"
-            ? "Clear winner"
-            : confidence === "moderate"
-            ? "Strong pick"
-            : "Close call";
+        // Confidence-aware highlight:
+        // close call => no "recommended" green border highlight
+        if (shouldHighlightRecommended(conf)) {
+          card.classList.add("recommended");
+        }
+
+        // Add a confidence class for CSS styling
+        card.classList.add(`conf-${conf}`);
 
         const badge = document.createElement("div");
-        badge.className = "ai-recommended-badge hook-ai-badge";
-        badge.dataset.confidence = confidence;
+        badge.className = `ai-recommended-badge conf-${conf}`;
+        badge.dataset.confidence = conf;
+
         badge.innerHTML = `
-          <span class="ai-badge-main">🤖 AI Recommended</span>
-          <span class="ai-badge-confidence">${confidenceText}</span>
+          <div class="ai-badge-row">
+            <span class="ai-badge-main">🤖 AI Recommended</span>
+            <span class="ai-badge-confidence">${confText}</span>
+          </div>
+          <div class="ai-badge-nudge">${nudge}</div>
         `;
-        badge.title = reason;
+
+        // Keep the tooltip, but don’t rely on it
+        badge.title = reason || "";
 
         card.appendChild(badge);
 
+        // Why text:
+        // - auto-show for CLEAR
+        // - otherwise collapsed/hidden unless you want it always
         if (reason) {
           const why = document.createElement("div");
           why.className = "hookWhy subtle";
           why.textContent = reason;
+
+          if (!shouldAutoShowWhy(conf)) {
+            why.classList.add("hidden"); // keep it quiet for close/moderate
+          }
+
           card.appendChild(why);
+
+          // For moderate/close: clicking the badge toggles WHY
+          badge.addEventListener("click", (e) => {
+            e.stopPropagation();
+            why.classList.toggle("hidden");
+          });
         }
       }
+
 
       const textSpan = document.createElement("span");
       textSpan.className = "hookText";

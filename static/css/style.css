@@ -3002,6 +3002,33 @@ body.no-scroll {
   position: relative;
 }
 
+.hookCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Top row: badge title + confidence chip */
+.ai-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+
+
+
+/* Badge should sit ABOVE text, not absolute overlay */
+.hookCard .ai-recommended-badge {
+  position: static !important;
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+
 .hookCard.recommended {
   border: 2px solid #4ade80; /* green */
 }
@@ -3113,13 +3140,45 @@ button.disabled {
 }
 
 .ai-badge-main {
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.ai-badge-confidence {
-  white-space: nowrap;          /* keep confidence intact */
+/* Confidence-specific treatment */
+.ai-recommended-badge.conf-clear .ai-badge-confidence {
+  opacity: 1;
+}
+
+.ai-recommended-badge.conf-close {
   opacity: 0.85;
 }
+
+/* IMPORTANT:
+   If confidence is CLOSE, we do NOT want a strong "recommended" border.
+   Your JS already avoids adding .recommended for close call.
+   But this also protects you if it slips in.
+*/
+.hookCard.conf-close.recommended {
+  box-shadow: none !important;
+  outline: none !important;
+  border-color: var(--border) !important;
+}
+
+
+.ai-badge-confidence {
+    white-space: nowrap;          /* keep confidence intact */
+  font-size: 12px;
+  opacity: 0.9;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+/* Nudge line */
+.ai-badge-nudge {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
 
 
 .ai-recommended-badge[data-confidence="clear"] {
