@@ -67,25 +67,18 @@ async function loadIntentFromConfig() {
   }
 }
 
-function sendVariantFeedback({
-  variantId,
-  intent,
-  tone,
-  confidence,
-  recommended,
-  action
-}) {
+function sendVariantFeedback({ variantId, intent, tone, action, confidence = null, recommended = false }) {
   return fetch("/api/variant_feedback", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       session: getActiveSession(),
-      variant_id: variantId,
+      variant_id: variantId,          // match backend naming
       intent,
       tone,
-      confidence,
-      recommended,
-      action
+      confidence,                     // "clear" | "moderate" | "close" | null
+      recommended: recommended === true,
+      action                          // "viewed" | "chosen"
     })
   });
 }

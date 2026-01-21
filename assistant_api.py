@@ -26,6 +26,10 @@ from s3_config import (
 )
 import shutil
 from tiktok_template import reorder_clips
+import json
+import time
+from datetime import datetime, timezone
+from threading import Lock
 
 # Import ONLY non-circular functions from tiktok_assistant
 from tiktok_assistant import (
@@ -42,7 +46,11 @@ from tiktok_assistant import apply_overlay
 import time
 
 logger = logging.getLogger(__name__)
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+EVENTS_PATH = os.path.join(DATA_DIR, "feedback_events.jsonl")
+AGG_PATH = os.path.join(DATA_DIR, "feedback_aggregates.json")
 
+_feedback_lock = Lock()
 
 # ========== TASK REGISTRY ==========
 export_tasks = {}  
@@ -106,6 +114,31 @@ INTENT_PROFILE = {
         "tone_bias": ["rewrite", "descriptive"],
     }
 }
+
+def _utc_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+def _ensure_data_files():
+    os.makedirs(DATA_DIR, exist_ok=True)
+    if not os.path.exists(EVENTS_PATH):
+        with open(EVENTS_PATH, "a", encoding="utf-8") as f:
+            pass
+    if not os.path.exists(AGG_PATH):
+        with open(AGG_PATH, "w", encoding="utf-8") as f:
+            f.write("{}")
+
+def _load_aggregates():
+    with open(AGG_PATH, "r", encoding="utf-8") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+
+def _atomic_write_json(path, data):
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+    os.replace(tmp_path, path)
 
 
 # ================================
@@ -331,38 +364,87 @@ def choose_best_hook(hooks, intent="discovery"):
         "text": best["text"],
         "reason": reason
     }
+def _update_aggregate(aggs, event):
+    intent = event.get("intent") or "unknown"
+    tone = event.get("tone") or "unknown"
+    confidence = event.get("confidence") or "unknown"   # can be unknown if null
+    recommended = bool(event.get("recommended") is True)
+    action = event.get("action") or "viewed"
 
-def record_variant_feedback(data: dict):
+    key = f"{intent}||{tone}"
+    if key not in aggs:
+        aggs[key] = {
+            "intent": intent,
+            "tone": tone,
+            "views": 0,
+            "chosen": 0,
+            "recommended_views": 0,
+            "recommended_chosen": 0,
+            "confidence_breakdown": {},
+            "last_updated": None
+        }
+
+    row = aggs[key]
+
+    # Ensure confidence bucket exists
+    cbd = row["confidence_breakdown"]
+    if confidence not in cbd:
+        cbd[confidence] = {"views": 0, "chosen": 0}
+
+    # Update counts
+    if action == "viewed":
+        row["views"] += 1
+        cbd[confidence]["views"] += 1
+        if recommended:
+            row["recommended_views"] += 1
+
+    elif action == "chosen":
+        row["chosen"] += 1
+        cbd[confidence]["chosen"] += 1
+        if recommended:
+            row["recommended_chosen"] += 1
+
+    row["last_updated"] = _utc_iso()
+
+
+def record_variant_feedback(payload: dict):
     """
-    Feedback loop v1:
-    Records how users interact with AI-generated variants.
+    v2 = write raw event (jsonl) + update aggregates (json)
     """
+    _ensure_data_files()
 
-    session = data.get("session")
-    variant_id = data.get("variantId")
-    intent = data.get("intent")
-    tone = data.get("tone")
-    confidence = data.get("confidence")
-    recommended = data.get("recommended")
-    action = data.get("action")  # viewed | clicked | chosen
+    # Normalize / validate minimal fields
+    event = {
+        "session": payload.get("session") or "unknown",
+        "variant_id": payload.get("variant_id") or payload.get("variantId") or "unknown",
+        "intent": payload.get("intent") or "unknown",
+        "tone": payload.get("tone") or "unknown",
+        "confidence": payload.get("confidence"),  # can be None
+        "recommended": bool(payload.get("recommended") is True),
+        "action": payload.get("action") or "viewed",
+        "timestamp": _utc_iso(),
+    }
 
-    # v1: log only (safe, zero risk)
-    print("[VARIANT FEEDBACK]", {
-        "session": session,
-        "variant_id": variant_id,
-        "intent": intent,
-        "tone": tone,
-        "confidence": confidence,
-        "recommended": recommended,
-        "action": action
-    })
+    # Optional: allow only specific actions
+    if event["action"] not in ("viewed", "chosen"):
+        event["action"] = "viewed"
 
-    # Later (v2+):
-    # - persist to session JSON
-    # - bias scoring
-    # - build user profile
+    with _feedback_lock:
+        # 1) Append raw event
+        with open(EVENTS_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(event) + "\n")
 
-    return True
+        # 2) Update aggregates
+        aggs = _load_aggregates()
+        _update_aggregate(aggs, event)
+        _atomic_write_json(AGG_PATH, aggs)
+
+    return {
+        "ok": True,
+        "stored": event,
+        "aggregate_key": f"{event['intent']}||{event['tone']}"
+    }
+
 
 def api_generate_hooks(session: str, intent: str | None = None):
 

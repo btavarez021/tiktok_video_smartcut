@@ -46,13 +46,14 @@ from assistant_api import (
     repair_label,
     api_generate_variants,
     reorder_storyboard,
-    record_variant_feedback
-)
+    record_variant_feedback,
+    AGG_PATH
+    )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 import threading
-
+import json
 app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)
 
@@ -162,6 +163,20 @@ def api_delete_upload_route():
     data = request.get_json() or {}
     return jsonify(delete_upload_s3(key=data["key"]))
 
+
+@app.route("/api/variant_feedback", methods=["POST"])
+def variant_feedback():
+    payload = request.get_json(force=True) or {}
+    result = record_variant_feedback(payload)
+    return jsonify(result), 200
+
+@app.route("/api/feedback_aggregates", methods=["GET"])
+def feedback_aggregates():
+    if not os.path.exists(AGG_PATH):
+        return jsonify({}), 200
+    with open(AGG_PATH, "r", encoding="utf-8") as f:
+        return jsonify(json.load(f)), 200
+    
 # =====================================================================
 # CLIP LABELS (GET + POST)
 # =====================================================================
