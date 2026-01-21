@@ -478,17 +478,20 @@ function renderHookLab(hooks) {
       const card = document.createElement("div");
       card.className = "hookCard";
 
-      // --- Visual priority rules ---
-      if (isRecommended && !selectedHook) {
-        card.classList.add("recommended"); // AI owns decision
+      // 🔒 GLOBAL RULE:
+      // If user selected ANY hook, AI visuals are suppressed
+      const allowAiHighlight = !selectedHook;
+
+      if (isRecommended && allowAiHighlight) {
+        card.classList.add("recommended");
       }
 
       if (isSelected) {
-        card.classList.add("selected"); // User always wins
+        card.classList.add("selected");
       }
 
-      // --- AI Recommended badge (AI-driven, not selection-driven) ---
-      if (isRecommended) {
+      // 🤖 AI badge — only when allowed
+      if (isRecommended && allowAiHighlight) {
         const confidence = h.confidence || "close";
 
         const confidenceText =
@@ -505,39 +508,35 @@ function renderHookLab(hooks) {
           <span class="ai-badge-main">🤖 AI Recommended</span>
           <span class="ai-badge-confidence">${confidenceText}</span>
         `;
-        badge.title =
-          "Recommended based on hook strength, story flow, and your selected intent.";
+        badge.title = reason;
 
         card.appendChild(badge);
+
+        if (reason) {
+          const why = document.createElement("div");
+          why.className = "hookWhy subtle";
+          why.textContent = reason;
+          card.appendChild(why);
+        }
       }
 
-      // --- Hook text ---
       const textSpan = document.createElement("span");
       textSpan.className = "hookText";
       textSpan.textContent = h.text;
-      card.appendChild(textSpan);
 
-      // --- Why this (only when AI is still in control) ---
-      if (isRecommended && reason && !selectedHook) {
-        const why = document.createElement("div");
-        why.className = "hookWhy subtle";
-        why.textContent = reason;
-        card.appendChild(why);
-      }
-
-      // --- Score ---
       const scoreSpan = document.createElement("span");
       scoreSpan.className = "hookScore";
       scoreSpan.textContent = `🔥 ${h.score ?? 0}`;
+
+      card.appendChild(textSpan);
       card.appendChild(scoreSpan);
 
-      // --- Selection handler ---
       card.addEventListener("click", () => selectHook(h.text));
 
       out.appendChild(card);
     });
 
-  // --- Lock visual state once user selects a hook ---
+  // Lock visual state when user selects a hook
   if (selectedHook) {
     document.querySelectorAll(".hookCard").forEach(card => {
       card.classList.add("locked");
