@@ -437,6 +437,8 @@ async function generateHooks() {
     console.warn("Hook fetch warning:", e);
   }
 
+  const hooks = res?.hooks;
+
   if (Array.isArray(hooks) && hooks.length > 0) {
   lastGeneratedHooks = hooks;      // ✅ ADD THIS LINE
   renderHookLab(hooks);
