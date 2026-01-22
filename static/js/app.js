@@ -415,16 +415,8 @@ function renderVariantCard(num, variant, cardId) {
   // Final render (FIXED)
   // ----------------------------
   return `
-    <div class="variantCard ${recommended ? "recommended" : ""}"
-         id="${cardId}"
-         onclick="sendVariantFeedback({
-           variantId: '${cardId}',
-           intent: '${currentIntent}',
-           tone: '${tone}',
-           confidence: '${confidence}',
-           recommended: ${recommended},
-           action: 'viewed'
-         })">
+   <div class="variantCard"
+     onmouseenter="sendVariantFeedback({ ... action: 'viewed' })">
 
       ${badge}
 
@@ -2360,6 +2352,18 @@ async function generateCaptionVariants() {
       cardId
     );
   }
+
+data.variants.forEach((variant, i) => {
+  sendVariantFeedback({
+    variantId: `variant_${i}`,
+    intent: currentIntent || "discovery",
+    tone: variant.tone,
+    confidence: variant.confidence,
+    recommended: variant.recommended === true,
+    action: "viewed"
+  });
+});
+
 
     // ✅ Success AFTER render
     setVariantsStatus("Variants generated ✓", "success");
