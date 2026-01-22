@@ -455,33 +455,6 @@ def _update_aggregate(aggs, event):
 
     row["last_updated"] = _utc_iso()
 
-def get_feedback_adjustment(intent, tone, confidence):
-    if confidence == "clear":
-        return 0
-
-    aggs = _load_aggregates()
-    key = f"{intent}||{tone}"
-
-    if key not in aggs:
-        return 0
-
-    row = aggs[key]
-    views = row.get("views", 0)
-    chosen = row.get("chosen", 0)
-
-    if views < 5:  # 🔒 minimum data guardrail
-        return 0
-
-    preference_ratio = chosen / views
-    MAX_BOOST = 5
-
-    adjustment = (preference_ratio - 0.5) * MAX_BOOST
-
-    if confidence == "moderate":
-        adjustment *= 0.5
-
-    return round(adjustment, 2)
-
 
 def record_variant_feedback(payload: dict):
     """
