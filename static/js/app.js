@@ -374,17 +374,17 @@ function renderVariantCard(num, variant, cardId) {
   // Why this won
   // ----------------------------
   const whyToggle =
-    recommended && reason
-      ? `
-        <div class="variantWhyToggle"
-             onclick="toggleVariantWhy('${cardId}'); event.stopPropagation();">
-          Why this won ▾
-        </div>
-        <div class="variantWhy hidden" id="${cardId}_why">
-          ${reason}
-        </div>
-      `
-      : "";
+  recommended && reason
+    ? `
+      <div class="variantWhyToggle"
+           onclick="toggleVariantWhy('${cardId}')">
+        Why this won ▾
+      </div>
+      <div class="variantWhy hidden" id="${cardId}_why">
+        ${reason}
+      </div>
+    `
+    : "";
 
   // ----------------------------
   // Final render (CORRECT)
@@ -487,12 +487,6 @@ function confidenceLabel(c) {
   return "Close call";
 }
 
-function confidenceNudgeText(c) {
-  if (c === "clear") return "⭐ Strong AI pick for your goal";
-  if (c === "moderate") return "👍 Good fit for your intent";
-  return "⚖️ Multiple strong options — trust your instinct";
-}
-
 function shouldHighlightRecommended(conf) {
   // Confidence-aware highlight rules
   // - clear: strong highlight
@@ -543,7 +537,6 @@ function renderHookLab(hooks) {
       if (isRecommended && allowAiHighlight) {
         const conf = normalizeConfidence(h.confidence);
         const confText = confidenceLabel(conf);
-        const nudge = confidenceNudgeText(conf);
 
         // Confidence-aware highlight:
         // close call => no "recommended" green border highlight
@@ -563,10 +556,6 @@ function renderHookLab(hooks) {
             <span class="ai-badge-main">🤖 AI Recommended</span>
             <span class="ai-badge-confidence">${confText}</span>
           </div>
-          <div class="ai-badge-nudge subtle">
-            ${nudge}
-          </div>
-
         `;
 
         // Keep the tooltip, but don’t rely on it
