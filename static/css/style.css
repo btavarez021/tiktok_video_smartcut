@@ -3302,6 +3302,8 @@ line-clamp: 2; /* Standard property */
 
   .variantCard.recommended {
     border-top: 2px solid #4f8bff;
+    box-shadow: 0 0 0 2px rgba(79,139,255,0.35);
+
   }
 }
 
