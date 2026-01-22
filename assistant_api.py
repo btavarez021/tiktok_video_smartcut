@@ -128,11 +128,16 @@ def _ensure_data_files():
             f.write("{}")
 
 def _load_aggregates():
-    with open(AGG_PATH, "r", encoding="utf-8") as f:
-        try:
+    # 🔒 Safety: file may not exist yet
+    if not os.path.exists(AGG_PATH):
+        return {}
+
+    try:
+        with open(AGG_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
-        except json.JSONDecodeError:
-            return {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
 
 def get_feedback_adjustment(
     intent: str,
