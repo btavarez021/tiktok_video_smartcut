@@ -167,7 +167,7 @@ def get_feedback_adjustment(
     chosen = float(row.get("chosen", 0) or 0)
 
     # 🔒 guardrail: insufficient data
-    if views < 5:
+    if views < 2:
         return 0.0
 
     ratio = chosen / views  # 0..1

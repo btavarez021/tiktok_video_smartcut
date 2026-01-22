@@ -2352,17 +2352,6 @@ async function generateCaptionVariants() {
     );
   }
 
-data.variants.forEach((variant, i) => {
-  sendVariantFeedback({
-    variantId: `variant_${i}`,
-    intent: currentIntent || "discovery",
-    tone: variant.tone,
-    confidence: variant.confidence,
-    recommended: variant.recommended === true,
-    action: "viewed"
-  });
-});
-
 
     // ✅ Success AFTER render
     setVariantsStatus("Variants generated ✓", "success");
@@ -2381,9 +2370,6 @@ data.variants.forEach((variant, i) => {
     }
   }
 }
-
-
-
 
 
 // Alias used by caption system
