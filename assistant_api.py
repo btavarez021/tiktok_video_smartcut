@@ -602,6 +602,7 @@ def api_variant_feedback():
 
 
 def api_generate_body_from_hook(session, hook, style):
+    session = sanitize_session(session)
     cfg = _load_config(session)
 
     scenes = []
@@ -611,27 +612,28 @@ def api_generate_body_from_hook(session, hook, style):
     if cfg.get("last_clip", {}).get("text"):
         scenes.append(cfg["last_clip"]["text"])
 
-    prompt = f"""
-You are writing TikTok captions.
+    if not scenes:
+        return {"status": "error", "error": "No scenes found"}
 
-Selected Hook:
-"{hook}"
+    if not client:
+        return {"status": "error", "error": "AI unavailable"}
 
-Scenes:
-{json.dumps(scenes, indent=2)}
+    prompt = f"""..."""  # your prompt
 
-Rewrite the captions in "{style}" tone.
+    resp = client.chat.completions.create(
+        model=TEXT_MODEL,
+        messages=[
+            {"role": "system", "content": "Return ONLY valid JSON. No markdown. No commentary."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.5,
+    )
 
-Rules:
-- Do NOT change the hook
-- One caption per scene
-- Keep them concise
-- Match the hook’s tone
-
-Return JSON:
-{{ "body": ["caption1", "caption2", "caption3"] }}
-"""
-
+    content = (resp.choices[0].message.content or "").strip()
+    start = content.find("{")
+    end = content.rfind("}") + 1
+    data = json.loads(content[start:end])
+    return {"status": "ok", "body": data.get("body", [])}
 
 
 # -----------------------------------------
@@ -852,7 +854,6 @@ def save_labels(session: str, labels: Dict[str, str]) -> None:
 # Upload order (S3 JSON index)
 # -------------------------------
 UPLOAD_ORDER_KEY = RAW_PREFIX + "order.json"
-
 
 def load_upload_order() -> List[str]:
     try:
@@ -2147,7 +2148,8 @@ def api_overlay_preview(session: str, style: str) -> dict:
     h = 1920  # for eval
 
     try:
-        y = eval(y_expr)  # y position inside preset
+        y_frac = float(preset.get("y_frac", 0.50))
+        y = h * max(0.0, min(y_frac, 1.0))
     except:
         y = h * 0.50
 

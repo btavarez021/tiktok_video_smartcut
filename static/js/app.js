@@ -27,6 +27,8 @@ let rewritePending = false;
 let currentIntent = "discovery";
 
 let isInRewriteReview = false;
+let captionViewMode = "rewritten";
+let diffDirty = false;
 
 function debounce(fn, wait = 350) {
   let t = null;
@@ -2394,7 +2396,7 @@ async function refreshOverlayPreview() {
 // =============================================
 async function applyCaptionVariant(text, meta = {}) {
   const { id, tone, intent } = meta;
-
+  
   const session = getActiveSession();
 
   const originalText = lastSavedCaptionsText || "";
@@ -2573,9 +2575,9 @@ function updateImproveButtons(hookScore, storyScore) {
   const hookBtn = document.getElementById("improveHookBtn");
   const flowBtn = document.getElementById("improveStoryFlowBtn");
 
-  if (hookBtn) {
-  hookBtn.classList.add("hidden");
-}
+  if (hookBtn && typeof hookScore === "number") {
+  hookBtn.classList.toggle("hidden", hookScore >= 80); // show if weak
+  }
 
   if (flowBtn && typeof storyScore === "number") {
     flowBtn.classList.toggle("hidden", storyScore >= 80);

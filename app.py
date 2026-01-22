@@ -2,7 +2,7 @@
 
 import os
 import yaml
-from flask import Flask, jsonify, request, send_file, render_template
+from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import time
@@ -54,8 +54,11 @@ from tiktok_template import get_config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 import threading
 import json
+from werkzeug.datastructures import ImmutableMultiDict
+
 app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)
+app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # 1GB; adjust if you want
 
 
 # ============================================================================
@@ -154,14 +157,22 @@ def api_list_uploads_route():
 
 @app.route("/api/uploads/move", methods=["POST"])
 def api_move_upload_route():
-    data = request.get_json() or {}
-    return jsonify(move_upload_s3(src=data["src"], dest=data["dest"]))
+    data = request.get_json(silent=True) or {}
+    src = data.get("src")
+    dest = data.get("dest")
+    if not src or not dest:
+        return jsonify({"success": False, "error": "Missing src or dest"}), 400
+    return jsonify(move_upload_s3(src=src, dest=dest))
+
 
 
 @app.route("/api/uploads/delete", methods=["DELETE"])
 def api_delete_upload_route():
-    data = request.get_json() or {}
-    return jsonify(delete_upload_s3(key=data["key"]))
+    data = request.get_json(silent=True) or {}
+    key = data.get("key")
+    if not key:
+        return jsonify({"success": False, "error": "Missing key"}), 400
+    return jsonify(delete_upload_s3(key=key))
 
 
 @app.route("/api/variant_feedback", methods=["POST"])
@@ -280,9 +291,11 @@ def save_config_api():
 @app.route("/api/reorder_clips", methods=["POST"])
 def api_reorder_clips():
     data = request.json
-    session = data["session"]
+    session = sanitize_session(data.get("session", "default"))
     new_order = data["order"]
 
+    if not new_order:
+        return jsonify({"status": "error", "error":"missing order"}), 400
     try:
         cfg = reorder_storyboard(session, new_order)
         return jsonify({"status": "ok", "config": cfg})
@@ -337,20 +350,19 @@ def route_get_config():
 
 @app.route("/api/save_yaml", methods=["POST"])
 def route_save_yaml_route():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     yaml_text = data.get("yaml", "")
 
-    # Determine session
     session = sanitize_session(
         request.args.get("session", data.get("session", "default"))
     )
 
-    # Patch request.args for api_save_yaml()
-    # (so it reads ?session=xxx exactly like before)
-    request.args = request.args.copy()
-    request.args["session"] = session
-
-    return jsonify(api_save_yaml(yaml_text))
+    old_args = request.args
+    try:
+        request.args = ImmutableMultiDict({**old_args, "session": session})
+        return jsonify(api_save_yaml(yaml_text))
+    finally:
+        request.args = old_args
 
 
 
@@ -399,11 +411,14 @@ def route_captions_mode():
 
 @app.route("/api/clip_preview", methods=["POST"])
 def clip_preview():
-    data = request.json
-    return api_clip_preview(
-        data.get("session"),
-        data.get("filename")
-    )
+    data = request.get_json(silent=True) or {}
+    session = sanitize_session(data.get("session", "default"))
+    filename = data.get("filename")
+    if not filename:
+        return jsonify({"error": "Missing filename"}), 400
+    return api_clip_preview(session, filename)
+
+
 
 # ============================================================================
 # TTS / CTA
@@ -542,7 +557,7 @@ def route_overlay():
     data = request.get_json() or {}
 
     style = data.get("style", "travel_blog")
-    session_id = data.get("session", "default")
+    session_id = sanitize_session(data.get("session", "default"))
     rewrite = bool(data.get("rewrite", False))
 
     # ✅ NEW: optional emoji-safe overlay text
