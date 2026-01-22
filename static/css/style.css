@@ -2948,412 +2948,84 @@ body.no-scroll {
   }
 }
 
-/* Desktop: hide mobile close button */
-@media (min-width: 769px) {
-  .mobile-close-btn {
-    display: none !important;
-  }
+/* ===============================
+   Modern Variant Scrollbar
+=============================== */
+
+/* Container that scrolls variants */
+#variantsOutput,
+.variants-container {
+  scrollbar-width: thin;                /* Firefox */
+  scrollbar-color: #3b82f6 transparent; /* Firefox */
 }
 
-.intent-selector {
-  margin-top: 10px;
+/* WebKit (Chrome, Edge, Safari) */
+#variantsOutput::-webkit-scrollbar,
+.variants-container::-webkit-scrollbar {
+  height: 8px; /* horizontal scroll */
 }
 
-.intent-label {
-  font-size: 13px;
-  font-weight: 600;
-  opacity: 0.9;
+#variantsOutput::-webkit-scrollbar-track,
+.variants-container::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.intent-options {
-  display: flex;
-  gap: 8px;
-  margin-top: 6px;
-  flex-wrap: wrap;
-}
-
-.intent-btn {
-  padding: 6px 14px;
+#variantsOutput::-webkit-scrollbar-thumb,
+.variants-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    135deg,
+    rgba(59,130,246,0.6),
+    rgba(96,165,250,0.6)
+  );
   border-radius: 999px;
-  border: 1px solid #2c2f36;
-  background: #1a1c20;
-  color: #bfc3c9;
+}
+
+#variantsOutput::-webkit-scrollbar-thumb:hover,
+.variants-container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(59,130,246,0.9),
+    rgba(96,165,250,0.9)
+  );
+}
+
+/* ===============================
+   Variant Action Button
+=============================== */
+
+.variantCard button {
+  align-self: flex-start; /* ← key: prevents full width */
+ 
+  margin-top: 10px;
+  padding: 6px 14px;
+
+  border-radius: 999px;
+  border: 1px solid #3b82f6;
+
+  background: transparent;
+  color: #c7d2fe;
+
   font-size: 12px;
+  font-weight: 600;
+
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.intent-btn:hover {
-  background: #22252b;
-}
-
-.intent-btn.active {
-  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+.variantCard button:hover {
+  background: rgba(59,130,246,0.15);
   color: white;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px rgba(96,165,250,.4);
 }
 
-/* ===============================
-   AI Recommended Hook Badge
-=============================== */
-
-.hookCard {
-  position: relative;
+.variantCard button:active {
+  transform: scale(0.96);
 }
 
-.hookCard {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Top row: badge title + confidence chip */
-.ai-badge-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-
-
-
-/* Badge should sit ABOVE text, not absolute overlay */
-
-.hookCard.recommended {
-  border: 2px solid #4ade80; /* green */
-}
-
-.intent-dropdown {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: #1a1a1b;
-  color: #e5e5e7;
-  border: 1px solid #2e2e31;
-  font-size: 14px;
-}
-
-.intent-dropdown:focus {
-  outline: none;
-  border-color: #6a9eff;
-  box-shadow: 0 0 0 1px rgba(106,158,255,0.4);
-}
-
-
-
-.variantCard .ai-recommended-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-}
-
-
-
-.variantCard {
-  position: relative; /* REQUIRED */
-  display: flex;
-  flex-direction: column;
-}
-
-.variantReason {
-  font-size: 12px;
-  opacity: 0.75;
-  margin: 4px 0 8px;
-  padding-left: 2px;
-}
-
-.variantWhyToggle {
-  font-size: 12px;
-  color: #a78bfa;
-  cursor: pointer;
-  margin: 4px 0 6px;
-  user-select: none;
-}
-
-.variantWhyToggle:hover {
-  text-decoration: underline;
-}
-
-.hidden {
-  display: none;
-}
-
-.hook-lock {
-  font-size: 12px;
-  color: #6fdc8c;
-  margin-left: 8px;
-}
-
-button.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.variantConfidence {
-  font-size: 12px;
-  margin-top: 6px;
-  color: #9bbcff;
-}
-
-.variantConfidence.strong {
-  color: #6fdc8c;
-}
-
-.variantConfidence.subtle {
-  color: #aaa;
-}
-
-
-.ai-confidence {
-  font-size: 11px;
-  opacity: 0.75;
-}
-
-.ai-badge-main {
-  font-weight: 700;
-}
-
-/* Confidence-specific treatment */
-.ai-recommended-badge.conf-clear .ai-badge-confidence {
-  opacity: 1;
-}
-
-.ai-recommended-badge.conf-close {
-  opacity: 0.85;
-}
-
-/* IMPORTANT:
-   If confidence is CLOSE, we do NOT want a strong "recommended" border.
-   Your JS already avoids adding .recommended for close call.
-   But this also protects you if it slips in.
-*/
-.hookCard.conf-close.recommended {
-  box-shadow: none !important;
-  outline: none !important;
-  border-color: var(--border) !important;
-}
-
-
-.ai-badge-confidence {
-    white-space: nowrap;          /* keep confidence intact */
-  font-size: 12px;
-  opacity: 0.9;
-  padding: 3px 8px;
-  border-radius: 999px;
-}
-
-/* Nudge line */
-.ai-badge-nudge {
-  margin-top: 6px;
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-
-
-.ai-recommended-badge[data-confidence="clear"] {
+.variantCard.recommended button {
   border-color: #22c55e;
-  box-shadow: 0 0 0 1px rgba(34,197,94,0.4);
-}
-.ai-recommended-badge[data-confidence="moderate"] {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px rgba(59,130,246,0.4);
+  color: #bbf7d0;
 }
 
-.ai-recommended-badge[data-confidence="close"] {
-  border-color: #9ca3af;
-  opacity: 0.9;
-}
-
-.hookCard.locked {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.hookWhy {
-  font-size: 12px;
-  line-height: 1.4;
-  opacity: 0.85;
-  margin-top: 6px;
-
-  max-width: 100%;
-  box-sizing: border-box;
-
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-
-  overflow: hidden;
-}
-
-@media (max-width: 480px) {
-  .hookWhy {
-    -webkit-line-clamp: 3;
-    font-size: 11px;
-  }
-}
-
-
-.variantWhy {
-font-size: 12px;
-line-height: 1.4;
-opacity: 0.85;
-margin-top: 6px;
-
-/* Modern standard line-clamp implementation */
-overflow: hidden;
-display: -webkit-box; /* Fallback for older browsers */
-display: box; /* Fallback for older browsers */
--webkit-line-clamp: 2; /* Webkit prefix */
-line-clamp: 2; /* Standard property */
--webkit-box-orient: vertical; /* Required for the clamp to work */
-
-}
-
-.hookCard.selected.recommended {
-  border-color: #8e44ad;
-  box-shadow: 0 0 12px rgba(142, 68, 173, 0.9);
-}
-
-@media (max-width: 480px) {
-  .hookCard.selected.recommended {
-    box-shadow: 0 0 8px rgba(142, 68, 173, 0.6);
-  }
-}
-
-.hookCard.locked {
-  pointer-events: none;
-}
-
-
-/* ===============================
-   Hook AI Badge (Inline, Clean)
-=============================== */
-
-/* Hook AI badge — INLINE, mobile safe */
-.hook-ai-badge {
-  position: static;
-  display: inline-block;
-
-  margin-bottom: 6px;
-  align-self: flex-start;
-
-  padding: 3px 8px;
-  border-radius: 6px;
-
-  font-size: 11px;
-  font-weight: 600;
-
-  white-space: nowrap;
-
-  background: rgba(34, 197, 94, 0.12);
-  border: 1px solid #22c55e;
-  color: #c7f9dd;
-}
-
-
-.hook-ai-badge[data-confidence="clear"] {
-  border-color: #22c55e;
-  background: rgba(34, 197, 94, 0.15);
-}
-
-.hook-ai-badge[data-confidence="moderate"] {
-  border-color: #3b82f6;
-  background: rgba(59, 130, 246, 0.15);
-}
-
-.hook-ai-badge[data-confidence="close"] {
-  border-color: #9ca3af;
-  background: rgba(156, 163, 175, 0.15);
-  opacity: 0.85;
-}
-
-/* Mobile fix: prevent badge overlap */
-
-.variantCard.recommended {
-  background: linear-gradient(
-    180deg,
-    rgba(79,139,255,0.06),
-    rgba(0,0,0,0)
-  );
-}
-
-.variantHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.variantCard .ai-recommended-badge {
-  position: static;
-  display: inline-flex;
-  align-items: center;
-
-  padding: 4px 10px;
-  border-radius: 999px;
-
-  font-size: 12px;
-  font-weight: 600;
-
-  white-space: nowrap;
-}
-
-@media (min-width: 768px) {
-  .variantCard.recommended .ai-recommended-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-  }
-
-  .variantHeader {
-    padding-right: 110px; /* space for badge */
-  }
-}
-/* Desktop */
-@media (min-width: 641px) {
-  .ai-recommended-badge {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-  }
-}
-
-.variantHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.variantCard .ai-recommended-badge {
-  position: static;
-  display: inline-flex;
-  align-items: center;
-
-  padding: 4px 10px;
-  border-radius: 999px;
-
-  font-size: 12px;
-  font-weight: 600;
-
-  white-space: nowrap;
-}
-
-@media (min-width: 768px) {
-  .variantCard.recommended .ai-recommended-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-  }
-
-  .variantHeader {
-    padding-right: 110px; /* space for badge */
-  }
+.variantCard.recommended button:hover {
+  background: rgba(34,197,94,0.15);
 }
