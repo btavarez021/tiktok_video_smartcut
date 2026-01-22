@@ -412,12 +412,11 @@ function renderVariantCard(num, variant, cardId) {
       : "";
 
   // ----------------------------
-  // Final render (FIXED)
+  // Final render (CORRECT)
   // ----------------------------
   return `
-   <div class="variantCard"
-     onmouseenter="sendVariantFeedback({ ... action: 'viewed' })">
-
+    <div class="variantCard ${recommended ? "recommended" : ""}" id="${cardId}">
+     
       ${badge}
 
       <div class="variantHeader">
