@@ -172,7 +172,7 @@ def get_feedback_adjustment(
 
     ratio = chosen / views  # 0..1
 
-    MAX_BOOST = 12.0
+    MAX_BOOST = 5.0
     adj = (ratio - 0.5) * MAX_BOOST
 
     # reduce impact if already somewhat confident
@@ -182,6 +182,9 @@ def get_feedback_adjustment(
     # recommended variants get slightly less boost
     if recommended:
         adj *= 0.8
+
+    if views >= 5 and chosen / views >= 0.8:
+        fb += 3
 
     # clamp
     adj = max(min(adj, MAX_BOOST), -MAX_BOOST)
@@ -492,6 +495,9 @@ def record_variant_feedback(payload: dict):
         aggs = _load_aggregates()
         _update_aggregate(aggs, event)
         _atomic_write_json(AGG_PATH, aggs)
+
+    if event["tone"] == "Error":
+        return {"ok": False, "ignored": "error variant"}
 
     return {
         "ok": True,
