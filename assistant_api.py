@@ -172,7 +172,7 @@ def get_feedback_adjustment(
 
     ratio = chosen / views  # 0..1
 
-    MAX_BOOST = 8.0
+    MAX_BOOST = 12.0
     adj = (ratio - 0.5) * MAX_BOOST
 
     # reduce impact if already somewhat confident
