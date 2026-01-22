@@ -2339,6 +2339,7 @@ async function generateCaptionVariants() {
 
     const box = document.getElementById("variantsOutput");
     box.innerHTML = "";
+    box.dataset.rendered = "false";
 
     for (let i = 0; i < data.variants.length; i++) {
     const variant = data.variants[i];
@@ -2352,9 +2353,23 @@ async function generateCaptionVariants() {
     );
   }
 
+  // 🔥 FEEDBACK LOOP v3 — record exposure (viewed)
+data.variants.forEach((variant, i) => {
+  sendVariantFeedback({
+    variantId: `variant_${i}`,
+    intent: currentIntent || "discovery",
+    tone: variant.tone,
+    confidence: variant.confidence,
+    recommended: variant.recommended === true,
+    action: "viewed"
+  });
+});
+
 
     // ✅ Success AFTER render
     setVariantsStatus("Variants generated ✓", "success");
+    box.dataset.rendered = "true";
+
 
     setTimeout(() => {
       document.getElementById("variantsInlineStatus")?.classList.add("hidden");
