@@ -1794,10 +1794,13 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
             if v.get("id") == best["id"]:
                 v["recommended"] = True
                 v["recommend_reason"] = best["reason"]
+                v["confidence"] = best["confidence"]  # 🔥 CRITICAL FIX
 
-                # ✅ SAVE SESSION PREFERENCES HERE
                 save_session_pref(session, "last_best_tone", v.get("tone"))
                 save_session_pref(session, "last_intent", intent)
+            else:
+                # Non-winners still need confidence for UI + feedback
+                v["confidence"] = best["confidence"]
 
 
 
