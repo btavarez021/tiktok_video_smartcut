@@ -1560,6 +1560,27 @@ def normalize_location_repetition(captions: list[str]) -> list[str]:
 
     return cleaned
 
+def normalize_variant_text(text: str, expected_blocks: int) -> str:
+    """
+    Ensures ONE caption block per clip.
+    Removes extra generations separated by --- or excess blocks.
+    """
+    if not text:
+        return text
+
+    # Split on hard separators first
+    if "\n---\n" in text or "\n\n---\n\n" in text:
+        text = re.split(r"\n\s*---\s*\n", text)[0]
+
+    # Split into caption blocks
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
+
+    # Hard cap to expected number of clips
+    if len(blocks) > expected_blocks:
+        blocks = blocks[:expected_blocks]
+
+    return "\n\n".join(blocks)
+
 def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
     cfg = _load_config(session)
@@ -1693,8 +1714,15 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
             temperature=0.6,
         )
 
+        raw_text = resp.choices[0].message.content.strip()
+
+        normalized = normalize_variant_text(
+            raw_text,
+            expected_blocks=len(captions)
+        )
+
         variants.append({
-            "text": resp.choices[0].message.content.strip(),
+            "text": normalized,
             "tone": STYLE_TONE_LABELS.get(style, style),
         })
 
