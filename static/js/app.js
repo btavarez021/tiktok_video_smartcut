@@ -359,31 +359,6 @@ function renderVariantCard(num, variant, cardId) {
   const escaped = text.replace(/`/g, "\\`");
 
   // ----------------------------
-  // Confidence copy
-  // ----------------------------
-  const confidenceHint =
-    recommended && confidence === "close"
-      ? `<div class="variantConfidence subtle">
-           ⚖️ Very close — another option may perform similarly
-         </div>`
-      : recommended && confidence === "moderate"
-      ? `<div class="variantConfidence">
-           👍 Strong choice based on intent
-         </div>`
-      : recommended && confidence === "clear"
-      ? `<div class="variantConfidence strong">
-           ⭐ Clear best choice for your goal
-         </div>`
-      : "";
-
-  const confidenceText =
-    confidence === "clear"
-      ? "Clear winner"
-      : confidence === "moderate"
-      ? "Strong pick"
-      : "Close call";
-
-  // ----------------------------
   // AI badge
   // ----------------------------
   const badge = recommended
@@ -425,7 +400,6 @@ function renderVariantCard(num, variant, cardId) {
       ${tone ? `<div class="variantTone">${tone}</div>` : ""}
 
       ${whyToggle}
-      ${confidenceHint}
 
       <pre style="white-space:pre-wrap">${text}</pre>
 
