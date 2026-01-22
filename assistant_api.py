@@ -7,7 +7,7 @@ import logging
 import re
 from typing import Dict, Any, List
 import yaml
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 import base64
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
@@ -590,7 +590,9 @@ Return JSON:
             "hooks": hooks,
             "intent": intent
         }
-
+    except RateLimitError:
+        return{"hooks": [],
+               "error": "quota_exceeded"}
 
     except Exception as e:
         log_error("[HOOK_LAB]", e)
@@ -1643,211 +1645,224 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
     if not any(modes.values()):
         return {"variants": []}
 
-    variants: List[Dict[str, str]] = []
+    try:
+        variants: List[Dict[str, str]] = []
 
-    # --------------------------------------------------
-    # Base system guardrail (used everywhere)
-    # --------------------------------------------------
-    BASE_SYSTEM_PROMPT = (
-        CAPTION_ONLY_GUARDRAIL +
-        " Rewrite captions in blocks separated by blank lines. "
-        "Keep the SAME number of caption blocks as the input. "
-        "Do NOT merge captions into one paragraph. "
-    )
-
-
-    # --------------------------------------------------
-    # Generate variants per selected mode
-    # --------------------------------------------------
-    for style, enabled in modes.items():
-        if not enabled or style not in style_prompts:
-            continue
-
-        system_prompt = BASE_SYSTEM_PROMPT
-
-        if hook_locked:
-            system_prompt += (
-                " IMPORTANT: The first paragraph is a FIXED hook. "
-                "It MUST be used verbatim in every variant. "
-                "Do NOT rewrite it. "
-                "Do NOT rephrase it. "
-                "Do NOT shorten it. "
-                "Do NOT change punctuation. "
-                "Do NOT add or remove words. "
-                "Only rewrite the remaining captions to match the tone."
-            )
+        # --------------------------------------------------
+        # Base system guardrail (used everywhere)
+        # --------------------------------------------------
+        BASE_SYSTEM_PROMPT = (
+            CAPTION_ONLY_GUARDRAIL +
+            " Rewrite captions in blocks separated by blank lines. "
+            "Keep the SAME number of caption blocks as the input. "
+            "Do NOT merge captions into one paragraph. "
+        )
 
 
+        # --------------------------------------------------
+        # Generate variants per selected mode
+        # --------------------------------------------------
+        for style, enabled in modes.items():
+            if not enabled or style not in style_prompts:
+                continue
 
-        if style == "minimal":  
-            system_prompt += (
-                " Minimal luxury captions. "
-                "Assume the hotel name is already established in context. "
-                "DO NOT include or repeat the hotel or brand name. "
-                "CRITICAL FORMAT RULES: "
-                "- Each caption must be its own block separated by ONE blank line. "
-                "- 3–7 words per caption for NON-HOOK captions. "
-                "- Editorial, high-end luxury tone. "
-                "- No emojis. No hashtags. No full sentences. "
-            )
+            system_prompt = BASE_SYSTEM_PROMPT
 
             if hook_locked:
                 system_prompt += (
-                    " The FIRST caption is a locked hook. "
-                    "It may be longer and may be a full sentence. "
-                    "DO NOT rewrite or remove it."
+                    " IMPORTANT: The first paragraph is a FIXED hook. "
+                    "It MUST be used verbatim in every variant. "
+                    "Do NOT rewrite it. "
+                    "Do NOT rephrase it. "
+                    "Do NOT shorten it. "
+                    "Do NOT change punctuation. "
+                    "Do NOT add or remove words. "
+                    "Only rewrite the remaining captions to match the tone."
                 )
 
-        resp = client.chat.completions.create(
-            model=TEXT_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {
-                    "role": "user",
-                    "content": f"{style_prompts[style]}\n\n{base}"
-                },
-            ],
-            temperature=0.6,
+
+
+            if style == "minimal":  
+                system_prompt += (
+                    " Minimal luxury captions. "
+                    "Assume the hotel name is already established in context. "
+                    "DO NOT include or repeat the hotel or brand name. "
+                    "CRITICAL FORMAT RULES: "
+                    "- Each caption must be its own block separated by ONE blank line. "
+                    "- 3–7 words per caption for NON-HOOK captions. "
+                    "- Editorial, high-end luxury tone. "
+                    "- No emojis. No hashtags. No full sentences. "
+                )
+
+                if hook_locked:
+                    system_prompt += (
+                        " The FIRST caption is a locked hook. "
+                        "It may be longer and may be a full sentence. "
+                        "DO NOT rewrite or remove it."
+                    )
+
+            resp = client.chat.completions.create(
+                model=TEXT_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user",
+                        "content": f"{style_prompts[style]}\n\n{base}"
+                    },
+                ],
+                temperature=0.6,
+            )
+
+            raw_text = resp.choices[0].message.content.strip()
+
+            normalized = normalize_variant_text(
+                raw_text,
+                expected_blocks=len(captions)
+            )
+
+            variants.append({
+                "text": normalized,
+                "tone": STYLE_TONE_LABELS.get(style, style),
+            })
+
+        # --------------------------------------------------
+        # Combo variants (optional enhancement)
+        # --------------------------------------------------
+        COMBO_SYSTEM_PROMPT = (
+            CAPTION_ONLY_GUARDRAIL +
+            " Rewrite captions in blocks separated by blank lines. "
+            "Keep the SAME number of caption blocks. "
+            "Assume shared context across captions and avoid repeating location names."
         )
 
-        raw_text = resp.choices[0].message.content.strip()
+        if modes.get("rewrite") and modes.get("punchy"):
+            r = client.chat.completions.create(
+                model=TEXT_MODEL,
+                messages=[
+                    {"role": "system", "content": COMBO_SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Rewrite punchy + clear:\n\n{base}"}
+                ],
+                temperature=0.6,
+            )
+            variants.append({
+                "text": r.choices[0].message.content.strip(),
+                "tone": "Rewrite + Punchy",
+            })
 
-        normalized = normalize_variant_text(
-            raw_text,
-            expected_blocks=len(captions)
-        )
-
-        variants.append({
-            "text": normalized,
-            "tone": STYLE_TONE_LABELS.get(style, style),
-        })
-
-    # --------------------------------------------------
-    # Combo variants (optional enhancement)
-    # --------------------------------------------------
-    COMBO_SYSTEM_PROMPT = (
-        CAPTION_ONLY_GUARDRAIL +
-        " Rewrite captions in blocks separated by blank lines. "
-        "Keep the SAME number of caption blocks. "
-        "Assume shared context across captions and avoid repeating location names."
-    )
-
-    if modes.get("rewrite") and modes.get("punchy"):
-        r = client.chat.completions.create(
-            model=TEXT_MODEL,
-            messages=[
-                {"role": "system", "content": COMBO_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Rewrite punchy + clear:\n\n{base}"}
-            ],
-            temperature=0.6,
-        )
-        variants.append({
-            "text": r.choices[0].message.content.strip(),
-            "tone": "Rewrite + Punchy",
-        })
-
-    if modes.get("rewrite") and modes.get("story"):
-        r = client.chat.completions.create(
-            model=TEXT_MODEL,
-            messages=[
-                {"role": "system", "content": COMBO_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Rewrite storytelling + smooth:\n\n{base}"}
-            ],
-            temperature=0.6,
-        )
-        variants.append({
-            "text": r.choices[0].message.content.strip(),
-            "tone": "Rewrite + Story",
-        })
+        if modes.get("rewrite") and modes.get("story"):
+            r = client.chat.completions.create(
+                model=TEXT_MODEL,
+                messages=[
+                    {"role": "system", "content": COMBO_SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Rewrite storytelling + smooth:\n\n{base}"}
+                ],
+                temperature=0.6,
+            )
+            variants.append({
+                "text": r.choices[0].message.content.strip(),
+                "tone": "Rewrite + Story",
+            })
 
 
-    # 🎯 Intent-based recommendation
-    cfg = _load_config(session)
-    intent = cfg.get("intent", "discovery")
+        # 🎯 Intent-based recommendation
+        cfg = _load_config(session)
+        intent = cfg.get("intent", "discovery")
 
-    # --------------------------------------------------
-    # Attach lightweight scores to variants (REQUIRED)
-    # --------------------------------------------------
-    for idx, v in enumerate(variants):
-        text = v.get("text", "")
-        tone = v.get("tone", "").lower()
+        # --------------------------------------------------
+        # Attach lightweight scores to variants (REQUIRED)
+        # --------------------------------------------------
+        for idx, v in enumerate(variants):
+            text = v.get("text", "")
+            tone = v.get("tone", "").lower()
 
-        is_punchy = "punchy" in tone
-        is_story = "story" in tone
-        is_minimal = "minimal" in tone
-        is_rewrite = "rewrite" in tone
+            is_punchy = "punchy" in tone
+            is_story = "story" in tone
+            is_minimal = "minimal" in tone
+            is_rewrite = "rewrite" in tone
 
-        if hook_locked:
-            v["uses_selected_hook"] = True
-        else:
-            v["uses_selected_hook"] = False
-
-
-        # Simple heuristics (fast + deterministic)
-        hook_score = 0
-        flow_score = 0
-
-        # Hook strength
-        if any(word in text.lower() for word in ["you", "this", "watch", "wait", "from"]):
-            hook_score += 20
-        if "!" in text:
-            hook_score += 10
-
-        # Flow / structure
-        blocks = [b for b in text.split("\n\n") if b.strip()]
-        flow_score += min(len(blocks) * 10, 40)
-
-
-        # Tone bias
-        if is_punchy:
-            hook_score += 15
-        if is_story:
-            flow_score += 15
-        if is_minimal:
-            flow_score += 10
-
-        v["id"] = idx
-        v["hook_score"] = hook_score
-        v["story_flow"] = flow_score
-
-        import random
-
-        jitter = random.random() * 0.5  # tiny randomness
-        v["hook_score"] += jitter
-        v["story_flow"] += jitter
-
-
-
-    best = choose_best_variant(variants, intent)
-
-    for v in variants:
-        v.pop("recommended", None)
-        v.pop("recommend_reason", None)
-
-    if best:
-        for v in variants:
-            if v.get("id") == best["id"]:
-                v["recommended"] = True
-                v["recommend_reason"] = best["reason"]
-                v["confidence"] = best["confidence"]  # 🔥 CRITICAL FIX
-
-                save_session_pref(session, "last_best_tone", v.get("tone"))
-                save_session_pref(session, "last_intent", intent)
+            if hook_locked:
+                v["uses_selected_hook"] = True
             else:
-                # Non-winners still need confidence for UI + feedback
-                v["confidence"] = best["confidence"]
+                v["uses_selected_hook"] = False
+
+
+            # Simple heuristics (fast + deterministic)
+            hook_score = 0
+            flow_score = 0
+
+            # Hook strength
+            if any(word in text.lower() for word in ["you", "this", "watch", "wait", "from"]):
+                hook_score += 20
+            if "!" in text:
+                hook_score += 10
+
+            # Flow / structure
+            blocks = [b for b in text.split("\n\n") if b.strip()]
+            flow_score += min(len(blocks) * 10, 40)
+
+
+            # Tone bias
+            if is_punchy:
+                hook_score += 15
+            if is_story:
+                flow_score += 15
+            if is_minimal:
+                flow_score += 10
+
+            v["id"] = idx
+            v["hook_score"] = hook_score
+            v["story_flow"] = flow_score
+
+            import random
+
+            jitter = random.random() * 0.5  # tiny randomness
+            v["hook_score"] += jitter
+            v["story_flow"] += jitter
+
+
+
+        best = choose_best_variant(variants, intent)
+
+        for v in variants:
+            v.pop("recommended", None)
+            v.pop("recommend_reason", None)
+
+        if best:
+            for v in variants:
+                if v.get("id") == best["id"]:
+                    v["recommended"] = True
+                    v["recommend_reason"] = best["reason"]
+                    v["confidence"] = best["confidence"]  # 🔥 CRITICAL FIX
+
+                    save_session_pref(session, "last_best_tone", v.get("tone"))
+                    save_session_pref(session, "last_intent", intent)
+                else:
+                    # Non-winners still need confidence for UI + feedback
+                    v["confidence"] = best["confidence"]
 
 
 
 
 
-    # --------------------------------------------------
-    # Cap to UI max (defensive)
-    # --------------------------------------------------
-    return {
-        "variants": variants[:7]
-    }
-
+        # --------------------------------------------------
+        # Cap to UI max (defensive)
+        # --------------------------------------------------
+        return {
+            "variants": variants[:7]
+        }
+    except RateLimitError:
+        log_error("[VARIANTS]", Exception("OpenAI quota exceeded"))
+        return{
+            "variants": [],
+            "error":"quota_exceeded",
+            "message": "AI Quota exceeded. Please try again later"
+        }
+    except Exception as e:
+        log_error("[VARIANTS]", e)
+        return {"variants": [],
+                "error":"generation_failed",
+                "message": "Failed to generate captions variants"
+                }
 
 def api_save_captions(text: str, session: str) -> Dict[str, Any]:
     try:
