@@ -355,7 +355,7 @@ function renderVariantCard(num, variant, cardId) {
   const recommended = variant.recommended === true;
   const reason = variant.recommend_reason || "";
   const confidence = variant.confidence || "close";
-
+  const confLabel = confidenceLabel(normalizeConfidence(confidence));
   const escaped = text.replace(/`/g, "\\`");
 
   // ----------------------------
@@ -366,7 +366,7 @@ function renderVariantCard(num, variant, cardId) {
            data-confidence="${confidence}"
            title="Recommended based on hook strength, story flow, and your selected intent.">
          <span class="ai-badge-main">🤖 AI Recommended</span>
-         <span class="ai-badge-confidence">${confidenceText}</span>
+         <span class="ai-badge-confidence">${confLabel}</span>
        </div>`
     : "";
 
