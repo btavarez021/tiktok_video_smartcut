@@ -145,51 +145,38 @@ def get_feedback_adjustment(
     confidence: str,
     recommended: bool = False
 ) -> float:
-    """
-    Feedback Loop v3:
-    - Never adjust if confidence is clear
-    - Learn from aggregate user choices
-    - Never overpower base score
-    """
 
     if confidence == "clear":
         return 0.0
 
-    tone = tone or "unknown"
     key = f"{intent}||{tone}"
-
     aggs = _load_aggregates()
     row = aggs.get(key)
     if not row:
         return 0.0
 
-    views = float(row.get("views", 0) or 0)
-    chosen = float(row.get("chosen", 0) or 0)
+    views = float(row.get("views", 0))
+    chosen = float(row.get("chosen", 0))
 
-    # 🔒 guardrail: insufficient data
-    if views < 2:
+    # guardrail: insufficient signal
+    if views < 3:
         return 0.0
 
-    ratio = chosen / views  # 0..1
+    ratio = chosen / max(views, 1)  # 0..1
 
     MAX_BOOST = 5.0
     adj = (ratio - 0.5) * MAX_BOOST
 
-    # reduce impact if already somewhat confident
+    # soften when moderately confident
     if confidence == "moderate":
         adj *= 0.5
 
-    # recommended variants get slightly less boost
+    # recommended variants should move slower
     if recommended:
         adj *= 0.8
 
-    if views >= 5 and chosen / views >= 0.8:
-        fb += 3
+    return round(max(min(adj, MAX_BOOST), -MAX_BOOST), 2)
 
-    # clamp
-    adj = max(min(adj, MAX_BOOST), -MAX_BOOST)
-
-    return round(adj, 2)
 
 def _atomic_write_json(path, data):
     tmp_path = f"{path}.tmp"
@@ -469,6 +456,9 @@ def record_variant_feedback(payload: dict):
     v2 = write raw event (jsonl) + update aggregates (json)
     """
     _ensure_data_files()
+
+    if payload.get("tone") == "Error":
+        return{"ok": False, "ignored":"error variant"}
 
     # Normalize / validate minimal fields
     event = {
