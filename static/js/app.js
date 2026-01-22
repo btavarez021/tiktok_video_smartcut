@@ -415,13 +415,12 @@ function renderVariantCard(num, variant, cardId) {
   // Final render (CORRECT)
   // ----------------------------
   return `
-    <div class="variantCard ${recommended ? "recommended" : ""}" id="${cardId}">
-     
-      ${badge}
+  <div class="variantCard ${recommended ? "recommended" : ""}" id="${cardId}">
 
-      <div class="variantHeader">
-        <h4>Version ${num}</h4>
-      </div>
+    <div class="variantHeader">
+      <h4>Version ${num}</h4>
+      ${badge}
+    </div>
 
       ${tone ? `<div class="variantTone">${tone}</div>` : ""}
 

@@ -3020,14 +3020,6 @@ body.no-scroll {
 
 
 /* Badge should sit ABOVE text, not absolute overlay */
-.hookCard .ai-recommended-badge {
-  position: static !important;
-  display: block;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  margin-bottom: 6px;
-}
 
 .hookCard.recommended {
   border: 2px solid #4ade80; /* green */
@@ -3283,35 +3275,83 @@ line-clamp: 2; /* Standard property */
 }
 
 /* Mobile fix: prevent badge overlap */
-@media (max-width: 640px) {
-  .ai-recommended-badge {
-    position: relative;   /* ← KEY FIX */
-    top: auto;
-    right: auto;
-    margin-bottom: 8px;
-    left: 12px;
-    right: auto;
-    top: -12px;
-
-    background: linear-gradient(135deg, #4f8bff, #6aa9ff);
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-size: 12px;
-    box-shadow: 0 6px 14px rgba(0,0,0,0.25);
-  }
 
   .variantCard.recommended {
     border-top: 2px solid #4f8bff;
     box-shadow: 0 0 0 2px rgba(79,139,255,0.35);
 
   }
+
+.variantHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
+.variantCard .ai-recommended-badge {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+
+  padding: 4px 10px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .variantCard.recommended .ai-recommended-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+  }
+
+  .variantHeader {
+    padding-right: 110px; /* space for badge */
+  }
+}
 /* Desktop */
 @media (min-width: 641px) {
   .ai-recommended-badge {
     position: absolute;
     top: 10px;
     right: 10px;
+  }
+}
+
+.variantHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.variantCard .ai-recommended-badge {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+
+  padding: 4px 10px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .variantCard.recommended .ai-recommended-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+  }
+
+  .variantHeader {
+    padding-right: 110px; /* space for badge */
   }
 }
