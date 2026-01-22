@@ -1272,14 +1272,6 @@ def choose_best_variant(variants: list, intent: str):
         final = v["_base"] + fb
         v["_final"] = final
 
-        print(
-            "[V3 FEEDBACK]",
-            "tone=", v.get("tone"),
-            "base=", round(v["_base"], 2),
-            "fb=", round(fb, 2),
-            "final=", round(final, 2)
-        )
-
         return final
 
     # --------------------------------------------------
