@@ -1820,24 +1820,19 @@ async function analyzeClips() {
   );
 
   try {
-    const rawUploads = (window.currentUploads || [])
-      .filter(u => u.type === "raw")
-      .map(u => u.key);
-
-    if (!rawUploads.length) {
-      throw new Error("No raw uploads found");
-    }
-
     const data = await jsonFetch("/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        session: getActiveSession(),
-        keys: rawUploads
+        session: getActiveSession()
       })
     });
 
-    const count = data.count ?? rawUploads.length;
+    const count = data.count ?? 0;
+
+    if (!count) {
+      throw new Error("No raw uploads found in session");
+    }
 
     setStatus(
       "analyzeStatus",
