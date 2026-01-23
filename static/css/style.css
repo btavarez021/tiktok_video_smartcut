@@ -3090,31 +3090,30 @@ body.no-scroll {
   padding: 6px 12px;
   border-radius: 999px;
 
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 
-  background: linear-gradient(135deg, #22c55e, #4ade80);
-  color: #0f172a;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e5e7eb;
 
-  box-shadow: 0 6px 16px rgba(34,197,94,0.35
-  );
-
-  border: 1px solid rgba(34,197,94,0.6);
-  color: #c7f9dd;
+  border: 1px solid rgba(255,255,255,0.18);
 
   box-shadow:
-    0 4px 12px rgba(34,197,94,0.25),
-    inset 0 0 0 1px rgba(255,255,255,0.06);
+    inset 0 0 0 1px rgba(255,255,255,0.05),
+    0 4px 12px rgba(0,0,0,0.35);
 
   backdrop-filter: blur(6px);
 
-  text-transform: uppercase;
   transition:
     box-shadow 0.2s ease,
     transform 0.2s ease,
-    background-color 0.2s ease;
+    border-color 0.2s ease;
+
   cursor: help;
 }
+
 
 .ai-recommended-badge:hover {
   transform: translateY(-1px);
