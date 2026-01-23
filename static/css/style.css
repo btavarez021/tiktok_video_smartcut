@@ -3224,14 +3224,6 @@ body.no-scroll {
   transition: all 0.15s ease;
 }
 
-.intent-dropdown {
-  background-image: url("data:image/svg+xml;utf8,<svg fill='%239ca3af' height='20' viewBox='0 0 20 20' width='20' xmlns='https://na01.safelinks.protection.outlook.com/?url=http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg&data=05%7C02%7C%7C487d299df6cb44b9003f08de5a2a97af%7C84df9e7fe9f640afb435aaaaaaaaaaaa%7C1%7C0%7C639047336139717003%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=H46bvpZHbFrXFMdkWpxP%2Bw91YSfUSMxih%2B1I329oU64%3D&reserved=0'><path d='M5.25 7.5L10 12.25L14.75 7.5'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 18px;
-  padding-right: 38px;
-}
-
 /* Hover */
 .intent-dropdown:hover {
   background: #191b20;
