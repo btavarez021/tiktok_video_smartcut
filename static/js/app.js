@@ -926,9 +926,21 @@ function sanitizeSessionName(raw) {
     return s;
 }
 
-function getActiveSession() {
-    return ACTIVE_SESSION || "default";
+function sessionQS() {
+  const s = getActiveSession();
+  console.log("[API] Using session:", s);
+  return "?session=" + encodeURIComponent(s);
 }
+
+
+function getActiveSession() {
+  if (!ACTIVE_SESSION) {
+    console.warn("[SESSION] ACTIVE_SESSION unset, forcing default");
+    ACTIVE_SESSION = "default";
+  }
+  return ACTIVE_SESSION;
+}
+
 
 function setActiveSession(name) {
     const safe = sanitizeSessionName(name);
@@ -3754,6 +3766,17 @@ async function sendChat() {
 // Init wiring
 // ================================
 document.addEventListener("DOMContentLoaded", async () => {
+
+  // 🔥 MUST BE FIRST — before ANY fetch
+  try {
+    const stored = localStorage.getItem("activeSession");
+    ACTIVE_SESSION = sanitizeSessionName(stored || "default");
+  } catch {
+    ACTIVE_SESSION = "default";
+  }
+
+  console.log("[SESSION INIT]", ACTIVE_SESSION);
+  
   loadIntentFromConfig();
 
     // Load stored session
