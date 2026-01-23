@@ -636,8 +636,10 @@ def route_fgscale_route():
 # ============================================================================
 @app.route("/api/chat", methods=["POST"])
 def route_chat():
-    data = request.get_json() or {}
-    return jsonify(api_chat(data.get("message", "")))
+    data = request.get_json(silent=True) or {}
+    session = sanitize_session(data.get("session", "default"))
+    return jsonify(api_chat(data.get("message", ""), session=session))
+
 
 
 # ============================================================================
