@@ -3109,6 +3109,33 @@ body.no-scroll {
   backdrop-filter: blur(6px);
 
   text-transform: uppercase;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    background-color 0.2s ease;
+  cursor: help;
+}
+
+.ai-recommended-badge:hover {
+  transform: translateY(-1px);
+}
+
+.ai-recommended-badge[data-confidence="clear"]:hover {
+  box-shadow:
+    0 0 0 1px rgba(34, 197, 94, 0.6),
+    0 6px 18px rgba(34, 197, 94, 0.25);
+}
+
+.ai-recommended-badge[data-confidence="moderate"]:hover {
+  box-shadow:
+    0 0 0 1px rgba(59, 130, 246, 0.6),
+    0 6px 18px rgba(59, 130, 246, 0.25);
+}
+
+.ai-recommended-badge[data-confidence="close"]:hover {
+  box-shadow:
+    0 0 0 1px rgba(156, 163, 175, 0.6),
+    0 6px 18px rgba(156, 163, 175, 0.2);
 }
 
 /* === AI PICK HOOK (VERY CLEAR) === */
