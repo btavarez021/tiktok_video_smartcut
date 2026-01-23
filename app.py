@@ -48,7 +48,9 @@ from assistant_api import (
     reorder_storyboard,
     record_variant_feedback,
     AGG_PATH,
-    api_ai_setup_summary
+    api_ai_setup_summary,
+    infer_video_goal,
+    estimate_video_length
     )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
