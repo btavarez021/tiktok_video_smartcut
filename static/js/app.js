@@ -1167,32 +1167,25 @@ function setStatus(id, msg, type = "info", autoHide = true) {
 }
 
 async function jsonFetch(url, opts = {}) {
-  try {
-    const res = await fetch(url, {
-      credentials: "same-origin",
-      ...opts
-    });
+  const headers = {
+    "Content-Type": "application/json",
+    ...(opts.headers || {})
+  };
 
-    if (!res.ok) {
-      throw new Error(`[jsonFetch] ${url} failed (${res.status})`);
-    }
+  const res = await fetch(url, {
+    credentials: "same-origin",
+    ...opts,
+    headers
+  });
 
-    const text = await res.text();
-
-    if (!text || text.startsWith("<")) {
-      console.warn("[jsonFetch] Invalid JSON response", url);
-      return null;
-    }
-
-    return JSON.parse(text);
-  } catch (err) {
-    console.error("[jsonFetch] Failed", url, err);
-    throw err;
+  if (!res.ok) {
+    throw new Error(`[jsonFetch] ${url} failed (${res.status})`);
   }
+
+  const text = await res.text();
+  if (!text || text.startsWith("<")) return null;
+  return JSON.parse(text);
 }
-
-
-
 
 // Status hint helper (bottom style line)
 function showStatus(msg, type = "info") {
@@ -1635,13 +1628,15 @@ function renderUploadList(elementId, items, kind, labels = {}) {
 
         try {
         const res = await jsonFetch("/repair_label", {
-            method: "POST",
-            body: JSON.stringify({
-            session: getActiveSession(),
-            file,
-            label: ""   // empty → force GPT-Vision to read the video
-            })
-        });
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                session: getActiveSession(),
+                file,
+                label: ""
+              })
+            });
+
 
         const fixed = res.fixed_label;
 
