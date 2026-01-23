@@ -563,7 +563,11 @@ function renderHookLab(hooks) {
         // Keep the tooltip, but don’t rely on it
         badge.title = reason || "";
 
-        card.appendChild(badge);
+        const header = document.createElement("div");
+        header.className = "hookHeader";
+
+        header.appendChild(badge);
+        card.appendChild(header);
 
         // Why text:
         // - auto-show for CLEAR
