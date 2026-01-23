@@ -62,7 +62,7 @@ const autoSaveStoryboardOrder = debounce(() => {
 
 async function loadIntentFromConfig() {
   try {
-    const res = await jsonFetch("/api/config");
+    const res = await jsonFetch(`/api/config?session=${encodeURIComponent(getActiveSession())}`);
     const intent = res?.intent || "discovery";
 
     currentIntent = intent;
@@ -1167,13 +1167,6 @@ function setStatus(id, msg, type = "info", autoHide = true) {
 }
 
 async function jsonFetch(url, opts = {}) {
-  const isWrite = opts.method && opts.method !== "GET";
-
-  if (isWrite && document.body.classList.contains("ui-busy")) {
-    console.warn("[jsonFetch] WRITE blocked during busy state:", url);
-    throw new Error("UI busy — write blocked");
-  }
-
   try {
     const res = await fetch(url, {
       credentials: "same-origin",
@@ -1193,10 +1186,11 @@ async function jsonFetch(url, opts = {}) {
 
     return JSON.parse(text);
   } catch (err) {
-    console.error("[jsonFetch] Failed to fetch", url, err);
+    console.error("[jsonFetch] Failed", url, err);
     throw err;
   }
 }
+
 
 
 
@@ -1914,32 +1908,32 @@ async function generateYaml() {
 }
 
 async function loadConfigAndYaml() {
+  const yamlTextEl = document.getElementById("yamlText");
+  const yamlPreviewEl = document.getElementById("yamlPreview");
 
-    const yamlTextEl = document.getElementById("yamlText");
-    const yamlPreviewEl = document.getElementById("yamlPreview");
-    if (!yamlTextEl || !yamlPreviewEl) return;
+  if (!yamlTextEl || !yamlPreviewEl) {
+    console.warn("[CONFIG] YAML elements missing, skipping load");
+    return;
+  }
 
-    if (CONFIG_LOADING) return;
-    CONFIG_LOADING = true;
+  if (CONFIG_LOADING) return;
+  CONFIG_LOADING = true;
 
-    try {
-        const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
+  try {
+    const session = encodeURIComponent(getActiveSession());
+    const data = await jsonFetch(`/api/config?session=${session}`);
 
-        yamlTextEl.value = data.yaml || "# No config.yml yet.";
-        yamlPreviewEl.textContent = JSON.stringify(data.config || {}, null, 2);
+    yamlTextEl.value = data.yaml || "# No config.yml yet.";
+    yamlPreviewEl.textContent = JSON.stringify(data.config || {}, null, 2);
 
-        // 🔥 THIS is what was missing
-        renderStoryboardTimeline(data.config);
-
-    } catch (err) {
-        yamlTextEl.value = "";
-        yamlPreviewEl.textContent = `Error loading config: ${err.message}`;
-    }
-    finally {
+    renderStoryboardTimeline(data.config);
+  } catch (err) {
+    console.error("loadConfigAndYaml failed", err);
+  } finally {
     CONFIG_LOADING = false;
   }
 }
+
 
 
 function renderStoryboardTimeline(cfg) {
@@ -4296,7 +4290,9 @@ captionModeEl?.addEventListener("change", async () => {
   });
       // PREVIEW REWRITE — must be inside DOMContentLoaded so button exists
     document.getElementById("previewRewriteBtn")?.addEventListener("click", () => {
-      if (typeof previewRewrite === "function") previewRewrite();
+      if (typeof previewRewrite === "function") {
+       previewRewrite();
+      }
       else console.warn("previewRewrite() not defined");
 });
 
