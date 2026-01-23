@@ -1672,52 +1672,85 @@ function renderUploadList(elementId, items, kind, labels = {}) {
     });
 
     // ================================
-    // ✍️ LABEL AUTO-SAVE (with feedback)
-    // ================================
-    el.querySelectorAll(".clip-label-input").forEach(input => {
+// ✍️ LABEL AUTO-SAVE (with feedback)
+// ================================
+el.querySelectorAll(".clip-label-input").forEach(input => {
 
-        const save = async () => {
-            const file = input.dataset.file;
-            const label = input.value.trim();
+  const glowSuccess = () => {
+    input.classList.remove("error");
+    input.classList.add("saved");
+    setTimeout(() => input.classList.remove("saved"), 1200);
+  };
 
-            try {
-                await saveClipLabel(file, label);
+  const glowError = () => {
+    input.classList.add("error");
+    setTimeout(() => input.classList.remove("error"), 1500);
+  };
 
-                // Success glow
-                input.classList.remove("error");
-                input.classList.add("saved");
+  const save = async () => {
+    const file = input.dataset.file;
+    const label = input.value.trim();
 
-                setTimeout(() => {
-                    input.classList.remove("saved");
-                }, 1200);
+    try {
+      // 🧠 Auto-suggest ONCE if empty
+      if (!label && !input.dataset.autoSuggested) {
+        input.dataset.autoSuggested = "true";
 
-            } catch (e) {
-                console.error("Label save failed", e);
+        try {
+          const res = await jsonFetch("/repair_label", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              session: getActiveSession(),
+              file,
+              label: ""
+            })
+          });
 
-                // Error glow
-                input.classList.add("error");
+          if (res?.fixed_label) {
+            input.value = res.fixed_label;
+            await saveClipLabel(file, res.fixed_label);
+            glowSuccess();
+            return;
+          }
+        } catch (e) {
+          console.warn("Auto-suggest failed, saving empty label", e);
+        }
+      }
 
-                setTimeout(() => {
-                    input.classList.remove("error");
-                }, 1500);
-            }
-        };
+      // 🔁 Normal save
+      await saveClipLabel(file, label);
+      glowSuccess();
 
-        input.addEventListener("blur", save);
+    } catch (e) {
+      console.error("Label save failed", e);
+      glowError();
+    }
+  };
 
-        input.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                input.blur(); // triggers save()
-            }
-        });
+  input.addEventListener("blur", save);
 
-    });
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      input.blur();
+    }
+  });
 
+});
 
+// ✨ helpers (keep things readable)
+function glowSuccess() {
+  input.classList.remove("error");
+  input.classList.add("saved");
+  setTimeout(() => input.classList.remove("saved"), 1200);
 }
 
-   
+function glowError() {
+  input.classList.add("error");
+  setTimeout(() => input.classList.remove("error"), 1500);
+}
+  
 
 async function saveClipLabel(key, label) {
   if (!key) return;
