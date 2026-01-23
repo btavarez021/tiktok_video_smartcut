@@ -1347,8 +1347,32 @@ def _analyze_all_videos(session: str) -> Dict[str, Any]:
     
 
 
-def api_analyze(session: str = "default") -> Dict[str, Any]:
-    return _analyze_all_videos(session)
+def api_analyze(session: str) -> Dict[str, Any]:
+    prefix = f"{RAW_PREFIX}/{session}/"
+
+    resp = s3.list_objects_v2(
+        Bucket=S3_BUCKET_NAME,
+        Prefix=prefix
+    )
+
+    files = [
+        obj["Key"] for obj in resp.get("Contents", [])
+        if obj["Key"].lower().endswith((".mp4", ".mov", ".m4v"))
+    ]
+
+    if not files:
+        raise RuntimeError("No raw uploads found")
+
+    log_step(f"📦 Found {len(files)} raw uploads")
+
+    # 🔥 THIS is the missing call
+    result = _analyze_all_videos(session, files)
+
+    return {
+        "count": len(files),
+        "files": files,
+        "result": result,
+    }
 
 
 def api_analyze_start(session: str = "default") -> Dict[str, Any]:
