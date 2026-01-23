@@ -165,7 +165,6 @@ def api_move_upload_route():
     return jsonify(move_upload_s3(src=src, dest=dest))
 
 
-
 @app.route("/api/uploads/delete", methods=["DELETE"])
 def api_delete_upload_route():
     data = request.get_json(silent=True) or {}

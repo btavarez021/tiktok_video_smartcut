@@ -1724,15 +1724,16 @@ function renderUploadList(elementId, items, kind, labels = {}) {
 
    
 
-async function saveClipLabel(file, label) {
-  if (!file) return;
+async function saveClipLabel(key, label) {
+  if (!key) return;
 
   try {
     const res = await jsonFetch("/api/labels", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session: getActiveSession(),
-        file,
+        key,
         label
       })
     });
@@ -1740,24 +1741,19 @@ async function saveClipLabel(file, label) {
     const finalLabel = res?.label ?? "";
     const weak = !!res?.weak;
 
-    const input = document.querySelector(`.clip-label-input[data-file="${file}"]`);
-    const card  = input?.closest(".clip-card");
+    const input = document.querySelector(
+      `.clip-label-input[data-key="${key}"]`
+    );
+    const card = input?.closest(".clip-card");
 
-    // 🔄 Always sync with backend truth
     if (input && finalLabel !== input.value) {
       input.value = finalLabel;
     }
 
-    // ⚠️ Show AI hint if label is weak
     if (card) {
-      if (weak) {
-        card.classList.add("label-weak");
-      } else {
-        card.classList.remove("label-weak");
-      }
+      card.classList.toggle("label-weak", weak);
     }
 
-    // UX feedback
     if (input) {
       input.classList.add("saved-flash");
       setTimeout(() => input.classList.remove("saved-flash"), 600);
@@ -1768,7 +1764,6 @@ async function saveClipLabel(file, label) {
     alert("Failed to save label");
   }
 }
-
 
 
 async function moveUpload(src, dest) {
@@ -1809,42 +1804,62 @@ function clearAnalysisUI() {
 // Step 1: Analysis
 // ================================
 async function analyzeClips() {
-    clearAnalysisUI();
-    const analyzeBtn = document.getElementById("analyzeBtn");
-    const statusEl = document.getElementById("analyzeStatus");
-    if (!analyzeBtn || !statusEl) return;
+  clearAnalysisUI();
 
-    analyzeBtn.disabled = true;
+  const analyzeBtn = document.getElementById("analyzeBtn");
+  const statusEl = document.getElementById("analyzeStatus");
+  if (!analyzeBtn || !statusEl) return;
+
+  analyzeBtn.disabled = true;
+
+  setStatus(
+    "analyzeStatus",
+    "Analyzing clips from S3… this can take a bit…",
+    "working",
+    false
+  );
+
+  try {
+    const rawUploads = (window.currentUploads || [])
+      .filter(u => u.type === "raw")
+      .map(u => u.key);
+
+    if (!rawUploads.length) {
+      throw new Error("No raw uploads found");
+    }
+
+    const data = await jsonFetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session: getActiveSession(),
+        keys: rawUploads
+      })
+    });
+
+    const count = data.count ?? rawUploads.length;
+
     setStatus(
-        "analyzeStatus",
-        "Analyzing clips from S3… this can take a bit…",
-        "working",
-        false
+      "analyzeStatus",
+      `Analysis complete. ${count} video(s).`,
+      "success"
     );
 
-    try {
-        const data = await jsonFetch("/api/analyze", {
-            method: "POST",
-            body: JSON.stringify({ session: getActiveSession() }),
-        });
-        const count = data.count ?? Object.keys(data || {}).length;
-        setStatus(
-            "analyzeStatus",
-            `Analysis complete. ${count} video(s).`,
-            "success"
-        );
-        await refreshAnalyses();
-    } catch (err) {
-        console.error(err);
-        setStatus(
-            "analyzeStatus",
-            `Error during analysis: ${err.message}`,
-            "error"
-        );
-    } finally {
-        analyzeBtn.disabled = false;
-    }
+    await refreshAnalyses();
+
+  } catch (err) {
+    console.error(err);
+    setStatus(
+      "analyzeStatus",
+      `Error during analysis: ${err.message}`,
+      "error"
+    );
+  } finally {
+    analyzeBtn.disabled = false;
+  }
 }
+
+
 
 async function refreshAnalyses() {
     const listEl = document.getElementById("analysesList");

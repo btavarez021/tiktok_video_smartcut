@@ -879,7 +879,6 @@ def save_upload_order(order: List[str]) -> None:
     except Exception as e:
         logger.error(f"[UPLOAD_ORDER] Failed to save order.json: {e}")
 
-
 # ================================
 # UPLOAD MANAGER HELPERS (SESSION)
 # ================================
