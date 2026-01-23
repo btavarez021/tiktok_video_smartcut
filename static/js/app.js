@@ -965,6 +965,7 @@ async function setActiveSession(name) {
   sidebarLoadSessions();
 
   requestAnimationFrame(() => requestAnimationFrame(animateSessionGlow));
+  loadSetupSummary();
 }
 
 
@@ -1526,6 +1527,7 @@ async function loadUploadManager() {
 
         renderUploadList("rawUploads", data.raw, "raw", labels);
         renderUploadList("processedUploads", data.processed, "processed", labels);
+        loadSetupSummary();
     } catch (e) {
         console.error("UploadManager error:", e);
     }
@@ -1774,6 +1776,8 @@ async function saveClipLabel(key, label) {
       setTimeout(() => input.classList.remove("saved-flash"), 600);
     }
 
+    loadSetupSummary();
+
   } catch (err) {
     console.error("Failed to save label:", err);
     alert("Failed to save label");
@@ -1856,6 +1860,7 @@ async function analyzeClips() {
     );
 
     await refreshAnalyses();
+    loadSetupSummary();
 
   } catch (err) {
     console.error(err);
@@ -1953,6 +1958,37 @@ async function applyAIRecommendations() {
   toast("AI recommendations applied — feel free to adjust ✨");
 }
 
+function renderSetupSummary(summary) {
+  if (!summary) return;
+
+  const el = document.getElementById("ai-setup-summary");
+  if (!el) return;
+
+  el.classList.remove("hidden");
+
+  el.innerHTML = `
+    <div class="ai-summary-card">
+      <div class="ai-summary-title">🧠 AI Setup Summary</div>
+      <div class="ai-summary-row">
+        <strong>Goal</strong>
+        <span>${summary.goal}</span>
+      </div>
+      <div class="ai-summary-row">
+        <strong>Estimated length</strong>
+        <span>~${summary.estimated_length}s</span>
+      </div>
+    </div>
+  `;
+}
+
+
+async function loadSetupSummary() {
+  const res = await jsonFetch(`/api/setup_summary?session=${getActiveSession()}`);
+
+  if (!res) return;
+
+  renderSetupSummary(res);
+}
 
 // ================================
 // Step 2: YAML generation & config

@@ -647,6 +647,14 @@ def ai_setup_summary():
     session = sanitize_session(request.args.get("session", "default"))
     return jsonify(api_ai_setup_summary(session))
 
+@app.route("/api/setup_summary", methods=["GET"])
+def api_setup_summary():
+    session = sanitize_session(request.args.get("session", "default"))
+
+    return jsonify({
+        "goal": infer_video_goal(session),
+        "estimated_length": estimate_video_length(session),
+    })
 
 # ============================================================================
 # EXPORT MODE
