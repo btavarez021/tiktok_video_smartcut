@@ -3249,3 +3249,8 @@ body.no-scroll {
   background: #141518;
   color: #e5e7eb;
 }
+
+.ui-busy button {
+  pointer-events: none;
+  opacity: 0.7;
+}

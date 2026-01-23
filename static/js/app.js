@@ -26,6 +26,8 @@ let rewritePending = false;
 
 let currentIntent = "discovery";
 
+let CONFIG_LOADING = false;
+
 let isInRewriteReview = false;
 let captionViewMode = "rewritten";
 let diffDirty = false;
@@ -37,6 +39,11 @@ function debounce(fn, wait = 350) {
     t = setTimeout(() => fn(...args), wait);
   };
 }
+
+function setUiBusy(busy) {
+  document.body.classList.toggle("ui-busy", busy);
+}
+
 
 function syncTtsUIState() {
   const enabled = document.getElementById("ttsEnabled")?.checked;
@@ -1191,8 +1198,13 @@ function setStatus(id, msg, type = "info", autoHide = true) {
     }, 5000);
 }
 
-// JSON fetch helper with sane defaults
 async function jsonFetch(url, opts = {}) {
+  if (document.body.classList.contains("ui-busy")) {
+    console.warn("[jsonFetch] Fetch during busy state:", url);
+    // optional: throw to HARD BLOCK
+    // throw new Error("UI busy — fetch blocked");
+  }
+
   try {
     const res = await fetch(url, {
       credentials: "same-origin",
@@ -1200,8 +1212,7 @@ async function jsonFetch(url, opts = {}) {
     });
 
     if (!res.ok) {
-      console.warn("[jsonFetch] Non-OK response", url, res.status);
-      return null;
+      throw new Error(`[jsonFetch] ${url} failed (${res.status})`);
     }
 
     const text = await res.text();
@@ -1213,11 +1224,13 @@ async function jsonFetch(url, opts = {}) {
     }
 
     return JSON.parse(text);
+
   } catch (err) {
-    console.warn("[jsonFetch] Failed to fetch", url, err);
-    return null;
+    console.error("[jsonFetch] Failed to fetch", url, err);
+    throw err; // ✅ correct — do NOT swallow
   }
 }
+
 
 // Status hint helper (bottom style line)
 function showStatus(msg, type = "info") {
@@ -1933,6 +1946,10 @@ async function generateYaml() {
 }
 
 async function loadConfigAndYaml() {
+
+    if (CONFIG_LOADING) return;
+    CONFIG_LOADING = true;
+
     const yamlTextEl = document.getElementById("yamlText");
     const yamlPreviewEl = document.getElementById("yamlPreview");
     if (!yamlTextEl || !yamlPreviewEl) return;
@@ -1951,6 +1968,9 @@ async function loadConfigAndYaml() {
         yamlTextEl.value = "";
         yamlPreviewEl.textContent = `Error loading config: ${err.message}`;
     }
+    finally {
+    CONFIG_LOADING = false;
+  }
 }
 
 
@@ -2263,6 +2283,7 @@ async function improveHook() {
 
 
 async function generateCaptionVariants() {
+  setUiBusy(true);
   const btn = document.getElementById("generateVariantsBtn");
 
   const modes = {
@@ -2360,6 +2381,7 @@ data.variants.forEach((variant, i) => {
       btn.disabled = false;
       btn.textContent = "⚡ Generate Caption Variants";
     }
+    setUiBusy(false);
   }
 }
 
@@ -2616,6 +2638,7 @@ function buildCaptionsFromConfig(cfg) {
 }
 
 async function loadCaptionsFromYaml() {
+  setUiBusy(true);
   const box = document.getElementById("captionsText");
   if (!box) return;
 
@@ -2658,6 +2681,9 @@ async function loadCaptionsFromYaml() {
     console.error(err);
     setCaptionInlineStatus("Failed to load captions", "error");
     setCaptionSource("yaml", "⚠ SOURCE: YAML (failed)");
+  }
+  finally{
+    setUiBusy(false);
   }
 }
 
@@ -2882,6 +2908,7 @@ function syncCaptionToggleUI() {
 // Step 4: Overlay, timings, TTS, CTA, fg scale, music
 // ================================
 async function applyOverlay() {
+  setUiBusy(true);
   console.log("APPLY OVERLAY CLICKED");
 
   const styleSel = document.getElementById("overlayStyle");
@@ -2965,6 +2992,9 @@ async function applyOverlay() {
   } catch (err) {
     console.error(err);
     setStatus("overlayStatus", "Failed to apply overlay.", "error");
+  }
+  finally{
+    setUiBusy(false);
   }
 }
 
