@@ -913,7 +913,8 @@ def api_set_label(session: str, filename: str, label: str | None) -> Dict[str, A
         return {
             "status": "error",
             "error": "video_not_found",
-            "file": filename
+            "file": filename,
+            "session": session
         }
     labels = load_labels(session)
 
@@ -1361,12 +1362,28 @@ def _analyze_all_videos(session: str) -> Dict[str, Any]:
 
 def api_analyze(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
+    prefix = f"{RAW_PREFIX}{session}/"
 
-    log_step(f"🔍 Starting analysis for session '{session}'")
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+
+    files = [
+        obj["Key"] for obj in resp.get("Contents", [])
+        if obj["Key"].lower().endswith((".mp4", ".mov", ".m4v"))
+    ]
+
+    if not files:
+        return {"status": "no_videos", "count": 0, "files": []}
+
+    log_step(f"📦 Found {len(files)} raw uploads")
 
     result = _analyze_all_videos(session)
 
-    return result
+    return {
+        "status": "ok",
+        "count": len(files),
+        "files": files,
+        "result": result,
+    }
 
 
 def api_analyze_start(session: str = "default") -> Dict[str, Any]:

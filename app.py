@@ -203,10 +203,13 @@ def api_get_labels_route():
 
 @app.route("/api/labels", methods=["POST"])
 def api_set_label_route():
-    data = request.get_json() or {}
-    session = sanitize_session(data.get("session"))
+    data = request.get_json(silent=True) or {}
+    session = sanitize_session(data.get("session", "default"))
     filename = data.get("file")
     label = data.get("label")
+
+    if not filename:
+        return jsonify({"status": "error", "error": "missing_file"}), 400
 
     result = api_set_label(session, filename, label)
     return jsonify(result)
