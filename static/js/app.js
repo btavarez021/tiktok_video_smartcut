@@ -965,7 +965,7 @@ async function setActiveSession(name) {
   sidebarLoadSessions();
 
   requestAnimationFrame(() => requestAnimationFrame(animateSessionGlow));
-  loadSetupSummary();
+  loadAISetupSummary();
 }
 
 
@@ -1527,7 +1527,7 @@ async function loadUploadManager() {
 
         renderUploadList("rawUploads", data.raw, "raw", labels);
         renderUploadList("processedUploads", data.processed, "processed", labels);
-        loadSetupSummary();
+        loadAISetupSummary();
     } catch (e) {
         console.error("UploadManager error:", e);
     }
@@ -1776,7 +1776,7 @@ async function saveClipLabel(key, label) {
       setTimeout(() => input.classList.remove("saved-flash"), 600);
     }
 
-    loadSetupSummary();
+    loadAISetupSummary();
 
   } catch (err) {
     console.error("Failed to save label:", err);
@@ -1860,7 +1860,7 @@ async function analyzeClips() {
     );
 
     await refreshAnalyses();
-    loadSetupSummary();
+    loadAISetupSummary();
 
   } catch (err) {
     console.error(err);
