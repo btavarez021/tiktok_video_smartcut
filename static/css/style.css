@@ -3114,6 +3114,26 @@ body.no-scroll {
   cursor: pointer;
 }
 
+.ai-recommended-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255,255,255,0.08),
+    transparent
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.ai-recommended-badge:hover::after {
+  opacity: 1;
+}
+
 
 .ai-recommended-badge:hover {
   transform: translateY(-1px);
