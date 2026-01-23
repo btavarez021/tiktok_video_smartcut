@@ -900,10 +900,6 @@ function updateSessionLabels() {
     labels.forEach((l) => (l.textContent = getActiveSession()));
 }
 
-function sessionQS() {
-    return "?session=" + encodeURIComponent(getActiveSession());
-}
-
 function updateSessionTags() {
     document.querySelectorAll("#currentSessionTag").forEach((el) => {
         el.textContent = getActiveSession();
@@ -942,75 +938,35 @@ function getActiveSession() {
 }
 
 
-function setActiveSession(name) {
-    const safe = sanitizeSessionName(name);
-    ACTIVE_SESSION = safe;
+async function setActiveSession(name) {
+  const safe = sanitizeSessionName(name);
+  ACTIVE_SESSION = safe;
 
-    loadIntentFromConfig();
+  updateSessionLabels();
+  sidebarSyncActiveLabel();
+  localStorage.setItem("activeSession", ACTIVE_SESSION);
 
-    // Update label chips
-    updateSessionLabels();
+  // Reset per-session state
+  workingClipOrder = [];
+  clipOrderDirty = false;
+  selectedHook = null;
 
-    // persist
-    try {
-        localStorage.setItem("activeSession", ACTIVE_SESSION);
-    } catch {}
+  // Load core state in order
+  await loadConfigAndYaml();
+  await loadCaptionsFromYaml();
+  await refreshHookScore();
+  await refreshStoryFlowScore();
 
-    // OLD header label (if present)
-    const label = document.getElementById("activeSessionLabel");
-    if (label) {
-        label.textContent = ACTIVE_SESSION;
-        label.classList.remove("session-active-flash");
-        void label.offsetWidth;
-        label.classList.add("session-active-flash");
-    }
+  // Fire-and-forget “secondary” refreshes
+  loadUploadManager();
+  refreshAnalyses();
+  loadSessionDropdown();
+  loadSessions();
+  sidebarLoadSessions();
 
-    // OLD dropdown (if present)
-    const ddl = document.getElementById("sessionDropdown");
-    if (ddl) {
-        ddl.value = ACTIVE_SESSION;
-        ddl.classList.remove("session-pulse");
-        void ddl.offsetWidth;
-        ddl.classList.add("session-pulse");
-    }
-
-    // OLD toast area (if present)
-    const toastArea = document.getElementById("sessionToastArea");
-    if (toastArea) {
-        toastArea.innerHTML = `
-            <div class="session-toast">
-                ✓ Active session changed to <strong>${ACTIVE_SESSION}</strong>
-            </div>
-        `;
-        setTimeout(() => (toastArea.innerHTML = ""), 2600);
-    }
-
-    console.log("[SESSION] Active:", ACTIVE_SESSION);
-
-    // Sidebar label
-    sidebarSyncActiveLabel();
-
-    workingClipOrder = [];
-    clipOrderDirty = false;
-
-    // UI refresh actions
-    loadUploadManager();
-    clearAnalysisUI();
-    refreshAnalyses();
-    loadConfigAndYaml();
-    refreshHookScore();
-    loadSessionDropdown();
-    loadSessions();
-    sidebarLoadSessions();
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() =>
-      {
-        animateSessionGlow();
-      });
-  });
-
+  requestAnimationFrame(() => requestAnimationFrame(animateSessionGlow));
 }
+
 
 
 // =========================================
@@ -1959,12 +1915,12 @@ async function generateYaml() {
 
 async function loadConfigAndYaml() {
 
-    if (CONFIG_LOADING) return;
-    CONFIG_LOADING = true;
-
     const yamlTextEl = document.getElementById("yamlText");
     const yamlPreviewEl = document.getElementById("yamlPreview");
     if (!yamlTextEl || !yamlPreviewEl) return;
+
+    if (CONFIG_LOADING) return;
+    CONFIG_LOADING = true;
 
     try {
         const session = encodeURIComponent(getActiveSession());
@@ -3779,14 +3735,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   
   loadIntentFromConfig();
 
-    // Load stored session
-    try {
-        const stored = localStorage.getItem("activeSession");
-        ACTIVE_SESSION = sanitizeSessionName(stored || "default");
-    } catch {
-        ACTIVE_SESSION = "default";
-    }
-
     // Sync labels
     updateSessionLabels();
     sidebarSyncActiveLabel();
@@ -4348,9 +4296,9 @@ captionModeEl?.addEventListener("change", async () => {
   });
       // PREVIEW REWRITE — must be inside DOMContentLoaded so button exists
     document.getElementById("previewRewriteBtn")?.addEventListener("click", () => {
-        console.log("Preview Rewrite CLICKED"); // Debug check
-        previewRewrite();
-    });
+      if (typeof previewRewrite === "function") previewRewrite();
+      else console.warn("previewRewrite() not defined");
+});
 
 
     // BUTTON EVENTS
