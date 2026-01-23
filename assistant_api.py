@@ -902,7 +902,19 @@ def api_get_labels(session: str) -> Dict[str, Any]:
     return {"labels": load_labels(session)}
 
 def api_set_label(session: str, filename: str, label: str | None) -> Dict[str, Any]:
+    
     session = sanitize_session(session)
+
+    key = f"{RAW_PREFIX}{session}/{filename}"
+
+    try:
+        s3.head_object(Bucket=S3_BUCKET_NAME, Key=key)
+    except Exception:
+        return {
+            "status": "error",
+            "error": "video_not_found",
+            "file": filename
+        }
     labels = load_labels(session)
 
     raw = (label or "").strip()
@@ -1348,31 +1360,13 @@ def _analyze_all_videos(session: str) -> Dict[str, Any]:
 
 
 def api_analyze(session: str) -> Dict[str, Any]:
-    prefix = f"{RAW_PREFIX}/{session}/"
+    session = sanitize_session(session)
 
-    resp = s3.list_objects_v2(
-        Bucket=S3_BUCKET_NAME,
-        Prefix=prefix
-    )
+    log_step(f"🔍 Starting analysis for session '{session}'")
 
-    files = [
-        obj["Key"] for obj in resp.get("Contents", [])
-        if obj["Key"].lower().endswith((".mp4", ".mov", ".m4v"))
-    ]
+    result = _analyze_all_videos(session)
 
-    if not files:
-        raise RuntimeError("No raw uploads found")
-
-    log_step(f"📦 Found {len(files)} raw uploads")
-
-    # 🔥 THIS is the missing call
-    result = _analyze_all_videos(session, files)
-
-    return {
-        "count": len(files),
-        "files": files,
-        "result": result,
-    }
+    return result
 
 
 def api_analyze_start(session: str = "default") -> Dict[str, Any]:
