@@ -544,6 +544,8 @@ function renderHookLab(hooks) {
           card.classList.add("recommended");
         }
 
+        card.classList.add("hook-ai-pick");
+
         // Add a confidence class for CSS styling
         card.classList.add(`conf-${conf}`);
 

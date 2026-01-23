@@ -1642,6 +1642,53 @@ h3 {
   transition: all 0.15s ease;
 }
 
+.hookCard {
+  position: relative;
+  padding-left: 14px;
+}
+
+.hookCard.recommended::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    #22c55e,
+    #16a34a
+  );
+}
+
+.hookCard.recommended {
+  background: linear-gradient(
+    180deg,
+    rgba(34,197,94,0.08),
+    rgba(34,197,94,0.02)
+  );
+  border-color: rgba(34,197,94,0.5);
+  box-shadow:
+    0 6px 16px rgba(0,0,0,0.25),
+    inset 0 0 0 1px rgba(34,197,94,0.25);
+}
+
+.hookHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.hookIndex {
+  font-size: 11px;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+
 .hookCard:hover {
   background: rgba(255,255,255,0.05);
 }
@@ -3058,4 +3105,46 @@ body.no-scroll {
   backdrop-filter: blur(6px);
 
   text-transform: uppercase;
+}
+
+/* === AI PICK HOOK (VERY CLEAR) === */
+.hookCard.hook-ai-pick {
+  border-left: 6px solid #22c55e;
+  background: linear-gradient(
+    90deg,
+    rgba(34,197,94,0.10),
+    rgba(0,0,0,0)
+  );
+}
+.hookCard:not(.hook-ai-pick) {
+  opacity: 0.92;
+}
+
+
+/* Hook badge — louder than variants */
+.hookCard.hook-ai-pick .ai-recommended-badge {
+  background: linear-gradient(135deg, #22c55e, #4ade80);
+  color: #0f172a;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(34,197,94,0.35);
+}
+
+
+/* Modern hook scrollbar */
+.hookList {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100,116,139,.6) transparent;
+}
+
+.hookList::-webkit-scrollbar {
+  width: 8px;
+}
+
+.hookList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hookList::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #60a5fa, #22c55e);
+  border-radius: 999px;
 }
