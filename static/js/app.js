@@ -1575,8 +1575,8 @@ function renderUploadList(elementId, items, kind, labels = {}) {
                                 </p>
 
                                 <div class="clip-actions">
-                                <button class="btn ghost small suggest-label-btn" data-file="${file}">
-                                    🧠 Suggest label
+                                <button class="btn ghost small recreate-label-btn" data-file="${file}">
+                                  🔁 Re-create label
                                 </button>
 
                                 <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
@@ -1674,69 +1674,47 @@ function renderUploadList(elementId, items, kind, labels = {}) {
     // ================================
 // ✍️ LABEL AUTO-SAVE (with feedback)
 // ================================
-el.querySelectorAll(".clip-label-input").forEach(input => {
+el.querySelectorAll(".recreate-label-btn").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const file = btn.dataset.file;
+    const input = btn.closest(".clip-card")
+                     ?.querySelector(".clip-label-input");
 
-  const glowSuccess = () => {
-    input.classList.remove("error");
-    input.classList.add("saved");
-    setTimeout(() => input.classList.remove("saved"), 1200);
-  };
+    if (!input) return;
 
-  const glowError = () => {
-    input.classList.add("error");
-    setTimeout(() => input.classList.remove("error"), 1500);
-  };
+    // 🔥 Reset auto-suggest state — user intent overrides everything
+    delete input.dataset.autoSuggested;
 
-  const save = async () => {
-    const file = input.dataset.file;
-    const label = input.value.trim();
+    btn.disabled = true;
+    btn.textContent = "Re-thinking…";
 
     try {
-      // 🧠 Auto-suggest ONCE if empty
-      if (!label && !input.dataset.autoSuggested) {
-        input.dataset.autoSuggested = "true";
+      const res = await jsonFetch("/repair_label", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session: getActiveSession(),
+          file,
+          label: input.value || "",
+          reason: "manual_recreate"
+        })
+      });
 
-        try {
-          const res = await jsonFetch("/repair_label", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              session: getActiveSession(),
-              file,
-              label: ""
-            })
-          });
-
-          if (res?.fixed_label) {
-            input.value = res.fixed_label;
-            await saveClipLabel(file, res.fixed_label);
-            glowSuccess();
-            return;
-          }
-        } catch (e) {
-          console.warn("Auto-suggest failed, saving empty label", e);
-        }
+      if (res?.fixed_label) {
+        input.value = res.fixed_label;
+        await saveClipLabel(file, res.fixed_label);
+        glowSuccess(input);
       }
 
-      // 🔁 Normal save
-      await saveClipLabel(file, label);
-      glowSuccess();
-
     } catch (e) {
-      console.error("Label save failed", e);
-      glowError();
-    }
-  };
-
-  input.addEventListener("blur", save);
-
-  input.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      input.blur();
+      console.error(e);
+      glowError(input);
+      alert("Couldn’t re-create label");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "🔁 Re-create label";
     }
   });
-
 });
 
 }
