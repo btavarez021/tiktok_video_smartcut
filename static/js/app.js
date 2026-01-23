@@ -1733,7 +1733,7 @@ async function saveClipLabel(key, label) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session: getActiveSession(),
-        key,
+        file: key.split("/").pop(), // 🔥 FIX
         label
       })
     });
