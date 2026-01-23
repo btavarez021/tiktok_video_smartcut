@@ -1533,101 +1533,124 @@ async function loadUploadManager() {
 
 
 function renderUploadList(elementId, items, kind, labels = {}) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
+  const el = document.getElementById(elementId);
+  if (!el) return;
 
-    if (!items || items.length === 0) {
-        el.innerHTML = `<div class="empty">No videos</div>`;
-        return;
-    }
+  if (!items || items.length === 0) {
+    el.innerHTML = `<div class="empty">No videos</div>`;
+    return;
+  }
 
-    const session = getActiveSession();
-    const rawPrefix = `raw_uploads/${session}/`;
-    const processedPrefix = `processed/${session}/`;
+  const session = getActiveSession();
+  const rawPrefix = `raw_uploads/${session}/`;
+  const processedPrefix = `processed/${session}/`;
 
-    el.innerHTML = items
-        .map((file) => {
-            const isRaw = kind === "raw";
-            const srcKey = isRaw ? rawPrefix + file : processedPrefix + file;
-            const destKey = isRaw ? processedPrefix + file : rawPrefix + file;
-            const savedLabel = labels[file] || "";
+  // --------------------------------
+  // Render HTML
+  // --------------------------------
+  el.innerHTML = items
+    .map(file => {
+      const isRaw = kind === "raw";
+      const srcKey = isRaw ? rawPrefix + file : processedPrefix + file;
+      const destKey = isRaw ? processedPrefix + file : rawPrefix + file;
+      const savedLabel = labels[file] || "";
 
-            return `
-                <div class="upload-item">
-                    ${
-                        isRaw
-                            ? `
-                            <div class="clip-card">
+      return `
+        <div class="upload-item">
+          ${
+            isRaw
+              ? `
+              <div class="clip-card">
+                <img class="clip-preview large" data-file="${file}" />
+                <div class="clip-filename">${file}</div>
 
-                                <img class="clip-preview large" data-file="${file}" />
+                <input
+                  class="input clip-label-input"
+                  value="${savedLabel}"
+                  placeholder="e.g. Rooftop cocktails"
+                  data-file="${file}"
+                />
 
-                                <div class="clip-filename">${file}</div>
+                <p class="hint-text small">
+                  Used to guide captions and storytelling.
+                </p>
 
-                                <input
-                                class="input clip-label-input"
-                                value="${savedLabel}"
-                                placeholder="e.g. Rooftop cocktails"
-                                data-file="${file}"
-                                />
+                <div class="clip-actions">
+                  <button class="btn ghost small recreate-label-btn" data-file="${file}">
+                    🔁 Re-create label
+                  </button>
 
-                                <p class="hint-text small">
-                                Used to guide captions and filename-based generation.
-                                </p>
+                  <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
+                    Move →
+                  </button>
 
-                                <div class="clip-actions">
-                                <button class="btn ghost small recreate-label-btn" data-file="${file}">
-                                  🔁 Re-create label
-                                </button>
-
-                                <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
-                                    Move →
-                                </button>
-
-                                <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
-                                    Delete
-                                </button>
-                                </div>
-
-                            </div>
-                            `
-                            : `
-                            <div class="clip-card processed">
-
-                                <img class="clip-preview" data-file="${file}" />
-
-                                <div class="clip-filename">${file}</div>
-
-                                <div class="clip-actions">
-                                <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
-                                    ← Move back
-                                </button>
-
-                                <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
-                                    Delete
-                                </button>
-                                </div>
-
-                            </div>
-                            `
-                        }
+                  <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
+                    Delete
+                  </button>
                 </div>
-                `;
+              </div>
+              `
+              : `
+              <div class="clip-card processed">
+                <img class="clip-preview" data-file="${file}" />
+                <div class="clip-filename">${file}</div>
 
-        })
-        .join("");
+                <div class="clip-actions">
+                  <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
+                    ← Move back
+                  </button>
 
-    // ================================
-    // 🧠 SUGGEST LABEL (Vision-powered)
-    // ================================
-    el.querySelectorAll(".suggest-label-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-        const file = btn.dataset.file;
+                  <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
+                    Delete
+                  </button>
+                </div>
+              </div>
+              `
+          }
+        </div>
+      `;
+    })
+    .join("");
 
-        btn.disabled = true;
-        btn.textContent = "Analyzing…";
+  // --------------------------------
+  // Load previews
+  // --------------------------------
+  el.querySelectorAll(".clip-preview").forEach(img => {
+    const file = img.dataset.file;
+    loadClipPreview(file, img);
 
-        try {
-        const res = await jsonFetch("/repair_label", {
+    img.addEventListener("click", () => {
+      img.src = "";
+      loadClipPreview(file, img);
+    });
+  });
+
+  // --------------------------------
+  // Auto-save + AI auto-suggest (once)
+  // --------------------------------
+  el.querySelectorAll(".clip-label-input").forEach(input => {
+    const glowSuccess = () => {
+      input.classList.remove("error");
+      input.classList.add("saved");
+      setTimeout(() => input.classList.remove("saved"), 1200);
+    };
+
+    const glowError = () => {
+      input.classList.add("error");
+      setTimeout(() => input.classList.remove("error"), 1500);
+    };
+
+    const save = async () => {
+      const file = input.dataset.file;
+      const label = input.value.trim();
+
+      try {
+        // 🧠 AUTO-AI: only once, only if empty
+        if (!label && !input.dataset.aiSuggested) {
+          input.dataset.aiSuggested = "true";
+
+          try {
+            const res = await jsonFetch("/repair_label", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -1637,110 +1660,84 @@ function renderUploadList(elementId, items, kind, labels = {}) {
               })
             });
 
-
-        const fixed = res.fixed_label;
-
-        const input = btn.closest(".clip-card")
-                        ?.querySelector(".clip-label-input");
-
-        if (input && fixed) {
-            input.value = fixed;
-            await saveClipLabel(file, fixed);
-        }
-
-        } catch (err) {
-        console.error("Suggest label failed:", err);
-        alert("Failed to analyze video");
-        } finally {
-        btn.disabled = false;
-        btn.textContent = "🧠 Suggest label";
-        }
-    });
-    });  
-
-    // ================================
-    // 🎬 LOAD CLIP PREVIEWS
-    // ================================
-    el.querySelectorAll(".clip-preview").forEach(img => {
-    const file = img.dataset.file;
-    loadClipPreview(file, img);
-
-    img.addEventListener("click", () => {
-        img.src = ""; // force refresh
-        loadClipPreview(file, img);
-    });
-    });
-
-    // ================================
-// ✍️ LABEL AUTO-SAVE (with feedback)
-// ================================
-el.querySelectorAll(".clip-label-input").forEach(input => {
-
-  const glowSuccess = () => {
-    input.classList.remove("error");
-    input.classList.add("saved");
-    setTimeout(() => input.classList.remove("saved"), 1200);
-  };
-
-  const glowError = () => {
-    input.classList.add("error");
-    setTimeout(() => input.classList.remove("error"), 1500);
-  };
-
-  const save = async () => {
-    const file = input.dataset.file;
-    const label = input.value.trim();
-
-    try {
-      // 🧠 AUTO-SUGGEST — ONLY ONCE
-      if (!label && !input.dataset.aiSuggested) {
-        input.dataset.aiSuggested = "true";
-
-        try {
-          const res = await jsonFetch("/repair_label", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              session: getActiveSession(),
-              file,
-              label: ""
-            })
-          });
-
-          if (res?.fixed_label) {
-            input.value = res.fixed_label;
-            await saveClipLabel(file, res.fixed_label);
-            glowSuccess();
-            return;
+            if (res?.fixed_label) {
+              input.value = res.fixed_label;
+              await saveClipLabel(file, res.fixed_label);
+              glowSuccess();
+              return;
+            }
+          } catch (e) {
+            console.warn("AI auto-suggest failed", e);
           }
-        } catch (e) {
-          console.warn("AI auto-suggest failed, continuing empty", e);
         }
+
+        // Normal save
+        await saveClipLabel(file, label);
+        glowSuccess();
+
+      } catch (e) {
+        console.error("Label save failed", e);
+        glowError();
       }
+    };
 
-      // 🔁 NORMAL SAVE
-      await saveClipLabel(file, label);
-      glowSuccess();
+    input.addEventListener("blur", save);
 
-    } catch (e) {
-      console.error("Label save failed", e);
-      glowError();
-    }
-  };
-
-  input.addEventListener("blur", save);
-
-  input.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      input.blur();
-    }
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        input.blur();
+      }
+    });
   });
-});
 
+  // --------------------------------
+  // 🔁 Re-create label (explicit AI)
+  // --------------------------------
+  el.querySelectorAll(".recreate-label-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const file = btn.dataset.file;
+      const input = btn.closest(".clip-card")
+                       ?.querySelector(".clip-label-input");
+      if (!input) return;
+
+      // Explicit action → allow AI again
+      input.dataset.aiSuggested = "true";
+
+      btn.disabled = true;
+      btn.textContent = "Re-thinking…";
+
+      try {
+        const res = await jsonFetch("/repair_label", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session: getActiveSession(),
+            file,
+            label: input.value || ""
+          })
+        });
+
+        if (res?.fixed_label) {
+          input.value = res.fixed_label;
+          await saveClipLabel(file, res.fixed_label);
+          input.classList.add("saved");
+          setTimeout(() => input.classList.remove("saved"), 1200);
+        }
+
+      } catch (e) {
+        console.error("Re-create label failed", e);
+        input.classList.add("error");
+        setTimeout(() => input.classList.remove("error"), 1500);
+        alert("Couldn’t re-create label");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🔁 Re-create label";
+      }
+    });
+  });
 }
-
-   
+  
 
 async function saveClipLabel(key, label) {
   if (!key) return;
