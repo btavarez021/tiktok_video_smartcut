@@ -1192,22 +1192,31 @@ function setStatus(id, msg, type = "info", autoHide = true) {
 }
 
 // JSON fetch helper with sane defaults
-async function jsonFetch(url, options = {}) {
-    const resp = await fetch(url, {
-        headers: { "Content-Type": "application/json" },
-        ...options,
+async function jsonFetch(url, opts = {}) {
+  try {
+    const res = await fetch(url, {
+      credentials: "same-origin",
+      ...opts
     });
 
-    if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error(text || `Request failed: ${resp.status}`);
+    if (!res.ok) {
+      console.warn("[jsonFetch] Non-OK response", url, res.status);
+      return null;
     }
 
-    try {
-        return await resp.json();
-    } catch {
-        return {};
+    const text = await res.text();
+
+    // Guard: empty or HTML response
+    if (!text || text.startsWith("<")) {
+      console.warn("[jsonFetch] Invalid JSON response", url);
+      return null;
     }
+
+    return JSON.parse(text);
+  } catch (err) {
+    console.warn("[jsonFetch] Failed to fetch", url, err);
+    return null;
+  }
 }
 
 // Status hint helper (bottom style line)
