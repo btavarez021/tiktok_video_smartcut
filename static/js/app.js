@@ -1739,18 +1739,9 @@ el.querySelectorAll(".clip-label-input").forEach(input => {
 
 });
 
-// ✨ helpers (keep things readable)
-function glowSuccess() {
-  input.classList.remove("error");
-  input.classList.add("saved");
-  setTimeout(() => input.classList.remove("saved"), 1200);
 }
 
-function glowError() {
-  input.classList.add("error");
-  setTimeout(() => input.classList.remove("error"), 1500);
-}
-  
+   
 
 async function saveClipLabel(key, label) {
   if (!key) return;
