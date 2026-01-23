@@ -1674,45 +1674,66 @@ function renderUploadList(elementId, items, kind, labels = {}) {
     // ================================
 // ✍️ LABEL AUTO-SAVE (with feedback)
 // ================================
-el.querySelectorAll(".recreate-label-btn").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    const file = btn.dataset.file;
-    const input = btn.closest(".clip-card")
-                     ?.querySelector(".clip-label-input");
+el.querySelectorAll(".clip-label-input").forEach(input => {
 
-    if (!input) return;
+  const glowSuccess = () => {
+    input.classList.remove("error");
+    input.classList.add("saved");
+    setTimeout(() => input.classList.remove("saved"), 1200);
+  };
 
-    // 🔥 Reset auto-suggest state — user intent overrides everything
-    delete input.dataset.autoSuggested;
+  const glowError = () => {
+    input.classList.add("error");
+    setTimeout(() => input.classList.remove("error"), 1500);
+  };
 
-    btn.disabled = true;
-    btn.textContent = "Re-thinking…";
+  const save = async () => {
+    const file = input.dataset.file;
+    const label = input.value.trim();
 
     try {
-      const res = await jsonFetch("/repair_label", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session: getActiveSession(),
-          file,
-          label: input.value || "",
-          reason: "manual_recreate"
-        })
-      });
+      // 🧠 AUTO-SUGGEST — ONLY ONCE
+      if (!label && !input.dataset.aiSuggested) {
+        input.dataset.aiSuggested = "true";
 
-      if (res?.fixed_label) {
-        input.value = res.fixed_label;
-        await saveClipLabel(file, res.fixed_label);
-        glowSuccess(input);
+        try {
+          const res = await jsonFetch("/repair_label", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              session: getActiveSession(),
+              file,
+              label: ""
+            })
+          });
+
+          if (res?.fixed_label) {
+            input.value = res.fixed_label;
+            await saveClipLabel(file, res.fixed_label);
+            glowSuccess();
+            return;
+          }
+        } catch (e) {
+          console.warn("AI auto-suggest failed, continuing empty", e);
+        }
       }
 
+      // 🔁 NORMAL SAVE
+      await saveClipLabel(file, label);
+      glowSuccess();
+
     } catch (e) {
-      console.error(e);
-      glowError(input);
-      alert("Couldn’t re-create label");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "🔁 Re-create label";
+      console.error("Label save failed", e);
+      glowError();
+    }
+  };
+
+  input.addEventListener("blur", save);
+
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      input.blur();
     }
   });
 });
