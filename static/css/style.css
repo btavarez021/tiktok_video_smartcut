@@ -459,6 +459,11 @@ textarea::-webkit-scrollbar-thumb,
     font-size: 0.95rem;
 }
 
+.primary-action-row {
+  margin-top: 14px;
+  margin-bottom: 8px;
+}
+
 .btn.full {
     width: 100%;
 }
