@@ -1759,8 +1759,9 @@ async function saveClipLabel(key, label) {
     const weak = !!res?.weak;
 
     const input = document.querySelector(
-      `.clip-label-input[data-key="${key}"]`
+      `.clip-label-input[data-file="${key.split("/").pop()}"]`
     );
+
     const card = input?.closest(".clip-card");
 
     if (input && finalLabel !== input.value) {
@@ -1979,15 +1980,6 @@ function renderSetupSummary(summary) {
       </div>
     </div>
   `;
-}
-
-
-async function loadSetupSummary() {
-  const res = await jsonFetch(`/api/setup_summary?session=${getActiveSession()}`);
-
-  if (!res) return;
-
-  renderSetupSummary(res);
 }
 
 // ================================

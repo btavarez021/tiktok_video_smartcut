@@ -1562,29 +1562,16 @@ def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 def estimate_video_length(session: str) -> int:
-    """
-    Estimate final video length in seconds.
-    Phase 1 heuristic: 4s per clip.
-    """
-
-    from assistant_api import load_analysis_results_session
-
     analyses = load_analysis_results_session(session) or {}
     clip_count = len(analyses)
 
     if clip_count == 0:
         return 0
 
-    # TikTok-friendly pacing
     return max(8, clip_count * 4)
 
 
 def infer_video_goal(labels: dict) -> str:
-    """
-    Infer video goal from clip labels.
-    Phase 1 heuristic-based inference.
-    """
-
     if not labels:
         return "General highlight"
 
@@ -1604,27 +1591,38 @@ def infer_video_goal(labels: dict) -> str:
 
     return "Travel Highlight"
 
-def api_ai_setup_summary(session: str) -> dict:
-    labels = load_labels(session)
 
-    total = len(labels)
+def api_ai_setup_summary(session: str) -> dict:
+    session = sanitize_session(session)
+
+    analyses = load_analysis_results_session(session)
+    clip_count = len(analyses)
+
+    labels = load_labels(session)
     weak = sum(1 for l in labels.values() if is_weak_label(l))
 
-    hook_score = api_hook_score(session)
-    best_conf = hook_score.get("best_confidence", "moderate")
+    hook_data = api_hook_score(session)
+    score = hook_data.get("score", 70)
 
-    estimated_secs = estimate_video_length(session)
+    if score >= 85:
+        hook_conf = "clear"
+    elif score >= 70:
+        hook_conf = "moderate"
+    else:
+        hook_conf = "weak"
+
+    est = estimate_video_length(session)
 
     return {
-        "clips": total,
+        "clips": clip_count,
         "labels": {
-            "total": total,
+            "total": len(labels),
             "weak": weak,
             "quality": "strong" if weak == 0 else "mixed"
         },
-        "hook_confidence": best_conf,
+        "hook_confidence": hook_conf,
         "recommended_goal": infer_video_goal(labels),
-        "estimated_length": f"{estimated_secs-2}–{estimated_secs+2}s"
+        "estimated_length": f"{max(est-2, 6)}–{est+2}s"
     }
 
 

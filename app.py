@@ -48,9 +48,7 @@ from assistant_api import (
     reorder_storyboard,
     record_variant_feedback,
     AGG_PATH,
-    api_ai_setup_summary,
-    infer_video_goal,
-    estimate_video_length
+    api_ai_setup_summary
     )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -648,15 +646,6 @@ def route_chat():
 def ai_setup_summary():
     session = sanitize_session(request.args.get("session", "default"))
     return jsonify(api_ai_setup_summary(session))
-
-@app.route("/api/setup_summary", methods=["GET"])
-def api_setup_summary():
-    session = sanitize_session(request.args.get("session", "default"))
-
-    return jsonify({
-        "goal": infer_video_goal(session),
-        "estimated_length": estimate_video_length(session),
-    })
 
 # ============================================================================
 # EXPORT MODE
