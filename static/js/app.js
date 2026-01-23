@@ -1199,10 +1199,11 @@ function setStatus(id, msg, type = "info", autoHide = true) {
 }
 
 async function jsonFetch(url, opts = {}) {
-  if (document.body.classList.contains("ui-busy")) {
-    console.warn("[jsonFetch] Fetch during busy state:", url);
-    // optional: throw to HARD BLOCK
-    // throw new Error("UI busy — fetch blocked");
+  const isWrite = opts.method && opts.method !== "GET";
+
+  if (isWrite && document.body.classList.contains("ui-busy")) {
+    console.warn("[jsonFetch] WRITE blocked during busy state:", url);
+    throw new Error("UI busy — write blocked");
   }
 
   try {
@@ -1217,19 +1218,18 @@ async function jsonFetch(url, opts = {}) {
 
     const text = await res.text();
 
-    // Guard: empty or HTML response
     if (!text || text.startsWith("<")) {
       console.warn("[jsonFetch] Invalid JSON response", url);
       return null;
     }
 
     return JSON.parse(text);
-
   } catch (err) {
     console.error("[jsonFetch] Failed to fetch", url, err);
-    throw err; // ✅ correct — do NOT swallow
+    throw err;
   }
 }
+
 
 
 // Status hint helper (bottom style line)
