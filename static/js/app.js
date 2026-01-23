@@ -1902,6 +1902,58 @@ async function refreshAnalyses() {
     }
 }
 
+async function loadAISetupSummary() {
+  const data = await jsonFetch(
+    `/api/ai_setup_summary?session=${getActiveSession()}`
+  );
+
+  const el = document.getElementById("aiSetupSummary");
+  if (!el || !data) return;
+
+  el.innerHTML = `
+    <div class="ai-summary-card">
+      <h3>🧠 AI Setup Summary</h3>
+
+      <ul>
+        <li>🎬 <b>${data.clips}</b> clips analyzed</li>
+        <li>🏷 Labels: <b>${data.labels.quality}</b>
+            ${data.labels.weak ? `( ${data.labels.weak} improved )` : ""}</li>
+        <li>🔥 Best hook confidence: <b>${data.hook_confidence}</b></li>
+        <li>🎯 Recommended goal: <b>${data.recommended_goal}</b></li>
+        <li>⏱ Estimated length: <b>${data.estimated_length}</b></li>
+      </ul>
+
+      <button class="btn primary small"
+        onclick="applyAIRecommendations()">
+        Apply AI recommendations
+      </button>
+    </div>
+  `;
+
+  el.classList.remove("hidden");
+}
+
+async function applyAIRecommendations() {
+  await jsonFetch("/api/timings", {
+    method: "POST",
+    body: JSON.stringify({
+      session: getActiveSession(),
+      smart: true
+    })
+  });
+
+  await jsonFetch("/api/overlay", {
+    method: "POST",
+    body: JSON.stringify({
+      session: getActiveSession(),
+      style: "ai_recommended"
+    })
+  });
+
+  toast("AI recommendations applied — feel free to adjust ✨");
+}
+
+
 // ================================
 // Step 2: YAML generation & config
 // ================================

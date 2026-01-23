@@ -47,7 +47,8 @@ from assistant_api import (
     api_generate_variants,
     reorder_storyboard,
     record_variant_feedback,
-    AGG_PATH
+    AGG_PATH,
+    api_ai_setup_summary
     )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -640,6 +641,11 @@ def route_chat():
     session = sanitize_session(data.get("session", "default"))
     return jsonify(api_chat(data.get("message", ""), session=session))
 
+
+@app.route("/api/ai_setup_summary", methods=["GET"])
+def ai_setup_summary():
+    session = sanitize_session(request.args.get("session", "default"))
+    return jsonify(api_ai_setup_summary(session))
 
 
 # ============================================================================

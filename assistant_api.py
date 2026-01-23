@@ -1561,6 +1561,71 @@ def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
         log_error("[SAVE_YAML]", e)
         return {"status": "error", "error": str(e)}
 
+def estimate_video_length(session: str) -> int:
+    """
+    Estimate final video length in seconds.
+    Phase 1 heuristic: 4s per clip.
+    """
+
+    from assistant_api import load_analysis_results_session
+
+    analyses = load_analysis_results_session(session) or {}
+    clip_count = len(analyses)
+
+    if clip_count == 0:
+        return 0
+
+    # TikTok-friendly pacing
+    return max(8, clip_count * 4)
+
+
+def infer_video_goal(labels: dict) -> str:
+    """
+    Infer video goal from clip labels.
+    Phase 1 heuristic-based inference.
+    """
+
+    if not labels:
+        return "General highlight"
+
+    text = " ".join(labels.values()).lower()
+
+    if any(k in text for k in ["hotel", "resort", "room", "lobby"]):
+        return "Hotel / Travel Highlight"
+
+    if any(k in text for k in ["food", "dinner", "restaurant", "cocktail"]):
+        return "Food & Lifestyle"
+
+    if any(k in text for k in ["concert", "festival", "dj", "show"]):
+        return "Event Recap"
+
+    if any(k in text for k in ["beach", "pool", "sunset", "ocean"]):
+        return "Relaxation / Vibes"
+
+    return "Travel Highlight"
+
+def api_ai_setup_summary(session: str) -> dict:
+    labels = load_labels(session)
+
+    total = len(labels)
+    weak = sum(1 for l in labels.values() if is_weak_label(l))
+
+    hook_score = api_hook_score(session)
+    best_conf = hook_score.get("best_confidence", "moderate")
+
+    estimated_secs = estimate_video_length(session)
+
+    return {
+        "clips": total,
+        "labels": {
+            "total": total,
+            "weak": weak,
+            "quality": "strong" if weak == 0 else "mixed"
+        },
+        "hook_confidence": best_conf,
+        "recommended_goal": infer_video_goal(labels),
+        "estimated_length": f"{estimated_secs-2}–{estimated_secs+2}s"
+    }
 
 
 # -------------------------------
