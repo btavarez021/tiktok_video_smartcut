@@ -2047,25 +2047,29 @@ goBtn.onclick = async () => {
     setStatus("improveHooksStatus", "Opening Hook Lab…", "working");
 
     // 2️⃣ Open hook + variants
-    openVariantsPanel();
+    // 2️⃣ Reveal hook tools, but keep user in storyboard context
+document.getElementById("hookLab")?.classList.remove("hidden");
 
-    const hookLab = document.getElementById("hookLab");
-    if (hookLab) hookLab.classList.remove("hidden");
+// Optional: open variants panel without scrolling
+openVariantsPanel({ silent: true }); // only if your function supports it
 
-    highlightHookLab();
+// 3️⃣ Guide user to storyboard ordering (source of truth)
+requestAnimationFrame(() => {
+  document
+    .querySelector(".storyboard-panel")
+    ?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+});
 
-    // 3️⃣ Scroll AFTER layout settles
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const target =
-          document.getElementById("hookLab") ||
-          document.getElementById("variantsDrawer");
-
-        target?.scrollIntoView({
-          behavior: "smooth",
-          block: "start"
-        });
-      });
+// Gentle guidance
+setStatus(
+  "captionStatus",
+  "Review clip order first — hooks and captions build from this.",
+  "info",
+  false
+);
     });
 
     setStatus("improveHooksStatus", "Hook Lab ready ✓", "success");
