@@ -31,7 +31,7 @@ let CONFIG_LOADING = false;
 let isInRewriteReview = false;
 let captionViewMode = "rewritten";
 let diffDirty = false;
-let lastAiApplySnapshot = null;
+let window.aiUndoSnapshot = null;
 
 function setCurrentVideoIntent(intent) {
   currentIntent = intent;
@@ -2766,51 +2766,55 @@ async function undoAIRecommendation() {
   const applyBtn = document.getElementById("applyAiRecommendationBtn");
   const undoBtn  = document.getElementById("undoAiRecommendationBtn");
 
+  const snapshot = window.aiUndoSnapshot;
+  if (!snapshot?.yaml) {
+    toast("Nothing to undo");
+    return;
+  }
+
+  // 🔒 Session guard
+  if (snapshot.session !== getActiveSession()) {
+    alert("Undo is only available for the last AI apply in this session.");
+    return;
+  }
+
   try {
-    if (!lastAiApplySnapshot?.yaml) return;
-
-    // Safety: session-bound undo
-    if (lastAiApplySnapshot.session !== getActiveSession()) {
-      alert("Undo is only available for the last AI apply in this session.");
-      return;
-    }
-
     if (undoBtn) {
       undoBtn.disabled = true;
       undoBtn.textContent = "Undoing…";
     }
 
     // 1️⃣ Restore YAML
-    await jsonFetch(`/api/save_yaml`, {
+    await jsonFetch("/api/save_yaml", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        session: getActiveSession(),
-        yaml: lastAiApplySnapshot.yaml
+        session: snapshot.session,
+        yaml: snapshot.yaml
       })
     });
 
-    // 2️⃣ Restore CONFIG (🔥 critical)
-    await jsonFetch(`/api/save_config`, {
+    // 2️⃣ Restore CONFIG
+    await jsonFetch("/api/save_config", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        session: getActiveSession(),
-        config: lastAiApplySnapshot.config
+        session: snapshot.session,
+        config: snapshot.config
       })
     });
 
-    // 3️⃣ Full UI refresh (mirrors Apply)
+    // 3️⃣ Refresh UI (mirror Apply)
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
     await refreshHookScore();
     await refreshStoryFlowScore();
     loadAISetupSummary();
 
-    // Reset buttons
+    // 4️⃣ Reset UI
+    window.aiUndoSnapshot = null;
+
     if (applyBtn) {
       applyBtn.disabled = false;
-      applyBtn.textContent = "Apply AI Recommendation";
+      applyBtn.textContent = "Apply AI recommendation";
     }
 
     if (undoBtn) {
@@ -2819,14 +2823,8 @@ async function undoAIRecommendation() {
       undoBtn.disabled = false;
     }
 
-    if (!window.aiUndoSnapshot) {
-      alert("Nothing to undo.");
-      return;
-    }
-
-    lastAiApplySnapshot = null;
-
-    toast("AI changes undone");
+    updateAIRecommendationBar();
+    toast("AI changes undone ↩︎");
 
   } catch (err) {
     console.error(err);
