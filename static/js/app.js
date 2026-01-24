@@ -2819,6 +2819,11 @@ async function undoAIRecommendation() {
       undoBtn.disabled = false;
     }
 
+    if (!window.aiUndoSnapshot) {
+      alert("Nothing to undo.");
+      return;
+    }
+
     lastAiApplySnapshot = null;
 
     toast("AI changes undone");
