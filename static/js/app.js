@@ -49,13 +49,35 @@ function debounce(fn, wait = 350) {
 
 function updateAIRecommendationBar() {
   const bar = document.getElementById("aiRecommendationBar");
+  const applyBtn = document.getElementById("applyAiRecommendationBtn");
+  const undoBtn = document.getElementById("undoAiRecommendationBtn");
+
   if (!bar) return;
 
   const hasRecommendation =
     Array.isArray(window.lastGeneratedVariants) &&
     window.lastGeneratedVariants.some(v => v.recommended === true);
 
+  // 1️⃣ Show / hide bar
   bar.classList.toggle("hidden", !hasRecommendation);
+
+  // 2️⃣ Apply button state
+  if (applyBtn) {
+    applyBtn.disabled = !hasRecommendation || !!window.aiUndoSnapshot;
+    applyBtn.textContent = window.aiUndoSnapshot
+      ? "Applied ✓"
+      : "Apply AI recommendation";
+  }
+
+  // 3️⃣ Undo button state
+  if (undoBtn) {
+    const canUndo =
+      window.aiUndoSnapshot &&
+      window.aiUndoSnapshot.session === getActiveSession();
+
+    undoBtn.classList.toggle("hidden", !canUndo);
+    undoBtn.disabled = false;
+  }
 }
 
 
