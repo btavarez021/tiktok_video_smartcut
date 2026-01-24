@@ -700,30 +700,28 @@ function renderHookLab(hooks) {
 
 function updateHookLockUI() {
   const clearBtn = document.getElementById("clearHookBtn");
-  const hookLab = document.getElementById("hookLab");
+  const lockBar = document.getElementById("hookLockedBar");
 
   if (!clearBtn) return;
 
   if (selectedHook) {
-    // 🔒 Locked
+    // 🔒 Locked state
+    lockBar?.classList.remove("hidden");
     clearBtn.classList.remove("hidden");
-    clearBtn.textContent = "Clear hook & let AI choose again";
-    clearBtn.classList.add("danger");
 
-    hookLab?.classList.add("hook-locked");
+    // Visual lock on hook cards
+    document.querySelectorAll(".hookCard").forEach(card => {
+      card.classList.add("hook-locked");
+    });
 
-    setStatus(
-      "hookLabStatus",
-      "🔒 Hook locked — AI will build around your selection",
-      "success"
-    );
   } else {
-    // 🔓 Unlocked
+    // 🔓 Unlocked state
+    lockBar?.classList.add("hidden");
     clearBtn.classList.add("hidden");
-    clearBtn.textContent = "Clear";
-    clearBtn.classList.remove("danger");
 
-    hookLab?.classList.remove("hook-locked");
+    document.querySelectorAll(".hookCard").forEach(card => {
+      card.classList.remove("hook-locked");
+    });
   }
 }
 
