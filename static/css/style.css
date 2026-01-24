@@ -934,15 +934,11 @@ h3 {
 
 /* Collapsible behavior */
 #uploadManagerContent {
-    max-height: 0;
-    overflow: hidden;
-    opacity: 0;
-    transition: max-height 0.35s ease, opacity 0.25s ease;
+    display:none;
 }
 
 #uploadManagerContent:not(.collapsed) {
-    max-height: 1400px;
-    opacity: 1;
+   display: block;
 }
 
 .collapse-icon {
@@ -2735,10 +2731,6 @@ body.no-scroll {
 
   padding: 20px 28px;
 
-  /* THIS is the scroll container */
-  height: calc(100vh - 140px); /* header + stepper */
-  overflow-y: auto;
-
   align-items: start;
 }
 
@@ -2827,8 +2819,6 @@ body.no-scroll {
   gap: 20px;
 
   padding: 20px 28px;
-  height: calc(100vh - 140px);
-  overflow-y: auto;
 
   align-items: start;
 }
@@ -2871,10 +2861,6 @@ body.no-scroll {
   gap: 20px;
 
   padding: 20px 28px;
-
-  /* desktop scroll container */
-  height: calc(100vh - 140px); /* header + stepper */
-  overflow-y: auto;
 
   align-items: start;
 }
