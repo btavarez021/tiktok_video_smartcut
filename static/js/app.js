@@ -1830,7 +1830,10 @@ async function analyzeClips() {
   const statusEl = document.getElementById("analyzeStatus");
   if (!analyzeBtn || !statusEl) return;
 
+  // 🔒 Lock button + show progress
   analyzeBtn.disabled = true;
+  const originalText = analyzeBtn.textContent;
+  analyzeBtn.textContent = "Analyzing…";
 
   setStatus(
     "analyzeStatus",
@@ -1871,7 +1874,9 @@ async function analyzeClips() {
       "error"
     );
   } finally {
+    // 🔓 Restore button state
     analyzeBtn.disabled = false;
+    analyzeBtn.textContent = originalText;
   }
 }
 
@@ -1960,23 +1965,43 @@ async function applyAIRecommendations() {
 }
 
 function renderSetupSummary(summary) {
-  if (!summary) return;
-
-  const el = document.getElementById("ai-setup-summary");
+  const el = document.getElementById("aiSetupSummary");
   if (!el) return;
+
+  if (!summary.has_analysis) {
+    el.classList.add("hidden");
+    return;
+  }
 
   el.classList.remove("hidden");
 
   el.innerHTML = `
     <div class="ai-summary-card">
       <div class="ai-summary-title">🧠 AI Setup Summary</div>
+
       <div class="ai-summary-row">
-        <strong>Goal</strong>
-        <span>${summary.goal}</span>
+        <strong>🎬 Clips analyzed</strong>
+        <span>${summary.clips}</span>
       </div>
+
       <div class="ai-summary-row">
-        <strong>Estimated length</strong>
-        <span>~${summary.estimated_length}s</span>
+        <strong>🏷 Labels</strong>
+        <span>${summary.labels.quality}</span>
+      </div>
+
+      <div class="ai-summary-row">
+        <strong>🔥 Best hook confidence</strong>
+        <span>${summary.hook_confidence}</span>
+      </div>
+
+      <div class="ai-summary-row">
+        <strong>🎯 Recommended goal</strong>
+        <span>${summary.recommended_goal}</span>
+      </div>
+
+      <div class="ai-summary-row">
+        <strong>⏱ Estimated length</strong>
+        <span>${summary.estimated_length}</span>
       </div>
     </div>
   `;
