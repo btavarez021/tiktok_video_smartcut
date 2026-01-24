@@ -99,6 +99,12 @@ function updateLoadYamlVisibility() {
   btn.style.display = hasVariants ? "inline-block" : "none";
 }
 
+function syncIntentPills(intent) {
+  document.querySelectorAll(".intent-pills .pill").forEach(pill => {
+    pill.classList.toggle("active", pill.dataset.intent === intent);
+  });
+}
+
 async function loadIntentFromConfig() {
   try {
     const res = await jsonFetch(
@@ -110,12 +116,10 @@ async function loadIntentFromConfig() {
     // 🔑 Core state
     currentIntent = intent;
 
-    // 🔵 Sync pills (THIS is why yours is stuck)
-    document.querySelectorAll(".intent-pills").forEach(pill => {
-      pill.classList.toggle("active", pill.dataset.intent === intent);
-    });
+    // ✅ SYNC PILL UI (single source of truth)
+    syncIntentPills(intent);
 
-    // 🔔 Update intent hint (THIS is what you asked about)
+    // 🔔 Update intent hint
     updateIntentHint(intent);
 
     // Optional legacy select support
@@ -124,18 +128,18 @@ async function loadIntentFromConfig() {
 
     // Refresh dependent systems
     refreshHookScore();
-    
+
     setStatus(
       "captionStatus",
       `Intent set to “${intent}”`,
       "info"
     );
 
-
   } catch (e) {
     console.warn("Failed to load intent, using default");
   }
 }
+
 
 function sendVariantFeedback({ variantId, intent, tone, action, confidence = null, recommended = false }) {
   return fetch("/api/variant_feedback", {
@@ -4277,6 +4281,40 @@ document.addEventListener("DOMContentLoaded", async () => {
   document
   .getElementById("applyAiRecommendationBtn")
   ?.addEventListener("click", applyAIRecommendation);
+
+   pillContainer.addEventListener("click", async (e) => {
+    const pill = e.target.closest(".pill");
+    if (!pill) return;
+
+    const intent = pill.dataset.intent;
+    if (!intent || intent === currentIntent) return;
+
+    // 🔑 Update core state
+    currentIntent = intent;
+
+    // 🎨 Sync UI (single source of truth)
+    syncIntentPills(intent);
+
+    // 🔔 Update helper text
+    updateIntentHint(intent);
+
+    // 💾 Persist intent to backend (if you have this)
+    if (typeof saveIntent === "function") {
+      await saveIntent(intent);
+    }
+
+    // 🔄 Re-score hooks if needed
+    if (typeof refreshHookScore === "function") {
+      refreshHookScore();
+    }
+
+    // 📣 User feedback
+    setStatus(
+      "hookLabStatus",
+      `Intent set to “${intent}”`,
+      "info"
+    );
+  });
 
 document
   .getElementById("undoAiRecommendationBtn")
