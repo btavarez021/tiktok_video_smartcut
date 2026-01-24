@@ -1930,7 +1930,7 @@ async function loadAISetupSummary() {
   if (!el || !data) return;
 
   if (!data.has_analysis) {
-    hide("aiSetupSummary");
+    el.classList.add("hidden")
     return;
   }
 
