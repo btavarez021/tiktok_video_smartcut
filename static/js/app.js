@@ -1947,7 +1947,7 @@ async function loadAISetupSummary() {
   if (!el || !data) return;
 
   if (!data.has_analysis) {
-    el.classList.add("hidden")
+    el.classList.add("hidden");
     return;
   }
 
@@ -1968,66 +1968,51 @@ async function loadAISetupSummary() {
         <li>⏱ Estimated length: <b>${data.estimated_length ?? "—"}</b></li>
       </ul>
 
-      <button
-        id="goToVariantsBtn"
-        class="btn primary small">
+      <button id="goToVariantsBtn" class="btn primary small">
         Generate hooks and captions →
-      </button>
-
-      <button
-        id="undoAiRecommendationBtn"
-        class="btn ghost hidden">
-        Undo
       </button>
     </div>
   `;
 
-   const goBtn = el.querySelector("#goToVariantsBtn");
+  const goBtn = el.querySelector("#goToVariantsBtn");
 
-if (goBtn) {
-  goBtn.onclick = async () => {
-  // Step 1: Ensure YAML exists
-  const yaml = await jsonFetch(
-    `/api/config?session=${encodeURIComponent(getActiveSession())}`
-  );
+  if (goBtn) {
+    goBtn.onclick = async () => {
+      // 1️⃣ Ensure YAML exists
+      const yaml = await jsonFetch(
+        `/api/config?session=${encodeURIComponent(getActiveSession())}`
+      );
 
-  const hasYaml =
-    yaml?.yaml &&
-    yaml.yaml.includes("first_clip") &&
-    yaml.yaml.includes("middle_clips");
+      const hasYaml =
+        yaml?.yaml &&
+        yaml.yaml.includes("first_clip") &&
+        yaml.yaml.includes("middle_clips");
 
-  if (!hasYaml) {
-    const ok = confirm(
-      "To generate hooks and captions, we first need to build the storyboard.\n\nGenerate YAML now?"
-    );
+      if (!hasYaml) {
+        const ok = confirm(
+          "To generate hooks and captions, we first need to build the storyboard.\n\nGenerate YAML now?"
+        );
+        if (!ok) return;
 
-    if (!ok) return;
+        await generateYaml();           // Step 2 logic
+        await loadConfigAndYaml();
+        await loadCaptionsFromYaml();
 
-    // 🔑 Generate YAML first
-    await generateYaml(); // your existing Step 2 function
+        toast("Storyboard created ✓ Let’s improve the hook");
+      }
 
-    // Give UI a beat to refresh
-    await loadConfigAndYaml();
-    await loadCaptionsFromYaml();
-    
-    toast("Storyboard created ✓ Let’s improve the hook");
+      // 2️⃣ Open hook + variants context
+      openVariantsPanel();
 
+      const hookLab = document.getElementById("hookLab");
+      if (hookLab) hookLab.classList.remove("hidden");
+
+      highlightHookLab();
+
+      // 3️⃣ Move user to captions / hook area
+      scrollToStep("#step-3");
+    };
   }
-
-  // Step 2: Move user to captions step
-  scrollToStep("#step-3");
-
-  // Step 3: Open variants panel (but don't auto-generate)
-  openVariantsPanel();
-  document.getElementById("hookLab")?.classList.remove("hidden");
-  highlightHookLab();
-};
-
-  const undoBtn = el.querySelector("#undoAiRecommendationBtn");
-  if (undoBtn) {
-    undoBtn.onclick = undoAIRecommendation;
-  }
-}
 
   el.classList.remove("hidden");
 }
