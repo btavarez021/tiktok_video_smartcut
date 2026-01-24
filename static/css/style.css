@@ -3408,3 +3408,9 @@ body.no-scroll {
   background: rgba(255,255,255,0.03);
   border: 1px dashed rgba(255,255,255,0.15);
 }
+
+/* When hook is locked */
+.hook-locked {
+  border-color: rgba(239,68,68,0.5);
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.15);
+}

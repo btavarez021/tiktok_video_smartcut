@@ -105,6 +105,7 @@ function syncIntentPills(intent) {
   });
 }
 
+
 async function loadIntentFromConfig() {
   try {
     const res = await jsonFetch(
@@ -698,15 +699,48 @@ function renderHookLab(hooks) {
 }
 
 function updateHookLockUI() {
-  const improveBtn = document.getElementById("improveHookBtn");
-  const bar = document.getElementById("hookLockedBar");
+  const clearBtn = document.getElementById("clearHookBtn");
+  const hookLab = document.getElementById("hookLab");
 
-  const isLocked = !!selectedHook;
+  if (!clearBtn) return;
 
-  if (improveBtn) improveBtn.disabled = isLocked;
-  if (bar) bar.classList.toggle("hidden", !isLocked);
+  if (selectedHook) {
+    // 🔒 Locked state
+    clearBtn.textContent = "Clear hook & let AI re-rank";
+    clearBtn.classList.add("danger");
+
+    hookLab?.classList.add("hook-locked");
+
+    setStatus(
+      "hookLabStatus",
+      "🔒 Hook locked — AI will now build around your choice",
+      "success"
+    );
+  } else {
+    // 🔓 Unlocked state
+    clearBtn.textContent = "Clear";
+    clearBtn.classList.remove("danger");
+
+    hookLab?.classList.remove("hook-locked");
+  }
 }
 
+function clearHookSelection() {
+  selectedHook = null;
+
+  updateHookLockUI();
+
+  document.getElementById("selectedHookBar")
+    ?.classList.add("hidden");
+
+  setStatus(
+    "hookLabStatus",
+    "Hook unlocked — AI can recommend again",
+    "info"
+  );
+
+  renderHookLab(lastGeneratedHooks);
+}
 
 
 function clearSelectedHook() {
@@ -729,6 +763,8 @@ function clearSelectedHook() {
 function selectHook(text) {
   // 🚫 HARD LOCK: do nothing if already locked
   if (selectedHook && selectedHook !== text) {
+
+
     setStatus(
       "hookLabStatus",
       "🔒 Hook is locked — clear it to choose another",
