@@ -596,29 +596,71 @@
             <b>Informational</b> → Clarity, structure, explanation
             </span>
         </span>
-        </label>
+        
+            <!-- 🧲 Hook Lab -->
+            <div id="hookLab" class="hook-lab hidden">
 
+            <div class="hook-lab-header">
 
-        <div class="intent-pills">
-            <button data-intent="discovery" class="pill active">🚀 Discovery</button>
-            <button data-intent="personal" class="pill">🤝 Personal</button>
-            <button data-intent="aesthetic" class="pill">✨ Aesthetic</button>
-            <button data-intent="informational" class="pill">🧠 Info</button>
-        </div>
+                <!-- Title -->
+                <div class="hook-lab-title">
+                🧲 Hook Lab
+                <span class="tooltip">ⓘ
+                    <span class="tooltiptext tooltip-wide">
+                    Generates alternate opening lines for your video.<br><br>
+                    Each hook is scored for:
+                    <ul style="margin:6px 0 6px 16px;">
+                        <li>curiosity</li>
+                        <li>emotional pull</li>
+                        <li>scroll-stopping power</li>
+                    </ul>
+                    Pick one → then generate stories that follow it.
+                    <b>One hook is marked as AI Recommended</b> based on your selected
+                    <b>video goal</b>.
+                    </span>
+                </span>
+                </div>
 
+                <!-- Controls group -->
+                <div class="hook-lab-controls">
 
-        <div class="hint-text subtle" id="intentHint"
-                title="Discovery favors hooks. Personal favors story flow. Aesthetic favors pacing.">
-            Intent guides how AI evaluates hooks and storytelling.
-            </div>
+                <!-- 🎯 Video Intent -->
+                <div class="intent-selector">
+                    <label class="intent-label">
+                    🎯 Video goal
+                    <span class="tooltip">ⓘ
+                        <span class="tooltiptext tooltip-wide">
+                        This tells the AI <b>what success means</b> for your video.<br><br>
+                        <b>Discovery</b> → Reach, virality, scroll-stopping hooks<br>
+                        <b>Personal</b> → Story, emotion, connection<br>
+                        <b>Aesthetic</b> → Clean, calm, visual flow<br>
+                        <b>Informational</b> → Clarity, structure, explanation
+                        </span>
+                    </span>
+                    </label>
 
+                    <div class="intent-pills">
+                    <button data-intent="discovery" class="pill active">🚀 Discovery</button>
+                    <button data-intent="personal" class="pill">🤝 Personal</button>
+                    <button data-intent="aesthetic" class="pill">✨ Aesthetic</button>
+                    <button data-intent="informational" class="pill">🧠 Info</button>
+                    </div>
+
+                    <div class="hint-text subtle" id="intentHint">
+                    Intent guides how AI evaluates hooks and storytelling.
+                    </div>
+                </div>
+
+                <!-- Actions -->
                 <div class="hook-lab-actions">
                     <span id="hookLabStatus" class="hook-lab-status"></span>
                     <button id="generateHooksBtn" class="btn primary">
                     Generate Hooks
                     </button>
                 </div>
+
                 </div>
+            </div>
 
                 <!-- Selected hook bar -->
                 <div id="selectedHookBar" class="selected-hook-bar hidden">

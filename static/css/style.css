@@ -2211,27 +2211,31 @@ h3 {
   }
 }
 
+/* Stack header vertically */
 .hook-lab-header {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
 }
 
-.hook-lab-title-row {
+/* Make controls feel like one unit */
+.hook-lab-controls {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #2a2d34;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 12px;
 }
 
+/* Title should not overpower controls */
 .hook-lab-title {
   font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .selected-hook-bar {
