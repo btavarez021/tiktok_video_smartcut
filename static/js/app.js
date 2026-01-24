@@ -1986,30 +1986,32 @@ if (applyBtn) {
 
 async function applyAIRecommendation() {
   const session = getActiveSession();
+
   const applyBtn = document.getElementById("applyAiRecommendationBtn");
   const undoBtn  = document.getElementById("undoAiRecommendationBtn");
 
-  // Find recommended caption variant (optional)
   const variant = window.lastGeneratedVariants
     ?.find(v => v.recommended === true);
 
   if (!variant) {
-    alert("No AI recommendation available yet.");
+    alert("No AI recommendation available.");
     return;
   }
 
   const ok = confirm(
-    "Apply AI-recommended settings?\nThis will replace current captions and timings."
+    "Apply AI-recommended captions, timings, and overlay?\n\nYou can undo this."
   );
   if (!ok) return;
 
   try {
-    // 🔒 SNAPSHOT BEFORE ANY CHANGES (for Undo)
-    const before = await jsonFetch(`/api/config?session=${encodeURIComponent(session)}`);
+    // 🔒 SNAPSHOT FULL YAML (UNDO SAFETY)
+    const before = await jsonFetch(
+      `/api/config?session=${encodeURIComponent(session)}`
+    );
+
     lastAiApplySnapshot = {
       session,
-      yaml: before.yaml || "",
-      config: structuredClone(before.config || {})
+      yaml: before.yaml
     };
 
     if (applyBtn) {
@@ -2017,47 +2019,44 @@ async function applyAIRecommendation() {
       applyBtn.textContent = "Applying…";
     }
 
-    // 📝 1) Apply captions (recommended variant)
+    // 1️⃣ Apply captions
     await jsonFetch("/api/apply_variant", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session,
         text: variant.text
       })
     });
 
-    // ⏱ 2) Apply smart timings
+    // 2️⃣ Apply smart timings
     await jsonFetch("/api/timings", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session,
         smart: true
       })
     });
 
-    // 🎨 3) Apply AI overlay style
+    // 3️⃣ Apply overlay style
     await jsonFetch("/api/overlay", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session,
         style: "ai_recommended"
       })
     });
 
-    // 🔄 Refresh dependent UI
+    // 🔄 Refresh everything
     await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
     await refreshHookScore();
     await refreshStoryFlowScore();
-    loadAISetupSummary();
 
     toast("AI recommendation applied ✅");
 
     if (applyBtn) {
-      applyBtn.disabled = true;
       applyBtn.textContent = "Applied ✓";
+      applyBtn.disabled = true;
     }
 
     if (undoBtn) {
@@ -2071,7 +2070,7 @@ async function applyAIRecommendation() {
 
     if (applyBtn) {
       applyBtn.disabled = false;
-      applyBtn.textContent = "Apply AI Recommendation";
+      applyBtn.textContent = "Apply AI recommendation";
     }
   }
 }
@@ -2679,6 +2678,29 @@ data.variants.forEach((variant, i) => {
     // ✅ Success AFTER render
     setVariantsStatus("Variants generated ✓", "success");
     box.dataset.rendered = "true";
+
+    // ================================
+    // AI Recommendation Bar Logic
+    // ================================
+    const hasRecommended =
+      Array.isArray(data.variants) &&
+      data.variants.some(v => v.recommended === true);
+
+    const bar = document.getElementById("aiRecommendationBar");
+    const applyBtn = document.getElementById("applyAiRecommendationBtn");
+    const undoBtn = document.getElementById("undoAiRecommendationBtn");
+
+    if (bar) {
+      bar.classList.toggle("hidden", !hasRecommended);
+    }
+
+    if (applyBtn) {
+      applyBtn.disabled = !hasRecommended;
+    }
+
+    if (undoBtn) {
+      undoBtn.classList.add("hidden");
+    }
 
 
     setTimeout(() => {
@@ -4087,6 +4109,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     highlightHookLab();
   });
+
+  document
+  .getElementById("applyAiRecommendationBtn")
+  ?.addEventListener("click", applyAIRecommendation);
+
+document
+  .getElementById("undoAiRecommendationBtn")
+  ?.addEventListener("click", undoAIRecommendation);
   
   loadIntentFromConfig();
 
