@@ -2008,6 +2008,10 @@ if (goBtn) {
 
     // Give UI a beat to refresh
     await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
+    
+    toast("Storyboard created ✓ Let’s improve the hook");
+
   }
 
   // Step 2: Move user to captions step
