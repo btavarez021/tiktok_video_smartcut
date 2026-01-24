@@ -4282,39 +4282,45 @@ document.addEventListener("DOMContentLoaded", async () => {
   .getElementById("applyAiRecommendationBtn")
   ?.addEventListener("click", applyAIRecommendation);
 
-   pillContainer.addEventListener("click", async (e) => {
-    const pill = e.target.closest(".pill");
-    if (!pill) return;
+   // -------------------------------
+  // Intent pill wiring (FIXED)
+  // -------------------------------
+  const pillContainer = document.querySelector(".intent-pills");
+  if (pillContainer) {
+    pillContainer.addEventListener("click", async (e) => {
+      const pill = e.target.closest(".pill");
+      if (!pill) return;
 
-    const intent = pill.dataset.intent;
-    if (!intent || intent === currentIntent) return;
+      const intent = pill.dataset.intent;
+      if (!intent || intent === currentIntent) return;
 
-    // 🔑 Update core state
-    currentIntent = intent;
+      // 🔑 Update core state
+      currentIntent = intent;
 
-    // 🎨 Sync UI (single source of truth)
-    syncIntentPills(intent);
+      // 🎨 Sync UI
+      syncIntentPills(intent);
 
-    // 🔔 Update helper text
-    updateIntentHint(intent);
+      // 🔔 Update hint
+      updateIntentHint(intent);
 
-    // 💾 Persist intent to backend (if you have this)
-    if (typeof saveIntent === "function") {
-      await saveIntent(intent);
-    }
+      // 💾 Persist intent (optional)
+      if (typeof saveIntent === "function") {
+        await saveIntent(intent);
+      }
 
-    // 🔄 Re-score hooks if needed
-    if (typeof refreshHookScore === "function") {
-      refreshHookScore();
-    }
+      // 🔄 Re-score hooks if needed
+      if (typeof refreshHookScore === "function") {
+        refreshHookScore();
+      }
 
-    // 📣 User feedback
-    setStatus(
-      "hookLabStatus",
-      `Intent set to “${intent}”`,
-      "info"
-    );
-  });
+      // 📣 Feedback
+      setStatus(
+        "hookLabStatus",
+        `Intent set to “${intent}”`,
+        "info"
+      );
+    });
+  }
 
 document
   .getElementById("undoAiRecommendationBtn")
