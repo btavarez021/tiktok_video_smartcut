@@ -705,19 +705,21 @@ function updateHookLockUI() {
   if (!clearBtn) return;
 
   if (selectedHook) {
-    // 🔒 Locked state
-    clearBtn.textContent = "Clear hook & let AI re-rank";
+    // 🔒 Locked
+    clearBtn.classList.remove("hidden");
+    clearBtn.textContent = "Clear hook & let AI choose again";
     clearBtn.classList.add("danger");
 
     hookLab?.classList.add("hook-locked");
 
     setStatus(
       "hookLabStatus",
-      "🔒 Hook locked — AI will now build around your choice",
+      "🔒 Hook locked — AI will build around your selection",
       "success"
     );
   } else {
-    // 🔓 Unlocked state
+    // 🔓 Unlocked
+    clearBtn.classList.add("hidden");
     clearBtn.textContent = "Clear";
     clearBtn.classList.remove("danger");
 
