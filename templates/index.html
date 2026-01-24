@@ -409,35 +409,40 @@
         </div>
 
 
-        <!-- ================================
-            STORYBOARD TIMELINE (Clip Order)
-        ================================ -->
-        <div class="storyboard-panel">
-            <div class="storyboard-continue">
-              <button id="continueToHooksBtn" class="btn primary small">
-                Continue to hooks →
-              </button>
-              <p class="hint-text subtle">
-                Hook strength depends on clip order. First clip becomes the hook.
-              </p>
-            </div>
-        <h3 class="storyboard-title">
-            🎬 Storyboard Order
-            <span class="tooltip">ⓘ
-            <span class="tooltiptext">
-                Adjust clip order to control story flow.<br>
-                First clip = hook.
-            </span>
-            </span>
-        </h3>
+<!-- ================================
+     STORYBOARD TIMELINE (Clip Order)
+================================ -->
+<div class="storyboard-panel">
 
-        <div id="storyboardTimeline" class="storyboard-timeline"></div>
+  <h3 class="storyboard-title">
+    🎬 Storyboard Order
+    <span class="tooltip">ⓘ
+      <span class="tooltiptext">
+        Adjust clip order to control story flow.<br>
+        First clip = hook.
+      </span>
+    </span>
+  </h3>
 
-        <div class="storyboard-actions">
-            <span id="storyboardStatus" class="hint-text"></span>
-        </div>
-        </div>
+  <!-- Timeline (ONE source of truth) -->
+  <div id="storyboardTimeline" class="storyboard-timeline"></div>
 
+  <!-- Status -->
+  <div class="storyboard-actions">
+    <span id="storyboardStatus" class="hint-text"></span>
+  </div>
+
+  <!-- Confirmation CTA -->
+  <div class="storyboard-continue">
+    <button id="continueToHooksBtn" class="btn primary small">
+      ✓ Clip order looks good — Continue to hooks
+    </button>
+    <p class="hint-text subtle">
+      Hook strength depends on clip order. The first clip becomes the hook.
+    </p>
+  </div>
+
+</div>
 
 
         <!-- ================================
