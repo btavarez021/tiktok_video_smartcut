@@ -128,6 +128,13 @@ async function loadIntentFromConfig() {
 
     // Refresh dependent systems
     refreshHookScore();
+    
+    setStatus(
+      "hookLabStatus",
+      `Intent set to “${intent}”`,
+      "info"
+    );
+
 
   } catch (e) {
     console.warn("Failed to load intent, using default");
