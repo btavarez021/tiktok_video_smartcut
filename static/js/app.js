@@ -1965,6 +1965,19 @@ async function loadAISetupSummary() {
     </div>
   `;
 
+    // 🔗 Wire Generate AI Captions button (dynamic)
+  const goBtn = el.querySelector("#goToVariantsBtn");
+  if (goBtn) {
+    goBtn.onclick = () => {
+      toggleVariantsPanel(false);
+      document
+        .getElementById("variantsDrawer")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      highlightHookLab();
+    };
+  }
+
   // Enable / disable Apply button based on recommendation availability
 const applyBtn = el.querySelector("#applyAiRecommendationBtn");
 
@@ -2631,6 +2644,7 @@ async function generateCaptionVariants() {
     }
 
     const data = await res.json();
+    window.lastGeneratedVariants = data.variants || [];
 
     console.log("[VARIANTS] response:", data);
 
@@ -4099,16 +4113,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   console.log("[SESSION INIT]", ACTIVE_SESSION);
 
-  document
-  .getElementById("goToVariantsBtn")
-  ?.addEventListener("click", () => {
+  goBtn.onclick = async () => {
     toggleVariantsPanel(false);
+
     document
       .getElementById("variantsDrawer")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-    highlightHookLab();
-  });
+    // If variants not generated yet, do it automatically
+    if (!Array.isArray(window.lastGeneratedVariants) || !window.lastGeneratedVariants.length) {
+      await generateCaptionVariants();
+    } else {
+      highlightHookLab();
+    }
+  };
 
   document
   .getElementById("applyAiRecommendationBtn")
