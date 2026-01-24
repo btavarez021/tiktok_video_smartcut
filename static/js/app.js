@@ -64,11 +64,19 @@ function updateCaptionBaselineHint() {
   const hint = document.getElementById("captionBaselineHint");
   if (!hint) return;
 
-  const hasVariants =
-    window.lastGeneratedVariants &&
-    window.lastGeneratedVariants.length > 0;
+  const hasVariants = lastGeneratedVariants.length > 0;
+
 
   hint.style.display = hasVariants ? "none" : "block";
+}
+
+function updateLoadYamlVisibility() {
+  const btn = document.getElementById("loadCaptionsFromYamlBtn");
+  if (!btn) return;
+
+  const hasVariants = lastGeneratedVariants.length > 0;
+
+  btn.style.display = hasVariants ? "inline-block" : "none";
 }
 
 async function loadIntentFromConfig() {
@@ -972,6 +980,8 @@ async function setActiveSession(name) {
   // Load core state in order
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
+  updateCaptionBaselineHint();
+  updateLoadYamlVisibility()
   await refreshHookScore();
   await refreshStoryFlowScore();
 
@@ -2688,6 +2698,8 @@ async function generateCaptionVariants() {
     window.lastGeneratedVariants = data.variants || [];
 
     updateCaptionBaselineHint();
+    updateLoadYamlVisibility();
+
 
     console.log("[VARIANTS] response:", data);
 
@@ -3069,6 +3081,7 @@ async function loadCaptionsFromYaml() {
 
     lastGeneratedVariants = [];
     updateCaptionBaselineHint();
+    updateLoadYamlVisibility();
   } catch (err) {
     console.error(err);
     setCaptionInlineStatus("Failed to load captions", "error");
