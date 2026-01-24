@@ -726,29 +726,23 @@ function updateHookLockUI() {
 }
 
 function clearSelectedHook() {
-  // 🔓 Clear state
   selectedHook = null;
 
-  // 🔓 Remove all lock / selection visuals
+  // Remove selection visuals
   document.querySelectorAll(".hookCard").forEach(card => {
-    card.classList.remove("locked", "selected");
+    card.classList.remove("selected", "hook-locked");
   });
 
   // Hide selected hook bar
   document.getElementById("selectedHookBar")?.classList.add("hidden");
 
-  // Update lock UI (button visibility, labels, etc.)
-  updateHookLockUI();
-
-  // Re-render hooks so AI recommendations reappear
+  // Re-render hooks so AI recommendations re-appear
   if (lastGeneratedHooks.length) {
     renderHookLab(lastGeneratedHooks);
   }
 
-  // User feedback
-  setStatus("hookLabStatus", "🔓 Hook unlocked — AI can recommend again", "info");
+  updateHookLockUI();
 }
-
 
 function selectHook(text) {
   // 🚫 HARD LOCK: do nothing if already locked
@@ -4307,6 +4301,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   document
   .getElementById("applyAiRecommendationBtn")
   ?.addEventListener("click", applyAIRecommendation);
+
+  document.addEventListener("DOMContentLoaded", () => {
+  const clearBtn = document.getElementById("clearHookBtn");
+  if (!clearBtn) return;
+
+  clearBtn.addEventListener("click", () => {
+    clearSelectedHook();
+  });
+});
 
    // -------------------------------
   // Intent pill wiring (FIXED)
