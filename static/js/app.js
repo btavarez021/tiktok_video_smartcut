@@ -2284,10 +2284,11 @@ async function applyAIRecommendation() {
       `/api/config?session=${encodeURIComponent(session)}`
     );
 
-    lastAiApplySnapshot = {
-      session,
-      yaml: before.yaml
-    };
+    window.aiUndoSnapshot = {
+  session,
+  yaml: before.yaml,
+  config: before.config   // IMPORTANT for full restore
+};
 
     if (applyBtn) {
       applyBtn.disabled = true;
@@ -2328,6 +2329,8 @@ async function applyAIRecommendation() {
     await refreshStoryFlowScore();
 
     toast("AI recommendation applied ✅");
+
+    updateAIRecommendationBar();
 
     if (applyBtn) {
       applyBtn.textContent = "Applied ✓";
@@ -2758,43 +2761,6 @@ async function improveHook() {
   }
 }
 
-async function applyAIRecommendation() {
-  const variant = window.lastGeneratedVariants
-    ?.find(v => v.recommended === true);
-
-  if (!variant) {
-    alert("No AI recommendation available yet.");
-    return;
-  }
-
-  const ok = confirm(
-    "Apply AI-recommended captions?\nThis will replace current captions."
-  );
-  if (!ok) return;
-
-  await jsonFetch("/api/apply_variant", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      session: getActiveSession(),
-      text: variant.text
-    })
-  });
-
-  // Refresh everything that depends on captions
-  await loadConfigAndYaml();
-  await refreshHookScore();
-  await refreshStoryFlowScore();
-  await loadAISetupSummary();
-
-  toast("AI recommendation applied ✅");
-  const btn = document.getElementById("applyAiRecommendationBtn");
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = "Applied ✓";
-}
-
-}
 
 async function undoAIRecommendation() {
   const applyBtn = document.getElementById("applyAiRecommendationBtn");
