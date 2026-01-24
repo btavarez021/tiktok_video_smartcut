@@ -32,6 +32,16 @@ let isInRewriteReview = false;
 let captionViewMode = "rewritten";
 let diffDirty = false;
 let lastAiApplySnapshot = null;
+let CURRENT_VIDEO_INTENT = "discovery"; // default
+
+function setCurrentVideoIntent(intent) {
+  CURRENT_VIDEO_INTENT = intent;
+  console.log("🎯 Video intent set to:", intent);
+}
+
+function getCurrentVideoIntent() {
+  return CURRENT_VIDEO_INTENT;
+}
 
 function debounce(fn, wait = 350) {
   let t = null;
@@ -39,6 +49,20 @@ function debounce(fn, wait = 350) {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), wait);
   };
+}
+
+function updateIntentHint(intent) {
+  const hint = document.getElementById("intentHint");
+  if (!hint) return;
+
+  const copy = {
+    discovery: "Optimized for reach, virality, and scroll-stopping hooks.",
+    personal: "Optimized for emotion, story, and connection.",
+    aesthetic: "Optimized for calm pacing and visual flow.",
+    informational: "Optimized for clarity, structure, and explanation."
+  };
+
+  hint.textContent = copy[intent] || "";
 }
 
 function setUiBusy(busy) {
@@ -81,14 +105,29 @@ function updateLoadYamlVisibility() {
 
 async function loadIntentFromConfig() {
   try {
-    const res = await jsonFetch(`/api/config?session=${encodeURIComponent(getActiveSession())}`);
+    const res = await jsonFetch(
+      `/api/config?session=${encodeURIComponent(getActiveSession())}`
+    );
+
     const intent = res?.intent || "discovery";
 
+    // 🔑 Core state
     currentIntent = intent;
-    refreshHookScore();
 
+    // 🔵 Sync pills (THIS is why yours is stuck)
+    document.querySelectorAll(".intent-pill").forEach(pill => {
+      pill.classList.toggle("active", pill.dataset.intent === intent);
+    });
+
+    // 🔔 Update intent hint (THIS is what you asked about)
+    updateIntentHint(intent);
+
+    // Optional legacy select support
     const select = document.getElementById("intentSelect");
     if (select) select.value = intent;
+
+    // Refresh dependent systems
+    refreshHookScore();
 
   } catch (e) {
     console.warn("Failed to load intent, using default");
@@ -4260,6 +4299,31 @@ document
         refreshHookScore();
       });
     }
+    
+    document.addEventListener("DOMContentLoaded", () => {
+  const pillContainer = document.querySelector(".intent-pills");
+  if (!pillContainer) return;
+
+  pillContainer.addEventListener("click", (e) => {
+    const pill = e.target.closest(".pill");
+    if (!pill) return;
+
+    // 1️⃣ Clear active state
+    pillContainer
+      .querySelectorAll(".pill.active")
+      .forEach(p => p.classList.remove("active"));
+
+    // 2️⃣ Activate clicked pill
+    pill.classList.add("active");
+
+    // 3️⃣ Store intent (global or state)
+    const intent = pill.dataset.intent;
+    setCurrentVideoIntent(intent);
+
+    // 4️⃣ Optional: update hint text
+    updateIntentHint(intent);
+  });
+});
     
      document
   .getElementById("continueToHooksBtn")
