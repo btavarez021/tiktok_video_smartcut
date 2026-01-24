@@ -1598,8 +1598,11 @@ def api_ai_setup_summary(session: str) -> dict:
     analyses = load_analysis_results_session(session)
     clip_count = len(analyses)
 
+    has_analysis = clip_count > 0
+
     labels = load_labels(session)
-    weak = sum(1 for l in labels.values() if is_weak_label(l))
+    label_count = len(labels)
+    weak = sum(1 for l in labels.values() if is_weak_label(l)) = sum(1 for l in labels.values() if is_weak_label(l))
 
     hook_data = api_hook_score(session)
     score = hook_data.get("score", 70)
@@ -1613,16 +1616,26 @@ def api_ai_setup_summary(session: str) -> dict:
 
     est = estimate_video_length(session)
 
+    if clip_count == 0:
+        estimated_length = None
+    else:
+        estimated_length = f"{max(est-2, 6)}–{est+2}s"
+
     return {
+        "has_analysis": has_analysis,
         "clips": clip_count,
-        "labels": {
-            "total": len(labels),
+       "labels": {
+            "total": label_count,
             "weak": weak,
-            "quality": "strong" if weak == 0 else "mixed"
-        },
+            "quality": (
+                "none" if label_count == 0
+                else "strong" if weak == 0
+                else "mixed"
+                )
+            },
         "hook_confidence": hook_conf,
         "recommended_goal": infer_video_goal(labels),
-        "estimated_length": f"{max(est-2, 6)}–{est+2}s"
+        "estimated_length": estimated_length
     }
 
 
