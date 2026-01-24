@@ -4254,6 +4254,23 @@ document
         refreshHookScore();
       });
     }
+    
+     document
+  .getElementById("continueToHooksBtn")
+  ?.addEventListener("click", () => {
+    openVariantsPanel();
+
+    const hookLab =
+      document.getElementById("hookLab") ||
+      document.getElementById("variantsDrawer");
+
+    requestAnimationFrame(() => {
+      hookLab?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
+  });
 
 
 async function saveIntent(intent) {
