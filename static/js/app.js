@@ -60,6 +60,16 @@ const autoSaveStoryboardOrder = debounce(() => {
   saveStoryboardOrder({ silent: true });
 }, 600);
 
+function updateCaptionBaselineHint() {
+  const hint = document.getElementById("captionBaselineHint");
+  if (!hint) return;
+
+  const hasVariants =
+    window.lastGeneratedVariants &&
+    window.lastGeneratedVariants.length > 0;
+
+  hint.style.display = hasVariants ? "none" : "block";
+}
 
 async function loadIntentFromConfig() {
   try {
@@ -1969,7 +1979,7 @@ async function loadAISetupSummary() {
       </ul>
 
       <button id="goToVariantsBtn" class="btn primary small">
-        Generate hooks and captions →
+        Improve hooks and captions →
       </button>
     </div>
   `;
@@ -2677,6 +2687,8 @@ async function generateCaptionVariants() {
     const data = await res.json();
     window.lastGeneratedVariants = data.variants || [];
 
+    updateCaptionBaselineHint();
+
     console.log("[VARIANTS] response:", data);
 
   // quick badge sanity check
@@ -2751,6 +2763,7 @@ data.variants.forEach((variant, i) => {
     setTimeout(() => {
       document.getElementById("variantsInlineStatus")?.classList.add("hidden");
     }, 2000);
+
 
   } catch (err) {
     console.error(err);
@@ -3054,6 +3067,8 @@ async function loadCaptionsFromYaml() {
     setCaptionSource("yaml", "🔵 SOURCE: YAML");
     setCaptionInlineStatus("Captions loaded from YAML", "success");
 
+    lastGeneratedVariants = [];
+    updateCaptionBaselineHint();
   } catch (err) {
     console.error(err);
     setCaptionInlineStatus("Failed to load captions", "error");

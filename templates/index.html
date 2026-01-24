@@ -344,17 +344,25 @@
         </p>
         </div>
 
-        <div class="row">
-            <button id="loadCaptionsFromYamlBtn" class="btn ghost">
-                ⤵ Load captions from YAML
-            </button>
-            <span class="tooltip">ⓘ
-                <span class="tooltiptext">
-                    Reloads captions exactly as stored in config.yml.<br>
-                    Use this to undo manual edits or sync after other actions.
-                </span>
-            </span>
+        <div id="captionBaselineHint" class="hint-text subtle">
+        These are baseline captions from your storyboard.
+        Choose a hook and style below to improve them.
+        </div>
 
+        <div class="row caption-utils">
+        <button
+            id="loadCaptionsFromYamlBtn"
+            class="btn ghost small"
+        >
+            ⤵ Reload from YAML
+        </button>
+
+        <span class="tooltip">ⓘ
+            <span class="tooltiptext">
+            Restores captions exactly as stored in config.yml.<br>
+            Use this to undo edits or re-sync after changes.
+            </span>
+        </span>
         </div>
 
         <!-- ✅ SOURCE BADGE (persistent state) -->
