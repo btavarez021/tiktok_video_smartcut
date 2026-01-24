@@ -2044,6 +2044,11 @@ async function loadAISetupSummary() {
         setStatus("improveHooksStatus", "Loading captions…", "working");
         await loadCaptionsFromYaml();
       }
+      
+      // show CTA
+      document
+        .querySelector(".storyboard-continue")
+        ?.classList.remove("hidden");
 
       // 2️⃣ Reveal hook tools (do NOT jump yet)
       document.getElementById("hookLab")?.classList.remove("hidden");
@@ -4260,6 +4265,23 @@ document
   .getElementById("continueToHooksBtn")
   ?.addEventListener("click", () => {
     openVariantsPanel();
+
+document
+  .getElementById("confirmStoryboardBtn")
+  ?.addEventListener("click", () => {
+    // Scroll to Hook Lab
+    requestAnimationFrame(() => {
+      document
+        .getElementById("hookLab")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+    });
+
+    // Optional: highlight Hook Lab
+    highlightHookLab?.();
+  });
 
     const hookLab =
       document.getElementById("hookLab") ||
