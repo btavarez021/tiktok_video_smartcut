@@ -3238,6 +3238,89 @@ body.no-scroll {
   box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
 }
 
+/* ---------------------------------------
+   Intent selector (shared container)
+---------------------------------------- */
+
+.intent-selector {
+  position: relative;
+}
+
+/* ---------------------------------------
+   Intent pills layout
+---------------------------------------- */
+
+.intent-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* Base pill (inactive) */
+.intent-pills .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 8px 12px;
+  border-radius: 999px;
+
+  background: #15161a;              /* quieter base */
+  border: 1px solid #24262c;
+
+  color: #9ca3af;                   /* muted text */
+  font-size: 13px;
+  font-weight: 500;
+
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+/* Emoji inside pill (optional span wrapper) */
+.intent-pills .pill .emoji {
+  font-size: 0.9em;
+  opacity: 0.85;
+}
+
+/* Hover (inactive only) */
+.intent-pills .pill:not(.active):hover {
+  background: #1a1b1f;
+  color: #e5e7eb;
+  border-color: #2f323a;
+}
+
+/* Active pill */
+.intent-pills .pill.active {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  border-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+
+/* ---------------------------------------
+   Intent helper text
+---------------------------------------- */
+
+#intentHint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* ---------------------------------------
+   Busy state
+---------------------------------------- */
+
+.ui-busy button {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* ---------------------------------------
+   Legacy dropdown support (safe to keep)
+---------------------------------------- */
+
 /* Dropdown arrow color fix (Chrome/Safari) */
 .intent-dropdown option {
   background: #141518;
@@ -3245,18 +3328,10 @@ body.no-scroll {
 }
 
 .intent-dropdown {
-    color: #f9fafb; 
+  color: #f9fafb;
 }
 
-.ui-busy button {
-  pointer-events: none;
-  opacity: 0.7;
-}
-
-.intent-selector {
-  position: relative;
-}
-
+/* Chevron for dropdowns (if still used elsewhere) */
 .intent-selector::after {
   content: "▾";
   position: absolute;
@@ -3268,24 +3343,13 @@ body.no-scroll {
   font-size: 12px;
 }
 
-.intent-pills {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+@media (max-width: 360px) {
+  .intent-pills {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
 }
 
-.intent-pills .pill {
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: #1a1b1f;
-  border: 1px solid #2a2d34;
-  color: #d1d5db;
-  font-size: 13px;
-  cursor: pointer;
-}
 
-.intent-pills .pill.active {
-  background: #1e3a8a;
-  border-color: #3b82f6;
-  color: #fff;
-}
+
