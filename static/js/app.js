@@ -2004,7 +2004,7 @@ if (goBtn) {
     if (!ok) return;
 
     // 🔑 Generate YAML first
-    await generateYamlFromAnalyses(); // your existing Step 2 function
+    await generateYaml(); // your existing Step 2 function
 
     // Give UI a beat to refresh
     await loadConfigAndYaml();
