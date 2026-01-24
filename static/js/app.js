@@ -1969,24 +1969,30 @@ async function loadAISetupSummary() {
 
 if (goBtn) {
   goBtn.onclick = async () => {
-    toggleVariantsPanel(false);
+  openVariantsPanel();
 
-    document
-      .getElementById("variantsDrawer")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  document
+    .getElementById("variantsDrawer")
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-    // STEP 1: Generate hooks first
-    if (!Array.isArray(window.lastGeneratedHooks) || !window.lastGeneratedHooks.length) {
-      await generateHooks();
-      highlightHookLab();
-      return; // ⛔ stop here, user must pick hook
-    }
+  // STEP 1: Generate hooks first
+  if (
+    !Array.isArray(window.lastGeneratedHooks) ||
+    !window.lastGeneratedHooks.length
+  ) {
+    await generateHooks();
+    highlightHookLab();
+    return;
+  }
 
-    // STEP 2: Only then generate variants
-    if (!Array.isArray(window.lastGeneratedVariants) || !window.lastGeneratedVariants.length) {
-      await generateCaptionVariants();
-    }
-  };
+  // STEP 2: Generate variants
+  if (
+    !Array.isArray(window.lastGeneratedVariants) ||
+    !window.lastGeneratedVariants.length
+  ) {
+    await generateCaptionVariants();
+  }
+};
 
   const undoBtn = el.querySelector("#undoAiRecommendationBtn");
   if (undoBtn) {
@@ -2603,6 +2609,18 @@ async function undoAIRecommendation() {
     }
     alert("Undo failed.");
   }
+}
+
+function openVariantsPanel() {
+  const drawer = document.getElementById("variantsDrawer");
+  const btn = document.getElementById("variantsToggleBtn");
+
+  if (!drawer) return;
+
+  drawer.classList.remove("closed");
+  drawer.classList.add("open");
+
+  if (btn) btn.textContent = "Collapse";
 }
 
 async function generateCaptionVariants() {

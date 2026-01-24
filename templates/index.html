@@ -445,33 +445,7 @@
             <span id="hookScoreValue" class="hook-score-value clickable">–/100</span>
         </div>
 
-        <!-- 🎯 Video Intent (NEW) -->
-        <div class="intent-selector">
-        <label for="intentSelect" class="intent-label">
-        🎯 Video goal
-        <span class="tooltip">ⓘ
-            <span class="tooltiptext tooltip-wide">
-            This tells the AI <b>what success means</b> for your video.<br><br>
 
-            <b>Discovery</b> → Reach, virality, scroll-stopping hooks<br>
-            <b>Personal</b> → Story, emotion, connection<br>
-            <b>Aesthetic</b> → Clean, calm, visual flow<br>
-            <b>Informational</b> → Clarity, structure, explanation
-            </span>
-        </span>
-        </label>
-
-
-        <select id="intentSelect" class="intent-dropdown">
-            <option value="discovery">🚀 Discovery (reach & growth)</option>
-            <option value="personal">🤝 Personal (story & connection)</option>
-            <option value="aesthetic">✨ Aesthetic (vibe & visuals)</option>
-            <option value="informational">🧠 Informational (teach & explain)</option>
-        </select>
-        <div class="hint-text subtle" id="intentHint"
-                title="Discovery favors hooks. Personal favors story flow. Aesthetic favors pacing.">
-            Intent guides how AI evaluates hooks and storytelling.
-            </div>
 
         <p class="hint-text subtle">
             Used to recommend the strongest hook and captions.
@@ -601,6 +575,33 @@
                 </div>
 
                 <div class="hook-lab-actions">
+                    <!-- 🎯 Video Intent (NEW) -->
+                    <div class="intent-selector">
+                    <label for="intentSelect" class="intent-label">
+                    🎯 Video goal
+                    <span class="tooltip">ⓘ
+                        <span class="tooltiptext tooltip-wide">
+                        This tells the AI <b>what success means</b> for your video.<br><br>
+
+                        <b>Discovery</b> → Reach, virality, scroll-stopping hooks<br>
+                        <b>Personal</b> → Story, emotion, connection<br>
+                        <b>Aesthetic</b> → Clean, calm, visual flow<br>
+                        <b>Informational</b> → Clarity, structure, explanation
+                        </span>
+                    </span>
+                    </label>
+
+
+                    <select id="intentSelect" class="intent-dropdown">
+                        <option value="discovery">🚀 Discovery (reach & growth)</option>
+                        <option value="personal">🤝 Personal (story & connection)</option>
+                        <option value="aesthetic">✨ Aesthetic (vibe & visuals)</option>
+                        <option value="informational">🧠 Informational (teach & explain)</option>
+                    </select>
+                    <div class="hint-text subtle" id="intentHint"
+                            title="Discovery favors hooks. Personal favors story flow. Aesthetic favors pacing.">
+                        Intent guides how AI evaluates hooks and storytelling.
+                        </div>
                     <span id="hookLabStatus" class="hook-lab-status"></span>
                     <button id="generateHooksBtn" class="btn primary">
                     Generate Hooks
