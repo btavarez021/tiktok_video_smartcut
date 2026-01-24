@@ -2002,7 +2002,7 @@ async function analyzeClips() {
     );
 
     await refreshAnalyses();
-    loadAISetupSummary();
+    loadAISetupSummaryWithRetry();
 
   } catch (err) {
     console.error(err);
@@ -2186,6 +2186,55 @@ async function loadAISetupSummary() {
   };
 
   el.classList.remove("hidden");
+}
+
+async function loadAISetupSummaryWithRetry({
+  retries = 6,
+  delay = 1200
+} = {}) {
+  const el = document.getElementById("aiSetupSummary");
+  if (!el) return;
+
+  el.classList.remove("hidden");
+  el.innerHTML = `
+    <div class="ai-summary-card subtle loading">
+      <h3>🧠 Preparing AI insights…</h3>
+      <p class="hint-text">Finalizing analysis. This can take a moment.</p>
+    </div>
+  `;
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      const data = await jsonFetch(
+        `/api/ai_setup_summary?session=${getActiveSession()}`
+      );
+
+      if (data?.has_analysis) {
+        // ✅ success — render real summary
+        await loadAISetupSummary();
+        return;
+      }
+    } catch (e) {
+      console.warn("AI summary retry failed", e);
+    }
+
+    await new Promise(r => setTimeout(r, delay));
+  }
+
+  // 🧯 Fallback — explain instead of hiding
+  el.innerHTML = `
+    <div class="ai-summary-card warning">
+      <h3>⏳ Analysis still processing</h3>
+      <p class="hint-text">
+        Your clips were analyzed, but insights are still being prepared.
+        <br />
+        This usually resolves in a few seconds.
+      </p>
+      <button class="btn ghost small" onclick="loadAISetupSummaryWithRetry()">
+        Retry
+      </button>
+    </div>
+  `;
 }
 
 async function applyAIRecommendation() {
