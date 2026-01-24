@@ -3401,3 +3401,10 @@ body.no-scroll {
     overflow: visible !important;
   }
 }
+.storyboard-confirm {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.15);
+}
