@@ -1954,7 +1954,7 @@ async function loadAISetupSummary() {
       <button
         id="goToVariantsBtn"
         class="btn primary small">
-        Generate AI captions →
+        Generate hooks and captions →
       </button>
 
       <button
@@ -1965,34 +1965,34 @@ async function loadAISetupSummary() {
     </div>
   `;
 
-    // 🔗 Wire Generate AI Captions button (dynamic)
-  const goBtn = el.querySelector("#goToVariantsBtn");
-  if (goBtn) {
-    goBtn.onclick = () => {
-      toggleVariantsPanel(false);
-      document
-        .getElementById("variantsDrawer")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+   const goBtn = el.querySelector("#goToVariantsBtn");
 
+if (goBtn) {
+  goBtn.onclick = async () => {
+    toggleVariantsPanel(false);
+
+    document
+      .getElementById("variantsDrawer")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    // STEP 1: Generate hooks first
+    if (!Array.isArray(window.lastGeneratedHooks) || !window.lastGeneratedHooks.length) {
+      await generateHooks();
       highlightHookLab();
-    };
+      return; // ⛔ stop here, user must pick hook
+    }
+
+    // STEP 2: Only then generate variants
+    if (!Array.isArray(window.lastGeneratedVariants) || !window.lastGeneratedVariants.length) {
+      await generateCaptionVariants();
+    }
+  };
+
+  const undoBtn = el.querySelector("#undoAiRecommendationBtn");
+  if (undoBtn) {
+    undoBtn.onclick = undoAIRecommendation;
   }
-
-  // Enable / disable Apply button based on recommendation availability
-const applyBtn = el.querySelector("#applyAiRecommendationBtn");
-
-const hasRecommended =
-  Array.isArray(window.lastGeneratedVariants) &&
-  window.lastGeneratedVariants.some(v => v.recommended === true);
-
-if (applyBtn) {
-  applyBtn.disabled = !hasRecommended;
-  applyBtn.title = hasRecommended
-    ? ""
-    : "Run AI caption generation to get a recommendation";
 }
-
-
 
   el.classList.remove("hidden");
 }
@@ -2346,12 +2346,11 @@ async function refreshHookScore() {
   const statusEl = document.getElementById("hookScoreStatus");
   const improveBtn = document.getElementById("improveHookBtn");
 
-  // 🚫 No captions → hide hook score entirely
-if (!workingCaptionsText && !lastSavedCaptionsText) {
-    card?.classList.add("hidden");
-    return;
-  }
-
+// Hooks only require analysis, not captions
+if (!window.lastGeneratedHooks || !window.lastGeneratedHooks.length) {
+  card?.classList.add("hidden");
+  return;
+}
   if (!card || !scoreEl || !reasonsEl || !hookEl) return;
 
   card.classList.remove("hidden");
