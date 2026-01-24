@@ -404,6 +404,20 @@ def route_save_captions():
     text = data.get("text", "")
     return jsonify(api_save_captions(text, session))
 
+@app.route("/api/apply_variant", methods=["POST"])
+def api_apply_variant():
+    data = request.get_json() or {}
+
+    session = sanitize_session(data.get("session", "default"))
+    text = data.get("text", "")
+
+    if not text.strip():
+        return {"status": "error", "error": "Empty variant text"}
+
+    # Reuse existing caption save logic
+    return api_save_captions(text, session)
+
+
 @app.route("/api/captions_mode", methods=["POST"])
 def route_captions_mode():
     data = request.get_json() or {}

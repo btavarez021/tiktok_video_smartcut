@@ -31,6 +31,7 @@ let CONFIG_LOADING = false;
 let isInRewriteReview = false;
 let captionViewMode = "rewritten";
 let diffDirty = false;
+let lastAiApplySnapshot = null;
 
 function debounce(fn, wait = 350) {
   let t = null;
@@ -941,6 +942,13 @@ function getActiveSession() {
 async function setActiveSession(name) {
   const safe = sanitizeSessionName(name);
   ACTIVE_SESSION = safe;
+  // Reset AI undo state when switching sessions
+  window.aiUndoSnapshot = null;
+
+  const undoBtn = document.getElementById("undoAiRecommendationBtn");
+  if (undoBtn) {
+    undoBtn.classList.add("hidden");
+  }
 
   updateSessionLabels();
   sidebarSyncActiveLabel();
@@ -1921,6 +1929,11 @@ async function loadAISetupSummary() {
   const el = document.getElementById("aiSetupSummary");
   if (!el || !data) return;
 
+  if (!data.has_analysis) {
+    hide("aiSetupSummary");
+    return;
+  }
+
   el.innerHTML = `
     <div class="ai-summary-card">
       <h3>🧠 AI Setup Summary</h3>
@@ -1928,40 +1941,136 @@ async function loadAISetupSummary() {
       <ul>
         <li>🎬 <b>${data.clips}</b> clips analyzed</li>
         <li>🏷 Labels: <b>${data.labels.quality}</b>
-            ${data.labels.weak ? `( ${data.labels.weak} improved )` : ""}</li>
+          ${data.labels.weak ? `( ${data.labels.weak} improved )` : ""}
+        </li>
         <li>🔥 Best hook confidence: <b>${data.hook_confidence}</b></li>
         <li>🎯 Recommended goal: <b>${data.recommended_goal}</b></li>
-        <li>⏱ Estimated length: <b>${data.estimated_length}</b></li>
+        <li>⏱ Estimated length: <b>${data.estimated_length ?? "—"}</b></li>
       </ul>
 
-      <button class="btn primary small"
-        onclick="applyAIRecommendations()">
-        Apply AI recommendations
+      <button
+        id="applyAiRecommendationBtn"
+        class="btn primary small">
+        Apply AI recommendation
+      </button>
+
+      <button
+        id="undoAiRecommendationBtn"
+        class="btn ghost hidden">
+        Undo
       </button>
     </div>
   `;
 
+  // Enable / disable Apply button based on recommendation availability
+const applyBtn = el.querySelector("#applyAiRecommendationBtn");
+
+const hasRecommended =
+  Array.isArray(window.lastGeneratedVariants) &&
+  window.lastGeneratedVariants.some(v => v.recommended === true);
+
+if (applyBtn) {
+  applyBtn.disabled = !hasRecommended;
+  applyBtn.title = hasRecommended
+    ? ""
+    : "Run AI caption generation to get a recommendation";
+}
+
+
+
   el.classList.remove("hidden");
 }
 
-async function applyAIRecommendations() {
-  await jsonFetch("/api/timings", {
-    method: "POST",
-    body: JSON.stringify({
-      session: getActiveSession(),
-      smart: true
-    })
-  });
+async function applyAIRecommendation() {
+  const session = getActiveSession();
+  const applyBtn = document.getElementById("applyAiRecommendationBtn");
+  const undoBtn  = document.getElementById("undoAiRecommendationBtn");
 
-  await jsonFetch("/api/overlay", {
-    method: "POST",
-    body: JSON.stringify({
-      session: getActiveSession(),
-      style: "ai_recommended"
-    })
-  });
+  // Find recommended caption variant (optional)
+  const variant = window.lastGeneratedVariants
+    ?.find(v => v.recommended === true);
 
-  toast("AI recommendations applied — feel free to adjust ✨");
+  if (!variant) {
+    alert("No AI recommendation available yet.");
+    return;
+  }
+
+  const ok = confirm(
+    "Apply AI-recommended settings?\nThis will replace current captions and timings."
+  );
+  if (!ok) return;
+
+  try {
+    // 🔒 SNAPSHOT BEFORE ANY CHANGES (for Undo)
+    const before = await jsonFetch(`/api/config?session=${encodeURIComponent(session)}`);
+    lastAiApplySnapshot = {
+      session,
+      yaml: before.yaml || "",
+      config: structuredClone(before.config || {})
+    };
+
+    if (applyBtn) {
+      applyBtn.disabled = true;
+      applyBtn.textContent = "Applying…";
+    }
+
+    // 📝 1) Apply captions (recommended variant)
+    await jsonFetch("/api/apply_variant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session,
+        text: variant.text
+      })
+    });
+
+    // ⏱ 2) Apply smart timings
+    await jsonFetch("/api/timings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session,
+        smart: true
+      })
+    });
+
+    // 🎨 3) Apply AI overlay style
+    await jsonFetch("/api/overlay", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session,
+        style: "ai_recommended"
+      })
+    });
+
+    // 🔄 Refresh dependent UI
+    await loadConfigAndYaml();
+    await refreshHookScore();
+    await refreshStoryFlowScore();
+    loadAISetupSummary();
+
+    toast("AI recommendation applied ✅");
+
+    if (applyBtn) {
+      applyBtn.disabled = true;
+      applyBtn.textContent = "Applied ✓";
+    }
+
+    if (undoBtn) {
+      undoBtn.classList.remove("hidden");
+      undoBtn.disabled = false;
+    }
+
+  } catch (err) {
+    console.error(err);
+    toast("Failed to apply AI recommendation");
+
+    if (applyBtn) {
+      applyBtn.disabled = false;
+      applyBtn.textContent = "Apply AI Recommendation";
+    }
+  }
 }
 
 function renderSetupSummary(summary) {
@@ -2373,6 +2482,114 @@ async function improveHook() {
   }
 }
 
+async function applyAIRecommendation() {
+  const variant = window.lastGeneratedVariants
+    ?.find(v => v.recommended === true);
+
+  if (!variant) {
+    alert("No AI recommendation available yet.");
+    return;
+  }
+
+  const ok = confirm(
+    "Apply AI-recommended captions?\nThis will replace current captions."
+  );
+  if (!ok) return;
+
+  await jsonFetch("/api/apply_variant", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session: getActiveSession(),
+      text: variant.text
+    })
+  });
+
+  // Refresh everything that depends on captions
+  await loadConfigAndYaml();
+  await refreshHookScore();
+  await refreshStoryFlowScore();
+  await loadAISetupSummary();
+
+  toast("AI recommendation applied ✅");
+  const btn = document.getElementById("applyAiRecommendationBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Applied ✓";
+}
+
+}
+
+async function undoAIRecommendation() {
+  const applyBtn = document.getElementById("applyAiRecommendationBtn");
+  const undoBtn  = document.getElementById("undoAiRecommendationBtn");
+
+  try {
+    if (!lastAiApplySnapshot?.yaml) return;
+
+    // Safety: session-bound undo
+    if (lastAiApplySnapshot.session !== getActiveSession()) {
+      alert("Undo is only available for the last AI apply in this session.");
+      return;
+    }
+
+    if (undoBtn) {
+      undoBtn.disabled = true;
+      undoBtn.textContent = "Undoing…";
+    }
+
+    // 1️⃣ Restore YAML
+    await jsonFetch(`/api/save_yaml`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session: getActiveSession(),
+        yaml: lastAiApplySnapshot.yaml
+      })
+    });
+
+    // 2️⃣ Restore CONFIG (🔥 critical)
+    await jsonFetch(`/api/save_config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session: getActiveSession(),
+        config: lastAiApplySnapshot.config
+      })
+    });
+
+    // 3️⃣ Full UI refresh (mirrors Apply)
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
+    await refreshHookScore();
+    await refreshStoryFlowScore();
+    loadAISetupSummary();
+
+    // Reset buttons
+    if (applyBtn) {
+      applyBtn.disabled = false;
+      applyBtn.textContent = "Apply AI Recommendation";
+    }
+
+    if (undoBtn) {
+      undoBtn.classList.add("hidden");
+      undoBtn.textContent = "Undo";
+      undoBtn.disabled = false;
+    }
+
+    lastAiApplySnapshot = null;
+
+    toast("AI changes undone");
+
+  } catch (err) {
+    console.error(err);
+    if (undoBtn) {
+      undoBtn.disabled = false;
+      undoBtn.textContent = "Undo";
+    }
+    alert("Undo failed.");
+  }
+}
 
 async function generateCaptionVariants() {
   setUiBusy(true);
@@ -4150,6 +4367,11 @@ if (captionsBox) {
 
     document.getElementById("refreshSessionsBtn")?.addEventListener("click", loadSessions);
 
+    document
+  .getElementById("undoAiRecommendationBtn")
+  ?.addEventListener("click", undoAIRecommendation);
+
+
     // Stepper & logs
     initStepper();
     startStatusLogPolling();
@@ -4241,6 +4463,11 @@ if (captionsBox) {
     document
         .getElementById("refreshAnalysesBtn")
         ?.addEventListener("click", refreshAnalyses);
+
+    document
+  .getElementById("applyAiRecommendationBtn")
+  ?.addEventListener("click", applyAIRecommendation);
+
 
     document
         .getElementById("generateYamlBtn")
