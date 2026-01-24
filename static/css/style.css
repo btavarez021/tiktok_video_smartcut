@@ -2220,13 +2220,10 @@ h3 {
 
 /* Make controls feel like one unit */
 .hook-lab-controls {
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid #2a2d34;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+   display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 /* Title should not overpower controls */
@@ -3258,7 +3255,6 @@ body.no-scroll {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 6px;
 }
 
 /* Base pill (inactive) */
