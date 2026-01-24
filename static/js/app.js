@@ -1888,6 +1888,23 @@ async function analyzeClips() {
   }
 }
 
+function scrollToStep(stepSelector) {
+  const el = document.querySelector(stepSelector);
+  if (!el) return;
+
+  el.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+
+  // Optional: sync stepper UI if you already do this elsewhere
+  document.querySelectorAll(".step").forEach(btn => {
+    btn.classList.toggle(
+      "active",
+      btn.dataset.target === stepSelector
+    );
+  });
+}
 
 
 async function refreshAnalyses() {
