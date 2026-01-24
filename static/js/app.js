@@ -32,16 +32,12 @@ let isInRewriteReview = false;
 let captionViewMode = "rewritten";
 let diffDirty = false;
 let lastAiApplySnapshot = null;
-let CURRENT_VIDEO_INTENT = "discovery"; // default
 
 function setCurrentVideoIntent(intent) {
-  CURRENT_VIDEO_INTENT = intent;
+  currentIntent = intent;
   console.log("🎯 Video intent set to:", intent);
 }
 
-function getCurrentVideoIntent() {
-  return CURRENT_VIDEO_INTENT;
-}
 
 function debounce(fn, wait = 350) {
   let t = null;
@@ -1241,25 +1237,26 @@ function toggleUploadManager() {
 let _statusTimers = {};
 
 function setStatus(id, msg, type = "info", autoHide = true) {
-    const el = document.getElementById(id);
-    if (!el) return;
+  const el = document.getElementById(id);
+  if (!el) return; // ✅ correct place
 
-    el.className = "status-text status-" + type;
-    el.textContent = msg;
+  el.className = "status-text status-" + type;
+  el.textContent = msg;
 
-    if (_statusTimers[id]) {
-        clearTimeout(_statusTimers[id]);
-        delete _statusTimers[id];
-    }
+  if (_statusTimers[id]) {
+    clearTimeout(_statusTimers[id]);
+    delete _statusTimers[id];
+  }
 
-    if (!autoHide) return;
+  if (!autoHide) return;
 
-    _statusTimers[id] = setTimeout(() => {
-        el.textContent = "";
-        el.className = "status-text status-info";
-        delete _statusTimers[id];
-    }, 5000);
+  _statusTimers[id] = setTimeout(() => {
+    el.textContent = "";
+    el.className = "status-text status-info";
+    delete _statusTimers[id];
+  }, 5000);
 }
+
 
 async function jsonFetch(url, opts = {}) {
   const headers = {
