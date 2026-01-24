@@ -47,6 +47,18 @@ function debounce(fn, wait = 350) {
   };
 }
 
+function updateAIRecommendationBar() {
+  const bar = document.getElementById("aiRecommendationBar");
+  if (!bar) return;
+
+  const hasRecommendation =
+    Array.isArray(window.lastGeneratedVariants) &&
+    window.lastGeneratedVariants.some(v => v.recommended === true);
+
+  bar.classList.toggle("hidden", !hasRecommendation);
+}
+
+
 function updateIntentHint(intent) {
   const hint = document.getElementById("intentHint");
   if (!hint) return;
@@ -502,6 +514,7 @@ function updateVariantStoryScore(id, flow) {
 
 
 async function generateHooks() {
+  document.getElementById("aiRecommendationBar")?.classList.add("hidden");
   const btn = document.getElementById("generateHooksBtn");
   const status = document.getElementById("hookLabStatus");
 
@@ -699,6 +712,8 @@ function renderHookLab(hooks) {
 }
 
 function updateHookLockUI() {
+
+  
   const clearBtn = document.getElementById("clearHookBtn");
   const lockBar = document.getElementById("hookLockedBar");
 
@@ -728,6 +743,9 @@ function updateHookLockUI() {
 function clearSelectedHook() {
   selectedHook = null;
 
+  document.getElementById("aiRecommendationBar")?.classList.add("hidden");
+
+
   // Remove selection visuals
   document.querySelectorAll(".hookCard").forEach(card => {
     card.classList.remove("selected", "hook-locked");
@@ -745,6 +763,8 @@ function clearSelectedHook() {
 }
 
 function selectHook(text) {
+
+  document.getElementById("aiRecommendationBar")?.classList.add("hidden");
   // 🚫 HARD LOCK: do nothing if already locked
   if (selectedHook && selectedHook !== text) {
 
@@ -1044,6 +1064,9 @@ function toast(message, duration = 2500) {
 }
 
 async function setActiveSession(name) {
+
+  document.getElementById("aiRecommendationBar")?.classList.add("hidden");
+
   const safe = sanitizeSessionName(name);
   ACTIVE_SESSION = safe;
   // Reset AI undo state when switching sessions
@@ -2786,6 +2809,8 @@ function openVariantsPanel() {
 }
 
 async function generateCaptionVariants() {
+  document.getElementById("aiRecommendationBar")?.classList.add("hidden");
+
   setUiBusy(true);
   const btn = document.getElementById("generateVariantsBtn");
 
@@ -2824,6 +2849,8 @@ async function generateCaptionVariants() {
 
     const data = await res.json();
     window.lastGeneratedVariants = data.variants || [];
+
+    updateAIRecommendationBar();
 
     updateCaptionBaselineHint();
     updateLoadYamlVisibility();
@@ -2875,30 +2902,6 @@ data.variants.forEach((variant, i) => {
     // ✅ Success AFTER render
     setVariantsStatus("Variants generated ✓", "success");
     box.dataset.rendered = "true";
-
-    // ================================
-    // AI Recommendation Bar Logic
-    // ================================
-    const hasRecommended =
-      Array.isArray(data.variants) &&
-      data.variants.some(v => v.recommended === true);
-
-    const bar = document.getElementById("aiRecommendationBar");
-    const applyBtn = document.getElementById("applyAiRecommendationBtn");
-    const undoBtn = document.getElementById("undoAiRecommendationBtn");
-
-    if (bar) {
-      bar.classList.toggle("hidden", !hasRecommended);
-    }
-
-    if (applyBtn) {
-      applyBtn.disabled = !hasRecommended;
-    }
-
-    if (undoBtn) {
-      undoBtn.classList.add("hidden");
-    }
-
 
     setTimeout(() => {
       document.getElementById("variantsInlineStatus")?.classList.add("hidden");
