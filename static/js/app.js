@@ -492,6 +492,12 @@ async function generateHooks() {
 
   btn.disabled = false;
   btn.textContent = "Generate Hooks";
+
+  requestAnimationFrame(() => {
+  document
+    .getElementById("hookLabOutput")
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 }
 
 let lastGeneratedHooks = [];
@@ -2010,45 +2016,56 @@ async function loadAISetupSummary() {
 
   const goBtn = el.querySelector("#goToVariantsBtn");
 
-  if (goBtn) {
-    goBtn.onclick = async () => {
-      // 1️⃣ Ensure YAML exists
-      const yaml = await jsonFetch(
-        `/api/config?session=${encodeURIComponent(getActiveSession())}`
+if (goBtn) {
+  goBtn.onclick = async () => {
+    // 1️⃣ Ensure YAML exists
+    const yaml = await jsonFetch(
+      `/api/config?session=${encodeURIComponent(getActiveSession())}`
+    );
+
+    const hasYaml =
+      yaml?.yaml &&
+      yaml.yaml.includes("first_clip") &&
+      yaml.yaml.includes("middle_clips");
+
+    if (!hasYaml) {
+      const ok = confirm(
+        "To generate hooks and captions, we first need to build the storyboard.\n\nGenerate YAML now?"
       );
+      if (!ok) return;
 
-      const hasYaml =
-        yaml?.yaml &&
-        yaml.yaml.includes("first_clip") &&
-        yaml.yaml.includes("middle_clips");
+      await generateYaml();
+      await loadConfigAndYaml();
+      await loadCaptionsFromYaml();
 
-      if (!hasYaml) {
-        const ok = confirm(
-          "To generate hooks and captions, we first need to build the storyboard.\n\nGenerate YAML now?"
-        );
-        if (!ok) return;
+      toast("Storyboard created ✓ Let’s improve the hook");
+    }
 
-        await generateYaml();           // Step 2 logic
-        await loadConfigAndYaml();
-        await loadCaptionsFromYaml();
+    // 2️⃣ Open hook + variants context
+    openVariantsPanel();
 
-        toast("Storyboard created ✓ Let’s improve the hook");
-      }
+    const hookLab = document.getElementById("hookLab");
+    if (hookLab) hookLab.classList.remove("hidden");
 
-      // 2️⃣ Open hook + variants context
-      openVariantsPanel();
+    highlightHookLab();
 
-      const hookLab = document.getElementById("hookLab");
-      if (hookLab) hookLab.classList.remove("hidden");
+    // 3️⃣ Scroll AFTER layout fully settles (CRITICAL)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const target =
+          document.getElementById("hookLab") ||
+          document.getElementById("variantsDrawer");
 
-      highlightHookLab();
+        target?.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      });
+    });
+  };
+}
 
-      // 3️⃣ Move user to captions / hook area
-      scrollToStep("#step-3");
-    };
-  }
-
-  el.classList.remove("hidden");
+el.classList.remove("hidden");
 }
 
 async function applyAIRecommendation() {
