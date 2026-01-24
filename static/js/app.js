@@ -2011,13 +2011,19 @@ async function loadAISetupSummary() {
       <button id="goToVariantsBtn" class="btn primary small">
         Improve hooks and captions →
       </button>
+      <div id="improveHooksStatus" class="status-text subtle"></div>
     </div>
   `;
 
   const goBtn = el.querySelector("#goToVariantsBtn");
 
-if (goBtn) {
-  goBtn.onclick = async () => {
+goBtn.onclick = async () => {
+  goBtn.disabled = true;
+  goBtn.classList.add("ui-busy");
+
+  try {
+    setStatus("improveHooksStatus", "Preparing storyboard…", "working");
+
     // 1️⃣ Ensure YAML exists
     const yaml = await jsonFetch(
       `/api/config?session=${encodeURIComponent(getActiveSession())}`
@@ -2029,19 +2035,18 @@ if (goBtn) {
       yaml.yaml.includes("middle_clips");
 
     if (!hasYaml) {
-      const ok = confirm(
-        "To generate hooks and captions, we first need to build the storyboard.\n\nGenerate YAML now?"
-      );
-      if (!ok) return;
+      setStatus("improveHooksStatus", "Building storyboard…", "working");
 
       await generateYaml();
       await loadConfigAndYaml();
-      await loadCaptionsFromYaml();
 
-      toast("Storyboard created ✓ Let’s improve the hook");
+      setStatus("improveHooksStatus", "Loading captions…", "working");
+      await loadCaptionsFromYaml();
     }
 
-    // 2️⃣ Open hook + variants context
+    setStatus("improveHooksStatus", "Opening Hook Lab…", "working");
+
+    // 2️⃣ Open hook + variants
     openVariantsPanel();
 
     const hookLab = document.getElementById("hookLab");
@@ -2049,7 +2054,7 @@ if (goBtn) {
 
     highlightHookLab();
 
-    // 3️⃣ Scroll AFTER layout fully settles (CRITICAL)
+    // 3️⃣ Scroll AFTER layout settles
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const target =
@@ -2062,8 +2067,27 @@ if (goBtn) {
         });
       });
     });
-  };
-}
+
+    setStatus("improveHooksStatus", "Hook Lab ready ✓", "success");
+
+    // Optional: clear after a moment
+    setTimeout(() => {
+      setStatus("improveHooksStatus", "");
+    }, 2000);
+
+    // at the end (success + error)
+    goBtn.disabled = false;
+    goBtn.classList.remove("ui-busy");
+
+  } catch (err) {
+    console.error(err);
+    setStatus(
+      "improveHooksStatus",
+      "Something went wrong preparing hooks",
+      "error"
+    );
+  }
+};
 
 el.classList.remove("hidden");
 }
