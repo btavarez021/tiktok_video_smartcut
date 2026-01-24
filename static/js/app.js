@@ -4113,21 +4113,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   console.log("[SESSION INIT]", ACTIVE_SESSION);
 
-  goBtn.onclick = async () => {
-    toggleVariantsPanel(false);
-
-    document
-      .getElementById("variantsDrawer")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-
-    // If variants not generated yet, do it automatically
-    if (!Array.isArray(window.lastGeneratedVariants) || !window.lastGeneratedVariants.length) {
-      await generateCaptionVariants();
-    } else {
-      highlightHookLab();
-    }
-  };
-
   document
   .getElementById("applyAiRecommendationBtn")
   ?.addEventListener("click", applyAIRecommendation);
