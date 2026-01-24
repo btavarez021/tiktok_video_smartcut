@@ -2011,89 +2011,86 @@ async function loadAISetupSummary() {
       <button id="goToVariantsBtn" class="btn primary small">
         Improve hooks and captions →
       </button>
+
       <div id="improveHooksStatus" class="status-text subtle"></div>
     </div>
   `;
 
   const goBtn = el.querySelector("#goToVariantsBtn");
+  if (!goBtn) return;
 
-goBtn.onclick = async () => {
-  goBtn.disabled = true;
-  goBtn.classList.add("ui-busy");
+  goBtn.onclick = async () => {
+    goBtn.disabled = true;
+    goBtn.classList.add("ui-busy");
 
-  try {
-    setStatus("improveHooksStatus", "Preparing storyboard…", "working");
+    try {
+      setStatus("improveHooksStatus", "Preparing storyboard…", "working");
 
-    // 1️⃣ Ensure YAML exists
-    const yaml = await jsonFetch(
-      `/api/config?session=${encodeURIComponent(getActiveSession())}`
-    );
+      // 1️⃣ Ensure YAML exists
+      const yaml = await jsonFetch(
+        `/api/config?session=${encodeURIComponent(getActiveSession())}`
+      );
 
-    const hasYaml =
-      yaml?.yaml &&
-      yaml.yaml.includes("first_clip") &&
-      yaml.yaml.includes("middle_clips");
+      const hasYaml =
+        yaml?.yaml &&
+        yaml.yaml.includes("first_clip") &&
+        yaml.yaml.includes("middle_clips");
 
-    if (!hasYaml) {
-      setStatus("improveHooksStatus", "Building storyboard…", "working");
+      if (!hasYaml) {
+        setStatus("improveHooksStatus", "Building storyboard…", "working");
+        await generateYaml();
+        await loadConfigAndYaml();
 
-      await generateYaml();
-      await loadConfigAndYaml();
+        setStatus("improveHooksStatus", "Loading captions…", "working");
+        await loadCaptionsFromYaml();
+      }
 
-      setStatus("improveHooksStatus", "Loading captions…", "working");
-      await loadCaptionsFromYaml();
+      // 2️⃣ Reveal hook tools (do NOT jump yet)
+      document.getElementById("hookLab")?.classList.remove("hidden");
+
+      // Open variants drawer silently if supported
+      if (typeof openVariantsPanel === "function") {
+        openVariantsPanel({ silent: true });
+      }
+
+      // 3️⃣ Scroll user to storyboard ordering (source of truth)
+      requestAnimationFrame(() => {
+        document
+          .querySelector(".storyboard-panel")
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+      });
+
+      // Guidance message
+      setStatus(
+        "captionStatus",
+        "Review clip order first — hooks and captions build from this.",
+        "info",
+        false
+      );
+
+      setStatus("improveHooksStatus", "Hook Lab ready ✓", "success");
+
+      setTimeout(() => {
+        setStatus("improveHooksStatus", "");
+      }, 2000);
+
+    } catch (err) {
+      console.error(err);
+      setStatus(
+        "improveHooksStatus",
+        "Something went wrong preparing hooks",
+        "error"
+      );
+    } finally {
+      goBtn.disabled = false;
+      goBtn.classList.remove("ui-busy");
     }
+  };
 
-    setStatus("improveHooksStatus", "Opening Hook Lab…", "working");
-
-    // 2️⃣ Open hook + variants
-    // 2️⃣ Reveal hook tools, but keep user in storyboard context
-document.getElementById("hookLab")?.classList.remove("hidden");
-
-// Optional: open variants panel without scrolling
-openVariantsPanel({ silent: true }); // only if your function supports it
-
-// 3️⃣ Guide user to storyboard ordering (source of truth)
-requestAnimationFrame(() => {
-  document
-    .querySelector(".storyboard-panel")
-    ?.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
-});
-
-// Gentle guidance
-setStatus(
-  "captionStatus",
-  "Review clip order first — hooks and captions build from this.",
-  "info",
-  false
-);
-    });
-
-    setStatus("improveHooksStatus", "Hook Lab ready ✓", "success");
-
-    // Optional: clear after a moment
-    setTimeout(() => {
-      setStatus("improveHooksStatus", "");
-    }, 2000);
-
-    // at the end (success + error)
-    goBtn.disabled = false;
-    goBtn.classList.remove("ui-busy");
-
-  } catch (err) {
-    console.error(err);
-    setStatus(
-      "improveHooksStatus",
-      "Something went wrong preparing hooks",
-      "error"
-    );
-  }
-};
-
-el.classList.remove("hidden");
+  el.classList.remove("hidden");
 }
 
 async function applyAIRecommendation() {
