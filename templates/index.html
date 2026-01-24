@@ -599,12 +599,14 @@
         </label>
 
 
-        <select id="intentSelect" class="intent-dropdown">
-            <option value="discovery">🚀 Discovery (reach & growth)</option>
-            <option value="personal">🤝 Personal (story & connection)</option>
-            <option value="aesthetic">✨ Aesthetic (vibe & visuals)</option>
-            <option value="informational">🧠 Informational (teach & explain)</option>
-        </select>
+        <div class="intent-pills">
+            <button data-intent="discovery" class="pill active">🚀 Discovery</button>
+            <button data-intent="personal" class="pill">🤝 Personal</button>
+            <button data-intent="aesthetic" class="pill">✨ Aesthetic</button>
+            <button data-intent="informational" class="pill">🧠 Info</button>
+        </div>
+
+
         <div class="hint-text subtle" id="intentHint"
                 title="Discovery favors hooks. Personal favors story flow. Aesthetic favors pacing.">
             Intent guides how AI evaluates hooks and storytelling.
