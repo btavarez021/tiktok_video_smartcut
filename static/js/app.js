@@ -4302,14 +4302,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   .getElementById("applyAiRecommendationBtn")
   ?.addEventListener("click", applyAIRecommendation);
 
-  document.addEventListener("DOMContentLoaded", () => {
-  const clearBtn = document.getElementById("clearHookBtn");
-  if (!clearBtn) return;
+  const clearHookBtn = document.getElementById("clearHookBtn");
 
-  clearBtn.addEventListener("click", () => {
+if (clearHookBtn) {
+  clearHookBtn.addEventListener("click", (e) => {
+    e.stopPropagation(); // safety
     clearSelectedHook();
   });
-});
+}
 
    // -------------------------------
   // Intent pill wiring (FIXED)
