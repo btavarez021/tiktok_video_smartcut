@@ -1936,7 +1936,10 @@ async function loadAISetupSummary() {
 
   el.innerHTML = `
     <div class="ai-summary-card">
-      <h3>🧠 AI Setup Summary</h3>
+      <h3>🧠 AI Readiness Summary</h3>
+      <p class="hint-text subtle">
+        Next: generate hooks and captions to see AI recommendations.
+      </p>
 
       <ul>
         <li>🎬 <b>${data.clips}</b> clips analyzed</li>
@@ -1949,9 +1952,9 @@ async function loadAISetupSummary() {
       </ul>
 
       <button
-        id="applyAiRecommendationBtn"
+        id="goToVariantsBtn"
         class="btn primary small">
-        Apply AI recommendation
+        Generate AI captions →
       </button>
 
       <button
@@ -4073,6 +4076,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   console.log("[SESSION INIT]", ACTIVE_SESSION);
+
+  document
+  .getElementById("goToVariantsBtn")
+  ?.addEventListener("click", () => {
+    toggleVariantsPanel(false);
+    document
+      .getElementById("variantsDrawer")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    highlightHookLab();
+  });
   
   loadIntentFromConfig();
 
