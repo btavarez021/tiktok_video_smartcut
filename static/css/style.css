@@ -3349,3 +3349,38 @@ body.no-scroll {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+@media (max-width: 900px) {
+
+  #variantsDrawer {
+    position: static !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .variants-drawer {
+    position: static !important;
+  }
+
+  .variants-body {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+
+@media (max-width: 900px) {
+  body {
+    overflow-y: auto;
+  }
+
+  .app-shell {
+    height: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .layout {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
