@@ -2463,6 +2463,23 @@ h3 {
   border-color: #3a3a40;
 }
 
+.storyboard-continue {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.storyboard-continue .btn {
+  align-self: flex-start;
+}
+
+@media (max-width: 768px) {
+  .storyboard-continue .btn {
+    width: 100%;
+  }
+}
+
 /* Clip text */
 .clip-content {
   overflow: hidden;
