@@ -111,7 +111,7 @@ async function loadIntentFromConfig() {
     currentIntent = intent;
 
     // 🔵 Sync pills (THIS is why yours is stuck)
-    document.querySelectorAll(".intent-pill").forEach(pill => {
+    document.querySelectorAll(".intent-pills").forEach(pill => {
       pill.classList.toggle("active", pill.dataset.intent === intent);
     });
 
@@ -126,7 +126,7 @@ async function loadIntentFromConfig() {
     refreshHookScore();
     
     setStatus(
-      "hookLabStatus",
+      "captionStatus",
       `Intent set to “${intent}”`,
       "info"
     );
@@ -4303,31 +4303,6 @@ document
         refreshHookScore();
       });
     }
-    
-    document.addEventListener("DOMContentLoaded", () => {
-  const pillContainer = document.querySelector(".intent-pills");
-  if (!pillContainer) return;
-
-  pillContainer.addEventListener("click", (e) => {
-    const pill = e.target.closest(".pill");
-    if (!pill) return;
-
-    // 1️⃣ Clear active state
-    pillContainer
-      .querySelectorAll(".pill.active")
-      .forEach(p => p.classList.remove("active"));
-
-    // 2️⃣ Activate clicked pill
-    pill.classList.add("active");
-
-    // 3️⃣ Store intent (global or state)
-    const intent = pill.dataset.intent;
-    setCurrentVideoIntent(intent);
-
-    // 4️⃣ Optional: update hint text
-    updateIntentHint(intent);
-  });
-});
     
      document
   .getElementById("continueToHooksBtn")
