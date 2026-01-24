@@ -3351,5 +3351,23 @@ body.no-scroll {
   }
 }
 
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: #1f2937;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s ease;
+  z-index: 9999;
+}
 
-
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

@@ -956,6 +956,20 @@ function getActiveSession() {
   return ACTIVE_SESSION;
 }
 
+function toast(message, duration = 2500) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = message;
+
+  document.body.appendChild(el);
+
+  requestAnimationFrame(() => el.classList.add("show"));
+
+  setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 300);
+  }, duration);
+}
 
 async function setActiveSession(name) {
   const safe = sanitizeSessionName(name);
