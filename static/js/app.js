@@ -727,39 +727,29 @@ function updateHookLockUI() {
   }
 }
 
-function clearHookSelection() {
-  selectedHook = null;
-
-  updateHookLockUI();
-
-  document.getElementById("selectedHookBar")
-    ?.classList.add("hidden");
-
-  setStatus(
-    "hookLabStatus",
-    "Hook unlocked — AI can recommend again",
-    "info"
-  );
-
-  renderHookLab(lastGeneratedHooks);
-}
-
-
 function clearSelectedHook() {
+  // 🔓 Clear state
   selectedHook = null;
 
-  // 🔓 Remove all lock visuals
+  // 🔓 Remove all lock / selection visuals
   document.querySelectorAll(".hookCard").forEach(card => {
     card.classList.remove("locked", "selected");
   });
 
-  // Hide selected hook bar (if present)
+  // Hide selected hook bar
   document.getElementById("selectedHookBar")?.classList.add("hidden");
 
+  // Update lock UI (button visibility, labels, etc.)
   updateHookLockUI();
-  if (lastGeneratedHooks.length) renderHookLab(lastGeneratedHooks);
-}
 
+  // Re-render hooks so AI recommendations reappear
+  if (lastGeneratedHooks.length) {
+    renderHookLab(lastGeneratedHooks);
+  }
+
+  // User feedback
+  setStatus("hookLabStatus", "🔓 Hook unlocked — AI can recommend again", "info");
+}
 
 
 function selectHook(text) {
@@ -4542,17 +4532,6 @@ if (captionsBox) {
         }
     });
 
-    document.getElementById("clearHookBtn")?.addEventListener("click", () => {
-  clearSelectedHook();
-
-  // optional: unselect UI highlight
-  document.querySelectorAll(".hookCard").forEach(c => c.classList.remove("selected"));
-
-  // optional: hide selected hook bar if you use it
-  document.getElementById("selectedHookBar")?.classList.add("hidden");
-
-  setStatus("hookLabStatus", "Hook unlocked", "info");
-});
 
 
   document.getElementById("improveStoryFlowBtn")?.addEventListener("click", async () => {
