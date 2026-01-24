@@ -3343,14 +3343,6 @@ body.no-scroll {
   font-size: 12px;
 }
 
-@media (max-width: 360px) {
-  .intent-pills {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-}
-
 .toast {
   position: fixed;
   bottom: 24px;
