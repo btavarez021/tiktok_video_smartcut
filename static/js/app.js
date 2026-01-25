@@ -1999,33 +1999,27 @@ async function analyzeClips() {
 
   try {
     const data = await jsonFetch(
-            `/api/analyze?session=${encodeURIComponent(getActiveSession())}`,
-            { method: "POST" }
-          );
+      `/api/analyze?session=${encodeURIComponent(getActiveSession())}`,
+      { method: "POST" }
+    );
 
     if (data.status === "no_videos") {
       throw new Error("No raw uploads found in session");
     }
 
-    if (data.status === "already_running") {
+    // 🔁 already running OR just started → same behavior
+    if (data.status === "already_running" || data.status === "started") {
       setStatus(
         "analyzeStatus",
-        "Analysis already in progress…",
-        "info"
+        "Analysis running in background…",
+        "working"
       );
+
+      updateAnalyzingBadge("running");
       ANALYZE_POLL_ACTIVE = true;
       pollAnalyzeStatus();
       return;
     }
-
-    // ✅ async job started
-    setStatus(
-      "analyzeStatus",
-      "Analysis running in background…",
-      "working"
-    );
-
-    pollAnalyzeStatus();
 
   } catch (err) {
     console.error(err);
