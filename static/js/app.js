@@ -2262,41 +2262,40 @@ async function loadAISetupSummaryWithRetry({
       <p class="hint-text">
         Analysis is taking longer than expected.
       </p>
-      <button class="btn ghost small" onclick="analyzeClips()">
+      <button class="btn ghost small" onclick="retryAnalysis()">
         Retry analysis
       </button>
     </div>
   `;
 }
 
+async function retryAnalysis() {
+  const status = await jsonFetch(
+    `/api/analyze_status?session=${getActiveSession()}`
+  );
+
+  if (status.status === "running") {
+    toast("Analysis already running…");
+    pollAnalyzeStatus();
+    return;
+  }
+
+  toast("Restarting analysis…");
+  await analyzeClips();
+}
+
 async function pollAnalyzeStatus() {
-  if (ANALYZE_POLL_ACTIVE) return;
-  ANALYZE_POLL_ACTIVE = true;
+  const res = await jsonFetch(
+    `/api/analyze_status?session=${getActiveSession()}`
+  );
 
-  try {
-    const status = await jsonFetch(
-      `/api/analyze_status?session=${getActiveSession()}`
-    );
+  const badge = document.getElementById("analyzingBadge");
 
-    if (status?.status === "running") {
-      showAnalyzeBadge();
-      setTimeout(() => {
-        ANALYZE_POLL_ACTIVE = false;
-        pollAnalyzeStatus();
-      }, 1200);
-      return;
-    }
-
-    if (status?.status === "done") {
-      hideAnalyzeBadge();
-      await refreshAnalyses();
-      await loadAISetupSummaryWithRetry();
-    }
-
-  } catch (e) {
-    console.warn("Analyze status poll failed", e);
-  } finally {
-    ANALYZE_POLL_ACTIVE = false;
+  if (res.status === "running") {
+    badge?.classList.remove("hidden");
+    setTimeout(pollAnalyzeStatus, 1500);
+  } else {
+    badge?.classList.add("hidden");
   }
 }
 

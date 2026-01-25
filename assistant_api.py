@@ -53,6 +53,24 @@ AGG_PATH = os.path.join(DATA_DIR, "feedback_aggregates.json")
 
 ANALYSIS_JOBS: dict[str, dict] = {}
 
+ANALYSIS_STATUS_DIR = os.path.join(DATA_DIR, "analysis_status")
+os.makedirs(ANALYSIS_STATUS_DIR, exist_ok=True)
+
+def _analysis_status_path(session: str) -> str:
+    return os.path.join(ANALYSIS_STATUS_DIR, f"{session}.json")
+
+def save_analysis_status(session: str, data: dict):
+    with open(_analysis_status_path(session), "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+def load_analysis_status(session: str) -> dict | None:
+    path = _analysis_status_path(session)
+    if not os.path.exists(path):
+        return None
+    try:
+        return json.load(open(path))
+    except Exception:
+        return None
 
 _feedback_lock = Lock()
 
@@ -1364,18 +1382,27 @@ def _analyze_all_videos(session: str) -> Dict[str, Any]:
 
 def _run_analysis_job(session: str):
     try:
-        ANALYSIS_JOBS[session]["status"] = "running"
-        ANALYSIS_JOBS[session]["error"] = None
+        status = {
+            "status": "running",
+            "started_at": time.time(),
+            "error": None
+        }
+        ANALYSIS_JOBS[session] = status
+        save_analysis_status(session, status)
 
         _analyze_all_videos(session)
 
-        ANALYSIS_JOBS[session]["status"] = "done"
+        status["status"] = "done"
+        save_analysis_status(session, status)
 
     except Exception as e:
         logger.exception(f"[ANALYZE][{session}] Background job failed")
-        ANALYSIS_JOBS[session]["status"] = "error"
-        ANALYSIS_JOBS[session]["error"] = str(e)
-
+        status = {
+            "status": "error",
+            "error": str(e)
+        }
+        ANALYSIS_JOBS[session] = status
+        save_analysis_status(session, status)
 
 def api_analyze(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
@@ -1406,11 +1433,15 @@ def api_analyze_status(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
 
     job = ANALYSIS_JOBS.get(session)
-    if not job:
-        return {"status": "idle"}
+    if job:
+        return job
 
-    return job
+    # 🔥 fallback to disk (survives reloads)
+    saved = load_analysis_status(session)
+    if saved:
+        return saved
 
+    return {"status": "idle"}
 # -------------------------------
 # YAML generation (per session)
 # -------------------------------

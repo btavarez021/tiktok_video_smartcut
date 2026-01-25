@@ -3443,3 +3443,16 @@ body.no-scroll {
 
 .btn.loading { opacity: 0.75; cursor: progress; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.analyzing-badge {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  background: #222;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  opacity: 0.9;
+  z-index: 9999;
+}
