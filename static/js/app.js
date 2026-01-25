@@ -31,7 +31,6 @@ let CONFIG_LOADING = false;
 let isInRewriteReview = false;
 let captionViewMode = "rewritten";
 let diffDirty = false;
-let window.aiUndoSnapshot = null;
 
 function setCurrentVideoIntent(intent) {
   currentIntent = intent;
@@ -536,7 +535,6 @@ function updateVariantStoryScore(id, flow) {
 
 
 async function generateHooks() {
-  document.getElementById("aiRecommendationBar")?.classList.add("hidden");
   const btn = document.getElementById("generateHooksBtn");
   const status = document.getElementById("hookLabStatus");
 
@@ -765,9 +763,6 @@ function updateHookLockUI() {
 function clearSelectedHook() {
   selectedHook = null;
 
-  document.getElementById("aiRecommendationBar")?.classList.add("hidden");
-
-
   // Remove selection visuals
   document.querySelectorAll(".hookCard").forEach(card => {
     card.classList.remove("selected", "hook-locked");
@@ -786,7 +781,6 @@ function clearSelectedHook() {
 
 function selectHook(text) {
 
-  document.getElementById("aiRecommendationBar")?.classList.add("hidden");
   // 🚫 HARD LOCK: do nothing if already locked
   if (selectedHook && selectedHook !== text) {
 
@@ -1086,8 +1080,6 @@ function toast(message, duration = 2500) {
 }
 
 async function setActiveSession(name) {
-
-  document.getElementById("aiRecommendationBar")?.classList.add("hidden");
 
   const safe = sanitizeSessionName(name);
   ACTIVE_SESSION = safe;
@@ -2289,6 +2281,7 @@ async function applyAIRecommendation() {
   yaml: before.yaml,
   config: before.config   // IMPORTANT for full restore
 };
+    updateAIRecommendationBar();
 
     if (applyBtn) {
       applyBtn.disabled = true;
@@ -2330,7 +2323,6 @@ async function applyAIRecommendation() {
 
     toast("AI recommendation applied ✅");
 
-    updateAIRecommendationBar();
 
     if (applyBtn) {
       applyBtn.textContent = "Applied ✓";
@@ -2761,39 +2753,20 @@ async function improveHook() {
   }
 }
 
-
 async function undoAIRecommendation() {
-  const applyBtn = document.getElementById("applyAiRecommendationBtn");
-  const undoBtn  = document.getElementById("undoAiRecommendationBtn");
-
   const snapshot = window.aiUndoSnapshot;
+
   if (!snapshot?.yaml) {
     toast("Nothing to undo");
     return;
   }
 
-  // 🔒 Session guard
   if (snapshot.session !== getActiveSession()) {
     alert("Undo is only available for the last AI apply in this session.");
     return;
   }
 
   try {
-    if (undoBtn) {
-      undoBtn.disabled = true;
-      undoBtn.textContent = "Undoing…";
-    }
-
-    // 1️⃣ Restore YAML
-    await jsonFetch("/api/save_yaml", {
-      method: "POST",
-      body: JSON.stringify({
-        session: snapshot.session,
-        yaml: snapshot.yaml
-      })
-    });
-
-    // 2️⃣ Restore CONFIG
     await jsonFetch("/api/save_config", {
       method: "POST",
       body: JSON.stringify({
@@ -2802,39 +2775,27 @@ async function undoAIRecommendation() {
       })
     });
 
-    // 3️⃣ Refresh UI (mirror Apply)
+    // 🔄 FULL UI RESTORE
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
     await refreshHookScore();
     await refreshStoryFlowScore();
-    loadAISetupSummary();
 
-    // 4️⃣ Reset UI
+    // Reset state
+    window.lastGeneratedVariants = [];
+
     window.aiUndoSnapshot = null;
-
-    if (applyBtn) {
-      applyBtn.disabled = false;
-      applyBtn.textContent = "Apply AI recommendation";
-    }
-
-    if (undoBtn) {
-      undoBtn.classList.add("hidden");
-      undoBtn.textContent = "Undo";
-      undoBtn.disabled = false;
-    }
-
     updateAIRecommendationBar();
-    toast("AI changes undone ↩︎");
+
+
+    toast("AI changes undone ✓");
 
   } catch (err) {
     console.error(err);
-    if (undoBtn) {
-      undoBtn.disabled = false;
-      undoBtn.textContent = "Undo";
-    }
-    alert("Undo failed.");
+    toast("Failed to undo AI changes");
   }
 }
+
 
 function openVariantsPanel() {
   const drawer = document.getElementById("variantsDrawer");
@@ -2889,6 +2850,7 @@ async function generateCaptionVariants() {
 
     const data = await res.json();
     window.lastGeneratedVariants = data.variants || [];
+  
 
     updateAIRecommendationBar();
 
