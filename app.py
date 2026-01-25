@@ -321,10 +321,8 @@ def api_analyses_cache():
 
 @app.route("/api/analyze", methods=["POST"])
 def route_analyze():
-    body = request.get_json(silent=True) or {}
-    session = sanitize_session(body.get("session") or request.args.get("session", "default"))
+    session = sanitize_session(request.args.get("session", "default"))
     return jsonify(api_analyze(session=session))
-
 
 # ============================================================================
 # YAML GENERATION + CONFIG

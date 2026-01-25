@@ -1998,13 +1998,10 @@ async function analyzeClips() {
   );
 
   try {
-    const data = await jsonFetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session: getActiveSession()
-      })
-    });
+    const data = await jsonFetch(
+            `/api/analyze?session=${encodeURIComponent(getActiveSession())}`,
+            { method: "POST" }
+          );
 
     if (data.status === "no_videos") {
       throw new Error("No raw uploads found in session");
