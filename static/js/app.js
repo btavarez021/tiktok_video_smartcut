@@ -2013,6 +2013,7 @@ async function analyzeClips() {
         "Analysis already in progress…",
         "info"
       );
+      ANALYZE_POLL_ACTIVE = true;
       pollAnalyzeStatus();
       return;
     }
@@ -2310,7 +2311,7 @@ function updateAnalyzingBadge(status) {
 }
 
 async function pollAnalyzeStatus() {
-  if (!analyzePollActive) return;
+  if (!ANALYZE_POLL_ACTIVE) return;
 
   try {
     const data = await jsonFetch(
@@ -2321,6 +2322,7 @@ async function pollAnalyzeStatus() {
 
     updateAnalyzingBadge(status);
 
+    // 🔥 Detect transition
     if (lastAnalyzeStatus === "running" && status === "done") {
       console.log("✅ Analysis finished — refreshing UI");
 
@@ -2329,7 +2331,7 @@ async function pollAnalyzeStatus() {
       await refreshAnalyses();
       loadAISetupSummaryWithRetry();
 
-      analyzePollActive = false;
+      ANALYZE_POLL_ACTIVE = false;
       return;
     }
 
@@ -2338,7 +2340,7 @@ async function pollAnalyzeStatus() {
     if (status === "running") {
       setTimeout(pollAnalyzeStatus, 1200);
     } else {
-      analyzePollActive = false;
+      ANALYZE_POLL_ACTIVE = false;
     }
 
   } catch (err) {
