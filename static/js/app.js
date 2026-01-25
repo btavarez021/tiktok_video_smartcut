@@ -2781,12 +2781,8 @@ async function undoAIRecommendation() {
     await refreshHookScore();
     await refreshStoryFlowScore();
 
-    // Reset state
-    window.lastGeneratedVariants = [];
-
     window.aiUndoSnapshot = null;
     updateAIRecommendationBar();
-
 
     toast("AI changes undone ✓");
 
