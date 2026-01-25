@@ -2097,6 +2097,7 @@ async function loadAISetupSummary() {
   const el = document.getElementById("aiSetupSummary");
   if (!el || !data) return;
 
+  // 🔒 Hide entire card if analysis not ready
   if (!data.has_analysis) {
     el.classList.add("hidden");
     return;
@@ -2137,7 +2138,7 @@ async function loadAISetupSummary() {
     try {
       setStatus("improveHooksStatus", "Preparing storyboard…", "working");
 
-      // 1️⃣ Ensure YAML exists
+      // 1️⃣ Check if YAML already exists
       const yaml = await jsonFetch(
         `/api/config?session=${encodeURIComponent(getActiveSession())}`
       );
@@ -2147,29 +2148,40 @@ async function loadAISetupSummary() {
         yaml.yaml.includes("first_clip") &&
         yaml.yaml.includes("middle_clips");
 
+      // ❌ YAML missing → prompt generation
       if (!hasYaml) {
-        setStatus("improveHooksStatus", "Building storyboard…", "working");
-        await generateYaml();
-        await loadConfigAndYaml();
+        setStatus(
+          "improveHooksStatus",
+          "Generate storyboard first to unlock hooks & captions.",
+          "info"
+        );
 
-        setStatus("improveHooksStatus", "Loading captions…", "working");
-        await loadCaptionsFromYaml();
+        document
+          .getElementById("generateYamlBtn")
+          ?.classList.remove("hidden");
+
+        return;
       }
-      
-      // show CTA
+
+      // 🔒 YAML exists → lock generation button
+      document
+        .getElementById("generateYamlBtn")
+        ?.setAttribute("disabled", true);
+
+      // 2️⃣ Reveal storyboard continuation CTA
       document
         .querySelector(".storyboard-continue")
         ?.classList.remove("hidden");
 
-      // 2️⃣ Reveal hook tools (do NOT jump yet)
+      // 3️⃣ Reveal Hook Lab (no forced jump)
       document.getElementById("hookLab")?.classList.remove("hidden");
 
-      // Open variants drawer silently if supported
+      // Optional silent open
       if (typeof openVariantsPanel === "function") {
         openVariantsPanel({ silent: true });
       }
 
-      // 3️⃣ Scroll user to storyboard ordering (source of truth)
+      // 4️⃣ Scroll to storyboard (source of truth)
       requestAnimationFrame(() => {
         document
           .querySelector(".storyboard-panel")
@@ -2208,6 +2220,7 @@ async function loadAISetupSummary() {
 
   el.classList.remove("hidden");
 }
+
 
 async function loadAISetupSummaryWithRetry({
   retries = 6,
@@ -2297,6 +2310,8 @@ function updateAnalyzingBadge(status) {
 }
 
 async function pollAnalyzeStatus() {
+  if (!analyzePollActive) return;
+
   try {
     const data = await jsonFetch(
       `/api/analyze_status?session=${getActiveSession()}`
@@ -2304,31 +2319,26 @@ async function pollAnalyzeStatus() {
 
     const status = data.status;
 
-    // Badge
     updateAnalyzingBadge(status);
 
-    // 🔥 Detect transition
     if (lastAnalyzeStatus === "running" && status === "done") {
       console.log("✅ Analysis finished — refreshing UI");
 
-      setStatus(
-        "analyzeStatus",
-        "Analysis complete.",
-        "success"
-      );
+      setStatus("analyzeStatus", "Analysis complete.", "success");
 
-      // 🔄 AUTO refresh results
       await refreshAnalyses();
-
-      // 🔄 Load AI summary (with retry)
       loadAISetupSummaryWithRetry();
+
+      analyzePollActive = false;
+      return;
     }
 
     lastAnalyzeStatus = status;
 
-    // Keep polling while active
     if (status === "running") {
       setTimeout(pollAnalyzeStatus, 1200);
+    } else {
+      analyzePollActive = false;
     }
 
   } catch (err) {
