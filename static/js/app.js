@@ -2285,6 +2285,17 @@ async function retryAnalysis() {
   await analyzeClips();
 }
 
+function updateAnalyzingBadge(status) {
+  const badge = document.getElementById("analyzingBadge");
+  if (!badge) return;
+
+  if (status === "running") {
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
+}
+
 async function pollAnalyzeStatus() {
   try {
     const data = await jsonFetch(
