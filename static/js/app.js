@@ -32,6 +32,8 @@ let isInRewriteReview = false;
 let captionViewMode = "rewritten";
 let diffDirty = false;
 
+let ANALYZE_POLL_ACTIVE = false;
+
 function setCurrentVideoIntent(intent) {
   currentIntent = intent;
   console.log("🎯 Video intent set to:", intent);
@@ -1100,6 +1102,8 @@ async function setActiveSession(name) {
   clipOrderDirty = false;
   selectedHook = null;
 
+  pollAnalyzeStatus();
+
   // Load core state in order
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
@@ -2003,6 +2007,8 @@ async function analyzeClips() {
       })
     });
 
+    pollAnalyzeStatus();
+
     const count = data.count ?? 0;
 
     if (!count) {
@@ -2262,6 +2268,38 @@ async function loadAISetupSummaryWithRetry({
     </div>
   `;
 }
+
+async function pollAnalyzeStatus() {
+  if (ANALYZE_POLL_ACTIVE) return;
+  ANALYZE_POLL_ACTIVE = true;
+
+  try {
+    const status = await jsonFetch(
+      `/api/analyze_status?session=${getActiveSession()}`
+    );
+
+    if (status?.status === "running") {
+      showAnalyzeBadge();
+      setTimeout(() => {
+        ANALYZE_POLL_ACTIVE = false;
+        pollAnalyzeStatus();
+      }, 1200);
+      return;
+    }
+
+    if (status?.status === "done") {
+      hideAnalyzeBadge();
+      await refreshAnalyses();
+      await loadAISetupSummaryWithRetry();
+    }
+
+  } catch (e) {
+    console.warn("Analyze status poll failed", e);
+  } finally {
+    ANALYZE_POLL_ACTIVE = false;
+  }
+}
+
 
 async function applyAIRecommendation() {
   const session = getActiveSession();
@@ -4310,6 +4348,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   console.log("[SESSION INIT]", ACTIVE_SESSION);
+  
+  setTimeout(() => {
+  pollAnalyzeStatus();
+}, 300);
 
   document
   .getElementById("applyAiRecommendationBtn")

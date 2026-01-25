@@ -44,11 +44,15 @@ from tiktok_assistant import (
 )
 from tiktok_assistant import apply_overlay
 import time
+import threading
 
 logger = logging.getLogger(__name__)
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 EVENTS_PATH = os.path.join(DATA_DIR, "feedback_events.jsonl")
 AGG_PATH = os.path.join(DATA_DIR, "feedback_aggregates.json")
+
+ANALYSIS_JOBS: dict[str, dict] = {}
+
 
 _feedback_lock = Lock()
 
@@ -1357,44 +1361,55 @@ def _analyze_all_videos(session: str) -> Dict[str, Any]:
 
     log_step(f"[ANALYZE] Completed analysis for {count} video(s) in session '{session}'")
     return {"status": "ok", "count": count}
-    
+
+def _run_analysis_job(session: str):
+    try:
+        ANALYSIS_JOBS[session]["status"] = "running"
+        ANALYSIS_JOBS[session]["error"] = None
+
+        _analyze_all_videos(session)
+
+        ANALYSIS_JOBS[session]["status"] = "done"
+
+    except Exception as e:
+        logger.exception(f"[ANALYZE][{session}] Background job failed")
+        ANALYSIS_JOBS[session]["status"] = "error"
+        ANALYSIS_JOBS[session]["error"] = str(e)
 
 
 def api_analyze(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    prefix = f"{RAW_PREFIX}{session}/"
 
-    resp = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+    # Prevent duplicate runs
+    job = ANALYSIS_JOBS.get(session)
+    if job and job["status"] == "running":
+        return {"status": "already_running"}
 
-    files = [
-        obj["Key"] for obj in resp.get("Contents", [])
-        if obj["Key"].lower().endswith((".mp4", ".mov", ".m4v"))
-    ]
-
-    if not files:
-        return {"status": "no_videos", "count": 0, "files": []}
-
-    log_step(f"📦 Found {len(files)} raw uploads")
-
-    result = _analyze_all_videos(session)
-
-    return {
-        "status": "ok",
-        "count": len(files),
-        "files": files,
-        "result": result,
+    ANALYSIS_JOBS[session] = {
+        "status": "running",
+        "started_at": time.time(),
+        "error": None
     }
 
+    thread = threading.Thread(
+        target=_run_analysis_job,
+        args=(session,),
+        daemon=True
+    )
+    thread.start()
 
-def api_analyze_start(session: str = "default") -> Dict[str, Any]:
-    # For now just run the whole pass synchronously
-    return _analyze_all_videos(session)
+    return {
+        "status": "started"
+    }
 
+def api_analyze_status(session: str) -> Dict[str, Any]:
+    session = sanitize_session(session)
 
-def api_analyze_step() -> Dict[str, Any]:
-    # Kept for API compatibility
-    return {"status": "done"}
+    job = ANALYSIS_JOBS.get(session)
+    if not job:
+        return {"status": "idle"}
 
+    return job
 
 # -------------------------------
 # YAML generation (per session)

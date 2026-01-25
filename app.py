@@ -48,7 +48,8 @@ from assistant_api import (
     reorder_storyboard,
     record_variant_feedback,
     AGG_PATH,
-    api_ai_setup_summary
+    api_ai_setup_summary,
+    api_analyze_status
     )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -304,6 +305,11 @@ def api_reorder_clips():
         return jsonify({"status": "ok", "config": cfg})
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 400
+
+@app.route("/api/analyze_status")
+def analyze_status_route():
+    session = request.args.get("session", "default")
+    return jsonify(api_analyze_status(session))
 
 
 # ============================================================================
