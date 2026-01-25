@@ -16,8 +16,6 @@ from assistant_api import (
     move_upload_s3,
     delete_upload_s3,
     api_set_layout,
-    api_analyze_start,
-    api_analyze_step,
     api_analyze,
     api_generate_yaml,
     api_get_config,
@@ -38,7 +36,6 @@ from assistant_api import (
     api_improve_hook,   
     api_story_flow_score,
     api_story_flow_improve,
-    api_overlay_preview, 
     generate_overlay_preview,
     load_labels,
     api_set_label,
@@ -321,19 +318,6 @@ def api_analyses_cache():
     session = sanitize_session(session)
     results = load_analysis_results_session(session)
     return results
-
-
-@app.route("/api/analyze_start", methods=["POST"])
-def route_analyze_start():
-    body = request.get_json(silent=True) or {}
-    session = sanitize_session(body.get("session") or request.args.get("session", "default"))
-    return jsonify(api_analyze_start(session=session))
-
-
-@app.route("/api/analyze_step", methods=["POST"])
-def route_analyze_step():
-    return jsonify(api_analyze_step())
-
 
 @app.route("/api/analyze", methods=["POST"])
 def route_analyze():
