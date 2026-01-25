@@ -5220,8 +5220,22 @@ document.addEventListener("click", async (e) => {
 });
 
 // Generate variants (unchanged)
-document.getElementById("generateVariantsBtn")?.addEventListener("click", generateCaptionVariants);
+document
+  .getElementById("generateVariantsBtn")
+  ?.addEventListener("click", async () => {
 
+    const modes = {
+      rewrite: document.getElementById("mode_rewrite")?.checked,
+      hook: document.getElementById("mode_hook")?.checked,
+      punchy: document.getElementById("mode_punchy")?.checked,
+      story: document.getElementById("mode_story")?.checked,
+      influencer: document.getElementById("mode_influencer")?.checked,
+      minimal: document.getElementById("mode_minimal")?.checked,
+    };
+
+    await generateVariantsAsync(modes, selectedHook || null);
+  });
+  
 // Run once after load
 updateRewriteModeAvailability();
 
