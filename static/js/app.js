@@ -1986,14 +1986,13 @@ async function analyzeClips() {
   const statusEl = document.getElementById("analyzeStatus");
   if (!analyzeBtn || !statusEl) return;
 
-  // 🔒 Lock button + show progress
   analyzeBtn.disabled = true;
   const originalText = analyzeBtn.textContent;
   analyzeBtn.textContent = "Analyzing…";
 
   setStatus(
     "analyzeStatus",
-    "Analyzing clips from S3… this can take a bit…",
+    "Starting analysis…",
     "working",
     false
   );
@@ -2007,22 +2006,28 @@ async function analyzeClips() {
       })
     });
 
-    pollAnalyzeStatus();
-
-    const count = data.count ?? 0;
-
-    if (!count) {
+    if (data.status === "no_videos") {
       throw new Error("No raw uploads found in session");
     }
 
+    if (data.status === "already_running") {
+      setStatus(
+        "analyzeStatus",
+        "Analysis already in progress…",
+        "info"
+      );
+      pollAnalyzeStatus();
+      return;
+    }
+
+    // ✅ async job started
     setStatus(
       "analyzeStatus",
-      `Analysis complete. ${count} video(s).`,
-      "success"
+      "Analysis running in background…",
+      "working"
     );
 
-    await refreshAnalyses();
-    loadAISetupSummaryWithRetry();
+    pollAnalyzeStatus();
 
   } catch (err) {
     console.error(err);
@@ -2032,7 +2037,6 @@ async function analyzeClips() {
       "error"
     );
   } finally {
-    // 🔓 Restore button state
     analyzeBtn.disabled = false;
     analyzeBtn.textContent = originalText;
   }
