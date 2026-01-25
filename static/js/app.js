@@ -2203,91 +2203,77 @@ async function loadAISetupSummary() {
   if (!goBtn) return;
 
   goBtn.onclick = async () => {
-    goBtn.disabled = true;
-    goBtn.classList.add("ui-busy");
+  goBtn.disabled = true;
+  goBtn.classList.add("ui-busy");
 
-    try {
-      setStatus("improveHooksStatus", "Preparing storyboard…", "working");
+  try {
+    setStatus("improveHooksStatus", "Preparing storyboard…", "working");
 
-      // 1️⃣ Check if YAML already exists
-      const yaml = await jsonFetch(
-        `/api/config?session=${encodeURIComponent(getActiveSession())}`
-      );
+    const yaml = await jsonFetch(
+      `/api/config?session=${encodeURIComponent(getActiveSession())}`
+    );
 
-      const hasYaml =
-        yaml?.yaml &&
-        yaml.yaml.includes("first_clip") &&
-        yaml.yaml.includes("middle_clips");
+    const hasYaml =
+      yaml?.yaml &&
+      yaml.yaml.includes("first_clip") &&
+      yaml.yaml.includes("middle_clips");
 
-      // ❌ YAML missing → prompt generation
-      if (!hasYaml) {
-        setStatus(
-          "improveHooksStatus",
-          "Generate storyboard first to unlock hooks & captions.",
-          "info"
-        );
+    // 🔥 FIX: auto-generate YAML if missing
+    if (!hasYaml) {
+      setStatus("improveHooksStatus", "Building storyboard…", "working");
+      await generateYaml();
+      await loadConfigAndYaml();
 
-        document
-          .getElementById("generateYamlBtn")
-          ?.classList.remove("hidden");
-
-        return;
-      }
-
-      // 🔒 YAML exists → lock generation button
-      document
-        .getElementById("generateYamlBtn")
-        ?.setAttribute("disabled", true);
-
-      // 2️⃣ Reveal storyboard continuation CTA
-      document
-        .querySelector(".storyboard-continue")
-        ?.classList.remove("hidden");
-
-      // 3️⃣ Reveal Hook Lab (no forced jump)
-      document.getElementById("hookLab")?.classList.remove("hidden");
-
-      // Optional silent open
-      if (typeof openVariantsPanel === "function") {
-        openVariantsPanel({ silent: true });
-      }
-
-      // 4️⃣ Scroll to storyboard (source of truth)
-      requestAnimationFrame(() => {
-        document
-          .querySelector(".storyboard-panel")
-          ?.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-          });
-      });
-
-      // Guidance message
-      setStatus(
-        "captionStatus",
-        "Review clip order first — hooks and captions build from this.",
-        "info",
-        false
-      );
-
-      setStatus("improveHooksStatus", "Hook Lab ready ✓", "success");
-
-      setTimeout(() => {
-        setStatus("improveHooksStatus", "");
-      }, 2000);
-
-    } catch (err) {
-      console.error(err);
-      setStatus(
-        "improveHooksStatus",
-        "Something went wrong preparing hooks",
-        "error"
-      );
-    } finally {
-      goBtn.disabled = false;
-      goBtn.classList.remove("ui-busy");
+      setStatus("improveHooksStatus", "Loading captions…", "working");
+      await loadCaptionsFromYaml();
     }
-  };
+
+    // Show CTA / continue controls
+    document
+      .querySelector(".storyboard-continue")
+      ?.classList.remove("hidden");
+
+    // Reveal hook tools
+    document.getElementById("hookLab")?.classList.remove("hidden");
+
+    // Open variants drawer quietly
+    if (typeof openVariantsPanel === "function") {
+      openVariantsPanel({ silent: true });
+    }
+
+    // Scroll to storyboard order (source of truth)
+    requestAnimationFrame(() => {
+      document
+        .querySelector(".storyboard-panel")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+    });
+
+    setStatus(
+      "captionStatus",
+      "Review clip order first — hooks and captions build from this.",
+      "info",
+      false
+    );
+
+    setStatus("improveHooksStatus", "Hook Lab ready ✓", "success");
+
+    setTimeout(() => setStatus("improveHooksStatus", ""), 2000);
+
+  } catch (err) {
+    console.error(err);
+    setStatus(
+      "improveHooksStatus",
+      "Something went wrong preparing hooks",
+      "error"
+    );
+  } finally {
+    goBtn.disabled = false;
+    goBtn.classList.remove("ui-busy");
+  }
+};
 
   el.classList.remove("hidden");
 }
