@@ -63,7 +63,43 @@ async function pollVariantStatus() {
     if (lastVariantStatus === "running" && status === "done") {
       console.log("✅ Variants ready");
 
-      renderVariants(data.result?.variants || []);
+      const variants = data.result?.variants || [];
+
+      // keep global state
+      window.lastGeneratedVariants = variants;
+
+      // sort like before (AI recommended first)
+      variants.sort((a, b) => {
+        if (a.recommended) return -1;
+        if (b.recommended) return 1;
+        return ((b.hook_score || 0) + (b.story_flow || 0)) -
+              ((a.hook_score || 0) + (a.story_flow || 0));
+      });
+
+      const box = document.getElementById("variantsOutput");
+      box.innerHTML = "";
+      box.dataset.rendered = "false";
+
+      variants.forEach((variant, i) => {
+        const cardId = `variant_${i}`;
+        box.innerHTML += renderVariantCard(
+          i + 1,
+          variant,
+          cardId
+        );
+
+        // 🔥 feedback: viewed
+        sendVariantFeedback({
+          variantId: cardId,
+          intent: currentIntent || "discovery",
+          tone: variant.tone,
+          confidence: variant.confidence,
+          recommended: variant.recommended === true,
+          action: "viewed"
+        });
+      });
+
+      box.dataset.rendered = "true";
       updateAIRecommendationBar();
 
       setStatus(
