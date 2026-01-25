@@ -195,31 +195,35 @@
         <!-- Analyze -->
         <h3 class="section-label">3. Analyze Videos</h3>
         <div class="row">
-            <button id="analyzeBtn" class="btn primary">🔍 Analyze clips from S3</button>
-            <button id="refreshAnalysesBtn" class="btn ghost">↻ Refresh analyses</button>
+        <button id="analyzeBtn" class="btn primary">🔍 Analyze clips from S3</button>
+        <button id="refreshAnalysesBtn" class="btn ghost">↻ Refresh analyses</button>
         </div>
 
         <div id="analyzeStatus" class="hint-text"></div>
 
+        <!-- ✅ ADD IT HERE -->
+        <div id="analyzingBadge" class="analyzing-badge hidden">
+        ⏳ Analyzing…
+        </div>
+
         <div id="aiSetupSummary" class="ai-summary hidden"></div>
-    
 
         <div class="card-subsection">
-            <h3>
-                Detected Clips & Analyses
-                <span class="tooltip">ⓘ
-                    <span class="tooltiptext">
-                        AI identifies:<br>
-                        • room features<br>
-                        • pool/beach views<br>
-                        • transitions<br>
-                        • movement speed<br>
-                        • good hook moments
-                    </span>
-                </span>
-            </h3>
+        <h3>
+            Detected Clips & Analyses
+            <span class="tooltip">ⓘ
+            <span class="tooltiptext">
+                AI identifies:<br>
+                • room features<br>
+                • pool/beach views<br>
+                • transitions<br>
+                • movement speed<br>
+                • good hook moments
+            </span>
+            </span>
+        </h3>
 
-            <ul id="analysesList" class="analysis-list"></ul>
+        <ul id="analysesList" class="analysis-list"></ul>
         </div>
 
     </div>
@@ -1193,10 +1197,6 @@ STEP 5
 <!-- MOBILE SESSION BUTTON -->
 <button id="mobileSessionBtn" class="mobile-session-btn">Sessions</button>
 
-</div>
-
-<div id="analyzingBadge" class="analyzing-badge hidden">
-  ⏳ Analyzing…
 </div>
 
 </body>
