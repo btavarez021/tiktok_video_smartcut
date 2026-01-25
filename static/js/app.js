@@ -2960,119 +2960,6 @@ function openVariantsPanel() {
   if (btn) btn.textContent = "Collapse";
 }
 
-async function generateCaptionVariants() {
-  document.getElementById("aiRecommendationBar")?.classList.add("hidden");
-
-  setUiBusy(true);
-  const btn = document.getElementById("generateVariantsBtn");
-
-  const modes = {
-    rewrite: document.getElementById("mode_rewrite")?.checked,
-    hook: document.getElementById("mode_hook")?.checked,
-    punchy: document.getElementById("mode_punchy")?.checked,
-    story: document.getElementById("mode_story")?.checked,
-    influencer: document.getElementById("mode_influencer")?.checked,
-    minimal: document.getElementById("mode_minimal")?.checked,
-  };
-
-  const session = getActiveSession();
-
-  setVariantsStatus("Generating caption variants…", "loading");
-
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = "Generating…";
-  }
-
-  try {
-    const res = await fetch("/api/variants", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session,
-        modes,
-        selected_hook: selectedHook || null
-      })
-    });
-
-    if (!res.ok) {
-      throw new Error("Variant generation failed");
-    }
-
-    const data = await res.json();
-    window.lastGeneratedVariants = data.variants || [];
-  
-
-    updateAIRecommendationBar();
-
-    updateCaptionBaselineHint();
-    updateLoadYamlVisibility();
-
-
-    console.log("[VARIANTS] response:", data);
-
-  // quick badge sanity check
-  console.log("[VARIANTS] recommended count:", (data.variants || []).filter(v => v.recommended).length);
-
-
-    data.variants.sort((a, b) => {
-    if (a.recommended) return -1;
-    if (b.recommended) return 1;
-    return ((b.hook_score || 0) + (b.story_flow || 0)) -
-       ((a.hook_score || 0) + (a.story_flow || 0));
-  });
-
-
-    const box = document.getElementById("variantsOutput");
-    box.innerHTML = "";
-    box.dataset.rendered = "false";
-
-    for (let i = 0; i < data.variants.length; i++) {
-    const variant = data.variants[i];
-
-    const cardId = `variant_${i}`;
-
-    box.innerHTML += renderVariantCard(
-      i + 1,
-      variant,     // 👈 pass full variant
-      cardId
-    );
-  }
-
-  // 🔥 FEEDBACK LOOP v3 — record exposure (viewed)
-data.variants.forEach((variant, i) => {
-  sendVariantFeedback({
-    variantId: `variant_${i}`,
-    intent: currentIntent || "discovery",
-    tone: variant.tone,
-    confidence: variant.confidence,
-    recommended: variant.recommended === true,
-    action: "viewed"
-  });
-});
-
-
-    // ✅ Success AFTER render
-    setVariantsStatus("Variants generated ✓", "success");
-    box.dataset.rendered = "true";
-
-    setTimeout(() => {
-      document.getElementById("variantsInlineStatus")?.classList.add("hidden");
-    }, 2000);
-
-
-  } catch (err) {
-    console.error(err);
-    setVariantsStatus("Failed to generate variants", "error");
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = "⚡ Generate Caption Variants";
-    }
-    setUiBusy(false);
-  }
-}
-
 
 // Alias used by caption system
 async function refreshOverlayPreview() {
@@ -4471,10 +4358,6 @@ if (clearHookBtn) {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  pollVariantStatus();
-});
-
 
    // -------------------------------
   // Intent pill wiring (FIXED)
@@ -5235,7 +5118,7 @@ document
 
     await generateVariantsAsync(modes, selectedHook || null);
   });
-  
+
 // Run once after load
 updateRewriteModeAvailability();
 
