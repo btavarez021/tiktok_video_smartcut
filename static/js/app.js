@@ -31,7 +31,7 @@ let CONFIG_LOADING = false;
 let isInRewriteReview = false;
 let captionViewMode = "rewritten";
 let diffDirty = false;
-
+let lastAnalyzeStatus = null;
 let ANALYZE_POLL_ACTIVE = false;
 
 function setCurrentVideoIntent(intent) {
@@ -2286,17 +2286,43 @@ async function retryAnalysis() {
 }
 
 async function pollAnalyzeStatus() {
-  const res = await jsonFetch(
-    `/api/analyze_status?session=${getActiveSession()}`
-  );
+  try {
+    const data = await jsonFetch(
+      `/api/analyze_status?session=${getActiveSession()}`
+    );
 
-  const badge = document.getElementById("analyzingBadge");
+    const status = data.status;
 
-  if (res.status === "running") {
-    badge?.classList.remove("hidden");
-    setTimeout(pollAnalyzeStatus, 1500);
-  } else {
-    badge?.classList.add("hidden");
+    // Badge
+    updateAnalyzingBadge(status);
+
+    // 🔥 Detect transition
+    if (lastAnalyzeStatus === "running" && status === "done") {
+      console.log("✅ Analysis finished — refreshing UI");
+
+      setStatus(
+        "analyzeStatus",
+        "Analysis complete.",
+        "success"
+      );
+
+      // 🔄 AUTO refresh results
+      await refreshAnalyses();
+
+      // 🔄 Load AI summary (with retry)
+      loadAISetupSummaryWithRetry();
+    }
+
+    lastAnalyzeStatus = status;
+
+    // Keep polling while active
+    if (status === "running") {
+      setTimeout(pollAnalyzeStatus, 1200);
+    }
+
+  } catch (err) {
+    console.warn("pollAnalyzeStatus failed", err);
+    setTimeout(pollAnalyzeStatus, 2000);
   }
 }
 
