@@ -46,7 +46,9 @@ from assistant_api import (
     record_variant_feedback,
     AGG_PATH,
     api_ai_setup_summary,
-    api_analyze_status
+    api_analyze_status,
+    api_generate_variants_start,
+    api_generate_variants_status
     )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -308,6 +310,24 @@ def analyze_status_route():
     session = request.args.get("session", "default")
     return jsonify(api_analyze_status(session))
 
+@app.route("/api/variants/start", methods=["POST"])
+def route_variants_start():
+    data = request.get_json() or {}
+    return jsonify(
+        api_generate_variants_start(
+            data.get("session", "default"),
+            data.get("modes", {}),
+            data.get("selected_hook")
+        )
+    )
+
+@app.route("/api/variants/status")
+def route_variants_status():
+    return jsonify(
+        api_generate_variants_status(
+            request.args.get("session", "default")
+        )
+    )
 
 # ============================================================================
 # ANALYSIS CACHE + ANALYSIS RUNNERS

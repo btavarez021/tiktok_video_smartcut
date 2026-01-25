@@ -52,6 +52,7 @@ EVENTS_PATH = os.path.join(DATA_DIR, "feedback_events.jsonl")
 AGG_PATH = os.path.join(DATA_DIR, "feedback_aggregates.json")
 
 ANALYSIS_JOBS: dict[str, dict] = {}
+VARIANT_JOBS: dict[str, dict] = {}
 
 ANALYSIS_STATUS_DIR = os.path.join(DATA_DIR, "analysis_status")
 os.makedirs(ANALYSIS_STATUS_DIR, exist_ok=True)
@@ -71,6 +72,68 @@ def load_analysis_status(session: str) -> dict | None:
         return json.load(open(path))
     except Exception:
         return None
+
+def _run_variant_job(session: str, modes: dict, selected_hook: str | None):
+    try:
+        status = {
+            "status": "running",
+            "started_at": time.time(),
+            "error": None,
+            "result": None,
+        }
+        VARIANT_JOBS[session] = status
+
+        result = api_generate_variants(session, modes, selected_hook)
+
+        status["status"] = "done"
+        status["result"] = result
+
+    except Exception as e:
+        VARIANT_JOBS[session] = {
+            "status": "error",
+            "error": str(e),
+        }
+
+def api_generate_variants_start(session: str, modes: dict, selected_hook: str | None):
+    session = sanitize_session(session)
+
+    job = VARIANT_JOBS.get(session)
+    if job and job["status"] == "running":
+        return {"status": "already_running"}
+
+    VARIANT_JOBS[session] = {"status": "running"}
+
+    thread = threading.Thread(
+        target=_run_variant_job,
+        args=(session, modes, selected_hook),
+        daemon=True
+    )
+    thread.start()
+
+    return {"status": "started"}
+
+def api_generate_variants_start(session: str, modes: dict, selected_hook: str | None):
+    session = sanitize_session(session)
+
+    job = VARIANT_JOBS.get(session)
+    if job and job["status"] == "running":
+        return {"status": "already_running"}
+
+    VARIANT_JOBS[session] = {"status": "running"}
+
+    thread = threading.Thread(
+        target=_run_variant_job,
+        args=(session, modes, selected_hook),
+        daemon=True
+    )
+    thread.start()
+
+    return {"status": "started"}
+
+def api_generate_variants_status(session: str):
+    session = sanitize_session(session)
+    return VARIANT_JOBS.get(session, {"status": "idle"})
+
 
 _feedback_lock = Lock()
 

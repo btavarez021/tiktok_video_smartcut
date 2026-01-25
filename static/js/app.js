@@ -33,6 +33,8 @@ let captionViewMode = "rewritten";
 let diffDirty = false;
 let lastAnalyzeStatus = null;
 let ANALYZE_POLL_ACTIVE = false;
+let lastVariantStatus = null;
+let VARIANT_POLL_ACTIVE = false;
 
 function setCurrentVideoIntent(intent) {
   currentIntent = intent;
@@ -47,6 +49,44 @@ function debounce(fn, wait = 350) {
     t = setTimeout(() => fn(...args), wait);
   };
 }
+
+async function pollVariantStatus() {
+  try {
+    const data = await jsonFetch(
+      `/api/variants/status?session=${getActiveSession()}`
+    );
+
+    const status = data.status;
+
+    updateVariantBadge(status);
+
+    if (lastVariantStatus === "running" && status === "done") {
+      console.log("✅ Variants ready");
+
+      renderVariants(data.result?.variants || []);
+      updateAIRecommendationBar();
+
+      setStatus(
+        "captionStatus",
+        "AI variants ready ✓",
+        "success"
+      );
+
+      VARIANT_POLL_ACTIVE = false;
+    }
+
+    lastVariantStatus = status;
+
+    if (status === "running") {
+      setTimeout(pollVariantStatus, 1200);
+    }
+
+  } catch (err) {
+    console.warn("pollVariantStatus failed", err);
+    setTimeout(pollVariantStatus, 2000);
+  }
+}
+
 
 function updateAIRecommendationBar() {
   const bar = document.getElementById("aiRecommendationBar");
@@ -348,6 +388,35 @@ function clearPendingRewrite() {
   document.getElementById("pendingRewriteBadge")?.classList.add("hidden");
 }
 
+async function generateVariantsAsync(modes, selectedHook) {
+  setStatus(
+    "captionStatus",
+    "Generating AI variants…",
+    "working"
+  );
+
+  updateVariantBadge("running");
+
+  const res = await jsonFetch("/api/variants/start", {
+    method: "POST",
+    body: JSON.stringify({
+      session: getActiveSession(),
+      modes,
+      selected_hook: selectedHook
+    })
+  });
+
+  if (res.status === "already_running") {
+    VARIANT_POLL_ACTIVE = true;
+    pollVariantStatus();
+    return;
+  }
+
+  VARIANT_POLL_ACTIVE = true;
+  pollVariantStatus();
+}
+
+
 
 function lockRewriteDecision() {
   const bar = document.getElementById("rewriteDecisionBar");
@@ -527,6 +596,13 @@ function renderVariantCard(num, variant, cardId) {
       </button>
     </div>
   `;
+}
+
+function updateVariantBadge(status) {
+  const el = document.getElementById("variantBadge");
+  if (!el) return;
+
+  el.classList.toggle("hidden", status !== "running");
 }
 
 
@@ -4408,6 +4484,11 @@ if (clearHookBtn) {
     clearSelectedHook();
   });
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  pollVariantStatus();
+});
+
 
    // -------------------------------
   // Intent pill wiring (FIXED)
