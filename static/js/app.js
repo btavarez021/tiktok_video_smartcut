@@ -2219,12 +2219,26 @@ async function loadAISetupSummaryWithRetry({
 
   for (let i = 0; i < retries; i++) {
     try {
+      // 🔍 First: do analyses exist?
+      const analyses = await jsonFetch(
+        `/api/analyses_cache?session=${getActiveSession()}`
+      );
+
+      const hasAnalyses =
+        analyses && Object.keys(analyses).length > 0;
+
+      if (!hasAnalyses) {
+        console.warn("No analyses yet — retrying analyze step");
+        await analyzeClips(); // 🔑 THIS IS THE FIX
+        return;
+      }
+
+      // 🧠 Then: try summary
       const data = await jsonFetch(
         `/api/ai_setup_summary?session=${getActiveSession()}`
       );
 
       if (data?.has_analysis) {
-        // ✅ success — render real summary
         await loadAISetupSummary();
         return;
       }
@@ -2235,17 +2249,15 @@ async function loadAISetupSummaryWithRetry({
     await new Promise(r => setTimeout(r, delay));
   }
 
-  // 🧯 Fallback — explain instead of hiding
+  // 🧯 Final fallback
   el.innerHTML = `
     <div class="ai-summary-card warning">
       <h3>⏳ Analysis still processing</h3>
       <p class="hint-text">
-        Your clips were analyzed, but insights are still being prepared.
-        <br />
-        This usually resolves in a few seconds.
+        Analysis is taking longer than expected.
       </p>
-      <button class="btn ghost small" onclick="loadAISetupSummaryWithRetry()">
-        Retry
+      <button class="btn ghost small" onclick="analyzeClips()">
+        Retry analysis
       </button>
     </div>
   `;
