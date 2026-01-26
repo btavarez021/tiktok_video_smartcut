@@ -2340,6 +2340,13 @@ async function loadAISetupSummary() {
       false
     );
 
+    setStatus("analyzeStatus", "Analysis complete ✓", "success");
+    updateAnalyzingBadge("idle");
+
+    setTimeout(() => {
+      setStatus("analyzeStatus","")
+    }, 2000);
+
     setStatus("improveHooksStatus", "Hook Lab ready ✓", "success");
 
     setTimeout(() => setStatus("improveHooksStatus", ""), 2000);
@@ -2467,7 +2474,8 @@ async function pollAnalyzeStatus() {
   setStatus(
     "analyzeStatus",
     "Finalizing AI insights…",
-    "working"
+    "working",
+    false
   );
 
   await refreshAnalyses();
