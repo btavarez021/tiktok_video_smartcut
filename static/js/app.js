@@ -2462,16 +2462,20 @@ async function pollAnalyzeStatus() {
 
     // 🔥 Detect transition
     if (lastAnalyzeStatus === "running" && status === "done") {
-      console.log("✅ Analysis finished — refreshing UI");
+  console.log("✅ Analysis finished — refreshing UI");
 
-      setStatus("analyzeStatus", "Analysis complete.", "success");
+  setStatus(
+    "analyzeStatus",
+    "Finalizing AI insights…",
+    "working"
+  );
 
-      await refreshAnalyses();
-      loadAISetupSummaryWithRetry();
+  await refreshAnalyses();
+  loadAISetupSummaryWithRetry();
 
-      ANALYZE_POLL_ACTIVE = false;
-      return;
-    }
+  ANALYZE_POLL_ACTIVE = false;
+  return;
+}
 
     lastAnalyzeStatus = status;
 
