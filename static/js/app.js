@@ -108,6 +108,9 @@ async function pollVariantStatus() {
         "success"
       );
 
+      setTimeout(() => {
+        setStatus("variantsInlineStatus","");}, 2000);
+
       VARIANT_POLL_ACTIVE = false;
     }
 
@@ -431,9 +434,10 @@ function clearPendingRewrite() {
 
 async function generateVariantsAsync(modes, selectedHook) {
   setStatus(
-    "captionStatus",
+    "variantsInlineStatus",
     "Generating AI variants…",
-    "working" 
+    "working" ,
+    false
   );
 
   updateVariantRunningBadge("running");
