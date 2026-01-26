@@ -58,7 +58,17 @@ async function pollVariantStatus() {
 
     const status = data.status;
 
+    // 🔴 Badge: show while running
     updateVariantRunningBadge(status);
+
+    // ✅ ADD: show inline working status once
+    if (status === "running" && lastVariantStatus !== "running") {
+      setStatus(
+        "variantsInlineStatus",
+        "Generating AI variants…",
+        "working"
+      );
+    }
 
     if (lastVariantStatus === "running" && status === "done") {
       console.log("✅ Variants ready");
@@ -73,7 +83,7 @@ async function pollVariantStatus() {
         if (a.recommended) return -1;
         if (b.recommended) return 1;
         return ((b.hook_score || 0) + (b.story_flow || 0)) -
-              ((a.hook_score || 0) + (a.story_flow || 0));
+               ((a.hook_score || 0) + (a.story_flow || 0));
       });
 
       const box = document.getElementById("variantsOutput");
@@ -102,14 +112,20 @@ async function pollVariantStatus() {
       box.dataset.rendered = "true";
       updateAIRecommendationBar();
 
+      // 🟢 Inline success
       setStatus(
-        "captionStatus",
+        "variantsInlineStatus",
         "AI variants ready ✓",
         "success"
       );
 
+      // ✅ ADD: hide badge immediately on done
+      updateVariantRunningBadge("idle");
+
+      // 🧹 Clear inline after delay
       setTimeout(() => {
-        setStatus("variantsInlineStatus","");}, 2000);
+        setStatus("variantsInlineStatus", "");
+      }, 2000);
 
       VARIANT_POLL_ACTIVE = false;
     }
@@ -125,7 +141,6 @@ async function pollVariantStatus() {
     setTimeout(pollVariantStatus, 2000);
   }
 }
-
 
 function updateAIRecommendationBar() {
   const bar = document.getElementById("aiRecommendationBar");
