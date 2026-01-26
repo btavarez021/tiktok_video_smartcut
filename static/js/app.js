@@ -58,7 +58,6 @@ async function pollVariantStatus() {
 
     const status = data.status;
 
-    updateVariantBadge(status);
     updateVariantRunningBadge(status);
 
     if (lastVariantStatus === "running" && status === "done") {
@@ -434,10 +433,10 @@ async function generateVariantsAsync(modes, selectedHook) {
   setStatus(
     "captionStatus",
     "Generating AI variants…",
-    "working"
+    "working" 
   );
 
-  updateVariantBadge("running");
+  updateVariantRunningBadge("running");
 
   const res = await jsonFetch("/api/variants/start", {
     method: "POST",
@@ -640,12 +639,6 @@ function renderVariantCard(num, variant, cardId) {
   `;
 }
 
-function updateVariantBadge(status) {
-  const el = document.getElementById("variantBadge");
-  if (!el) return;
-
-  el.classList.toggle("hidden", status !== "running");
-}
 
 
 function updateVariantStoryScore(id, flow) {
