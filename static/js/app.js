@@ -2435,7 +2435,7 @@ async function pollAnalyzeStatus() {
       );
 
       await refreshAnalyses();
-      loadAISetupSummaryWithRetry(); // this will end polling when ready
+      loadAISetupSummary(); // this will end polling when ready
       lastAnalyzeStatus = status;
       return;
     }
