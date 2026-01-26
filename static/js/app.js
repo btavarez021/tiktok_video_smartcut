@@ -59,6 +59,7 @@ async function pollVariantStatus() {
     const status = data.status;
 
     updateVariantBadge(status);
+    updateVariantRunningBadge(status);
 
     if (lastVariantStatus === "running" && status === "done") {
       console.log("✅ Variants ready");
@@ -414,7 +415,12 @@ async function saveOverlayStyle({ silent = false } = {}) {
 }
 
 
+function updateVariantRunningBadge(status) {
+  const el = document.getElementById("variantRunningBadge");
+  if (!el) return;
 
+  el.classList.toggle("hidden", status !== "running");
+}
 
 function showPendingRewrite() {
   document.getElementById("pendingRewriteBadge")?.classList.remove("hidden");
@@ -1194,44 +1200,72 @@ function toast(message, duration = 2500) {
 }
 
 async function setActiveSession(name) {
-
   const safe = sanitizeSessionName(name);
   ACTIVE_SESSION = safe;
-  // Reset AI undo state when switching sessions
+
+  // ----------------------------
+  // Reset AI apply / undo state
+  // ----------------------------
   window.aiUndoSnapshot = null;
 
-  const undoBtn = document.getElementById("undoAiRecommendationBtn");
-  if (undoBtn) {
-    undoBtn.classList.add("hidden");
-  }
+  document
+    .getElementById("undoAiRecommendationBtn")
+    ?.classList.add("hidden");
 
-  updateSessionLabels();
-  sidebarSyncActiveLabel();
-  localStorage.setItem("activeSession", ACTIVE_SESSION);
-
-  // Reset per-session state
+  // ----------------------------
+  // Reset per-session frontend state
+  // ----------------------------
   workingClipOrder = [];
   clipOrderDirty = false;
   selectedHook = null;
 
-  pollAnalyzeStatus();
+  // 🔥 VARIANTS RESET (you were missing this)
+  lastVariantStatus = null;
+  VARIANT_POLL_ACTIVE = false;
+  window.lastGeneratedVariants = [];
+  updateVariantRunningBadge("idle");
 
-  // Load core state in order
+  // 🔥 ANALYSIS badge reset (safe default)
+  updateAnalyzingBadge?.("idle");
+
+  // ----------------------------
+  // Persist + sync session UI
+  // ----------------------------
+  updateSessionLabels();
+  sidebarSyncActiveLabel();
+  localStorage.setItem("activeSession", ACTIVE_SESSION);
+
+  // ----------------------------
+  // Load core state
+  // ----------------------------
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
   updateCaptionBaselineHint();
-  updateLoadYamlVisibility()
+  updateLoadYamlVisibility();
   await refreshHookScore();
   await refreshStoryFlowScore();
 
-  // Fire-and-forget “secondary” refreshes
+  // ----------------------------
+  // Secondary refreshes
+  // ----------------------------
   loadUploadManager();
   refreshAnalyses();
   loadSessionDropdown();
   loadSessions();
   sidebarLoadSessions();
 
-  requestAnimationFrame(() => requestAnimationFrame(animateSessionGlow));
+  requestAnimationFrame(() =>
+    requestAnimationFrame(animateSessionGlow)
+  );
+
+  // ----------------------------
+  // Resume analysis polling ONLY if needed
+  // ----------------------------
+  pollAnalyzeStatus();
+
+  // ----------------------------
+  // AI readiness summary
+  // ----------------------------
   loadAISetupSummary();
 }
 
