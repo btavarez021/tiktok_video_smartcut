@@ -2250,12 +2250,22 @@ async function loadAISetupSummary() {
   const el = document.getElementById("aiSetupSummary");
   if (!el || !data) return;
 
-  // 🔒 Hide entire card if analysis not ready
+  // 🔒 Still not ready → keep polling alive
   if (!data.has_analysis) {
     el.classList.add("hidden");
     return;
   }
 
+  // ✅ ANALYSIS IS FULLY READY — END ANALYZE STATE HERE
+  ANALYZE_POLL_ACTIVE = false;
+  updateAnalyzingBadge("idle");
+
+  setStatus("analyzeStatus", "Analysis complete ✓", "success");
+  setTimeout(() => setStatus("analyzeStatus", ""), 2000);
+
+  // ---------------------------
+  // Render summary card
+  // ---------------------------
   el.innerHTML = `
     <div class="ai-summary-card">
       <h3>🧠 AI Readiness Summary</h3>
@@ -2281,152 +2291,85 @@ async function loadAISetupSummary() {
     </div>
   `;
 
+  el.classList.remove("hidden");
+
+  // ---------------------------
+  // CTA button logic
+  // ---------------------------
   const goBtn = el.querySelector("#goToVariantsBtn");
   if (!goBtn) return;
 
   goBtn.onclick = async () => {
-  goBtn.disabled = true;
-  goBtn.classList.add("ui-busy");
+    goBtn.disabled = true;
+    goBtn.classList.add("ui-busy");
 
-  try {
-    setStatus("improveHooksStatus", "Preparing storyboard…", "working");
-
-    const yaml = await jsonFetch(
-      `/api/config?session=${encodeURIComponent(getActiveSession())}`
-    );
-
-    const hasYaml =
-      yaml?.yaml &&
-      yaml.yaml.includes("first_clip") &&
-      yaml.yaml.includes("middle_clips");
-
-    // 🔥 FIX: auto-generate YAML if missing
-    if (!hasYaml) {
-      setStatus("improveHooksStatus", "Building storyboard…", "working");
-      await generateYaml();
-      await loadConfigAndYaml();
-
-      setStatus("improveHooksStatus", "Loading captions…", "working");
-      await loadCaptionsFromYaml();
-    }
-
-    // Show CTA / continue controls
-    document
-      .querySelector(".storyboard-continue")
-      ?.classList.remove("hidden");
-
-    // Reveal hook tools
-    document.getElementById("hookLab")?.classList.remove("hidden");
-
-    // Open variants drawer quietly
-    if (typeof openVariantsPanel === "function") {
-      openVariantsPanel({ silent: true });
-    }
-
-    // Scroll to storyboard order (source of truth)
-    requestAnimationFrame(() => {
-      document
-        .querySelector(".storyboard-panel")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start"
-        });
-    });
-
-    setStatus(
-      "captionStatus",
-      "Review clip order first — hooks and captions build from this.",
-      "info",
-      false
-    );
-
-    setStatus("analyzeStatus", "Analysis complete ✓", "success");
-    updateAnalyzingBadge("idle");
-
-    setTimeout(() => {
-      setStatus("analyzeStatus","")
-    }, 2000);
-
-    setStatus("improveHooksStatus", "Hook Lab ready ✓", "success");
-
-    setTimeout(() => setStatus("improveHooksStatus", ""), 2000);
-
-  } catch (err) {
-    console.error(err);
-    setStatus(
-      "improveHooksStatus",
-      "Something went wrong preparing hooks",
-      "error"
-    );
-  } finally {
-    goBtn.disabled = false;
-    goBtn.classList.remove("ui-busy");
-  }
-};
-
-  el.classList.remove("hidden");
-}
-
-
-async function loadAISetupSummaryWithRetry({
-  retries = 6,
-  delay = 1200
-} = {}) {
-  const el = document.getElementById("aiSetupSummary");
-  if (!el) return;
-
-  el.classList.remove("hidden");
-  el.innerHTML = `
-    <div class="ai-summary-card subtle loading">
-      <h3>🧠 Preparing AI insights…</h3>
-      <p class="hint-text">Finalizing analysis. This can take a moment.</p>
-    </div>
-  `;
-
-  for (let i = 0; i < retries; i++) {
     try {
-      // 🔍 First: do analyses exist?
-      const analyses = await jsonFetch(
-        `/api/analyses_cache?session=${getActiveSession()}`
+      setStatus("improveHooksStatus", "Preparing storyboard…", "working");
+
+      const yaml = await jsonFetch(
+        `/api/config?session=${encodeURIComponent(getActiveSession())}`
       );
 
-      const hasAnalyses =
-        analyses && Object.keys(analyses).length > 0;
+      const hasYaml =
+        yaml?.yaml &&
+        yaml.yaml.includes("first_clip") &&
+        yaml.yaml.includes("middle_clips");
 
-      if (!hasAnalyses) {
-        console.warn("No analyses yet — retrying analyze step");
-        await analyzeClips(); // 🔑 THIS IS THE FIX
-        return;
+      // 🔥 Auto-generate YAML if missing
+      if (!hasYaml) {
+        setStatus("improveHooksStatus", "Building storyboard…", "working");
+        await generateYaml();
+        await loadConfigAndYaml();
+
+        setStatus("improveHooksStatus", "Loading captions…", "working");
+        await loadCaptionsFromYaml();
       }
 
-      // 🧠 Then: try summary
-      const data = await jsonFetch(
-        `/api/ai_setup_summary?session=${getActiveSession()}`
+      // Show storyboard continue CTA
+      document
+        .querySelector(".storyboard-continue")
+        ?.classList.remove("hidden");
+
+      // Reveal hook lab
+      document.getElementById("hookLab")?.classList.remove("hidden");
+
+      // Open variants drawer silently
+      if (typeof openVariantsPanel === "function") {
+        openVariantsPanel({ silent: true });
+      }
+
+      // Scroll to storyboard (source of truth)
+      requestAnimationFrame(() => {
+        document
+          .querySelector(".storyboard-panel")
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+      });
+
+      setStatus(
+        "captionStatus",
+        "Review clip order first — hooks and captions build from this.",
+        "info",
+        false
       );
 
-      if (data?.has_analysis) {
-        await loadAISetupSummary();
-        return;
-      }
-    } catch (e) {
-      console.warn("AI summary retry failed", e);
+      setStatus("improveHooksStatus", "Hook Lab ready ✓", "success");
+      setTimeout(() => setStatus("improveHooksStatus", ""), 2000);
+
+    } catch (err) {
+      console.error(err);
+      setStatus(
+        "improveHooksStatus",
+        "Something went wrong preparing hooks",
+        "error"
+      );
+    } finally {
+      goBtn.disabled = false;
+      goBtn.classList.remove("ui-busy");
     }
-
-    await new Promise(r => setTimeout(r, delay));
-  }
-
-  // 🧯 Final fallback
-  el.innerHTML = `
-    <div class="ai-summary-card warning">
-      <h3>⏳ Analysis still processing</h3>
-      <p class="hint-text">
-        Analysis is taking longer than expected.
-      </p>
-      <button class="btn ghost small" onclick="retryAnalysis()">
-        Retry analysis
-      </button>
-    </div>
-  `;
+  };
 }
 
 async function retryAnalysis() {
@@ -2464,34 +2407,40 @@ async function pollAnalyzeStatus() {
     );
 
     const status = data.status;
-
     updateAnalyzingBadge(status);
 
-    // 🔥 Detect transition
+    // 🔄 Still running
+    if (status === "running") {
+      setStatus(
+        "analyzeStatus",
+        "Analyzing clips & preparing AI insights…",
+        "working",
+        false
+      );
+
+      lastAnalyzeStatus = status;
+      setTimeout(pollAnalyzeStatus, 1200);
+      return;
+    }
+
+    // ✅ Transition → finalizing
     if (lastAnalyzeStatus === "running" && status === "done") {
-  console.log("✅ Analysis finished — refreshing UI");
+      console.log("✅ Analysis finished — finalizing AI insights");
 
-  setStatus(
-    "analyzeStatus",
-    "Finalizing AI insights…",
-    "working",
-    false
-  );
+      setStatus(
+        "analyzeStatus",
+        "Finalizing AI insights…",
+        "working",
+        false
+      );
 
-  await refreshAnalyses();
-  loadAISetupSummaryWithRetry();
-
-  ANALYZE_POLL_ACTIVE = false;
-  return;
-}
+      await refreshAnalyses();
+      loadAISetupSummaryWithRetry(); // this will end polling when ready
+      lastAnalyzeStatus = status;
+      return;
+    }
 
     lastAnalyzeStatus = status;
-
-    if (status === "running") {
-      setTimeout(pollAnalyzeStatus, 1200);
-    } else {
-      ANALYZE_POLL_ACTIVE = false;
-    }
 
   } catch (err) {
     console.warn("pollAnalyzeStatus failed", err);
