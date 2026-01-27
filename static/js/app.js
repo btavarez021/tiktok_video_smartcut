@@ -51,6 +51,8 @@ function debounce(fn, wait = 350) {
 }
 
 async function pollVariantStatus() {
+  if (!VARIANT_POLL_ACTIVE) return;
+
   try {
     const data = await jsonFetch(
       `/api/variants/status?session=${getActiveSession()}`
@@ -58,10 +60,10 @@ async function pollVariantStatus() {
 
     const status = data.status;
 
-    // 🔴 Badge: show while running
+    // 🔴 Badge: visible while running
     updateVariantRunningBadge(status);
 
-    // ✅ ADD: show inline working status once
+    // Show inline "working" once
     if (status === "running" && lastVariantStatus !== "running") {
       setStatus(
         "variantsInlineStatus",
@@ -70,20 +72,23 @@ async function pollVariantStatus() {
       );
     }
 
+    // ✅ Transition: running → done
     if (lastVariantStatus === "running" && status === "done") {
       console.log("✅ Variants ready");
 
       const variants = data.result?.variants || [];
 
-      // keep global state
+      // 🔑 Global state (used by AI recommendation bar)
       window.lastGeneratedVariants = variants;
 
-      // sort like before (AI recommended first)
+      // Sort: AI recommended first, then strongest score
       variants.sort((a, b) => {
         if (a.recommended) return -1;
         if (b.recommended) return 1;
-        return ((b.hook_score || 0) + (b.story_flow || 0)) -
-               ((a.hook_score || 0) + (a.story_flow || 0));
+        return (
+          (b.hook_score || 0) + (b.story_flow || 0) -
+          ((a.hook_score || 0) + (a.story_flow || 0))
+        );
       });
 
       const box = document.getElementById("variantsOutput");
@@ -92,13 +97,14 @@ async function pollVariantStatus() {
 
       variants.forEach((variant, i) => {
         const cardId = `variant_${i}`;
+
         box.innerHTML += renderVariantCard(
           i + 1,
           variant,
           cardId
         );
 
-        // 🔥 feedback: viewed
+        // 🔥 Feedback: viewed
         sendVariantFeedback({
           variantId: cardId,
           intent: currentIntent || "discovery",
@@ -110,6 +116,8 @@ async function pollVariantStatus() {
       });
 
       box.dataset.rendered = "true";
+
+      // 🔥 AI recommendation bar
       updateAIRecommendationBar();
 
       // 🟢 Inline success
@@ -119,13 +127,17 @@ async function pollVariantStatus() {
         "success"
       );
 
-      // ✅ ADD: hide badge immediately on done
-      updateVariantRunningBadge("idle");
-
-      // 🧹 Clear inline after delay
+      // 🧹 Clear inline status
       setTimeout(() => {
         setStatus("variantsInlineStatus", "");
       }, 2000);
+
+      // 🔴 Hide badge immediately
+      updateVariantRunningBadge("idle");
+
+      // 🔓 Unlock button
+      const btn = document.getElementById("generateVariantsBtn");
+      if (btn) btn.disabled = false;
 
       VARIANT_POLL_ACTIVE = false;
     }
@@ -138,9 +150,14 @@ async function pollVariantStatus() {
 
   } catch (err) {
     console.warn("pollVariantStatus failed", err);
-    setTimeout(pollVariantStatus, 2000);
+
+    if (VARIANT_POLL_ACTIVE) {
+      setTimeout(pollVariantStatus, 2000);
+    }
   }
 }
+
+
 
 function updateAIRecommendationBar() {
   const bar = document.getElementById("aiRecommendationBar");
@@ -448,34 +465,54 @@ function clearPendingRewrite() {
 }
 
 async function generateVariantsAsync(modes, selectedHook) {
+  // 🔒 Lock button
+  const btn = document.getElementById("generateVariantsBtn");
+  if (btn) btn.disabled = true;
+
+  // Inline + badge feedback
   setStatus(
     "variantsInlineStatus",
     "Generating AI variants…",
-    "working" ,
+    "working",
     false
   );
 
   updateVariantRunningBadge("running");
 
-  const res = await jsonFetch("/api/variants/start", {
-    method: "POST",
-    body: JSON.stringify({
-      session: getActiveSession(),
-      modes,
-      selected_hook: selectedHook
-    })
-  });
-
-  if (res.status === "already_running") {
-    VARIANT_POLL_ACTIVE = true;
-    pollVariantStatus();
-    return;
+  // Optional UX polish: auto-open drawer
+  if (typeof openVariantsPanel === "function") {
+    openVariantsPanel({ silent: true });
   }
 
-  VARIANT_POLL_ACTIVE = true;
-  pollVariantStatus();
-}
+  try {
+    const res = await jsonFetch("/api/variants/start", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        modes,
+        selected_hook: selectedHook
+      })
+    });
 
+    // 🔁 Already running → just poll
+    VARIANT_POLL_ACTIVE = true;
+    pollVariantStatus();
+
+  } catch (err) {
+    console.error(err);
+
+    setStatus(
+      "variantsInlineStatus",
+      "Failed to start AI variants",
+      "error"
+    );
+
+    updateVariantRunningBadge("idle");
+
+    // 🔓 Unlock button on failure
+    if (btn) btn.disabled = false;
+  }
+}
 
 
 function lockRewriteDecision() {
@@ -4440,6 +4477,24 @@ if (clearHookBtn) {
         "info"
       );
     });
+  }
+
+    // 🔄 Resume AI variants if page refreshed mid-run
+  try {
+    const data = await jsonFetch(
+      `/api/variants/status?session=${getActiveSession()}`
+    );
+
+    if (data.status === "running") {
+      updateVariantRunningBadge("running");
+
+      if (!VARIANT_POLL_ACTIVE) {
+        VARIANT_POLL_ACTIVE = true;
+        pollVariantStatus();
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to resume variant polling on load", err);
   }
 
 document
