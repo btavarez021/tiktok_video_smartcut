@@ -53,10 +53,17 @@ function debounce(fn, wait = 350) {
 async function pollVariantStatus() {
   if (!VARIANT_POLL_ACTIVE) return;
 
+  constsession - getActiveSession();
+
   try {
     const data = await jsonFetch(
       `/api/variants/status?session=${getActiveSession()}`
     );
+
+    if(session != getActiveSession()) {
+      VARIANT_POLL_ACTIVE = false;
+      updateVariantRunningBadge("idle");
+    }
 
     const status = data.status;
 
@@ -465,6 +472,9 @@ function clearPendingRewrite() {
 }
 
 async function generateVariantsAsync(modes, selectedHook) {
+
+lastVariantStatus = null;
+
   // 🔒 Lock button
   const btn = document.getElementById("generateVariantsBtn");
   if (btn) btn.disabled = true;
