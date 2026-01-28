@@ -35,6 +35,9 @@ let lastAnalyzeStatus = null;
 let ANALYZE_POLL_ACTIVE = false;
 let lastVariantStatus = null;
 let VARIANT_POLL_ACTIVE = false;
+let YAML_POLL_ACTIVE = false;
+let lastYamlStatus = null;
+
 
 function setCurrentVideoIntent(intent) {
   currentIntent = intent;
@@ -53,16 +56,17 @@ function debounce(fn, wait = 350) {
 async function pollVariantStatus() {
   if (!VARIANT_POLL_ACTIVE) return;
 
-  constsession - getActiveSession();
+  constsession = getActiveSession();
 
   try {
     const data = await jsonFetch(
       `/api/variants/status?session=${getActiveSession()}`
     );
 
-    if(session != getActiveSession()) {
+    if(session !== getActiveSession()) {
       VARIANT_POLL_ACTIVE = false;
       updateVariantRunningBadge("idle");
+      return;
     }
 
     const status = data.status;
@@ -237,7 +241,9 @@ function updateCaptionBaselineHint() {
   const hint = document.getElementById("captionBaselineHint");
   if (!hint) return;
 
-  const hasVariants = lastGeneratedVariants.length > 0;
+  const hasVariants =
+  Array.isArray(window.lastGeneratedVariants) &&
+  window.lastGeneratedVariants.length > 0;
 
 
   hint.style.display = hasVariants ? "none" : "block";
@@ -247,7 +253,9 @@ function updateLoadYamlVisibility() {
   const btn = document.getElementById("loadCaptionsFromYamlBtn");
   if (!btn) return;
 
-  const hasVariants = lastGeneratedVariants.length > 0;
+  const hasVariants =
+  Array.isArray(window.lastGeneratedVariants) &&
+  window.lastGeneratedVariants.length > 0;
 
   btn.style.display = hasVariants ? "inline-block" : "none";
 }
@@ -2362,14 +2370,13 @@ async function loadAISetupSummary() {
         yaml.yaml.includes("first_clip") &&
         yaml.yaml.includes("middle_clips");
 
-      // 🔥 Auto-generate YAML if missing
       if (!hasYaml) {
         setStatus("improveHooksStatus", "Building storyboard…", "working");
-        await generateYaml();
-        await loadConfigAndYaml();
 
-        setStatus("improveHooksStatus", "Loading captions…", "working");
-        await loadCaptionsFromYaml();
+        await generateYamlAsync();     // ✅ NEW
+        // DO NOT load yet — poller will finalize
+
+        return; // ⛔ IMPORTANT: stop here, async flow continues
       }
 
       // Show storyboard continue CTA
@@ -2631,6 +2638,62 @@ function renderSetupSummary(summary) {
       </div>
     </div>
   `;
+}
+
+async function pollYamlStatus() {
+  if (!YAML_POLL_ACTIVE) return;
+
+  try {
+    const data = await jsonFetch(
+      `/api/generate_yaml/status?session=${getActiveSession()}`
+    );
+
+    if (data.status === "running") {
+      setStatus(
+        "yamlStatus",
+        "Building storyboard with AI…",
+        "working",
+        false
+      );
+
+      lastYamlStatus = "running";
+      setTimeout(pollYamlStatus, 1200);
+      return;
+    }
+
+    if (lastYamlStatus === "running" && data.status === "done") {
+      setStatus("yamlStatus", "Finalizing storyboard…", "working", false);
+
+      await loadConfigAndYaml();
+      await loadCaptionsFromYaml();
+
+      setStatus("yamlStatus", "Storyboard ready ✓", "success");
+      YAML_POLL_ACTIVE = false;
+      return;
+    }
+
+    YAML_POLL_ACTIVE = false;
+
+  } catch (err) {
+    console.warn("pollYamlStatus failed", err);
+    setTimeout(pollYamlStatus, 2000);
+  }
+}
+
+async function generateYamlAsync() {
+  YAML_POLL_ACTIVE = true;
+  lastYamlStatus = null;
+  pollYamlStatus();
+
+  try {
+    await jsonFetch("/api/generate_yaml", {
+      method: "POST",
+      body: JSON.stringify({ session: getActiveSession() }),
+    });
+  } catch (err) {
+    setStatus("yamlStatus", "Failed to start YAML generation", "error");
+    YAML_POLL_ACTIVE = false;
+  }
 }
 
 // ================================
@@ -4507,6 +4570,20 @@ if (clearHookBtn) {
     console.warn("Failed to resume variant polling on load", err);
   }
 
+  // 🔄 Resume YAML generation if page refreshed mid-run
+try {
+  const data = await jsonFetch(
+    `/api/generate_yaml/status?session=${getActiveSession()}`
+  );
+
+  if (data.status === "running") {
+    YAML_POLL_ACTIVE = true;
+    pollYamlStatus();
+  }
+} catch (err) {
+  console.warn("Failed to resume YAML polling", err);
+}
+
 document
   .getElementById("undoAiRecommendationBtn")
   ?.addEventListener("click", undoAIRecommendation);
@@ -4930,8 +5007,9 @@ if (captionsBox) {
 
 
     document
-        .getElementById("generateYamlBtn")
-        ?.addEventListener("click", generateYaml);
+    .getElementById("generateYamlBtn")
+    ?.addEventListener("click", generateYamlAsync);
+
     document
         .getElementById("refreshYamlBtn")
         ?.addEventListener("click", loadConfigAndYaml);
