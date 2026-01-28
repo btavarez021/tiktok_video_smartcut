@@ -37,7 +37,7 @@ let lastVariantStatus = null;
 let VARIANT_POLL_ACTIVE = false;
 let YAML_POLL_ACTIVE = false;
 let lastYamlStatus = null;
-
+let PENDING_SCOLL_TO_STORYBOARD = false;
 
 function setCurrentVideoIntent(intent) {
   currentIntent = intent;
@@ -2371,6 +2371,7 @@ async function loadAISetupSummary() {
       if (!hasYaml) {
         setStatus("improveHooksStatus", "Building storyboard…", "working");
 
+        PENDING_SCOLL_TO_STORYBOARD = true;
         await generateYamlAsync();     // ✅ NEW
         // DO NOT load yet — poller will finalize
 
@@ -2646,35 +2647,70 @@ async function pollYamlStatus() {
       `/api/generate_yaml/status?session=${getActiveSession()}`
     );
 
-    if (data.status === "running") {
-      setStatus(
-        "yamlStatus",
-        "Building storyboard with AI…",
-        "working",
-        false
-      );
+    const status = data?.status;
+
+    // -----------------------------
+    // RUNNING
+    // -----------------------------
+    if (status === "running") {
+      if (lastYamlStatus !== "running") {
+        setStatus(
+          "yamlStatus",
+          "Building storyboard with AI…",
+          "working",
+          false
+        );
+      }
 
       lastYamlStatus = "running";
       setTimeout(pollYamlStatus, 1200);
       return;
     }
 
-    if (lastYamlStatus === "running" && data.status === "done") {
+    // -----------------------------
+    // DONE (transition-based)
+    // -----------------------------
+    if (lastYamlStatus === "running" && status === "done") {
       setStatus("yamlStatus", "Finalizing storyboard…", "working", false);
 
       await loadConfigAndYaml();
       await loadCaptionsFromYaml();
 
       setStatus("yamlStatus", "Storyboard ready ✓", "success");
+
       YAML_POLL_ACTIVE = false;
+      lastYamlStatus = null;
+
+      // ✅ Scroll ONLY if user intended it
+      if (PENDING_SCROLL_TO_STORYBOARD) {
+        PENDING_SCROLL_TO_STORYBOARD = false;
+
+        requestAnimationFrame(() => {
+          scrollToStep("#step-3");
+        });
+      }
+
       return;
     }
 
+    // -----------------------------
+    // IDLE / UNKNOWN → stop polling
+    // -----------------------------
     YAML_POLL_ACTIVE = false;
+    lastYamlStatus = null;
 
   } catch (err) {
     console.warn("pollYamlStatus failed", err);
-    setTimeout(pollYamlStatus, 2000);
+
+    // ⛔ Stop polling on hard failures (404, server restart)
+    YAML_POLL_ACTIVE = false;
+    lastYamlStatus = null;
+
+    setStatus(
+      "yamlStatus",
+      "Storyboard generation interrupted — try again",
+      "error"
+    );
   }
 }
 
