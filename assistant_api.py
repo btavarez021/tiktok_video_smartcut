@@ -30,7 +30,6 @@ import json
 import time
 from datetime import datetime, timezone
 from threading import Lock
-
 # Import ONLY non-circular functions from tiktok_assistant
 from tiktok_assistant import (
     generate_signed_download_url,
@@ -53,6 +52,7 @@ AGG_PATH = os.path.join(DATA_DIR, "feedback_aggregates.json")
 
 ANALYSIS_JOBS: dict[str, dict] = {}
 VARIANT_JOBS: dict[str, dict] = {}
+YAML_JOBS = {}
 
 ANALYSIS_STATUS_DIR = os.path.join(DATA_DIR, "analysis_status")
 os.makedirs(ANALYSIS_STATUS_DIR, exist_ok=True)
@@ -111,6 +111,44 @@ def api_generate_variants_start(session: str, modes: dict, selected_hook: str | 
     thread.start()
 
     return {"status": "started"}
+
+
+def _run_yaml_job(session: str):
+    try:
+        api_generate_yaml(session)  # 👈 YOUR EXISTING LOGIC
+        YAML_JOBS[session]["status"] = "done"
+    except Exception as e:
+        YAML_JOBS[session]["status"] = "error"
+        YAML_JOBS[session]["error"] = str(e)
+
+
+def api_generate_yaml_start(session: str):
+    session = sanitize_session(session)
+
+    job = YAML_JOBS.get(session)
+    if job and job["status"] == "running":
+        return {"status": "already_running"}
+
+    YAML_JOBS[session] = {"status": "running"}
+
+    thread = threading.Thread(
+        target=_run_yaml_job,
+        args=(session,),
+        daemon=True
+    )
+    thread.start()
+
+    return {"status": "started"}
+
+def api_generate_yaml_status(session: str):
+    session = sanitize_session(session)
+
+    job = YAML_JOBS.get(session)
+    if not job:
+        return {"status": "idle"}
+
+    return job
+
 
 def api_generate_variants_start(session: str, modes: dict, selected_hook: str | None):
     session = sanitize_session(session)

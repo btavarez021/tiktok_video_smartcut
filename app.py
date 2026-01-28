@@ -48,7 +48,9 @@ from assistant_api import (
     api_ai_setup_summary,
     api_analyze_status,
     api_generate_variants_start,
-    api_generate_variants_status
+    api_generate_variants_status,
+    api_generate_yaml_start,
+    api_generate_yaml_status
     )
 from tiktok_assistant import apply_filename_captions
 from tiktok_template import get_config_path
@@ -129,6 +131,20 @@ def api_create_session_route(session):
 
     return jsonify({"success": True, "session": session})
 
+@app.route("/api/generate_yaml/start", methods=["POST"])
+def generate_yaml_start():
+    data = request.get_json()
+    return jsonify(
+        api_generate_yaml_start(data["session"])
+    )
+
+
+@app.route("/api/generate_yaml/status")
+def generate_yaml_status():
+    session = request.args.get("session")
+    return jsonify(
+        api_generate_yaml_status(session)
+    )
 
 # ============================================================================
 # UPLOAD TO S3 (SESSION-AWARE)
