@@ -2939,6 +2939,37 @@ async function saveYaml() {
     }
 }
 
+function handleHookScoreSideEffects(score) {
+  // Story Flow lock
+  const flowCard = document.querySelector(".story-flow-card");
+  const lockedHint = document.getElementById("storyFlowLockedHint");
+
+  if (flowCard && lockedHint) {
+    if (score < 60) {
+      flowCard.classList.add("hidden");
+      lockedHint.classList.remove("hidden");
+    } else {
+      lockedHint.classList.add("hidden");
+      flowCard.classList.remove("hidden");
+    }
+  }
+
+  // Improve buttons
+  updateImproveButtons(score, null);
+
+  // Rewrite warning
+  if (score < 60) {
+    setStatus(
+      "overlayStatus",
+      "⚠ Hook is weak — improve hook before rewriting captions.",
+      "warning",
+      false
+    );
+  } else {
+    clearOverlayWarning();
+  }
+}
+
 async function refreshHookScore() {
   const captionsEl = document.getElementById("captionsText");
   const card = document.querySelector(".hook-score-card");
@@ -2968,20 +2999,7 @@ if (!window.lastGeneratedHooks || !window.lastGeneratedHooks.length) {
     // -----------------------------
     // 🔒 Story flow lock (NOW safe)
     // -----------------------------
-    const flowCard = document.querySelector(".story-flow-card");
-    const lockedHint = document.getElementById("storyFlowLockedHint");
-
-    if (flowCard && lockedHint) {
-      if (score < 60) {
-        flowCard.classList.add("hidden");
-        lockedHint.classList.remove("hidden");
-      } else {
-        lockedHint.classList.add("hidden");
-        flowCard.classList.remove("hidden");
-      }
-    }
-
-    updateImproveButtons(score, null);
+    handleHookScoreSideEffects(score);
 
     scoreEl.textContent = `${score}/100`;
     hookEl.textContent = data.hook || "(no opening caption yet)";
@@ -3161,6 +3179,11 @@ async function refreshOverlayPreview() {
 // =============================================
 
 async function applyCaptionVariant(text, meta = {}) {
+
+  // 🔒 User took control — AI no longer owns state
+  window.aiUndoSnapshot = null;
+  updateAIRecommendationBar();
+
   const { id, tone, intent } = meta;
   
   const session = getActiveSession();
@@ -3211,6 +3234,9 @@ async function applyCaptionVariant(text, meta = {}) {
     setStatus("captionsStatus", "Caption applied ✓", "success");
 
     toggleVariantsPanel(true);
+
+    document.getElementById("step4CaptionScroll")?.classList.add("hidden");
+    document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
 
   } catch (err) {
     console.error(err);
@@ -3354,29 +3380,39 @@ function updateImproveButtons(hookScore, storyScore) {
     // Disable Rewrite Mode if no captions exist
     // ================================
     function updateRewriteModeAvailability() {
-    const text = getCurrentCaptionsText();
-    const rewriteRadio = document.querySelector('input[name="captionRewriteMode"][value="rewrite"]');
-    const captionBox = document.querySelector(".caption-mode");
+  const text = getCurrentCaptionsText();
+  const rewriteRadio = document.querySelector(
+    'input[name="captionRewriteMode"][value="rewrite"]'
+  );
+  const captionBox = document.querySelector(".caption-mode");
 
-    if (!rewriteRadio) return;
+  if (!rewriteRadio) return;
 
-    const hasText = text && text.length > 3;
+  const hasText = text && text.length > 3;
 
-    // enable/disable rewrite mode + fade
-    rewriteRadio.disabled = !hasText;
-    rewriteRadio.parentElement.style.opacity = hasText ? "1" : "0.4";
+  const hookScore = Number(
+    document.getElementById("hookScoreValue")
+      ?.textContent?.split("/")[0] || 0
+  );
 
-    if (!hasText) {
-        clearOverlayWarning();
-        }
+  const rewriteAllowed =
+    hasText &&
+    hookScore >= 60 &&
+    !rewritePending &&
+    !isInRewriteReview;
 
+  rewriteRadio.disabled = !rewriteAllowed;
+  rewriteRadio.parentElement.style.opacity = rewriteAllowed ? "1" : "0.4";
 
-    // 🔥 Highlight box when rewrite ON + captions exist
-    if (hasText && rewriteRadio.checked) {
-        captionBox?.classList.add("rewrite-hot");
-    } else {
-        captionBox?.classList.remove("rewrite-hot");
-    }
+  if (!rewriteAllowed) {
+    clearOverlayWarning();
+  }
+
+  if (rewriteAllowed && rewriteRadio.checked) {
+    captionBox?.classList.add("rewrite-hot");
+  } else {
+    captionBox?.classList.remove("rewrite-hot");
+  }
 }
 
 
@@ -4648,9 +4684,29 @@ document
     }
     
      document
-  .getElementById("continueToHooksBtn")
-  ?.addEventListener("click", () => {
-    openVariantsPanel();
+ .getElementById("continueToHooksBtn")
+ ?.addEventListener("click", async () => {
+
+   // 🔄 CRITICAL: sync YAML → captions BEFORE storyboard UI
+   await loadConfigAndYaml();
+   await loadCaptionsFromYaml();
+
+   // Optional but recommended
+   await refreshHookScore();
+   await refreshStoryFlowScore();
+
+   // ➡️ NOW move into storyboard / hook lab
+   openVariantsPanel();
+
+   requestAnimationFrame(() => {
+     document
+       .getElementById("hookLab")
+       ?.scrollIntoView({
+         behavior: "smooth",
+         block: "start"
+       });
+   });
+ });
 
 document
   .getElementById("confirmStoryboardBtn")
