@@ -2476,20 +2476,23 @@ async function pollAnalyzeStatus() {
       return;
     }
 
-    // ✅ Transition → finalizing
+    // ✅ Transition: running → done
     if (lastAnalyzeStatus === "running" && status === "done") {
-      console.log("✅ Analysis finished — finalizing AI insights");
+      console.log("✅ Analysis finished");
 
       setStatus(
         "analyzeStatus",
-        "Finalizing AI insights…",
-        "working",
+        "AI analysis ready ✓",
+        "success",
         false
       );
 
+      // 🔄 Refresh analysis-driven UI ONLY
       await refreshAnalyses();
-      loadAISetupSummary(); // this will end polling when ready
-      lastAnalyzeStatus = status;
+      loadAISetupSummary();
+
+      ANALYZE_POLL_ACTIVE = false;
+      lastAnalyzeStatus = null;
       return;
     }
 
