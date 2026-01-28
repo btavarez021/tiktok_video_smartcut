@@ -2371,7 +2371,7 @@ async function loadAISetupSummary() {
       if (!hasYaml) {
         setStatus("improveHooksStatus", "Building storyboard…", "working");
 
-        PENDING_SCOLL_TO_STORYBOARD = true;
+        PENDING_SCROLL_TO_STORYBOARD = true;
         await generateYamlAsync();     // ✅ NEW
         // DO NOT load yet — poller will finalize
 
