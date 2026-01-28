@@ -37,7 +37,7 @@ let lastVariantStatus = null;
 let VARIANT_POLL_ACTIVE = false;
 let YAML_POLL_ACTIVE = false;
 let lastYamlStatus = null;
-let PENDING_SCOLL_TO_STORYBOARD = false;
+let PENDING_SCROLL_TO_STORYBOARD = false;
 
 function setCurrentVideoIntent(intent) {
   currentIntent = intent;
