@@ -2462,7 +2462,9 @@ async function pollAnalyzeStatus() {
     const status = data.status;
     updateAnalyzingBadge(status);
 
-    // 🔄 Still running
+    // -----------------------------
+    // RUNNING
+    // -----------------------------
     if (status === "running") {
       setStatus(
         "analyzeStatus",
@@ -2471,13 +2473,15 @@ async function pollAnalyzeStatus() {
         false
       );
 
-      lastAnalyzeStatus = status;
+      lastAnalyzeStatus = "running";
       setTimeout(pollAnalyzeStatus, 1200);
       return;
     }
 
-    // ✅ Transition: running → done
-    if (lastAnalyzeStatus === "running" && status === "done") {
+    // -----------------------------
+    // DONE (robust — no transition required)
+    // -----------------------------
+    if (status === "done") {
       console.log("✅ Analysis finished");
 
       setStatus(
@@ -2487,7 +2491,7 @@ async function pollAnalyzeStatus() {
         false
       );
 
-      // 🔄 Refresh analysis-driven UI ONLY
+      // 🔄 Refresh analysis-driven UI
       await refreshAnalyses();
       loadAISetupSummary();
 
@@ -2496,11 +2500,19 @@ async function pollAnalyzeStatus() {
       return;
     }
 
-    lastAnalyzeStatus = status;
+    // -----------------------------
+    // UNKNOWN / IDLE → stop polling
+    // -----------------------------
+    ANALYZE_POLL_ACTIVE = false;
+    lastAnalyzeStatus = null;
 
   } catch (err) {
     console.warn("pollAnalyzeStatus failed", err);
-    setTimeout(pollAnalyzeStatus, 2000);
+
+    // retry only if still active
+    if (ANALYZE_POLL_ACTIVE) {
+      setTimeout(pollAnalyzeStatus, 2000);
+    }
   }
 }
 
@@ -2718,20 +2730,47 @@ async function pollYamlStatus() {
 }
 
 async function generateYamlAsync() {
+  // ----------------------------------
+  // Init + intent
+  // ----------------------------------
   YAML_POLL_ACTIVE = true;
-  lastYamlStatus = null;
+  lastYamlStatus = "running"; // 🔑 prevents missing fast 'done'
+  setStatus(
+    "yamlStatus",
+    "Building storyboard with AI…",
+    "working",
+    false
+  );
+
+  // ----------------------------------
+  // Start polling BEFORE request
+  // ----------------------------------
   pollYamlStatus();
 
   try {
+    // ----------------------------------
+    // Kick off backend generation
+    // ----------------------------------
     await jsonFetch("/api/generate_yaml", {
       method: "POST",
-      body: JSON.stringify({ session: getActiveSession() }),
+      body: JSON.stringify({
+        session: getActiveSession()
+      }),
     });
   } catch (err) {
-    setStatus("yamlStatus", "Failed to start YAML generation", "error");
+    console.error("generateYamlAsync failed", err);
+
+    setStatus(
+      "yamlStatus",
+      "Failed to start storyboard generation",
+      "error"
+    );
+
     YAML_POLL_ACTIVE = false;
+    lastYamlStatus = null;
   }
 }
+
 
 // ================================
 // Step 2: YAML generation & config
