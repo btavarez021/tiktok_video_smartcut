@@ -2368,15 +2368,25 @@ async function loadAISetupSummary() {
         yaml.yaml.includes("first_clip") &&
         yaml.yaml.includes("middle_clips");
 
-      if (!hasYaml) {
-        setStatus("improveHooksStatus", "Building storyboard…", "working");
+      // 🔍 Check YAML state first (race-condition safe)
+const yamlStatus = await jsonFetch(
+  `/api/generate_yaml/status?session=${getActiveSession()}`
+);
 
-        PENDING_SCROLL_TO_STORYBOARD = true;
-        await generateYamlAsync();     // ✅ NEW
-        // DO NOT load yet — poller will finalize
+if (yamlStatus?.status === "done") {
+  // ✅ YAML already ready → scroll immediately
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      scrollToStep("#step-3");
+    });
+  });
+  return;
+}
 
-        return; // ⛔ IMPORTANT: stop here, async flow continues
-      }
+// ⏳ YAML not ready → async flow
+PENDING_SCROLL_TO_STORYBOARD = true;
+await generateYamlAsync();
+return;
 
       // Show storyboard continue CTA
       document
