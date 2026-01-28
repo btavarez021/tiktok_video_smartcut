@@ -56,14 +56,15 @@ function debounce(fn, wait = 350) {
 async function pollVariantStatus() {
   if (!VARIANT_POLL_ACTIVE) return;
 
-  constsession = getActiveSession();
+  const session = getActiveSession(); // ✅ FIXED
 
   try {
     const data = await jsonFetch(
-      `/api/variants/status?session=${getActiveSession()}`
+      `/api/variants/status?session=${session}`
     );
 
-    if(session !== getActiveSession()) {
+    // 🧠 Session switched mid-poll → stop safely
+    if (session !== getActiveSession()) {
       VARIANT_POLL_ACTIVE = false;
       updateVariantRunningBadge("idle");
       return;
@@ -89,10 +90,10 @@ async function pollVariantStatus() {
 
       const variants = data.result?.variants || [];
 
-      // 🔑 Global state (used by AI recommendation bar)
+      // 🔑 Global state
       window.lastGeneratedVariants = variants;
 
-      // Sort: AI recommended first, then strongest score
+      // Sort: AI recommended first
       variants.sort((a, b) => {
         if (a.recommended) return -1;
         if (b.recommended) return 1;
@@ -127,8 +128,6 @@ async function pollVariantStatus() {
       });
 
       box.dataset.rendered = "true";
-
-      // 🔥 AI recommendation bar
       updateAIRecommendationBar();
 
       // 🟢 Inline success
@@ -138,7 +137,6 @@ async function pollVariantStatus() {
         "success"
       );
 
-      // 🧹 Clear inline status
       setTimeout(() => {
         setStatus("variantsInlineStatus", "");
       }, 2000);
@@ -147,8 +145,9 @@ async function pollVariantStatus() {
       updateVariantRunningBadge("idle");
 
       // 🔓 Unlock button
-      const btn = document.getElementById("generateVariantsBtn");
-      if (btn) btn.disabled = false;
+      document
+        .getElementById("generateVariantsBtn")
+        ?.removeAttribute("disabled");
 
       VARIANT_POLL_ACTIVE = false;
     }
@@ -167,7 +166,6 @@ async function pollVariantStatus() {
     }
   }
 }
-
 
 
 function updateAIRecommendationBar() {
