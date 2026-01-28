@@ -4706,7 +4706,6 @@ document
          block: "start"
        });
    });
- });
 
 document
   .getElementById("confirmStoryboardBtn")
