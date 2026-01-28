@@ -4571,18 +4571,18 @@ if (clearHookBtn) {
   }
 
   // 🔄 Resume YAML generation if page refreshed mid-run
-try {
-  const data = await jsonFetch(
-    `/api/generate_yaml/status?session=${getActiveSession()}`
-  );
+// try {
+//   const data = await jsonFetch(
+//     `/api/generate_yaml/status?session=${getActiveSession()}`
+//   );
 
-  if (data.status === "running") {
-    YAML_POLL_ACTIVE = true;
-    pollYamlStatus();
-  }
-} catch (err) {
-  console.warn("Failed to resume YAML polling", err);
-}
+//   if (data.status === "running") {
+//     YAML_POLL_ACTIVE = true;
+//     pollYamlStatus();
+//   }
+// } catch (err) {
+//   console.warn("Failed to resume YAML polling", err);
+// }
 
 document
   .getElementById("undoAiRecommendationBtn")
