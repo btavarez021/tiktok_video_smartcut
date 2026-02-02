@@ -2353,31 +2353,31 @@ async function loadAISetupSummary() {
   if (!goBtn) return;
 
   goBtn.onclick = async () => {
+    if (YAML_POLL_ACTIVE) return;
     goBtn.disabled = true;
     goBtn.classList.add("ui-busy");
 
     try {
       setStatus("improveHooksStatus", "Preparing storyboard…", "working");
 
-      // 🔑 SINGLE source of truth: YAML status endpoint
+      // 🔑 STEP 1: single source of truth — YAML STATUS
       const yamlStatus = await jsonFetch(
         `/api/generate_yaml/status?session=${getActiveSession()}`
       );
 
-      // 🟢 YAML already exists → scroll immediately
+      // 🟢 YAML already ready → hydrate + scroll immediately
       if (yamlStatus?.status === "done") {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            scrollToStep("#step-3");
-          });
-        });
+        PENDING_SCROLL_TO_STORYBOARD = false;
+        await hydrateStoryboardAndScroll();
         return;
       }
 
       // 🟡 YAML not ready → async generation path
       PENDING_SCROLL_TO_STORYBOARD = true;
-      await generateYamlAsync(); // pollYamlStatus owns the rest
-      return;
+      YAML_POLL_ACTIVE = true;
+      await generateYamlAsync();
+      return; // ⛔ stop here — pollYamlStatus owns the rest
+
 
     } catch (err) {
       console.error(err);
@@ -2623,6 +2623,7 @@ function renderSetupSummary(summary) {
 }
 
 async function enterStoryboardStep() {
+  
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
 
@@ -2680,7 +2681,7 @@ async function pollYamlStatus() {
     // -----------------------------
     // DONE (transition-based)
     // -----------------------------
-    if (lastYamlStatus === "running" && status === "done") {
+    if (status === "done") {
       setStatus("yamlStatus", "Finalizing storyboard…", "working", false);
 
       await loadConfigAndYaml();
@@ -3475,7 +3476,10 @@ async function loadCaptionsFromYaml() {
   
   setUiBusy(true);
   const box = document.getElementById("captionsText");
-  if (!box) return;
+  if (!box) {
+    setUiBusy(false);
+    return;
+  }
 
   setCaptionInlineStatus("Loading captions from YAML…", "info");
 
