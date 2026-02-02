@@ -2658,13 +2658,26 @@ async function enterStoryboardStep() {
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
 
-  // editor must be hydrated BEFORE scroll
+  workingCaptionsText = lastSavedCaptionsText;
+  captionViewMode = "rewritten";
+  renderCaptionView();
+}
+
+async function hydrateStoryboardAndScroll() {
+  // 1️⃣ Load data
+  await loadConfigAndYaml();
+  await loadCaptionsFromYaml();
+
+  // 2️⃣ Sync editor state
   workingCaptionsText = lastSavedCaptionsText;
   captionViewMode = "rewritten";
   renderCaptionView();
 
+  // 3️⃣ Scroll ONLY after layout settles
   requestAnimationFrame(() => {
-    enterStoryboardStep();
+    requestAnimationFrame(() => {
+      scrollToStep("#step-3");
+    });
   });
 }
 
@@ -2717,10 +2730,7 @@ async function pollYamlStatus() {
       // ✅ Scroll ONLY if user intended it
       if (PENDING_SCROLL_TO_STORYBOARD) {
         PENDING_SCROLL_TO_STORYBOARD = false;
-
-        requestAnimationFrame(() => {
-          scrollToStep("#step-3");
-        });
+        await hydrateStoryboardAndScroll();
       }
 
       return;
