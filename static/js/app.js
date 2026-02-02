@@ -1614,7 +1614,7 @@ function initStepper() {
 
             // 🔥 When Step 3 becomes visible, build the timeline
             if (id === "#step-3") {
-                loadConfigAndYaml();
+              enterStoryboardStep();
             }
         });
     },
@@ -2654,6 +2654,20 @@ function renderSetupSummary(summary) {
   `;
 }
 
+async function enterStoryboardStep() {
+  await loadConfigAndYaml();
+  await loadCaptionsFromYaml();
+
+  // editor must be hydrated BEFORE scroll
+  workingCaptionsText = lastSavedCaptionsText;
+  captionViewMode = "rewritten";
+  renderCaptionView();
+
+  requestAnimationFrame(() => {
+    enterStoryboardStep();
+  });
+}
+
 async function pollYamlStatus() {
   if (!YAML_POLL_ACTIVE) return;
 
@@ -2690,6 +2704,10 @@ async function pollYamlStatus() {
 
       await loadConfigAndYaml();
       await loadCaptionsFromYaml();
+
+      workingCaptionsText = lastSavedCaptionsText;
+      captionViewMode = "rewritten";
+      renderCaptionView();
 
       setStatus("yamlStatus", "Storyboard ready ✓", "success");
 
