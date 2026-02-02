@@ -2363,20 +2363,30 @@ async function loadAISetupSummary() {
         `/api/config?session=${encodeURIComponent(getActiveSession())}`
       );
 
-      const hasYaml =
-        yaml?.yaml &&
-        yaml.yaml.includes("first_clip") &&
-        yaml.yaml.includes("middle_clips");
+      setStatus("improveHooksStatus", "Preparing storyboard…", "working");
 
-      if (!hasYaml) {
-        setStatus("improveHooksStatus", "Building storyboard…", "working");
+      // 🔑 STEP 1: ask the STATUS endpoint (single source of truth)
+      const yamlStatus = await jsonFetch(
+        `/api/generate_yaml/status?session=${getActiveSession()}`
+      );
 
-        PENDING_SCROLL_TO_STORYBOARD = true;
-        await generateYamlAsync();     // ✅ NEW
-        // DO NOT load yet — poller will finalize
-
-        return; // ⛔ IMPORTANT: stop here, async flow continues
+      // 🟢 YAML already ready → scroll immediately
+      if (yamlStatus?.status === "done") {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            scrollToStep("#step-3");
+          });
+        });
+        return;
       }
+
+      // 🟡 YAML not ready → async path
+      PENDING_SCROLL_TO_STORYBOARD = true;
+      YAML_POLL_ACTIVE = true;
+
+      await generateYamlAsync();
+      pollYamlStatus();
+      return; // ⛔ stop here, poller owns the rest
 
       // Show storyboard continue CTA
       document
@@ -3504,6 +3514,7 @@ function buildCaptionsFromConfig(cfg) {
 }
 
 async function loadCaptionsFromYaml() {
+  
   setUiBusy(true);
   const box = document.getElementById("captionsText");
   if (!box) return;
