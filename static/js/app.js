@@ -2303,13 +2303,13 @@ async function loadAISetupSummary() {
   const el = document.getElementById("aiSetupSummary");
   if (!el || !data) return;
 
-  // 🔒 Still not ready → keep polling alive
+  // 🔒 Analysis not finished yet
   if (!data.has_analysis) {
     el.classList.add("hidden");
     return;
   }
 
-  // ✅ ANALYSIS IS FULLY READY — END ANALYZE STATE HERE
+  // ✅ ANALYSIS COMPLETE
   ANALYZE_POLL_ACTIVE = false;
   updateAnalyzingBadge("idle");
 
@@ -2347,7 +2347,7 @@ async function loadAISetupSummary() {
   el.classList.remove("hidden");
 
   // ---------------------------
-  // CTA button logic
+  // CTA button logic (ASYNC SAFE)
   // ---------------------------
   const goBtn = el.querySelector("#goToVariantsBtn");
   if (!goBtn) return;
@@ -2359,18 +2359,12 @@ async function loadAISetupSummary() {
     try {
       setStatus("improveHooksStatus", "Preparing storyboard…", "working");
 
-      const yaml = await jsonFetch(
-        `/api/config?session=${encodeURIComponent(getActiveSession())}`
-      );
-
-      setStatus("improveHooksStatus", "Preparing storyboard…", "working");
-
-      // 🔑 STEP 1: ask the STATUS endpoint (single source of truth)
+      // 🔑 SINGLE source of truth: YAML status endpoint
       const yamlStatus = await jsonFetch(
         `/api/generate_yaml/status?session=${getActiveSession()}`
       );
 
-      // 🟢 YAML already ready → scroll immediately
+      // 🟢 YAML already exists → scroll immediately
       if (yamlStatus?.status === "done") {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -2380,46 +2374,10 @@ async function loadAISetupSummary() {
         return;
       }
 
-      // 🟡 YAML not ready → async path
+      // 🟡 YAML not ready → async generation path
       PENDING_SCROLL_TO_STORYBOARD = true;
-      YAML_POLL_ACTIVE = true;
-
-      await generateYamlAsync();
-      pollYamlStatus();
-      return; // ⛔ stop here, poller owns the rest
-
-      // Show storyboard continue CTA
-      document
-        .querySelector(".storyboard-continue")
-        ?.classList.remove("hidden");
-
-      // Reveal hook lab
-      document.getElementById("hookLab")?.classList.remove("hidden");
-
-      // Open variants drawer silently
-      if (typeof openVariantsPanel === "function") {
-        openVariantsPanel({ silent: true });
-      }
-
-      // Scroll to storyboard (source of truth)
-      requestAnimationFrame(() => {
-        document
-          .querySelector(".storyboard-panel")
-          ?.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-          });
-      });
-
-      setStatus(
-        "captionStatus",
-        "Review clip order first — hooks and captions build from this.",
-        "info",
-        false
-      );
-
-      setStatus("improveHooksStatus", "Hook Lab ready ✓", "success");
-      setTimeout(() => setStatus("improveHooksStatus", ""), 2000);
+      await generateYamlAsync(); // pollYamlStatus owns the rest
+      return;
 
     } catch (err) {
       console.error(err);
