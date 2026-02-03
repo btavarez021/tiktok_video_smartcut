@@ -2384,8 +2384,6 @@ async function loadAISetupSummary() {
 
       // 🟡 YAML not ready → async generation path
       PENDING_SCROLL_TO_STORYBOARD = true;
-      YAML_POLL_ACTIVE = true;
-
       await generateYamlAsync();
       // ⛔ STOP HERE — pollYamlStatus owns completion + scroll
       return;
@@ -2729,6 +2727,7 @@ async function generateYamlAsync() {
   if (YAML_POLL_ACTIVE) return;
 
   YAML_POLL_ACTIVE = true;
+  console.log("YAML async started")
   lastYamlStatus = "running";
 
   setStatus(
