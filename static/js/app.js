@@ -2360,7 +2360,7 @@ async function loadAISetupSummary() {
   const goBtn = el.querySelector("#goToVariantsBtn");
   if (!goBtn) return;
 
-  goBtn.onclick = async () => {
+goBtn.onclick = async () => {
   if (YAML_POLL_ACTIVE) return;
 
   goBtn.disabled = true;
@@ -2372,13 +2372,14 @@ async function loadAISetupSummary() {
 
     // 🟢 Already done → hydrate immediately
     if (yamlStatus?.status === "done") {
+      PENDING_SCROLL_TO_STORYBOARD = true;
       await hydrateStoryboardAndScroll();
       return;
     }
 
     // 🟡 Not ready → async path
     PENDING_SCROLL_TO_STORYBOARD = true;
-    await generateYamlAsync();
+    await generateYamlAsync(); // 🔑 THIS starts polling internally
 
   } catch (err) {
     console.error(err);
@@ -2391,7 +2392,7 @@ async function loadAISetupSummary() {
     goBtn.disabled = false;
   }
 };
-}
+
 
 async function retryAnalysis() {
   const status = await jsonFetch(
@@ -2628,40 +2629,28 @@ async function enterStoryboardStep() {
 }
 
 async function hydrateStoryboardAndScroll() {
-  console.log("[HYDRATE] storyboard start");
+  await loadConfigAndYaml();
+  await loadCaptionsFromYaml();
 
-  // 🔒 Prevent double execution
-  if (window.__hydratingStoryboard) return;
-  window.__hydratingStoryboard = true;
+  workingCaptionsText = lastSavedCaptionsText;
+  captionViewMode = "rewritten";
+  renderCaptionView();
 
-  try {
-    await loadConfigAndYaml();
-    await loadCaptionsFromYaml();
+  updateCaptionBaselineHint();
+  updateLoadYamlVisibility();
+  updateAIRecommendationBar();
 
-    // 🔑 Reset Step 3 state explicitly
-    workingCaptionsText = lastSavedCaptionsText;
-    captionViewMode = "rewritten";
-    renderCaptionView();
-
-    // Ensure storyboard timeline is rendered
-    const panel = document.querySelector(".storyboard-panel");
-    if (!panel) {
-      console.warn("[HYDRATE] storyboard panel missing");
-      return;
-    }
+  if (PENDING_SCROLL_TO_STORYBOARD) {
+    PENDING_SCROLL_TO_STORYBOARD = false;
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         scrollToStep("#step-3");
       });
     });
-
-    console.log("[HYDRATE] storyboard complete");
-
-  } finally {
-    window.__hydratingStoryboard = false;
   }
 }
+
 async function pollYamlStatus() {
   if (!YAML_POLL_ACTIVE) return;
 
@@ -2672,19 +2661,11 @@ async function pollYamlStatus() {
 
     const status = data?.status;
 
-    // -----------------------------
-    // RUNNING
-    // -----------------------------
     if (status === "running") {
-      lastYamlStatus = "running";
       setTimeout(pollYamlStatus, 1200);
       return;
     }
 
-    // -----------------------------
-    // DONE → SINGLE EXIT POINT
-    // -----------------------------
-    
     if (status === "done") {
       YAML_POLL_ACTIVE = false;
       lastYamlStatus = null;
@@ -2699,32 +2680,20 @@ async function pollYamlStatus() {
       return;
     }
 
-    // -----------------------------
-    // UNKNOWN → KEEP POLLING
-    // -----------------------------
+    // 🔁 NOT READY YET — KEEP POLLING
     setTimeout(pollYamlStatus, 1200);
 
   } catch (err) {
     console.warn("pollYamlStatus failed", err);
 
-    YAML_POLL_ACTIVE = false;
-    lastYamlStatus = null;
-
-    setStatus(
-      "yamlStatus",
-      "Storyboard generation interrupted — try again",
-      "error"
-    );
+    // 🔁 RETRY instead of killing state
+    setTimeout(pollYamlStatus, 2000);
   }
 }
 
 
 async function generateYamlAsync() {
   if (YAML_POLL_ACTIVE) return;
-
-  YAML_POLL_ACTIVE = true;
-  console.log("YAML async started")
-  lastYamlStatus = "running";
 
   setStatus(
     "yamlStatus",
@@ -2733,16 +2702,20 @@ async function generateYamlAsync() {
     false
   );
 
-  // 🔁 Start polling FIRST
-  pollYamlStatus();
-
   try {
+    // 🔑 START JOB FIRST
     await jsonFetch("/api/generate_yaml", {
       method: "POST",
       body: JSON.stringify({
         session: getActiveSession()
       }),
     });
+
+    // 🔁 NOW poll
+    YAML_POLL_ACTIVE = true;
+    lastYamlStatus = "running";
+    pollYamlStatus();
+
   } catch (err) {
     console.error("generateYamlAsync failed", err);
 
