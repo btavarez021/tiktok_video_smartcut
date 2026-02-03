@@ -2311,54 +2311,10 @@ async function loadAISetupSummary() {
   const el = document.getElementById("aiSetupSummary");
   if (!el || !data) return;
 
-  // 🔒 Analysis not finished yet
   if (!data.has_analysis) {
     el.classList.add("hidden");
     return;
   }
-
-  goBtn.onclick = async () => {
-  if (YAML_POLL_ACTIVE) return;
-
-  goBtn.disabled = true;
-
-  try {
-    const yamlStatus = await jsonFetch(
-      `/api/generate_yaml/status?session=${getActiveSession()}`
-    );
-
-    // 🟢 Already done → hydrate immediately
-    if (yamlStatus?.status === "done") {
-      PENDING_SCROLL_TO_STORYBOARD = true;
-      await hydrateStoryboardAndScroll();
-      return;
-    }
-
-    // 🟡 Not ready → async path
-    PENDING_SCROLL_TO_STORYBOARD = true;
-    YAML_POLL_ACTIVE = true;
-
-    await generateYamlAsync();
-    pollYamlStatus(); // 🔥 THIS WAS MISSING
-
-  } catch (err) {
-    console.error(err);
-    setStatus(
-      "improveHooksStatus",
-      "Failed to prepare storyboard",
-      "error"
-    );
-  } finally {
-    goBtn.disabled = false;
-  }
-};
-
-  // ✅ ANALYSIS COMPLETE
-  ANALYZE_POLL_ACTIVE = false;
-  updateAnalyzingBadge("idle");
-
-  setStatus("analyzeStatus", "Analysis complete ✓", "success");
-  setTimeout(() => setStatus("analyzeStatus", ""), 2000);
 
   // ---------------------------
   // Render summary card
@@ -2369,16 +2325,6 @@ async function loadAISetupSummary() {
       <p class="hint-text subtle">
         Next: generate hooks and captions to see AI recommendations.
       </p>
-
-      <ul>
-        <li>🎬 <b>${data.clips}</b> clips analyzed</li>
-        <li>🏷 Labels: <b>${data.labels.quality}</b>
-          ${data.labels.weak ? `( ${data.labels.weak} improved )` : ""}
-        </li>
-        <li>🔥 Best hook confidence: <b>${data.hook_confidence}</b></li>
-        <li>🎯 Recommended goal: <b>${data.recommended_goal}</b></li>
-        <li>⏱ Estimated length: <b>${data.estimated_length ?? "—"}</b></li>
-      </ul>
 
       <button id="goToVariantsBtn" class="btn primary small">
         Improve hooks and captions →
@@ -2391,11 +2337,43 @@ async function loadAISetupSummary() {
   el.classList.remove("hidden");
 
   // ---------------------------
-  // CTA button logic (ASYNC SAFE)
+  // ✅ RIGHT HERE — button wiring
   // ---------------------------
   const goBtn = el.querySelector("#goToVariantsBtn");
   if (!goBtn) return;
 
+  goBtn.onclick = async () => {
+    if (YAML_POLL_ACTIVE) return;
+
+    goBtn.disabled = true;
+
+    try {
+      const yamlStatus = await jsonFetch(
+        `/api/generate_yaml/status?session=${getActiveSession()}`
+      );
+
+      // 🟢 YAML already done → hydrate immediately
+      if (yamlStatus?.status === "done") {
+        PENDING_SCROLL_TO_STORYBOARD = true;
+        await hydrateStoryboardAndScroll();
+        return;
+      }
+
+      // 🟡 YAML not ready → async path
+      PENDING_SCROLL_TO_STORYBOARD = true;
+      await generateYamlAsync(); // owns polling
+
+    } catch (err) {
+      console.error(err);
+      setStatus(
+        "improveHooksStatus",
+        "Failed to prepare storyboard",
+        "error"
+      );
+    } finally {
+      goBtn.disabled = false;
+    }
+  };
 }
 
 async function retryAnalysis() {
