@@ -1352,6 +1352,19 @@ function sidebarToast(msg) {
     setTimeout(() => div.remove(), 1600);
 }
 
+function activateStep(stepSelector) {
+  document.querySelectorAll(".step").forEach(btn => {
+    btn.classList.toggle(
+      "active",
+      btn.dataset.target === stepSelector
+    );
+  });
+
+  const stepCard = document.querySelector(stepSelector);
+  stepCard?.classList.add("step-active");
+}
+
+
 async function sidebarLoadSessions() {
     try {
         const res = await fetch("/api/sessions");
@@ -2633,7 +2646,7 @@ async function enterStoryboardStep() {
 }
 
 async function hydrateStoryboardAndScroll() {
-  // 1️⃣ Load data
+  // 1️⃣ Load required data
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
 
@@ -2642,10 +2655,15 @@ async function hydrateStoryboardAndScroll() {
   captionViewMode = "rewritten";
   renderCaptionView();
 
-  // 3️⃣ Scroll ONLY after layout settles
+  // 3️⃣ HARD-ACTIVATE Step 3 (bypass observer)
+  activateStep("#step-3");
+
+  // 4️⃣ Scroll AFTER DOM + styles settle
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      scrollToStep("#step-3");
+      document
+        .querySelector("#step-3")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
 }
