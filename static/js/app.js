@@ -2361,29 +2361,34 @@ async function loadAISetupSummary() {
   if (!goBtn) return;
 
   goBtn.onclick = async () => {
-  if (YAML_POLL_ACTIVE) return;
+    // 🔒 Prevent double-start
+    if (YAML_POLL_ACTIVE) return;
 
-  const yamlStatus = await jsonFetch(
-    `/api/generate_yaml/status?session=${getActiveSession()}`
-  );
+    goBtn.disabled = true;
+    goBtn.classList.add("ui-busy");
 
-  if (yamlStatus?.status === "done") {
-    PENDING_SCROLL_TO_STORYBOARD = false;
-    await hydrateStoryboardAndScroll();
-    return;
-  }
+    try {
+      setStatus("improveHooksStatus", "Preparing storyboard…", "working");
 
-  PENDING_SCROLL_TO_STORYBOARD = true;
-  YAML_POLL_ACTIVE = true;
-  await generateYamlAsync();
-};
+      // 🔑 Single source of truth
+      const yamlStatus = await jsonFetch(
+        `/api/generate_yaml/status?session=${getActiveSession()}`
+      );
+
+      // 🟢 YAML already ready → hydrate & scroll immediately
+      if (yamlStatus?.status === "done") {
+        PENDING_SCROLL_TO_STORYBOARD = false;
+        await hydrateStoryboardAndScroll();
+        return;
+      }
 
       // 🟡 YAML not ready → async generation path
       PENDING_SCROLL_TO_STORYBOARD = true;
       YAML_POLL_ACTIVE = true;
-      await generateYamlAsync();
-      return; // ⛔ stop here — pollYamlStatus owns the rest
 
+      await generateYamlAsync();
+      // ⛔ STOP HERE — pollYamlStatus owns completion + scroll
+      return;
 
     } catch (err) {
       console.error(err);
@@ -2735,6 +2740,7 @@ async function pollYamlStatus() {
     );
   }
 }
+
 
 async function generateYamlAsync() {
   // ----------------------------------
