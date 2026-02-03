@@ -2658,17 +2658,32 @@ async function pollYamlStatus() {
     }
 
     if (status === "done") {
-      YAML_POLL_ACTIVE = false;
-      lastYamlStatus = null;
+  YAML_POLL_ACTIVE = false;
+  lastYamlStatus = null;
 
-      setStatus("yamlStatus", "Storyboard ready ✓", "success");
+  setStatus("yamlStatus", "Finalizing storyboard…", "working", false);
 
-      if (PENDING_SCROLL_TO_STORYBOARD) {
-        await hydrateStoryboardAndScroll();
-      }
+  // 🔑 ALWAYS hydrate YAML + captions
+  await loadConfigAndYaml();
+  await loadCaptionsFromYaml();
 
-      return;
-    }
+  setStatus("yamlStatus", "Storyboard ready ✓", "success");
+  setTimeout(() => setStatus("yamlStatus", ""), 1500);
+
+  // 🧭 Scroll ONLY if user intent says so
+  if (PENDING_SCROLL_TO_STORYBOARD) {
+    PENDING_SCROLL_TO_STORYBOARD = false;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToStep("#step-3");
+      });
+    });
+  }
+
+  return;
+}
+
 
     // 🔁 NOT READY YET — KEEP POLLING
     setTimeout(pollYamlStatus, 1200);
