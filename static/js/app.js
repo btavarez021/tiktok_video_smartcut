@@ -1624,11 +1624,6 @@ function initStepper() {
                     btn.classList.add("active");
                 }
             });
-
-            // 🔥 When Step 3 becomes visible, build the timeline
-            if (id === "#step-3") {
-              enterStoryboardStep();
-            }
         });
     },
     { threshold: 0.4 }
@@ -2366,24 +2361,22 @@ async function loadAISetupSummary() {
   if (!goBtn) return;
 
   goBtn.onclick = async () => {
-    if (YAML_POLL_ACTIVE) return;
-    goBtn.disabled = true;
-    goBtn.classList.add("ui-busy");
+  if (YAML_POLL_ACTIVE) return;
 
-    try {
-      setStatus("improveHooksStatus", "Preparing storyboard…", "working");
+  const yamlStatus = await jsonFetch(
+    `/api/generate_yaml/status?session=${getActiveSession()}`
+  );
 
-      // 🔑 STEP 1: single source of truth — YAML STATUS
-      const yamlStatus = await jsonFetch(
-        `/api/generate_yaml/status?session=${getActiveSession()}`
-      );
+  if (yamlStatus?.status === "done") {
+    PENDING_SCROLL_TO_STORYBOARD = false;
+    await hydrateStoryboardAndScroll();
+    return;
+  }
 
-      // 🟢 YAML already ready → hydrate + scroll immediately
-      if (yamlStatus?.status === "done") {
-        PENDING_SCROLL_TO_STORYBOARD = false;
-        await hydrateStoryboardAndScroll();
-        return;
-      }
+  PENDING_SCROLL_TO_STORYBOARD = true;
+  YAML_POLL_ACTIVE = true;
+  await generateYamlAsync();
+};
 
       // 🟡 YAML not ready → async generation path
       PENDING_SCROLL_TO_STORYBOARD = true;
@@ -2637,12 +2630,7 @@ function renderSetupSummary(summary) {
 
 async function enterStoryboardStep() {
   
-  await loadConfigAndYaml();
-  await loadCaptionsFromYaml();
-
-  workingCaptionsText = lastSavedCaptionsText;
-  captionViewMode = "rewritten";
-  renderCaptionView();
+  activateStep("#step-3");
 }
 
 async function hydrateStoryboardAndScroll() {
@@ -2679,9 +2667,9 @@ async function pollYamlStatus() {
     const status = data?.status;
 
     // -----------------------------
-    // RUNNING
+    // RUNNING / QUEUED / UNKNOWN
     // -----------------------------
-    if (status === "running") {
+    if (!status || status === "running" || status === "queued") {
       if (lastYamlStatus !== "running") {
         setStatus(
           "yamlStatus",
@@ -2697,7 +2685,7 @@ async function pollYamlStatus() {
     }
 
     // -----------------------------
-    // DONE (transition-based)
+    // DONE
     // -----------------------------
     if (status === "done") {
       setStatus("yamlStatus", "Finalizing storyboard…", "working", false);
@@ -2714,7 +2702,6 @@ async function pollYamlStatus() {
       YAML_POLL_ACTIVE = false;
       lastYamlStatus = null;
 
-      // ✅ Scroll ONLY if user intended it
       if (PENDING_SCROLL_TO_STORYBOARD) {
         PENDING_SCROLL_TO_STORYBOARD = false;
         await hydrateStoryboardAndScroll();
@@ -2724,15 +2711,20 @@ async function pollYamlStatus() {
     }
 
     // -----------------------------
-    // IDLE / UNKNOWN → stop polling
+    // ERROR (explicit)
     // -----------------------------
-    YAML_POLL_ACTIVE = false;
-    lastYamlStatus = null;
+    if (status === "error") {
+      throw new Error(data?.error || "YAML generation failed");
+    }
+
+    // -----------------------------
+    // Fallback → keep polling
+    // -----------------------------
+    setTimeout(pollYamlStatus, 1500);
 
   } catch (err) {
     console.warn("pollYamlStatus failed", err);
 
-    // ⛔ Stop polling on hard failures (404, server restart)
     YAML_POLL_ACTIVE = false;
     lastYamlStatus = null;
 
