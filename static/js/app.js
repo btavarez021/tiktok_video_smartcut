@@ -2361,45 +2361,36 @@ async function loadAISetupSummary() {
   if (!goBtn) return;
 
   goBtn.onclick = async () => {
-    // 🔒 Prevent double-start
-    if (YAML_POLL_ACTIVE) return;
+  if (YAML_POLL_ACTIVE) return;
 
-    goBtn.disabled = true;
-    goBtn.classList.add("ui-busy");
+  goBtn.disabled = true;
 
-    try {
-      setStatus("improveHooksStatus", "Preparing storyboard…", "working");
+  try {
+    const yamlStatus = await jsonFetch(
+      `/api/generate_yaml/status?session=${getActiveSession()}`
+    );
 
-      // 🔑 Single source of truth
-      const yamlStatus = await jsonFetch(
-        `/api/generate_yaml/status?session=${getActiveSession()}`
-      );
-
-      // 🟢 YAML already ready → hydrate & scroll immediately
-      if (yamlStatus?.status === "done") {
-        PENDING_SCROLL_TO_STORYBOARD = false;
-        await hydrateStoryboardAndScroll();
-        return;
-      }
-
-      // 🟡 YAML not ready → async generation path
-      PENDING_SCROLL_TO_STORYBOARD = true;
-      await generateYamlAsync();
-      // ⛔ STOP HERE — pollYamlStatus owns completion + scroll
+    // 🟢 Already done → hydrate immediately
+    if (yamlStatus?.status === "done") {
+      await hydrateStoryboardAndScroll();
       return;
-
-    } catch (err) {
-      console.error(err);
-      setStatus(
-        "improveHooksStatus",
-        "Something went wrong preparing hooks",
-        "error"
-      );
-    } finally {
-      goBtn.disabled = false;
-      goBtn.classList.remove("ui-busy");
     }
-  };
+
+    // 🟡 Not ready → async path
+    PENDING_SCROLL_TO_STORYBOARD = true;
+    await generateYamlAsync();
+
+  } catch (err) {
+    console.error(err);
+    setStatus(
+      "improveHooksStatus",
+      "Failed to prepare storyboard",
+      "error"
+    );
+  } finally {
+    goBtn.disabled = false;
+  }
+};
 }
 
 async function retryAnalysis() {
@@ -2637,28 +2628,40 @@ async function enterStoryboardStep() {
 }
 
 async function hydrateStoryboardAndScroll() {
-  // 1️⃣ Load required data
-  await loadConfigAndYaml();
-  await loadCaptionsFromYaml();
+  console.log("[HYDRATE] storyboard start");
 
-  // 2️⃣ Sync editor state
-  workingCaptionsText = lastSavedCaptionsText;
-  captionViewMode = "rewritten";
-  renderCaptionView();
+  // 🔒 Prevent double execution
+  if (window.__hydratingStoryboard) return;
+  window.__hydratingStoryboard = true;
 
-  // 3️⃣ Activate Step 3
-  activateStep("#step-3");
+  try {
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
 
-  // 4️⃣ Scroll AFTER DOM settles
-  requestAnimationFrame(() => {
+    // 🔑 Reset Step 3 state explicitly
+    workingCaptionsText = lastSavedCaptionsText;
+    captionViewMode = "rewritten";
+    renderCaptionView();
+
+    // Ensure storyboard timeline is rendered
+    const panel = document.querySelector(".storyboard-panel");
+    if (!panel) {
+      console.warn("[HYDRATE] storyboard panel missing");
+      return;
+    }
+
     requestAnimationFrame(() => {
-      document
-        .querySelector("#step-3")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      requestAnimationFrame(() => {
+        scrollToStep("#step-3");
+      });
     });
-  });
-}
 
+    console.log("[HYDRATE] storyboard complete");
+
+  } finally {
+    window.__hydratingStoryboard = false;
+  }
+}
 async function pollYamlStatus() {
   if (!YAML_POLL_ACTIVE) return;
 
@@ -2681,6 +2684,7 @@ async function pollYamlStatus() {
     // -----------------------------
     // DONE → SINGLE EXIT POINT
     // -----------------------------
+    
     if (status === "done") {
       YAML_POLL_ACTIVE = false;
       lastYamlStatus = null;
