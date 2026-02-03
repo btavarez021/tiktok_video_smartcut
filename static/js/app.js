@@ -2337,7 +2337,7 @@ async function loadAISetupSummary() {
   el.classList.remove("hidden");
 
   // ---------------------------
-  // ✅ RIGHT HERE — button wiring
+  // ✅ Button wiring (CORRECT)
   // ---------------------------
   const goBtn = el.querySelector("#goToVariantsBtn");
   if (!goBtn) return;
@@ -2348,20 +2348,29 @@ async function loadAISetupSummary() {
     goBtn.disabled = true;
 
     try {
+      setStatus(
+        "improveHooksStatus",
+        "Preparing storyboard…",
+        "working"
+      );
+
       const yamlStatus = await jsonFetch(
         `/api/generate_yaml/status?session=${getActiveSession()}`
       );
 
-      // 🟢 YAML already done → hydrate immediately
+      // 🟢 YAML already exists → hydrate immediately
       if (yamlStatus?.status === "done") {
         PENDING_SCROLL_TO_STORYBOARD = true;
         await hydrateStoryboardAndScroll();
+
+        setStatus("improveHooksStatus", "Storyboard ready ✓", "success");
+        setTimeout(() => setStatus("improveHooksStatus", ""), 1500);
         return;
       }
 
-      // 🟡 YAML not ready → async path
+      // 🟡 YAML not ready → async generation
       PENDING_SCROLL_TO_STORYBOARD = true;
-      await generateYamlAsync(); // owns polling
+      await generateYamlAsync(); // poller owns the rest
 
     } catch (err) {
       console.error(err);
@@ -2655,7 +2664,6 @@ async function pollYamlStatus() {
       setStatus("yamlStatus", "Storyboard ready ✓", "success");
 
       if (PENDING_SCROLL_TO_STORYBOARD) {
-        PENDING_SCROLL_TO_STORYBOARD = false;
         await hydrateStoryboardAndScroll();
       }
 
@@ -2685,7 +2693,6 @@ async function generateYamlAsync() {
   );
 
   try {
-    // 🔑 START JOB FIRST
     await jsonFetch("/api/generate_yaml", {
       method: "POST",
       body: JSON.stringify({
@@ -2693,7 +2700,6 @@ async function generateYamlAsync() {
       }),
     });
 
-    // 🔁 NOW poll
     YAML_POLL_ACTIVE = true;
     lastYamlStatus = "running";
     pollYamlStatus();
