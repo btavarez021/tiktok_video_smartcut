@@ -2669,23 +2669,18 @@ async function pollYamlStatus() {
 
     const status = data?.status;
 
-    // 🟡 Still running
-    if (status === "running" || status === "queued" || !status) {
-      if (lastYamlStatus !== "running") {
-        setStatus(
-          "yamlStatus",
-          "Building storyboard with AI…",
-          "working",
-          false
-        );
-      }
-
+    // -----------------------------
+    // RUNNING
+    // -----------------------------
+    if (status === "running") {
       lastYamlStatus = "running";
       setTimeout(pollYamlStatus, 1200);
       return;
     }
 
-    // ✅ DONE
+    // -----------------------------
+    // DONE → SINGLE EXIT POINT
+    // -----------------------------
     if (status === "done") {
       YAML_POLL_ACTIVE = false;
       lastYamlStatus = null;
@@ -2700,13 +2695,10 @@ async function pollYamlStatus() {
       return;
     }
 
-    // ❌ Explicit error
-    if (status === "error") {
-      throw new Error(data?.error || "YAML generation failed");
-    }
-
-    // Fallback → keep polling
-    setTimeout(pollYamlStatus, 1500);
+    // -----------------------------
+    // UNKNOWN → KEEP POLLING
+    // -----------------------------
+    setTimeout(pollYamlStatus, 1200);
 
   } catch (err) {
     console.warn("pollYamlStatus failed", err);
