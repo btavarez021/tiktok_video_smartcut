@@ -2648,10 +2648,10 @@ async function hydrateStoryboardAndScroll() {
   captionViewMode = "rewritten";
   renderCaptionView();
 
-  // 3️⃣ HARD-ACTIVATE Step 3 (bypass observer)
+  // 3️⃣ Activate Step 3
   activateStep("#step-3");
 
-  // 4️⃣ Scroll AFTER DOM + styles settle
+  // 4️⃣ Scroll AFTER DOM settles
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       document
@@ -2671,10 +2671,8 @@ async function pollYamlStatus() {
 
     const status = data?.status;
 
-    // -----------------------------
-    // RUNNING / QUEUED / UNKNOWN
-    // -----------------------------
-    if (!status || status === "running" || status === "queued") {
+    // 🟡 Still running
+    if (status === "running" || status === "queued" || !status) {
       if (lastYamlStatus !== "running") {
         setStatus(
           "yamlStatus",
@@ -2689,23 +2687,12 @@ async function pollYamlStatus() {
       return;
     }
 
-    // -----------------------------
-    // DONE
-    // -----------------------------
+    // ✅ DONE
     if (status === "done") {
-      setStatus("yamlStatus", "Finalizing storyboard…", "working", false);
-
-      await loadConfigAndYaml();
-      await loadCaptionsFromYaml();
-
-      workingCaptionsText = lastSavedCaptionsText;
-      captionViewMode = "rewritten";
-      renderCaptionView();
-
-      setStatus("yamlStatus", "Storyboard ready ✓", "success");
-
       YAML_POLL_ACTIVE = false;
       lastYamlStatus = null;
+
+      setStatus("yamlStatus", "Storyboard ready ✓", "success");
 
       if (PENDING_SCROLL_TO_STORYBOARD) {
         PENDING_SCROLL_TO_STORYBOARD = false;
@@ -2715,16 +2702,12 @@ async function pollYamlStatus() {
       return;
     }
 
-    // -----------------------------
-    // ERROR (explicit)
-    // -----------------------------
+    // ❌ Explicit error
     if (status === "error") {
       throw new Error(data?.error || "YAML generation failed");
     }
 
-    // -----------------------------
     // Fallback → keep polling
-    // -----------------------------
     setTimeout(pollYamlStatus, 1500);
 
   } catch (err) {
@@ -2743,11 +2726,11 @@ async function pollYamlStatus() {
 
 
 async function generateYamlAsync() {
-  // ----------------------------------
-  // Init + intent
-  // ----------------------------------
+  if (YAML_POLL_ACTIVE) return;
+
   YAML_POLL_ACTIVE = true;
-  lastYamlStatus = "running"; // 🔑 prevents missing fast 'done'
+  lastYamlStatus = "running";
+
   setStatus(
     "yamlStatus",
     "Building storyboard with AI…",
@@ -2755,15 +2738,10 @@ async function generateYamlAsync() {
     false
   );
 
-  // ----------------------------------
-  // Start polling BEFORE request
-  // ----------------------------------
+  // 🔁 Start polling FIRST
   pollYamlStatus();
 
   try {
-    // ----------------------------------
-    // Kick off backend generation
-    // ----------------------------------
     await jsonFetch("/api/generate_yaml", {
       method: "POST",
       body: JSON.stringify({
@@ -2773,14 +2751,14 @@ async function generateYamlAsync() {
   } catch (err) {
     console.error("generateYamlAsync failed", err);
 
+    YAML_POLL_ACTIVE = false;
+    lastYamlStatus = null;
+
     setStatus(
       "yamlStatus",
       "Failed to start storyboard generation",
       "error"
     );
-
-    YAML_POLL_ACTIVE = false;
-    lastYamlStatus = null;
   }
 }
 
