@@ -2317,6 +2317,42 @@ async function loadAISetupSummary() {
     return;
   }
 
+  goBtn.onclick = async () => {
+  if (YAML_POLL_ACTIVE) return;
+
+  goBtn.disabled = true;
+
+  try {
+    const yamlStatus = await jsonFetch(
+      `/api/generate_yaml/status?session=${getActiveSession()}`
+    );
+
+    // 🟢 Already done → hydrate immediately
+    if (yamlStatus?.status === "done") {
+      PENDING_SCROLL_TO_STORYBOARD = true;
+      await hydrateStoryboardAndScroll();
+      return;
+    }
+
+    // 🟡 Not ready → async path
+    PENDING_SCROLL_TO_STORYBOARD = true;
+    YAML_POLL_ACTIVE = true;
+
+    await generateYamlAsync();
+    pollYamlStatus(); // 🔥 THIS WAS MISSING
+
+  } catch (err) {
+    console.error(err);
+    setStatus(
+      "improveHooksStatus",
+      "Failed to prepare storyboard",
+      "error"
+    );
+  } finally {
+    goBtn.disabled = false;
+  }
+};
+
   // ✅ ANALYSIS COMPLETE
   ANALYZE_POLL_ACTIVE = false;
   updateAnalyzingBadge("idle");
@@ -2360,39 +2396,7 @@ async function loadAISetupSummary() {
   const goBtn = el.querySelector("#goToVariantsBtn");
   if (!goBtn) return;
 
-goBtn.onclick = async () => {
-  if (YAML_POLL_ACTIVE) return;
-
-  goBtn.disabled = true;
-
-  try {
-    const yamlStatus = await jsonFetch(
-      `/api/generate_yaml/status?session=${getActiveSession()}`
-    );
-
-    // 🟢 Already done → hydrate immediately
-    if (yamlStatus?.status === "done") {
-      PENDING_SCROLL_TO_STORYBOARD = true;
-      await hydrateStoryboardAndScroll();
-      return;
-    }
-
-    // 🟡 Not ready → async path
-    PENDING_SCROLL_TO_STORYBOARD = true;
-    await generateYamlAsync(); // 🔑 THIS starts polling internally
-
-  } catch (err) {
-    console.error(err);
-    setStatus(
-      "improveHooksStatus",
-      "Failed to prepare storyboard",
-      "error"
-    );
-  } finally {
-    goBtn.disabled = false;
-  }
-};
-
+}
 
 async function retryAnalysis() {
   const status = await jsonFetch(
