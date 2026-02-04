@@ -2339,50 +2339,11 @@ async function loadAISetupSummary() {
   // ---------------------------
   // ✅ Button wiring (CORRECT)
   // ---------------------------
-  const goBtn = el.querySelector("#goToVariantsBtn");
-  if (!goBtn) return;
-
   goBtn.onclick = async () => {
-    if (YAML_POLL_ACTIVE) return;
-
-    goBtn.disabled = true;
-
-    try {
-      setStatus(
-        "improveHooksStatus",
-        "Preparing storyboard…",
-        "working"
-      );
-
-      const yamlStatus = await jsonFetch(
-        `/api/generate_yaml/status?session=${getActiveSession()}`
-      );
-
-      // 🟢 YAML already exists → hydrate immediately
-      if (yamlStatus?.status === "done") {
-        PENDING_SCROLL_TO_STORYBOARD = true;
-        await hydrateStoryboardAndScroll();
-
-        setStatus("improveHooksStatus", "Storyboard ready ✓", "success");
-        setTimeout(() => setStatus("improveHooksStatus", ""), 1500);
-        return;
-      }
-
-      // 🟡 YAML not ready → async generation
-      PENDING_SCROLL_TO_STORYBOARD = true;
-      await generateYamlAsync(); // poller owns the rest
-
-    } catch (err) {
-      console.error(err);
-      setStatus(
-        "improveHooksStatus",
-        "Failed to prepare storyboard",
-        "error"
-      );
-    } finally {
-      goBtn.disabled = false;
-    }
-  };
+  goBtn.disabled = true;
+  await improveHooksAndCaptionsFlow();
+  goBtn.disabled = false;
+};
 }
 
 async function retryAnalysis() {
@@ -2619,6 +2580,32 @@ async function enterStoryboardStep() {
   activateStep("#step-3");
 }
 
+async function improveHooksAndCaptionsFlow() {
+  if (YAML_POLL_ACTIVE) return;
+
+  try {
+    setStatus("improveHooksStatus", "Preparing storyboard…", "working");
+
+    const s = await jsonFetch(
+      `/api/generate_yaml/status?session=${getActiveSession()}`
+    );
+
+    PENDING_SCROLL_TO_STORYBOARD = true;
+
+    if (s?.status === "done") {
+      await hydrateStoryboardAndScroll();
+      setStatus("improveHooksStatus", "Storyboard ready ✓", "success");
+      return;
+    }
+
+    await generateYamlAsync(); // poller finishes the rest
+
+  } catch (e) {
+    console.error(e);
+    setStatus("improveHooksStatus", "Failed to prepare storyboard", "error");
+  }
+}
+
 async function hydrateStoryboardAndScroll() {
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
@@ -2633,7 +2620,6 @@ async function hydrateStoryboardAndScroll() {
 
   if (PENDING_SCROLL_TO_STORYBOARD) {
     PENDING_SCROLL_TO_STORYBOARD = false;
-
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         scrollToStep("#step-3");
@@ -2663,24 +2649,10 @@ async function pollYamlStatus() {
 
   setStatus("yamlStatus", "Finalizing storyboard…", "working", false);
 
-  // 🔑 ALWAYS hydrate YAML + captions
-  await loadConfigAndYaml();
-  await loadCaptionsFromYaml();
+  await hydrateStoryboardAndScroll();
 
   setStatus("yamlStatus", "Storyboard ready ✓", "success");
   setTimeout(() => setStatus("yamlStatus", ""), 1500);
-
-  // 🧭 Scroll ONLY if user intent says so
-  if (PENDING_SCROLL_TO_STORYBOARD) {
-    PENDING_SCROLL_TO_STORYBOARD = false;
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        scrollToStep("#step-3");
-      });
-    });
-  }
-
   return;
 }
 
