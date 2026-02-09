@@ -2626,7 +2626,14 @@ async function hydrateStoryboardAndScroll() {
   // tiny cinematic pause after AI work
   await new Promise(r => setTimeout(r, 120));
 
-  await enterStoryboardStep();
+  activateStep("#step-3");
+
+document
+  .getElementById("storyboardTimeline")
+  ?.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
 }
 
 }
