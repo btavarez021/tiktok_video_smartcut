@@ -4620,17 +4620,6 @@ continueBtn?.addEventListener("click", async () => {
 });
 
 
-continueBtn?.addEventListener("click", () => {
-  console.log("➡️ Moving to Hook Lab");
-
-  // move to the STEP, not the inner element
-  activateStep("#step-4");
-  scrollToStep("#step-4");
-
-  // optional polish
-  highlightHookLab?.();
-});
-
    // -------------------------------
   // Intent pill wiring (FIXED)
   // -------------------------------
