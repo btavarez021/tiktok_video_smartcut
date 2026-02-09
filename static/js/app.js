@@ -4591,21 +4591,13 @@ const continueBtn = document.getElementById("continueToHooksBtn");
 continueBtn?.addEventListener("click", () => {
   console.log("➡️ Moving to Hook Lab");
 
-  const lab = document.getElementById("hookLab");
+  // move to the STEP, not the inner element
+  activateStep("#step-4");
+  scrollToStep("#step-4");
 
-  if (!lab) {
-    console.warn("hookLab not found");
-    return;
-  }
-
-  lab.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
-
+  // optional polish
   highlightHookLab?.();
 });
-
 
    // -------------------------------
   // Intent pill wiring (FIXED)
