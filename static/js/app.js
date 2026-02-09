@@ -2579,7 +2579,11 @@ async function enterStoryboardStep() {
 }
 
 async function improveHooksAndCaptionsFlow() {
-  if (YAML_POLL_ACTIVE) return;
+  if (YAML_POLL_ACTIVE) {
+  console.log("🔁 Restarting YAML generation");
+  YAML_POLL_ACTIVE = false;
+}
+
 
   try {
     setStatus("improveHooksStatus", "Preparing storyboard…", "working");
@@ -2669,7 +2673,12 @@ async function pollYamlStatus() {
 
 
 async function generateYamlAsync() {
-  if (YAML_POLL_ACTIVE) return;
+
+  if (YAML_POLL_ACTIVE) {
+    console.log("🔁 Forcing new YAML generation");
+    YAML_POLL_ACTIVE = false;
+    lastYamlStatus = null;
+  }
 
   setStatus(
     "yamlStatus",
@@ -2703,7 +2712,6 @@ async function generateYamlAsync() {
     );
   }
 }
-
 
 // ================================
 // Step 2: YAML generation & config
