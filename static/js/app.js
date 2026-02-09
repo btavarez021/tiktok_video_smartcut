@@ -2674,12 +2674,6 @@ async function pollYamlStatus() {
 
 async function generateYamlAsync() {
 
-  if (YAML_POLL_ACTIVE) {
-    console.log("🔁 Forcing new YAML generation");
-    YAML_POLL_ACTIVE = false;
-    lastYamlStatus = null;
-  }
-
   setStatus(
     "yamlStatus",
     "Building storyboard with AI…",
@@ -2688,12 +2682,29 @@ async function generateYamlAsync() {
   );
 
   try {
-    await jsonFetch("/api/generate_yaml", {
+    const res = await jsonFetch("/api/generate_yaml", {
       method: "POST",
       body: JSON.stringify({
         session: getActiveSession()
       }),
     });
+
+    // ⭐ IF BACKEND ALREADY RETURNED YAML → DONE
+    if (res?.first_clip || res?.middle_clips || res?.last_clip) {
+      console.log("⚡ YAML returned immediately (sync mode)");
+
+      YAML_POLL_ACTIVE = false;
+      lastYamlStatus = null;
+
+      PENDING_SCROLL_TO_STORYBOARD = true;
+      await hydrateStoryboardAndScroll();
+
+      setStatus("yamlStatus", "Storyboard ready ✓", "success");
+      return;
+    }
+
+    // ⭐ OTHERWISE → async job started
+    console.log("🕒 YAML running async");
 
     YAML_POLL_ACTIVE = true;
     lastYamlStatus = "running";
