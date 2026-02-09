@@ -4588,16 +4588,28 @@ if (clearHookBtn) {
 
 const continueBtn = document.getElementById("continueToHooksBtn");
 
-continueBtn?.addEventListener("click", () => {
-  console.log("➡️ Moving to Hook Lab");
+continueBtn?.addEventListener("click", async () => {
+  console.log("➡️ Moving to Hook Lab (mobile safe)");
 
-  // move to the STEP, not the inner element
-  activateStep("#step-4");
-  scrollToStep("#step-4");
+  const lab = document.getElementById("hookLab");
+  if (!lab) {
+    console.warn("hookLab not found");
+    return;
+  }
 
-  // optional polish
+  // wait a frame so layout can finish
+  await new Promise(r => requestAnimationFrame(r));
+
+  const y = lab.getBoundingClientRect().top + window.pageYOffset - 80;
+
+  window.scrollTo({
+    top: y,
+    behavior: "smooth",
+  });
+
   highlightHookLab?.();
 });
+
 
    // -------------------------------
   // Intent pill wiring (FIXED)
