@@ -4586,6 +4586,26 @@ if (clearHookBtn) {
   });
 }
 
+const continueBtn = document.getElementById("continueToHooksBtn");
+
+continueBtn?.addEventListener("click", () => {
+  console.log("➡️ Moving to Hook Lab");
+
+  const lab = document.getElementById("hookLab");
+
+  if (!lab) {
+    console.warn("hookLab not found");
+    return;
+  }
+
+  lab.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+
+  highlightHookLab?.();
+});
+
 
    // -------------------------------
   // Intent pill wiring (FIXED)
