@@ -4589,7 +4589,19 @@ if (clearHookBtn) {
 const continueBtn = document.getElementById("continueToHooksBtn");
 
 continueBtn?.addEventListener("click", async () => {
-  console.log("➡️ Moving to Hook Lab (mobile safe)");
+  console.log("➡️ Continue → Hook Lab");
+
+  // make sure storyboard + captions are synced
+  await loadConfigAndYaml();
+  await loadCaptionsFromYaml();
+  await refreshHookScore();
+  await refreshStoryFlowScore();
+
+  // open drawer
+  openVariantsPanel();
+
+  // wait for mobile layout to settle
+  await new Promise(r => setTimeout(r, 80));
 
   const lab = document.getElementById("hookLab");
   if (!lab) {
@@ -4597,10 +4609,7 @@ continueBtn?.addEventListener("click", async () => {
     return;
   }
 
-  // wait a frame so layout can finish
-  await new Promise(r => requestAnimationFrame(r));
-
-  const y = lab.getBoundingClientRect().top + window.pageYOffset - 80;
+  const y = lab.getBoundingClientRect().top + window.pageYOffset - 70;
 
   window.scrollTo({
     top: y,
@@ -4610,6 +4619,17 @@ continueBtn?.addEventListener("click", async () => {
   highlightHookLab?.();
 });
 
+
+continueBtn?.addEventListener("click", () => {
+  console.log("➡️ Moving to Hook Lab");
+
+  // move to the STEP, not the inner element
+  activateStep("#step-4");
+  scrollToStep("#step-4");
+
+  // optional polish
+  highlightHookLab?.();
+});
 
    // -------------------------------
   // Intent pill wiring (FIXED)
@@ -4717,42 +4737,6 @@ document
       });
     }
     
-     document
- .getElementById("continueToHooksBtn")
- ?.addEventListener("click", async () => {
-
-   // 🔄 CRITICAL: sync YAML → captions BEFORE storyboard UI
-   await loadConfigAndYaml();
-   await loadCaptionsFromYaml();
-
-   // Optional but recommended
-   await refreshHookScore();
-   await refreshStoryFlowScore();
-
-   // ➡️ NOW move into storyboard / hook lab
-   openVariantsPanel();
-
-   requestAnimationFrame(() => {
-     document
-       .getElementById("hookLab")
-       ?.scrollIntoView({
-         behavior: "smooth",
-         block: "start"
-       });
-   });
-
-
-    const hookLab =
-      document.getElementById("hookLab") ||
-      document.getElementById("variantsDrawer");
-
-    requestAnimationFrame(() => {
-      hookLab?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    });
-  });
 
   document
   .getElementById("confirmStoryboardBtn")
