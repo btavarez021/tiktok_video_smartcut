@@ -2336,14 +2336,12 @@ async function loadAISetupSummary() {
 
   el.classList.remove("hidden");
 
-  // ---------------------------
-  // ✅ Button wiring (CORRECT)
-  // ---------------------------
-  goBtn.onclick = async () => {
+const goBtn = document.getElementById("goToVariantsBtn");
+goBtn?.addEventListener("click", async () => {
   goBtn.disabled = true;
   await improveHooksAndCaptionsFlow();
   goBtn.disabled = false;
-};
+});
 }
 
 async function retryAnalysis() {
@@ -2576,8 +2574,8 @@ function renderSetupSummary(summary) {
 }
 
 async function enterStoryboardStep() {
-  
   activateStep("#step-3");
+  scrollToStep("#step-3");
 }
 
 async function improveHooksAndCaptionsFlow() {
@@ -2619,13 +2617,14 @@ async function hydrateStoryboardAndScroll() {
   updateAIRecommendationBar();
 
   if (PENDING_SCROLL_TO_STORYBOARD) {
-    PENDING_SCROLL_TO_STORYBOARD = false;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        scrollToStep("#step-3");
-      });
-    });
-  }
+  PENDING_SCROLL_TO_STORYBOARD = false;
+
+  // tiny cinematic pause after AI work
+  await new Promise(r => setTimeout(r, 120));
+
+  await enterStoryboardStep();
+}
+
 }
 
 async function pollYamlStatus() {
@@ -4631,6 +4630,13 @@ try {
     lastYamlStatus = "running"; // 🔑 critical to catch fast "done"
     pollYamlStatus();
   }
+
+  if (data.status === "done") {
+  YAML_POLL_ACTIVE = false;
+  lastYamlStatus = null;
+  PENDING_SCROLL_TO_STORYBOARD = true;
+  await hydrateStoryboardAndScroll();
+}
 } catch (err) {
   console.warn("Failed to resume YAML polling on load", err);
 }
@@ -4685,7 +4691,20 @@ document
        });
    });
 
-document
+
+    const hookLab =
+      document.getElementById("hookLab") ||
+      document.getElementById("variantsDrawer");
+
+    requestAnimationFrame(() => {
+      hookLab?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
+  });
+
+  document
   .getElementById("confirmStoryboardBtn")
   ?.addEventListener("click", () => {
     // Scroll to Hook Lab
@@ -4701,19 +4720,6 @@ document
     // Optional: highlight Hook Lab
     highlightHookLab?.();
   });
-
-    const hookLab =
-      document.getElementById("hookLab") ||
-      document.getElementById("variantsDrawer");
-
-    requestAnimationFrame(() => {
-      hookLab?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    });
-  });
-
 
 async function saveIntent(intent) {
   const session = getActiveSession();
