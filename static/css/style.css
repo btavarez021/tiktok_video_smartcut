@@ -3529,3 +3529,32 @@ body.no-scroll {
     z-index: 5;
   }
 }
+
+/* hooks fade */
+#hookLabOutput {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: all 0.25s ease;
+}
+#hookLabOutput.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* AI thinking */
+.ai-thinking {
+  opacity: 0.7;
+  font-style: italic;
+  padding: 10px 0;
+}
+
+/* score pop */
+.score-pop {
+  animation: scorePop 0.5s ease;
+}
+
+@keyframes scorePop {
+  0% { transform: scale(0.9); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}

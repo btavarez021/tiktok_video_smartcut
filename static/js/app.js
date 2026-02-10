@@ -784,6 +784,15 @@ async function generateHooks() {
     status.className = "hook-lab-status loading";
   }
 
+  const out = document.getElementById("hookLabOutput");
+  if (out) {
+    out.innerHTML = `
+      <div class="ai-thinking">
+        🧠 AI is crafting strong openings…
+      </div>
+    `;
+  }
+
   let res = null;
 
   try {
@@ -809,7 +818,14 @@ async function generateHooks() {
     updateHooksReadyUI();
 
     // If already in Hook Lab, render immediately
+    const out = document.getElementById("hookLabOutput");
+    if (out) out.classList.remove("show");
+
     renderHookLab(hooks);
+
+    requestAnimationFrame(() => {
+      out?.classList.add("show");
+    });
 
     if (status) {
       status.textContent = `✓ ${hooks.length} hooks generated`;
@@ -3150,6 +3166,13 @@ if (!text) {
     handleHookScoreSideEffects(score);
 
     scoreEl.textContent = `${score}/100`;
+    const scoreEl = document.getElementById("hookScoreValue");
+    scoreEl?.classList.add("score-pop");
+
+    setTimeout(() => {
+      scoreEl?.classList.remove("score-pop");
+    }, 600);
+    
     hookEl.textContent = data.hook || "(no opening caption yet)";
    
 
