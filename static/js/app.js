@@ -3163,11 +3163,11 @@ async function refreshHookScore() {
     handleHookScoreSideEffects(score);
 
     scoreEl.textContent = `${score}/100`;
-    const scoreEl = document.getElementById("hookScoreValue");
-    scoreEl?.classList.add("score-pop");
+
+    scoreEl.classList.add("score-pop");
 
     setTimeout(() => {
-      scoreEl?.classList.remove("score-pop");
+      scoreEl.classList.remove("score-pop");
     }, 600);
 
     hookEl.textContent = data.hook || "(no opening caption yet)";
