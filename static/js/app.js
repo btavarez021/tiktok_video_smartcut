@@ -3084,8 +3084,19 @@ async function refreshHookScore() {
   const improveBtn = document.getElementById("improveHookBtn");
 
 // Hooks only require analysis, not captions
+​You​
 if (!window.lastGeneratedHooks || !window.lastGeneratedHooks.length) {
-  card?.classList.add("hidden");
+  card?.classList.remove("hidden");
+
+  scoreEl.textContent = "—";
+  reasonsEl.innerHTML = `
+    <li>Generate hooks to evaluate opening strength.</li>
+  `;
+
+  if (hookEl) {
+    hookEl.textContent = "No hooks generated yet.";
+  }
+
   return;
 }
   if (!card || !scoreEl || !reasonsEl || !hookEl) return;
