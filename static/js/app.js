@@ -274,6 +274,7 @@ async function loadIntentFromConfig() {
     const intent = res?.intent || "discovery";
 
     // 🔑 Core state
+    window.userForcedIntent = true;
     currentIntent = intent;
 
     // ✅ SYNC PILL UI (single source of truth)
@@ -1161,6 +1162,7 @@ async function loadClipPreview(filename, imgEl) {
         console.warn("Preview failed for", filename);
     }
 }
+
 
 
 function flashElement(el) {
@@ -2303,6 +2305,42 @@ async function refreshAnalyses() {
     }
 }
 
+async function autoSelectIntentFromReadiness(summary) {
+  if (!summary?.recommended_goal) return;
+
+  const intent = summary.recommended_goal.toLowerCase();
+
+  // If user already manually changed, do nothing
+  if (window.userForcedIntent) {
+    console.log("🧠 Intent locked by user → skipping auto-set");
+    return;
+  }
+
+  console.log("🧠 Auto-selecting intent:", intent);
+
+  currentIntent = intent;
+
+  // Update pills
+  syncIntentPills(intent);
+
+  // Update hint
+  updateIntentHint(intent);
+
+  // Persist to config
+  if (typeof saveIntent === "function") {
+    await saveIntent(intent);
+  }
+
+  // Re-score hooks
+  refreshHookScore?.();
+
+  setStatus(
+    "hookLabStatus",
+    `AI set intent → ${intent}`,
+    "info"
+  );
+}
+
 async function loadAISetupSummary() {
   const data = await jsonFetch(
     `/api/ai_setup_summary?session=${getActiveSession()}`
@@ -2403,6 +2441,12 @@ async function pollAnalyzeStatus() {
       await new Promise(r => setTimeout(r, 60));
       
       await loadAISetupSummary();
+
+      const summary = await jsonFetch(
+        `/api/ai_setup_summary?session=${getActiveSession()}`
+      );
+
+      await autoSelectIntentFromReadiness(summary);
 
       ANALYZE_POLL_ACTIVE = false;
       lastAnalyzeStatus = null;
