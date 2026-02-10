@@ -4554,6 +4554,35 @@ async function sendChat() {
     }
 }
 
+
+async function goToHookLab() {
+  await loadConfigAndYaml();
+  await loadCaptionsFromYaml();
+  await refreshHookScore();
+  await refreshStoryFlowScore();
+
+  // Ensure drawer open using ONE state system
+  const drawer = document.getElementById("variantsDrawer");
+  drawer?.classList.remove("closed");
+
+  // Ensure hook lab visible
+  document.getElementById("hookLab")?.classList.remove("hidden");
+
+  await new Promise(r => setTimeout(r, 80));
+
+  const lab = document.getElementById("hookLab");
+  if (!lab) return;
+
+  // Scroll drawer if it exists, otherwise window
+  if (drawer) {
+    drawer.scrollTo({ top: lab.offsetTop - 20, behavior: "smooth" });
+  } else {
+    lab.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  highlightHookLab?.();
+}
+
 // ================================
 // Init wiring
 // ================================
@@ -4586,38 +4615,7 @@ if (clearHookBtn) {
   });
 }
 
-const continueBtn = document.getElementById("continueToHooksBtn");
 
-continueBtn?.addEventListener("click", async () => {
-  console.log("➡️ Continue → Hook Lab");
-
-  // make sure storyboard + captions are synced
-  await loadConfigAndYaml();
-  await loadCaptionsFromYaml();
-  await refreshHookScore();
-  await refreshStoryFlowScore();
-
-  // open drawer
-  openVariantsPanel();
-
-  // wait for mobile layout to settle
-  await new Promise(r => setTimeout(r, 80));
-
-  const lab = document.getElementById("hookLab");
-  if (!lab) {
-    console.warn("hookLab not found");
-    return;
-  }
-
-  const y = lab.getBoundingClientRect().top + window.pageYOffset - 70;
-
-  window.scrollTo({
-    top: y,
-    behavior: "smooth",
-  });
-
-  highlightHookLab?.();
-});
 
 
    // -------------------------------
@@ -4727,22 +4725,8 @@ document
     }
     
 
-  document
-  .getElementById("confirmStoryboardBtn")
-  ?.addEventListener("click", () => {
-    // Scroll to Hook Lab
-    requestAnimationFrame(() => {
-      document
-        .getElementById("hookLab")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start"
-        });
-    });
-
-    // Optional: highlight Hook Lab
-    highlightHookLab?.();
-  });
+document.getElementById("continueToHooksBtn")?.addEventListener("click", goToHookLab);
+document.getElementById("confirmStoryboardBtn")?.addEventListener("click", goToHookLab);
 
 async function saveIntent(intent) {
   const session = getActiveSession();
