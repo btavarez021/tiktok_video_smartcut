@@ -3456,3 +3456,46 @@ body.no-scroll {
   opacity: 0.9;
   z-index: 9999;
 }
+
+.ai-summary-card.premium {
+  background: linear-gradient(180deg, #161a22, #11151b);
+  border: 1px solid #2b3240;
+  border-radius: 14px;
+  padding: 18px;
+  margin-top: 10px;
+}
+
+.ai-summary-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.ai-summary-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.stat {
+  background: #0f1319;
+  border: 1px solid #232a36;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.stat-label {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.ai-summary-recommend {
+  margin: 12px 0 16px;
+  font-size: 14px;
+}

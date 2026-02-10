@@ -2532,35 +2532,47 @@ function renderSetupSummary(summary) {
   el.classList.remove("hidden");
 
   el.innerHTML = `
-    <div class="ai-summary-card">
-      <div class="ai-summary-title">🧠 AI Setup Summary</div>
+  <div class="ai-summary-card premium">
+    <div class="ai-summary-header">
+      <h3>🧠 AI Readiness Summary</h3>
+      <p class="hint-text subtle">
+        Here’s what AI understands about your video.
+      </p>
+    </div>
 
-      <div class="ai-summary-row">
-        <strong>🎬 Clips analyzed</strong>
-        <span>${summary.clips}</span>
+    <div class="ai-summary-stats">
+      <div class="stat">
+        <div class="stat-value">${summary.clips ?? "-"}</div>
+        <div class="stat-label">Clips</div>
       </div>
 
-      <div class="ai-summary-row">
-        <strong>🏷 Labels</strong>
-        <span>${summary.labels.quality}</span>
+      <div class="stat">
+        <div class="stat-value">${summary.hook_confidence || "unknown"}</div>
+        <div class="stat-label">Hook</div>
       </div>
 
-      <div class="ai-summary-row">
-        <strong>🔥 Best hook confidence</strong>
-        <span>${summary.hook_confidence}</span>
+      <div class="stat">
+        <div class="stat-value">${summary.labels?.quality || "none"}</div>
+        <div class="stat-label">Labels</div>
       </div>
 
-      <div class="ai-summary-row">
-        <strong>🎯 Recommended goal</strong>
-        <span>${summary.recommended_goal}</span>
-      </div>
-
-      <div class="ai-summary-row">
-        <strong>⏱ Estimated length</strong>
-        <span>${summary.estimated_length}</span>
+      <div class="stat">
+        <div class="stat-value">${summary.estimated_length || "-"}</div>
+        <div class="stat-label">Length</div>
       </div>
     </div>
-  `;
+
+    <div class="ai-summary-recommend">
+      🎯 AI suggests: <strong>${summary.recommended_goal || "General highlight"}</strong>
+    </div>
+
+    <button id="goToVariantsBtn" class="btn primary">
+      Improve hooks & captions →
+    </button>
+
+    <div id="improveHooksStatus" class="status-text subtle"></div>
+  </div>
+`;
 }
 
 async function enterStoryboardStep() {
