@@ -4920,7 +4920,7 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
     await refreshStoryFlowScore();
 
     if (status) {
-      status.textContent = "Auto-saved ✓ · Scores updated";
+      status.textContent = "saved ✓";
       status.className = "caption-inline-status success";
     }
 
