@@ -3134,20 +3134,17 @@ async function refreshHookScore() {
   const statusEl = document.getElementById("hookScoreStatus");
   const improveBtn = document.getElementById("improveHookBtn");
 
-const text = getCurrentCaptionsText();
+  if (!card || !scoreEl || !reasonsEl || !hookEl) return;
 
-if (!text) {
-  card?.classList.remove("hidden");
+  const text = getCurrentCaptionsText();
 
-  scoreEl.textContent = "—";
-  reasonsEl.innerHTML = `
-    <li>Generate storyboard to evaluate hook.</li>
-  `;
-
-  if (hookEl) hookEl.textContent = "";
-
-  return;
-}
+  if (!text) {
+    card.classList.remove("hidden");
+    scoreEl.textContent = "—";
+    reasonsEl.innerHTML = `<li>Generate storyboard to evaluate hook.</li>`;
+    hookEl.textContent = "";
+    return;
+  }
   if (!card || !scoreEl || !reasonsEl || !hookEl) return;
 
   card.classList.remove("hidden");
