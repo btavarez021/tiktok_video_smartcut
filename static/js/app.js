@@ -2414,6 +2414,9 @@ async function pollAnalyzeStatus() {
 
       // 🔄 Refresh analysis-driven UI
       await refreshAnalyses();
+
+      await new Promise(r => setTimeout(r, 60));
+      
       await loadAISetupSummary();
 
       ANALYZE_POLL_ACTIVE = false;
