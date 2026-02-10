@@ -3084,7 +3084,6 @@ async function refreshHookScore() {
   const improveBtn = document.getElementById("improveHookBtn");
 
 // Hooks only require analysis, not captions
-​You​
 if (!window.lastGeneratedHooks || !window.lastGeneratedHooks.length) {
   card?.classList.remove("hidden");
 
