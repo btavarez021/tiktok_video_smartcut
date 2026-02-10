@@ -3087,18 +3087,17 @@ async function refreshHookScore() {
   const statusEl = document.getElementById("hookScoreStatus");
   const improveBtn = document.getElementById("improveHookBtn");
 
-// Hooks only require analysis, not captions
-if (!window.lastGeneratedHooks || !window.lastGeneratedHooks.length) {
+const text = getCurrentCaptionsText();
+
+if (!text) {
   card?.classList.remove("hidden");
 
   scoreEl.textContent = "—";
   reasonsEl.innerHTML = `
-    <li>Generate hooks to evaluate opening strength.</li>
+    <li>Generate storyboard to evaluate hook.</li>
   `;
 
-  if (hookEl) {
-    hookEl.textContent = "No hooks generated yet.";
-  }
+  if (hookEl) hookEl.textContent = "";
 
   return;
 }
