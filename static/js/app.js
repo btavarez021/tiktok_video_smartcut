@@ -2308,6 +2308,8 @@ async function loadAISetupSummary() {
     `/api/ai_setup_summary?session=${getActiveSession()}`
   );
 
+  console.log("AI summary data:", data);
+
   const el = document.getElementById("aiSetupSummary");
   if (!el || !data) return;
 
@@ -2316,34 +2318,17 @@ async function loadAISetupSummary() {
     return;
   }
 
-  console.log("AI summary data:", data);
-
-  // ---------------------------
-  // Render summary card
-  // ---------------------------
-  el.innerHTML = `
-    <div class="ai-summary-card">
-      <h3>🧠 AI Readiness Summary</h3>
-      <p class="hint-text subtle">
-        Next: generate hooks and captions to see AI recommendations.
-      </p>
-
-      <button id="goToVariantsBtn" class="btn primary small">
-        Improve hooks and captions →
-      </button>
-
-      <div id="improveHooksStatus" class="status-text subtle"></div>
-    </div>
-  `;
-
   el.classList.remove("hidden");
 
-const goBtn = document.getElementById("goToVariantsBtn");
-goBtn?.addEventListener("click", async () => {
-  goBtn.disabled = true;
-  await improveHooksAndCaptionsFlow();
-  goBtn.disabled = false;
-});
+  // ⭐ THE IMPORTANT LINE
+  renderSetupSummary(data);
+
+  const goBtn = document.getElementById("goToVariantsBtn");
+  goBtn?.addEventListener("click", async () => {
+    goBtn.disabled = true;
+    await improveHooksAndCaptionsFlow();
+    goBtn.disabled = false;
+  });
 }
 
 async function retryAnalysis() {
