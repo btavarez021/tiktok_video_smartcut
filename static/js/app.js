@@ -805,7 +805,6 @@ async function generateHooks() {
   });
 }
 
-let lastGeneratedHooks = [];
 let selectedHook = null;
 
 
@@ -997,9 +996,9 @@ function clearSelectedHook() {
   document.getElementById("selectedHookBar")?.classList.add("hidden");
 
   // Re-render hooks so AI recommendations re-appear
-  if (lastGeneratedHooks.length) {
-    renderHookLab(lastGeneratedHooks);
-  }
+  if (window.lastGeneratedHooks?.length) {
+  renderHookLab(window.lastGeneratedHooks);
+}
 
   updateHookLockUI();
 }
@@ -1023,8 +1022,8 @@ function selectHook(text) {
   updateHookLockUI();
 
   // 🔥 Re-render so AI green recommended border is removed after user selection
-if (lastGeneratedHooks.length) {
-  renderHookLab(lastGeneratedHooks);
+if (window.lastGeneratedHooks?.length) {
+  renderHookLab(window.lastGeneratedHooks);
 }
 
   // Remove previous highlight
@@ -2722,6 +2721,11 @@ async function hydrateStoryboardAndScroll() {
   updateCaptionBaselineHint();
   updateLoadYamlVisibility();
   updateAIRecommendationBar();
+
+  // 🔥 Option A: auto-generate hooks once storyboard is ready
+  if (!window.lastGeneratedHooks?.length) {
+    generateHooks(); // runs async, sets hooksReady + renders if lab is open
+  }
 
   if (PENDING_SCROLL_TO_STORYBOARD) {
   PENDING_SCROLL_TO_STORYBOARD = false;
@@ -4686,39 +4690,34 @@ async function sendChat() {
 async function goToHookLab() {
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
-  await refreshHookScore();
-  await refreshStoryFlowScore();
 
-  // Ensure drawer open using ONE state system
-  const drawer = document.getElementById("variantsDrawer");
-  drawer?.classList.remove("closed");
-
-  // Ensure hook lab visible
+  // Open drawer in a consistent way
+  openVariantsPanel?.(); // <-- use your existing function
   document.getElementById("hookLab")?.classList.remove("hidden");
 
   await new Promise(r => setTimeout(r, 80));
 
-  const lab = document.getElementById("hookLab");
-  if (!lab) return;
+  // ✅ If hooks exist, hydrate
+  if (window.lastGeneratedHooks?.length) {
+    renderHookLab(window.lastGeneratedHooks);
+  } else {
+    // ✅ Otherwise show a friendly empty state
+    const out = document.getElementById("hookLabOutput");
+    if (out) {
+      out.innerHTML = `<div class="hint-text subtle">
+        No hooks generated yet. Click “Generate Hooks”.
+      </div>`;
+    }
+    setStatus("hookLabStatus", "Generate hooks to score your opening.", "info");
+  }
 
-  // Scroll drawer if it exists, otherwise window
-  if (drawer) {
-  const top = lab.offsetTop - 20;
-
-  drawer.scrollTo({
-    top,
-    behavior: "smooth"
-  });
-
-  // 🔥 also ensure page itself isn't offset weird
-  lab.scrollIntoView({ behavior: "instant", block: "nearest" });
-
-  hydrateExistingHooksIfAny();
-
-} else {
-  lab.scrollIntoView({ behavior: "smooth", block: "start" });
-}
+  // Scroll + highlight
+  document.getElementById("hookLab")?.scrollIntoView({ behavior: "smooth", block: "start" });
   highlightHookLab?.();
+
+  // Score card can still show "—" until hooks exist
+  refreshHookScore?.();
+  refreshStoryFlowScore?.();
 }
 
 // ================================
