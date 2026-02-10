@@ -3172,7 +3172,7 @@ if (!text) {
     setTimeout(() => {
       scoreEl?.classList.remove("score-pop");
     }, 600);
-    
+
     hookEl.textContent = data.hook || "(no opening caption yet)";
    
 
@@ -4756,15 +4756,9 @@ async function goToHookLab() {
   if (window.lastGeneratedHooks?.length) {
     renderHookLab(window.lastGeneratedHooks);
   } else {
-    // ✅ Otherwise show a friendly empty state
-    const out = document.getElementById("hookLabOutput");
-    if (out) {
-      out.innerHTML = `<div class="hint-text subtle">
-        No hooks generated yet. Click “Generate Hooks”.
-      </div>`;
-    }
-    setStatus("hookLabStatus", "Generate hooks to score your opening.", "info");
-  }
+  console.log("🤖 Auto-generating hooks from storyboard…");
+  await generateHooks();
+}
 
   // Scroll + highlight
   document.getElementById("hookLab")?.scrollIntoView({ behavior: "smooth", block: "start" });
