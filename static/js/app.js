@@ -2486,7 +2486,6 @@ async function pollAnalyzeStatus() {
       );
 
       await autoSelectIntentFromReadiness(summary);
-      await generateHooks();
 
       ANALYZE_POLL_ACTIVE = false;
       lastAnalyzeStatus = null;
@@ -2925,6 +2924,9 @@ function moveClip(index, direction) {
 
   clipOrderDirty = true;
 
+  window.hooksReady = false;
+  updateHooksReadyUI();
+
 renderStoryboardTimeline({
   first_clip: workingClipOrder[0],
   middle_clips: workingClipOrder.slice(1, -1),
@@ -3299,6 +3301,10 @@ async function applyCaptionVariant(text, meta = {}) {
     // 🔑 This variant is now the truth
     lastSavedCaptionsText = text;
     workingCaptionsText = text;
+
+    window.hooksReady = false;
+    window.lastGeneratedHooks = null;
+    updateHooksReadyUI();
 
     // Reload YAML + editor
     await loadConfigAndYaml();
@@ -3686,6 +3692,10 @@ async function saveCaptions() {
 
         lastSavedCaptionsText = text;   // 🔑 THIS IS REQUIRED
 
+        window.hooksReady = false;
+        window.lastGeneratedHooks = null;
+        updateHooksReadyUI();
+
         setStatus(
             "captionsStatus",
             `Saved ${result.count || 0} caption block(s).`,
@@ -3734,6 +3744,10 @@ async function regenerateCaptionsFromClips() {
 
         // ✅ NOW load from YAML (this sets baseline)
         await loadCaptionsFromYaml({ preserveSource: true });
+
+        window.hooksReady = false;
+        window.lastGeneratedHooks = null;
+        updateHooksReadyUI();
 
         flashElement(captionsEl);
         setStatus(
