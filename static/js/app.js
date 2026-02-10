@@ -2347,30 +2347,48 @@ async function refreshAnalyses() {
 async function autoSelectIntentFromReadiness(summary) {
   if (!summary?.recommended_goal) return;
 
-  const intent = summary.recommended_goal.toLowerCase();
+  const raw = summary.recommended_goal.toLowerCase();
 
-  // If user already manually changed, do nothing
+  // ----------------------------
+  // TRANSLATION LAYER
+  // ----------------------------
+  const map = {
+    "general highlight": "discovery",
+    "viral": "discovery",
+    "attention": "discovery",
+
+    "emotional": "personal",
+    "romantic": "personal",
+    "memory": "personal",
+
+    "cinematic": "aesthetic",
+    "luxury": "aesthetic",
+    "vibes": "aesthetic",
+
+    "explanation": "informational",
+    "educational": "informational",
+    "guide": "informational"
+  };
+
+  const intent = map[raw] || "discovery";
+
+  // If user already changed → respect them
   if (window.userForcedIntent) {
     console.log("🧠 Intent locked by user → skipping auto-set");
     return;
   }
 
-  console.log("🧠 Auto-selecting intent:", intent);
+  console.log("🧠 Auto-selecting intent:", raw, "→", intent);
 
   currentIntent = intent;
 
-  // Update pills
   syncIntentPills(intent);
-
-  // Update hint
   updateIntentHint(intent);
 
-  // Persist to config
   if (typeof saveIntent === "function") {
     await saveIntent(intent);
   }
 
-  // Re-score hooks
   refreshHookScore?.();
 
   setStatus(
