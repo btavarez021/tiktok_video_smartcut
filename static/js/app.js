@@ -15,6 +15,7 @@ let ACTIVE_EXPORT_TASK = null;
 
 let rewriteCommitted = false;
 
+let intentLockedByUser = false;
 
 let suppressNextPreview = false;
 
@@ -274,8 +275,7 @@ async function loadIntentFromConfig() {
     const intent = res?.intent || "discovery";
 
     // 🔑 Core state
-    window.userForcedIntent = true;
-    currentIntent = intent;
+    window.userForcedIntent = false;
 
     // ✅ SYNC PILL UI (single source of truth)
     syncIntentPills(intent);
@@ -2448,7 +2448,7 @@ async function pollAnalyzeStatus() {
 
       await autoSelectIntentFromReadiness(summary);
       await generateHooks();
-      
+
       ANALYZE_POLL_ACTIVE = false;
       lastAnalyzeStatus = null;
       return;
