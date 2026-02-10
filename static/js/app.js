@@ -4900,8 +4900,35 @@ async function saveIntent(intent) {
     document.getElementById("generateHooksBtn")
   ?.addEventListener("click", generateHooks);
 
-  document.getElementById("captionsText")?.addEventListener("input", () => {
+  let captionAutoSaveTimer = null;
+
+document.getElementById("captionsText")?.addEventListener("input", () => {
   diffDirty = true;
+
+  const status = document.getElementById("captionInlineStatus");
+  if (status) {
+    status.textContent = "Saving…";
+    status.className = "caption-inline-status";
+    status.classList.remove("hidden");
+  }
+
+  clearTimeout(captionAutoSaveTimer);
+
+  captionAutoSaveTimer = setTimeout(async () => {
+    await saveCaptions();
+    await refreshHookScore();
+    await refreshStoryFlowScore();
+
+    if (status) {
+      status.textContent = "Auto-saved ✓ · Scores updated";
+      status.className = "caption-inline-status success";
+    }
+
+    setTimeout(() => {
+      status?.classList.add("hidden");
+    }, 1500);
+
+  }, 900);
 });
 
 // ================================
