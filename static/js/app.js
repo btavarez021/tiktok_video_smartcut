@@ -2412,7 +2412,7 @@ async function pollAnalyzeStatus() {
 
       // 🔄 Refresh analysis-driven UI
       await refreshAnalyses();
-      loadAISetupSummary();
+      await loadAISetupSummary();
 
       ANALYZE_POLL_ACTIVE = false;
       lastAnalyzeStatus = null;
