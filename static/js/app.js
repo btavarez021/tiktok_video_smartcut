@@ -54,6 +54,37 @@ function debounce(fn, wait = 350) {
   };
 }
 
+function showGlobalStatus(text, type = "info") {
+  const bar = document.getElementById("globalStatusBar");
+  if (!bar) return;
+
+  bar.textContent = text;
+  bar.className = `global-status show ${type}`;
+
+  setTimeout(() => {
+    bar.classList.remove("show");
+  }, 2500);
+}
+
+function setStatus(id, text, type = "info", autoClear = false) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.textContent = text;
+  el.className = `status-text status-${type}`;
+  el.classList.remove("hidden");
+
+  // ⭐ NEW — also show in global bar
+  showGlobalStatus(text, type);
+
+  if (autoClear) {
+    setTimeout(() => {
+      el.textContent = "";
+      el.className = "status-text";
+    }, 1500);
+  }
+}
+
 async function pollVariantStatus() {
   if (!VARIANT_POLL_ACTIVE) return;
 
@@ -2431,12 +2462,12 @@ async function retryAnalysis() {
   );
 
   if (status.status === "running") {
-    toast("Analysis already running…");
+    setStatus("analyzeStatus", "Analysis already running…", "info");
     pollAnalyzeStatus();
     return;
   }
 
-  toast("Restarting analysis…");
+  setStatus("analyzeStatus", "Restarting analysis…", "working");
   await analyzeClips();
 }
 
@@ -2596,7 +2627,7 @@ async function applyAIRecommendation() {
     await refreshHookScore();
     await refreshStoryFlowScore();
 
-    toast("AI recommendation applied ✅");
+    setStatus("captionsStatus", "AI recommendation applied ✓", "success");
 
 
     if (applyBtn) {
@@ -3264,7 +3295,7 @@ async function undoAIRecommendation() {
     window.aiUndoSnapshot = null;
     updateAIRecommendationBar();
 
-    toast("AI changes undone ✓");
+    setStatus("captionsStatus", "AI changes undone", "info");
 
   } catch (err) {
     console.error(err);
@@ -4629,7 +4660,9 @@ async function exportVideo() {
     // `;
 
     // NEW:
-    statusEl.textContent = "✅ Export complete";
+    // statusEl.textContent = "✅ Export complete";
+    setStatus("exportStatus", "Export complete ✓", "success");
+
 
     // 🔥 Show your nice styled button
     showDownloadButton(downloadUrl);
