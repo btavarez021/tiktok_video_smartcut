@@ -219,7 +219,7 @@ function hydrateExistingHooksIfAny() {
 
   console.log("💧 Hydrating existing hooks into UI");
 
-  renderHooks(window.lastGeneratedHooks);
+  renderHookLab(window.lastGeneratedHooks);
 }
 
 function updateIntentHint(intent) {
