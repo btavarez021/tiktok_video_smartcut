@@ -168,6 +168,18 @@ async function pollVariantStatus() {
   }
 }
 
+function updateHooksReadyUI() {
+  const btn = document.getElementById("continueToHooksBtn");
+  if (!btn) return;
+
+  if (window.hooksReady) {
+    btn.classList.add("ai-ready");
+    btn.dataset.ready = "true";
+  } else {
+    btn.classList.remove("ai-ready");
+    btn.dataset.ready = "false";
+  }
+}
 
 function updateAIRecommendationBar() {
   const bar = document.getElementById("aiRecommendationBar");
@@ -742,7 +754,6 @@ async function generateHooks() {
   }
 
   let res = null;
-  let autoOpened = false; // 🔑 prevents double scroll fights
 
   try {
     res = await jsonFetch("/api/hooks", {
@@ -762,20 +773,12 @@ async function generateHooks() {
     // 🔑 global state for hydration / refresh
     window.lastGeneratedHooks = hooks;
 
-    // render immediately (works if already in lab)
+    // 🔥 mark ready → button glows
+    window.hooksReady = true;
+    updateHooksReadyUI();
+
+    // If already in Hook Lab, render immediately
     renderHookLab(hooks);
-
-    // -------------------------------
-    // 🔥 AUTO OPEN HOOK LAB
-    // -------------------------------
-    const lab = document.getElementById("hookLab");
-    const visible = lab && !lab.classList.contains("hidden");
-
-    if (!visible) {
-      console.log("🚪 Auto opening Hook Lab");
-      autoOpened = true;
-      await goToHookLab();   // handles open + scroll + highlight
-    }
 
     if (status) {
       status.textContent = `✓ ${hooks.length} hooks generated`;
@@ -794,16 +797,12 @@ async function generateHooks() {
     btn.textContent = "Generate Hooks";
   }
 
-  // -------------------------------
-  // Scroll results ONLY if we didn’t auto navigate
-  // -------------------------------
-  if (!autoOpened) {
-    requestAnimationFrame(() => {
-      document
-        .getElementById("hookLabOutput")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
+  // If user is already here → scroll to results
+  requestAnimationFrame(() => {
+    document
+      .getElementById("hookLabOutput")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 let lastGeneratedHooks = [];
