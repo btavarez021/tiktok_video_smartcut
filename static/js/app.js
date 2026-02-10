@@ -4575,11 +4575,19 @@ async function goToHookLab() {
 
   // Scroll drawer if it exists, otherwise window
   if (drawer) {
-    drawer.scrollTo({ top: lab.offsetTop - 20, behavior: "smooth" });
-  } else {
-    lab.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  const top = lab.offsetTop - 20;
 
+  drawer.scrollTo({
+    top,
+    behavior: "smooth"
+  });
+
+  // 🔥 also ensure page itself isn't offset weird
+  lab.scrollIntoView({ behavior: "instant", block: "nearest" });
+
+} else {
+  lab.scrollIntoView({ behavior: "smooth", block: "start" });
+}
   highlightHookLab?.();
 }
 
