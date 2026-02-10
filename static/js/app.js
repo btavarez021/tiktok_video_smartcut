@@ -2316,6 +2316,8 @@ async function loadAISetupSummary() {
     return;
   }
 
+  console.log("AI summary data:", data);
+
   // ---------------------------
   // Render summary card
   // ---------------------------
