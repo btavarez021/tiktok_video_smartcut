@@ -202,6 +202,13 @@ function updateAIRecommendationBar() {
   }
 }
 
+function hydrateExistingHooksIfAny() {
+  if (!window.lastGeneratedHooks?.length) return;
+
+  console.log("💧 Hydrating existing hooks into UI");
+
+  renderHooks(window.lastGeneratedHooks);
+}
 
 function updateIntentHint(intent) {
   const hint = document.getElementById("intentHint");
@@ -724,21 +731,26 @@ async function generateHooks() {
   const btn = document.getElementById("generateHooksBtn");
   const status = document.getElementById("hookLabStatus");
 
-  btn.disabled = true;
-  btn.textContent = "Generating…";
-  status.textContent = "Generating hooks…";
-  status.className = "hook-lab-status loading";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Generating…";
+  }
+
+  if (status) {
+    status.textContent = "Generating hooks…";
+    status.className = "hook-lab-status loading";
+  }
 
   let res = null;
+  let autoOpened = false; // 🔑 prevents double scroll fights
 
   try {
     res = await jsonFetch("/api/hooks", {
       method: "POST",
       body: JSON.stringify({
-      session: getActiveSession(),
-      intent: currentIntent || "discovery"
-    })
-
+        session: getActiveSession(),
+        intent: currentIntent || "discovery"
+      })
     });
   } catch (e) {
     console.warn("Hook fetch warning:", e);
@@ -747,23 +759,51 @@ async function generateHooks() {
   const hooks = res?.hooks;
 
   if (Array.isArray(hooks) && hooks.length > 0) {
-  lastGeneratedHooks = hooks;      // ✅ ADD THIS LINE
-  renderHookLab(hooks);
-  status.textContent = `✓ ${hooks.length} hooks generated`;
-  status.className = "hook-lab-status success";
+    // 🔑 global state for hydration / refresh
+    window.lastGeneratedHooks = hooks;
+
+    // render immediately (works if already in lab)
+    renderHookLab(hooks);
+
+    // -------------------------------
+    // 🔥 AUTO OPEN HOOK LAB
+    // -------------------------------
+    const lab = document.getElementById("hookLab");
+    const visible = lab && !lab.classList.contains("hidden");
+
+    if (!visible) {
+      console.log("🚪 Auto opening Hook Lab");
+      autoOpened = true;
+      await goToHookLab();   // handles open + scroll + highlight
+    }
+
+    if (status) {
+      status.textContent = `✓ ${hooks.length} hooks generated`;
+      status.className = "hook-lab-status success";
+    }
+
   } else {
-    status.textContent = "⚠ Failed to generate hooks";
-    status.className = "hook-lab-status error";
+    if (status) {
+      status.textContent = "⚠ Failed to generate hooks";
+      status.className = "hook-lab-status error";
+    }
   }
 
-  btn.disabled = false;
-  btn.textContent = "Generate Hooks";
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = "Generate Hooks";
+  }
 
-  requestAnimationFrame(() => {
-  document
-    .getElementById("hookLabOutput")
-    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-});
+  // -------------------------------
+  // Scroll results ONLY if we didn’t auto navigate
+  // -------------------------------
+  if (!autoOpened) {
+    requestAnimationFrame(() => {
+      document
+        .getElementById("hookLabOutput")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 }
 
 let lastGeneratedHooks = [];
@@ -2612,7 +2652,7 @@ function renderSetupSummary(summary) {
     </div>
 
     <button id="goToVariantsBtn" class="btn primary">
-      Improve hooks & captions →
+      Prepare storyboard →
     </button>
 
     <div id="improveHooksStatus" class="status-text subtle"></div>
@@ -4631,6 +4671,8 @@ async function goToHookLab() {
 
   // 🔥 also ensure page itself isn't offset weird
   lab.scrollIntoView({ behavior: "instant", block: "nearest" });
+
+  hydrateExistingHooksIfAny();
 
 } else {
   lab.scrollIntoView({ behavior: "smooth", block: "start" });
