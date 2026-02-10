@@ -2447,7 +2447,8 @@ async function pollAnalyzeStatus() {
       );
 
       await autoSelectIntentFromReadiness(summary);
-
+      await generateHooks();
+      
       ANALYZE_POLL_ACTIVE = false;
       lastAnalyzeStatus = null;
       return;
