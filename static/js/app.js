@@ -863,12 +863,6 @@ function normalizeConfidence(c) {
   return "close";
 }
 
-function confidenceLabel(c) {
-  if (c === "clear") return "Clear winner";
-  if (c === "moderate") return "Strong pick";
-  return "Close call";
-}
-
 function shouldHighlightRecommended(conf) {
   // Confidence-aware highlight rules
   // - clear: strong highlight
@@ -1032,8 +1026,19 @@ function prettyArea(area) {
 
 
 async function loadEditStrategy() {
+  
   const panel = document.getElementById("editStrategyPanel");
   const list = document.getElementById("editStrategyList");
+
+  if (!lastSavedCaptionsText?.trim()) {
+  list.innerHTML = `
+    <div class="hint-text subtle">
+      Create captions to unlock AI direction.
+    </div>
+  `;
+  panel.classList.remove("hidden");
+  return;
+}
 
   if (!panel || !list) return;
 
@@ -2865,6 +2870,8 @@ document
     block: "start"
   });
 }
+
+await loadEditStrategy();
 
 }
 
