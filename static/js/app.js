@@ -45,52 +45,99 @@ function setCurrentVideoIntent(intent) {
   console.log("🎯 Video intent set to:", intent);
 }
 
-function jumpToEditArea(area) {
-
-  // HOOK → send to Hook Lab
-  if (area === "hook") {
-    const lab = document.getElementById("hookLab");
-    if (lab) {
-      lab.classList.remove("hidden");
-      lab.scrollIntoView({ behavior: "smooth", block: "start" });
-      highlightHookLab?.();
-    }
-    return;
-  }
-
-  // PACING → Step 4 timing
-  if (area === "pacing") {
-    scrollToStep("#step-4");
-    document
-      .getElementById("applyStandardTimingBtn")
-      ?.classList.add("pulse");
-    return;
-  }
-
-  // OVERLAY → style selector
-  if (area === "overlay") {
-    scrollToStep("#step-4");
-    document
-      .getElementById("overlayStyle")
-      ?.classList.add("pulse");
-    return;
-  }
-
-  // CTA
-  if (area === "cta") {
-    scrollToStep("#step-4");
-    document
-      .getElementById("ctaText")
-      ?.focus();
-    return;
-  }
-
-  // CAPTIONS → main editor
-  if (area === "captions") {
-    scrollToStep("#step-3");
-    document.getElementById("captionsText")?.focus();
-  }
+function openStep(stepId) {
+  document.querySelector(`.step[data-target="${stepId}"]`)?.click();
 }
+
+function openVariantsDrawer() {
+  const drawer = document.getElementById("variantsDrawer");
+  if (!drawer) return;
+
+  drawer.classList.remove("closed");
+
+  const btn = document.getElementById("variantsToggleBtn");
+  if (btn) btn.textContent = "Collapse";
+}
+
+function openHookLab() {
+  const lab = document.getElementById("hookLab");
+  if (!lab) return;
+
+  lab.classList.remove("hidden");
+
+  lab.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+
+  highlightHookLab?.();
+}
+
+function openAccordionSection(title) {
+  const headers = document.querySelectorAll("#step-4 .acc-header");
+
+  headers.forEach(h => {
+    if (h.textContent.includes(title)) {
+      h.click();
+    }
+  });
+}
+
+
+function jumpToEditArea(area) {
+  console.log("🎯 Jump to:", area);
+
+  area = (area || "").toLowerCase();
+
+  if (area === "hook") {
+    openStep("#step-3");
+    openVariantsDrawer();
+    openHookLab();
+    return;
+  }
+
+  if (area === "captions") {
+    openStep("#step-3");
+    document.getElementById("captionsText")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+    return;
+  }
+
+  if (area === "overlay") {
+    openStep("#step-4");
+    openAccordionSection("✍️ Captions & Timing");
+    document.getElementById("overlayStyle")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+    return;
+  }
+
+  if (area === "cta") {
+    openStep("#step-4");
+    openAccordionSection("🎤 Voice (TTS) & CTA");
+    document.getElementById("ctaText")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+    return;
+  }
+
+  if (area === "pacing") {
+    openStep("#step-4");
+    openAccordionSection("✍️ Captions & Timing");
+    document.getElementById("applyStandardTimingBtn")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+    return;
+  }
+
+  console.warn("No jump rule for:", area);
+}
+
 
 
 function confidenceLabel(level) {
