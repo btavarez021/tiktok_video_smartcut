@@ -3669,3 +3669,7 @@ body.no-scroll {
 .impact-low {
   border-left: 3px solid #4dabf7;
 }
+
+.director-item {
+  cursor: pointer;
+}

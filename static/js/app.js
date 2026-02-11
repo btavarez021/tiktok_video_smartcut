@@ -45,14 +45,42 @@ function setCurrentVideoIntent(intent) {
   console.log("🎯 Video intent set to:", intent);
 }
 
+function jumpToEditArea(area) {
+  const map = {
+    hook: "#step-3",
+    captions: "#step-3",
+    pacing: "#step-4",
+    overlay: "#step-4",
+    cta: "#step-4",
+    music: "#step-4"
+  };
+
+  const target = map[area];
+  if (!target) return;
+
+  // activate step in stepper
+  document.querySelectorAll(".step").forEach(btn => {
+    btn.classList.toggle(
+      "active",
+      btn.dataset.target === target
+    );
+  });
+
+  document.querySelector(target)?.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+
 function confidenceLabel(level) {
   if (!level) return "";
 
   return {
-    clear: "Clear winner",
-    moderate: "Good lead",
-    close: "Very close — creative choice"
-  }[level] || level;
+  clear: "Clear winner",
+  moderate: "Strong option",
+  close: "Creative choice"
+}[level] || "";
 }
 
 
@@ -1025,21 +1053,20 @@ function prettyArea(area) {
 
 
 async function loadEditStrategy() {
-  
   const panel = document.getElementById("editStrategyPanel");
   const list = document.getElementById("editStrategyList");
 
-  if (!lastSavedCaptionsText?.trim()) {
-  list.innerHTML = `
-    <div class="hint-text subtle">
-      Create captions to unlock AI direction.
-    </div>
-  `;
-  panel.classList.remove("hidden");
-  return;
-}
-
   if (!panel || !list) return;
+
+  if (!lastSavedCaptionsText?.trim()) {
+    list.innerHTML = `
+      <div class="hint-text subtle">
+        Create captions to unlock AI direction.
+      </div>
+    `;
+    panel.classList.remove("hidden");
+    return;
+  }
 
   list.innerHTML = "Analyzing edit…";
 
@@ -1055,22 +1082,31 @@ async function loadEditStrategy() {
       panel.classList.remove("hidden");
       return;
     }
+
     items.sort((a, b) => {
       const weight = { high: 3, medium: 2, low: 1 };
       return weight[b.impact] - weight[a.impact];
     });
 
     list.innerHTML = items.map(s => `
-  <div class="director-item impact-${s.impact}">
-    <div class="director-header">
-      <div class="director-area">${prettyArea(s.area)}</div>
-      <div class="director-impact">${s.impact.toUpperCase()}</div>
-    </div>
-    <div class="director-issue">${s.issue}</div>
-    <div class="director-action">👉 ${s.action}</div>
-  </div>
-`).join("");
+      <div class="director-item impact-${s.impact}" data-area="${s.area}">
+        <div class="director-header">
+          <div class="director-area">${prettyArea(s.area)}</div>
+          <div class="director-impact">${s.impact.toUpperCase()}</div>
+        </div>
+        <div class="director-issue">${s.issue}</div>
+        <div class="director-action">👉 ${s.action}</div>
+      </div>
+    `).join("");
 
+    // 🎯 Jump to fix
+    list.querySelectorAll(".director-item").forEach(card => {
+      card.addEventListener("click", () => {
+        const area = card.dataset.area;
+        jumpToEditArea(area);
+        showGlobalStatus("Jumped to fix location ✨", "info");
+      });
+    });
 
     panel.classList.remove("hidden");
 
@@ -1078,7 +1114,6 @@ async function loadEditStrategy() {
     console.error(err);
   }
 }
-
 
 function updateHookLockUI() {
 
