@@ -155,6 +155,16 @@ function confidenceLabel(level) {
 }[level] || "";
 }
 
+let strategyRefreshTimer = null;
+
+function refreshEditStrategySoon(delay = 500) {
+  clearTimeout(strategyRefreshTimer);
+  strategyRefreshTimer = setTimeout(() => {
+    loadEditStrategy();
+  }, delay);
+}
+
+
 // =======================================
 // AI Director auto refresh (debounced)
 // =======================================
@@ -4333,6 +4343,8 @@ async function saveLayoutMode() {
 
         setStatus("layoutStatus", "Layout saved!", "success");
         await loadConfigAndYaml();
+        refreshEditStrategySoon();
+
     } catch (err) {
         console.error(err);
         setStatus("layoutStatus", "Error saving layout: " + err.message, "error");
@@ -4378,6 +4390,8 @@ async function saveTtsSettings({ silent = false } = {}) {
 
         // ✅ THIS IS THE KEY LINE
         await loadConfigAndYaml();   // refresh preview + parsed YAML
+        refreshEditStrategySoon();
+
 
     } catch (err) {
         console.error(err);
@@ -4716,6 +4730,8 @@ async function saveFgScale({ silent = false } = {}) {
         }
 
         await loadConfigAndYaml();
+        refreshEditStrategySoon();
+
 
     } catch (err) {
         console.error(err);
