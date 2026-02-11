@@ -46,30 +46,50 @@ function setCurrentVideoIntent(intent) {
 }
 
 function jumpToEditArea(area) {
-  const map = {
-    hook: "#step-3",
-    captions: "#step-3",
-    pacing: "#step-4",
-    overlay: "#step-4",
-    cta: "#step-4",
-    music: "#step-4"
-  };
 
-  const target = map[area];
-  if (!target) return;
+  // HOOK → send to Hook Lab
+  if (area === "hook") {
+    const lab = document.getElementById("hookLab");
+    if (lab) {
+      lab.classList.remove("hidden");
+      lab.scrollIntoView({ behavior: "smooth", block: "start" });
+      highlightHookLab?.();
+    }
+    return;
+  }
 
-  // activate step in stepper
-  document.querySelectorAll(".step").forEach(btn => {
-    btn.classList.toggle(
-      "active",
-      btn.dataset.target === target
-    );
-  });
+  // PACING → Step 4 timing
+  if (area === "pacing") {
+    scrollToStep("#step-4");
+    document
+      .getElementById("applyStandardTimingBtn")
+      ?.classList.add("pulse");
+    return;
+  }
 
-  document.querySelector(target)?.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
+  // OVERLAY → style selector
+  if (area === "overlay") {
+    scrollToStep("#step-4");
+    document
+      .getElementById("overlayStyle")
+      ?.classList.add("pulse");
+    return;
+  }
+
+  // CTA
+  if (area === "cta") {
+    scrollToStep("#step-4");
+    document
+      .getElementById("ctaText")
+      ?.focus();
+    return;
+  }
+
+  // CAPTIONS → main editor
+  if (area === "captions") {
+    scrollToStep("#step-3");
+    document.getElementById("captionsText")?.focus();
+  }
 }
 
 
