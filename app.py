@@ -53,7 +53,6 @@ from assistant_api import (
     api_generate_yaml_status
     )
 from tiktok_assistant import apply_filename_captions
-from tiktok_template import get_config_path
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 import threading
 import json
