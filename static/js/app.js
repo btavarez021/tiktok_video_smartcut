@@ -960,58 +960,56 @@ function renderHookLab(hooks) {
       }
 
       // 🤖 AI badge — confidence-aware + never overlays text
-      if (isRecommended && allowAiHighlight) {
-        const header = document.createElement("div");
-        header.className = "hookHeader";
+if (isRecommended && allowAiHighlight) {
+  const header = document.createElement("div");
+  header.className = "hookHeader";
 
-        // ⭐ Badge
-        const badge = document.createElement("div");
-        badge.className = "ai-recommended-badge";
+  const margin = computeVictoryMargin(hooks, h.score);
 
-        badge.innerHTML = `
-          <div class="ai-badge-row">
-            <span class="ai-badge-main">⭐ AI Pick</span>
-            <span class="ai-badge-confidence">${confLabel}</span>
-          </div>
-          ${margin > 0 ? `<div class="ai-badge-margin">Wins by +${margin}%</div>` : ""}
-          ${intentLabel ? `<div class="ai-badge-intent">${intentLabel}</div>` : ""}
-        `;
+  if (margin >= 20) {
+    card.classList.add("blowout");
+  }
 
-        const margin = computeVictoryMargin(hooks, h.score);
+  // ⭐ Badge
+  const badge = document.createElement("div");
+  badge.className = "ai-recommended-badge";
 
-        if (margin >= 20) {
-          card.classList.add("blowout");
-        }
+  badge.innerHTML = `
+    <div class="ai-badge-row">
+      <span class="ai-badge-main">⭐ AI Pick</span>
+      <span class="ai-badge-confidence">${confLabel}</span>
+    </div>
+    ${margin > 0 ? `<div class="ai-badge-margin">Wins by +${margin}%</div>` : ""}
+    ${intentLabel ? `<div class="ai-badge-intent">${intentLabel}</div>` : ""}
+  `;
 
+  header.appendChild(badge);
+  card.appendChild(header);
 
-        header.appendChild(badge);
-        card.appendChild(header);
+  // WHY SECTION
+  if (reason) {
+    const toggle = document.createElement("div");
+    toggle.className = "variantWhyToggle";
+    toggle.textContent = "Why this won ▾";
 
-        // WHY SECTION
-        if (reason) {
-          const toggle = document.createElement("div");
-          toggle.className = "variantWhyToggle";
-          toggle.textContent = "Why this won ▾";
+    const why = document.createElement("div");
+    why.className = "variantWhy hidden";
+    why.innerHTML = `
+      ${reason}
+      <div class="variantWhyConfidence">
+        Confidence: ${confLabel}
+      </div>
+    `;
 
-          const why = document.createElement("div");
-          why.className = "variantWhy hidden";
-          why.innerHTML = `
-            ${reason}
-            <div class="variantWhyConfidence">
-              Confidence: ${confLabel}
-            </div>
-          `;
+    toggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      why.classList.toggle("hidden");
+    });
 
-          toggle.addEventListener("click", (e) => {
-            e.stopPropagation();
-            why.classList.toggle("hidden");
-          });
-
-          card.appendChild(toggle);
-          card.appendChild(why);
-        }
-
-      }
+    card.appendChild(toggle);
+    card.appendChild(why);
+  }
+}
 
 
       const textSpan = document.createElement("span");
