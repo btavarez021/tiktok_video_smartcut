@@ -205,7 +205,14 @@ def feedback_aggregates():
         return jsonify({}), 200
     with open(AGG_PATH, "r", encoding="utf-8") as f:
         return jsonify(json.load(f)), 200
-    
+
+@app.route("/api/edit_strategy")
+def route_edit_strategy():
+    session = sanitize_session(request.args.get("session", "default"))
+    from assistant_api import api_edit_strategy
+    return jsonify(api_edit_strategy(session))
+
+
 # =====================================================================
 # CLIP LABELS (GET + POST)
 # =====================================================================

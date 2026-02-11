@@ -1039,6 +1039,43 @@ if (isRecommended && allowAiHighlight) {
   if (lab) lab.classList.remove("hidden");
 }
 
+async function loadEditStrategy() {
+  const panel = document.getElementById("editStrategyPanel");
+  const list = document.getElementById("editStrategyList");
+
+  if (!panel || !list) return;
+
+  list.innerHTML = "Analyzing edit…";
+
+  try {
+    const data = await jsonFetch(
+      `/api/edit_strategy?session=${getActiveSession()}`
+    );
+
+    const items = data.suggestions || [];
+
+    if (!items.length) {
+      list.innerHTML = `<div class="good">Video is in strong shape ✅</div>`;
+      panel.classList.remove("hidden");
+      return;
+    }
+
+    list.innerHTML = items.map(s => `
+      <div class="director-item impact-${s.impact}">
+        <div class="director-area">${s.area.toUpperCase()}</div>
+        <div class="director-issue">${s.issue}</div>
+        <div class="director-action">${s.action}</div>
+      </div>
+    `).join("");
+
+    panel.classList.remove("hidden");
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+
 function updateHookLockUI() {
 
   
@@ -4002,6 +4039,7 @@ async function applyOverlay() {
     await loadConfigAndYaml();
     await loadCaptionsFromYaml(); // updates lastSavedCaptionsText
     await previewOverlay("fast");
+    await loadEditStrategy();
 
     workingCaptionsText = lastSavedCaptionsText;
     captionViewMode = "rewritten";
@@ -5002,6 +5040,7 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
     await saveCaptions();
     await refreshHookScore();
     await refreshStoryFlowScore();
+    await loadEditStrategy();
 
     if (status) {
       status.textContent = "Saved ✓";
@@ -5119,6 +5158,7 @@ if (captionsBox) {
         await loadConfigAndYaml();
         await refreshHookScore();
         await refreshStoryFlowScore();
+        await loadEditStrategy();
       } else {
         if (status) status.textContent = res.reason || "No changes made.";
       }
@@ -5597,7 +5637,7 @@ document.addEventListener("click", async (e) => {
       await refreshOverlayPreview();
       await refreshHookScore();
       await refreshStoryFlowScore();
-
+      await loadEditStrategy();
       workingCaptionsText = lastSavedCaptionsText;
 
       hardClearRewriteUI();
@@ -5649,6 +5689,9 @@ updateRewriteModeAvailability();
         await loadCaptionMode();   // reload caption mode from YAML
         await loadRewriteMode();   // reload rewrite mode from YAML
         updateRewriteWarning();
+        await refreshHookScore();
+        await refreshStoryFlowScore()
+        await loadEditStrategy();
 
         document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {
             el.removeEventListener("change", updateRewriteWarning);

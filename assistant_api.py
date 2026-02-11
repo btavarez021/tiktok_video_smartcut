@@ -125,6 +125,65 @@ def api_generate_yaml_start(session: str):
 
     return {"status": "started"}
 
+def api_edit_strategy(session: str):
+    from config_store import load_config
+    from tiktok_assistant import extract_hook_text, score_hook_text
+
+    cfg = load_config(session)
+
+    suggestions = []
+
+    # -----------------------------
+    # Hook
+    # -----------------------------
+    hook = extract_hook_text(cfg)
+    hook_score = score_hook_text(hook).get("score", 0)
+
+    if hook_score < 60:
+        suggestions.append({
+            "area": "hook",
+            "issue": "Opening is weak.",
+            "impact": "high",
+            "action": "Rewrite hook to create curiosity or tension."
+        })
+    elif hook_score < 80:
+        suggestions.append({
+            "area": "hook",
+            "issue": "Hook is decent but could be tighter.",
+            "impact": "medium",
+            "action": "Shorten the sentence and sharpen the promise."
+        })
+
+    # -----------------------------
+    # Pacing
+    # -----------------------------
+    first = (cfg.get("first_clip") or {}).get("duration", 0)
+    if first > 5:
+        suggestions.append({
+            "area": "pacing",
+            "issue": "Hook runs long.",
+            "impact": "high",
+            "action": "Trim first clip to 3–4 seconds."
+        })
+
+    # -----------------------------
+    # CTA
+    # -----------------------------
+    cta = cfg.get("cta", {})
+    if cta.get("enabled") and cta.get("duration", 0) < 3:
+        suggestions.append({
+            "area": "cta",
+            "issue": "CTA too short.",
+            "impact": "low",
+            "action": "Increase CTA duration to improve conversions."
+        })
+
+    return {
+        "status": "ok",
+        "suggestions": suggestions
+    }
+
+
 def api_generate_yaml_status(session: str):
     session = sanitize_session(session)
 
