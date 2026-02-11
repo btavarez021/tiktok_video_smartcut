@@ -3673,3 +3673,10 @@ body.no-scroll {
 .director-item {
   cursor: pointer;
 }
+
+.fade-refresh {
+  opacity: 0.4;
+  transform: scale(0.99);
+  transition: all .15s ease;
+}
+

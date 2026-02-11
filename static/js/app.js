@@ -47,6 +47,11 @@ function setCurrentVideoIntent(intent) {
 
 function openStep(stepId) {
   document.querySelector(`.step[data-target="${stepId}"]`)?.click();
+
+  // ⭐ When Step 4 opens → refresh director
+  if (stepId === "#step-4") {
+    refreshEditStrategySoon();
+  }
 }
 
 function openVariantsDrawer() {
@@ -149,6 +154,14 @@ function confidenceLabel(level) {
   close: "Creative choice"
 }[level] || "";
 }
+
+// =======================================
+// AI Director auto refresh (debounced)
+// =======================================
+const refreshEditStrategySoon = debounce(() => {
+  console.log("🧠 Refreshing AI edit strategy");
+  loadEditStrategy();
+}, 400);
 
 
 function debounce(fn, wait = 350) {
@@ -586,11 +599,14 @@ async function saveOverlayStyle({ silent = false } = {}) {
         // 🔑 THIS IS THE FIX
         await loadConfigAndYaml();
 
+        refreshEditStrategySoon();
+
         if (!silent) {
             setStatus("overlayStyleStatus", "Style saved ✓", "success");
         } else {
             showAutoSaveStatus("overlayStyleStatus");
         }
+        
 
     } catch (err) {
         console.error(err);
@@ -1145,15 +1161,23 @@ async function loadEditStrategy() {
     const items = data.suggestions || [];
 
     if (!items.length) {
-      list.innerHTML = `<div class="good">Video is in strong shape ✅</div>`;
-      panel.classList.remove("hidden");
-      return;
-    }
+  list.innerHTML = `
+    <div class="director-success">
+      🎯 All major issues resolved — you're optimized.
+    </div>
+  `;
+  panel.classList.remove("hidden");
+  return;
+}
+
 
     items.sort((a, b) => {
       const weight = { high: 3, medium: 2, low: 1 };
       return weight[b.impact] - weight[a.impact];
     });
+
+    list.classList.add("fade-refresh");
+  setTimeout(() => {
 
     list.innerHTML = items.map(s => `
       <div class="director-item impact-${s.impact}" data-area="${s.area}">
@@ -1165,6 +1189,8 @@ async function loadEditStrategy() {
         <div class="director-action">👉 ${s.action}</div>
       </div>
     `).join("");
+    }, 120);
+
 
     // 🎯 Jump to fix
     list.querySelectorAll(".director-item").forEach(card => {
@@ -1272,6 +1298,8 @@ if (window.lastGeneratedHooks?.length) {
     bar.classList.remove("hidden");
     label.textContent = text;
   }
+  refreshEditStrategySoon();
+
 }
 
 
@@ -1884,6 +1912,11 @@ function initStepper() {
             if (!entry.isIntersecting) return;
 
             const id = "#" + entry.target.id;
+
+            if (id === "#step-4") {
+              refreshEditStrategySoon();
+            }
+
 
             stepButtons.forEach((btn) => {
                 if (btn.dataset.target === id) {
@@ -4195,6 +4228,7 @@ async function applyTiming(smart) {
         });
         setStatus("timingStatus", "Timings updated.", "success", true);
         await loadConfigAndYaml();
+        refreshEditStrategySoon();
     } catch (err) {
         console.error(err);
         setStatus(
@@ -4385,7 +4419,8 @@ async function saveCtaSettings({ silent = false } = {}) {
         }
 
         await loadConfigAndYaml();
-
+        refreshEditStrategySoon();
+        
     } catch (err) {
         console.error(err);
         setStatus("ctaStatus", "Failed to save CTA", "error");
