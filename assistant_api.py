@@ -24,6 +24,7 @@ from s3_config import (
     clean_s3_key,
     PROCESSED_PREFIX,
 )
+from config_store import load_config, save_config
 import shutil
 from tiktok_template import reorder_clips
 import json
@@ -202,18 +203,6 @@ TEXT_MODEL = "gpt-4.1-mini"
 # -------------------------------
 # Helpers
 # -------------------------------
-def _load_config(session: str) -> dict:
-    """Load the session's config.yml safely."""
-    session = sanitize_session(session)
-    config_path = get_config_path(session)
-    if not os.path.exists(config_path):
-        return {}
-
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
-    except Exception:
-        return {}
 
 INTENT_PROFILE = {
     "discovery": {
@@ -442,7 +431,7 @@ def api_set_captions_mode(session: str, mode: str) -> Dict[str, Any]:
     r["captions_mode"] = mode            # update to selected
 
     with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+        save_config(session, cfg)
 
     log_step(f"[CAPTIONS_MODE] {session} -> {mode}")
     return {"status": "ok", "captions_mode": mode}
@@ -454,7 +443,7 @@ def api_set_captions_mode(session: str, mode: str) -> Dict[str, Any]:
 
 def api_hook_score(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = load_config(session)
 
     hook = extract_hook_text(cfg)
     result = score_hook_text(hook)
@@ -468,7 +457,7 @@ def api_hook_score(session: str) -> Dict[str, Any]:
 
 def api_improve_hook(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = load_config(session)
 
     if not cfg.get("first_clip", {}).get("text"):
         return {"status": "error", "error": "No hook found"}
@@ -624,7 +613,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
     
     print("[HOOK_LAB] Generating hooks for", session)
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = load_config(session)
 
     scenes = []
     if cfg.get("first_clip", {}).get("text"):
@@ -729,7 +718,7 @@ def api_variant_feedback():
 
 def api_generate_body_from_hook(session, hook, style):
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = load_config(session)
 
     scenes = []
     for c in cfg.get("middle_clips", []):
@@ -768,7 +757,7 @@ def api_generate_body_from_hook(session, hook, style):
 
 def api_story_flow_score(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = load_config(session)
 
     captions: List[str] = []
 
@@ -858,7 +847,7 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
 
 def api_story_flow_improve(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = load_config(session)
 
     # Collect captions
     hook = cfg.get("first_clip", {}).get("text", "")
@@ -1280,7 +1269,7 @@ def _sync_s3_videos_to_local(session: str) -> List[str]:
 
 def reorder_storyboard(session, new_order):
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = load_config(session)
 
     if not cfg:
         return {"error": "config not found"}
@@ -1289,7 +1278,7 @@ def reorder_storyboard(session, new_order):
 
     config_path = get_config_path(session)
     with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+        save_config(session, cfg)
 
     log_step(f"[REORDER] Updated clip order for session '{session}'")
     return cfg
@@ -1611,7 +1600,7 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
         config_path = get_config_path(session)
 
         with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(cfg, f, sort_keys=False)
+            save_config(session, cfg)
 
         log_success("[YAML]", "Generated and saved config.yml")
         return cfg
@@ -1699,7 +1688,7 @@ def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
         # ❗ Write ONLY what the user edited
         # Do NOT merge session overrides here
         with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(cfg, f, sort_keys=False)
+            save_config(session, cfg)
 
         log_success("[SAVE_YAML]", f"config.yml saved for session '{session}'")
         return {"status": "ok"}
@@ -1836,7 +1825,7 @@ def normalize_variant_text(text: str, expected_blocks: int) -> str:
 
 def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = load_config(session)
 
     # --------------------------------------------------
     # Collect captions from YAML
@@ -2020,7 +2009,7 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
 
 
         # 🎯 Intent-based recommendation
-        cfg = _load_config(session)
+        cfg = load_config(session)
         intent = cfg.get("intent", "discovery")
 
         # --------------------------------------------------
@@ -2164,7 +2153,7 @@ def api_save_captions(text: str, session: str) -> Dict[str, Any]:
             cfg["last_clip"]["text"] = blocks[idx]
 
         with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(cfg, f, sort_keys=False)
+            save_config(session, cfg)
 
         log_success("[CAPTIONS]", f"Saved {len(blocks)} caption block(s)")
 
@@ -2277,7 +2266,7 @@ def api_set_tts(session: str, enabled: bool, voice: str | None) -> Dict[str, Any
         r["tts_voice"] = voice
 
     with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+        save_config(session, cfg)
 
     return {"status": "ok", "render": r}
 
@@ -2310,7 +2299,7 @@ def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool |
         c.setdefault("duration", 3.0)
 
     with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+        save_config(session, cfg)
 
     return {"status": "ok", "cta": c}
 
@@ -2396,7 +2385,7 @@ def api_apply_overlay(
 
     try:
         session_id = sanitize_session(session_id)
-        cfg = _load_config(session_id)
+        cfg = load_config(session_id)
 
         # Always apply visual overlay settings
         apply_overlay(
@@ -2439,7 +2428,7 @@ def api_apply_overlay(
 def api_overlay_preview(session: str, style: str) -> dict:
     
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = load_config(session)
     first = cfg.get("first_clip",{}).get("text","")
 
 
@@ -2488,7 +2477,7 @@ def generate_overlay_preview(session_id: str, style: str) -> str:
     import base64
     from PIL import Image, ImageDraw, ImageFont
 
-    cfg = _load_config(session_id)
+    cfg = load_config(session_id)
     print(f"[PREVIEW] loaded config keys: {list(cfg.keys()) if cfg else 'NO CONFIG FOUND'}")
 
     text = cfg.get("first_clip", {}).get("text", "") or "No captions found"
@@ -2567,7 +2556,7 @@ def api_set_layout(session: str, mode: str) -> Dict[str, Any]:
     r["layout_mode"] = mode
 
     with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+        save_config(session, cfg)
 
     return {"status": "ok", "layout_mode": mode}
 
@@ -2586,7 +2575,7 @@ def api_fgscale(session: str, fgscale_mode: str, fgscale: float | None) -> Dict[
     r["fgscale"] = fgscale
 
     with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+        save_config(session, cfg)
 
     return {"status": "ok", "render": r}
 
@@ -2606,7 +2595,7 @@ def api_chat(message: str, session: str = "default") -> Dict[str, Any]:
 
     # Load context
     analyses = load_analysis_results_session(session)
-    cfg = _load_config(session)
+    cfg = load_config(session)
 
     labels = load_labels(session)
 
