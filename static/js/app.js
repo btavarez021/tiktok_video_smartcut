@@ -890,7 +890,6 @@ function computeVictoryMargin(hooks, currentScore) {
   return Math.max(0, Math.round(currentScore - secondBest));
 }
 
-
 function renderHookLab(hooks) {
   const out = document.getElementById("hookLabOutput");
   out.innerHTML = "";
