@@ -3,7 +3,7 @@
 # - No video_folder / edit_video imports
 # - S3 config comes from s3_config
 # - Only: analysis, YAML prompt, overlay, timings, filename sanitation
-# - Uses get_config_path(session) as the single source of truth
+# - Uses config_store(session) as the single source of truth
 
 import os
 import logging
@@ -17,7 +17,7 @@ from openai import OpenAI
 import base64
 from assistant_log import log_step
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX  # shared S3 client + config
-from tiktok_template import get_config_path
+from config_store import load_config, save_config
 
 logger = logging.getLogger(__name__)
 
@@ -459,22 +459,20 @@ def humanize_filename(filename: str) -> str:
     name = re.sub(r"\s+", " ", name).strip()
     return name
 
+
+
 def apply_filename_captions(session: str) -> None:
     """
     Replace ALL clip text fields using:
     1) label (if provided)
     2) filename (humanized)
     """
-    config_path = get_config_path(session)
-    if not os.path.exists(config_path):
-        log_step(f"[CAPTIONS] config.yml not found for session={session}")
+
+    cfg = load_config(session)
+    if not cfg:
+        log_step(f"[CAPTIONS] config missing for session={session}")
         return
 
-    # 🔑 Load YAML into cfg  ← THIS WAS MISSING
-    with open(config_path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f) or {}
-
-    # 🔑 Load labels (single source of truth)
     labels = load_labels(session)
 
     def caption_for(file: str) -> str:
@@ -504,11 +502,9 @@ def apply_filename_captions(session: str) -> None:
         if f:
             cfg["last_clip"]["text"] = caption_for(f)
 
-    # 💾 Save YAML
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
-
+    save_config(session, cfg)
     log_step(f"[CAPTIONS] Generated from filenames/labels for session={session}")
+
 
 
 
@@ -547,47 +543,33 @@ def apply_overlay(
     rewrite = True  → rewrite caption text via LLM
     """
 
-    config_path = get_config_path(session)
-    if not os.path.exists(config_path):
+    cfg = load_config(session)
+    if not cfg:
+        log_step(f"[OVERLAY] config missing for session={session}")
         return
 
-    # -----------------------------------------
-    # Load original YAML
-    # -----------------------------------------
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            original_text = f.read()
-            cfg = yaml.safe_load(original_text) or {}
-    except Exception as e:
-        logger.error(f"[OVERLAY LOAD ERROR] {e}")
-        return
-    
-    # 🔥 Add this block RIGHT HERE — ensures default captions_mode exists
+    # Ensure defaults
     render = cfg.setdefault("render", {})
-    render.setdefault("captions_mode", "all")  # Default for old sessions
+    render.setdefault("captions_mode", "all")
 
     # -----------------------------------------
-    # VISUAL-ONLY MODE (NO REWRITE)
+    # VISUAL ONLY (NO LLM)
     # -----------------------------------------
     if not rewrite:
-        try:
-            render = cfg.setdefault("render", {})
-            render["overlay_style"] = style
+        render["overlay_style"] = style
+        save_config(session, cfg)
 
-            with open(config_path, "w", encoding="utf-8") as f:
-                yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
-
-            log_step(f"[OVERLAY] Visual-only applied (style={style})")
-            return
-        except Exception as e:
-            logger.error(f"[OVERLAY VISUAL ERROR] {e}")
-            return
+        log_step(f"[OVERLAY] Visual-only applied (style={style})")
+        return
 
     # -----------------------------------------
-    # REWRITE MODE (LLM)
+    # REWRITE MODE
     # -----------------------------------------
     if client is None:
+        log_step("[OVERLAY] No OpenAI client — skipping rewrite")
         return
+
+    original_text = yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True)
 
     prompt = f"""
 Rewrite ONLY the caption text fields ("text") inside this YAML.
@@ -601,7 +583,7 @@ STRICT RULES:
 - No hashtags
 - No quotes
 - DO NOT modify cta.text
-- If a location or hotel name is already established, do NOT repeat it in every captionunless it adds new meaning
+- If a location or hotel name is already established, do NOT repeat it in every caption unless it adds new meaning
 
 Overlay style: {style}
 Instructions: {_style_instructions(style)}
@@ -622,18 +604,17 @@ Return ONLY valid YAML (no backticks).
         new_yaml = resp.choices[0].message.content.strip()
         new_yaml = new_yaml.replace("```yaml", "").replace("```", "")
 
-        cfg = yaml.safe_load(new_yaml)
-        if not isinstance(cfg, dict):
-            raise ValueError("Invalid YAML")
+        new_cfg = yaml.safe_load(new_yaml)
+        if not isinstance(new_cfg, dict):
+            raise ValueError("Invalid YAML from LLM")
 
-        cfg = sanitize_yaml_filenames(cfg)
+        new_cfg = sanitize_yaml_filenames(new_cfg)
 
-        render = cfg.setdefault("render", {})
+        render = new_cfg.setdefault("render", {})
         render.setdefault("captions_mode", "all")
         render["overlay_style"] = style
 
-        with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
+        save_config(session, new_cfg)
 
         log_step(f"[OVERLAY] Rewrite applied (style={style})")
 
@@ -661,27 +642,19 @@ def load_labels(session: str) -> dict:
 
 def apply_smart_timings(session: str, pacing: str = "standard") -> None:
     """
-    Apply timing adjustments using LLM, while preserving ALL other settings:
-    - overlay text
-    - layout_mode
-    - fgscale + fgscale_mode
-    - tts settings
-    - music settings
-    - CTA settings
-    - clip order & file names
+    Apply timing adjustments using LLM while preserving ALL other settings.
     """
-    try:
-        config_path = get_config_path(session)
-        if not os.path.exists(config_path):
-            return
 
-        with open(config_path, "r", encoding="utf-8") as f:
-            original_text = f.read()
-    except Exception:
+    cfg = load_config(session)
+    if not cfg:
+        log_step(f"[TIMINGS] config missing for session={session}")
         return
 
     if client is None:
+        log_step("[TIMINGS] No OpenAI client — skipping")
         return
+
+    original_text = yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True)
 
     pacing_desc = (
         "Cinematic pacing: hook (2–4s), value shots (3–7s), ending (2–4s). Keep total <= 60s."
@@ -726,26 +699,20 @@ Return ONLY VALID YAML (no backticks).
         new_yaml = (resp.choices[0].message.content or "").strip()
         new_yaml = new_yaml.replace("```yaml", "").replace("```", "").strip()
 
-        cfg = yaml.safe_load(new_yaml)
-        if not isinstance(cfg, dict):
+        new_cfg = yaml.safe_load(new_yaml)
+        if not isinstance(new_cfg, dict):
             raise ValueError("LLM returned invalid YAML")
 
-        cfg = sanitize_yaml_filenames(cfg)
+        new_cfg = sanitize_yaml_filenames(new_cfg)
+
+        # Preserve render safety defaults
+        render = new_cfg.setdefault("render", {})
+        render.setdefault("captions_mode", "all")
+        render["timing_mode"] = pacing
+
+        save_config(session, new_cfg)
+
+        log_step(f"[TIMINGS] Applied successfully (mode={pacing})")
 
     except Exception as e:
-        logger.error(f"[TIMINGS] YAML error: {e}")
-        return
-
-    # Tag timing mode
-    render = cfg.setdefault("render", {})
-    render.setdefault("captions_mode", "all")
-    render["timing_mode"] = pacing
-
-    # Save directly to this session's config.yml
-    try:
-        with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
-
-        log_step(f"Smart timings applied for session={session} (mode={pacing})")
-    except Exception as e:
-        logger.error(f"[TIMINGS SAVE ERROR] {e}")
+        logger.error(f"[TIMINGS ERROR] {e}")

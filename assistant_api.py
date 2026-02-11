@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw, ImageFont
 import subprocess
 from flask import request
 from assistant_log import log_step, log_error, log_success
-from tiktok_template import edit_video, video_folder,get_config_path, STYLE_PRESETS
+from tiktok_template import edit_video, video_folder, STYLE_PRESETS
 from s3_config import (
     s3,
     S3_BUCKET_NAME,
@@ -58,6 +58,9 @@ YAML_JOBS = {}
 ANALYSIS_STATUS_DIR = os.path.join(DATA_DIR, "analysis_status")
 os.makedirs(ANALYSIS_STATUS_DIR, exist_ok=True)
 
+def _load_config(session: str) -> dict:
+    return load_config(session)
+
 def _analysis_status_path(session: str) -> str:
     return os.path.join(ANALYSIS_STATUS_DIR, f"{session}.json")
 
@@ -94,25 +97,6 @@ def _run_variant_job(session: str, modes: dict, selected_hook: str | None):
             "status": "error",
             "error": str(e),
         }
-
-def api_generate_variants_start(session: str, modes: dict, selected_hook: str | None):
-    session = sanitize_session(session)
-
-    job = VARIANT_JOBS.get(session)
-    if job and job["status"] == "running":
-        return {"status": "already_running"}
-
-    VARIANT_JOBS[session] = {"status": "running"}
-
-    thread = threading.Thread(
-        target=_run_variant_job,
-        args=(session, modes, selected_hook),
-        daemon=True
-    )
-    thread.start()
-
-    return {"status": "started"}
-
 
 def _run_yaml_job(session: str):
     try:
@@ -198,6 +182,9 @@ CAPTION_ONLY_GUARDRAIL = (
 # -------------------------------
 api_key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
 client = OpenAI(api_key=api_key) if api_key else None
+if not client:
+    log_step("[OPENAI] API key missing — AI features disabled.")
+
 TEXT_MODEL = "gpt-4.1-mini"
 
 # -------------------------------
@@ -416,26 +403,18 @@ def load_analysis_results_session(session: str) -> Dict[str, str]:
 # -------------------------------
 def api_set_captions_mode(session: str, mode: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    config_path = get_config_path(session)
 
     if mode not in ("all", "first_only", "none"):
         return {"status": "error", "error": "Invalid captions_mode"}
 
-    cfg = {}
-    if os.path.exists(config_path):
-        with open(config_path, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
-
+    cfg = _load_config(session)
     r = cfg.setdefault("render", {})
-    r.setdefault("captions_mode", "all")  # fallback if missing
-    r["captions_mode"] = mode            # update to selected
+    r["captions_mode"] = mode
 
-    with open(config_path, "w", encoding="utf-8") as f:
-        save_config(session, cfg)
+    save_config(session, cfg)
 
     log_step(f"[CAPTIONS_MODE] {session} -> {mode}")
     return {"status": "ok", "captions_mode": mode}
-
 
 # -----------------------------------------
 # Hook Score
@@ -443,7 +422,7 @@ def api_set_captions_mode(session: str, mode: str) -> Dict[str, Any]:
 
 def api_hook_score(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = load_config(session)
+    cfg = _load_config(session)
 
     hook = extract_hook_text(cfg)
     result = score_hook_text(hook)
@@ -457,7 +436,7 @@ def api_hook_score(session: str) -> Dict[str, Any]:
 
 def api_improve_hook(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = load_config(session)
+    cfg = _load_config(session)
 
     if not cfg.get("first_clip", {}).get("text"):
         return {"status": "error", "error": "No hook found"}
@@ -613,7 +592,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
     
     print("[HOOK_LAB] Generating hooks for", session)
     session = sanitize_session(session)
-    cfg = load_config(session)
+    cfg = _load_config(session)
 
     scenes = []
     if cfg.get("first_clip", {}).get("text"):
@@ -718,7 +697,7 @@ def api_variant_feedback():
 
 def api_generate_body_from_hook(session, hook, style):
     session = sanitize_session(session)
-    cfg = load_config(session)
+    cfg = _load_config(session)
 
     scenes = []
     for c in cfg.get("middle_clips", []):
@@ -757,7 +736,7 @@ def api_generate_body_from_hook(session, hook, style):
 
 def api_story_flow_score(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = load_config(session)
+    cfg = _load_config(session)
 
     captions: List[str] = []
 
@@ -847,7 +826,7 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
 
 def api_story_flow_improve(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = load_config(session)
+    cfg = _load_config(session)
 
     # Collect captions
     hook = cfg.get("first_clip", {}).get("text", "")
@@ -1269,16 +1248,14 @@ def _sync_s3_videos_to_local(session: str) -> List[str]:
 
 def reorder_storyboard(session, new_order):
     session = sanitize_session(session)
-    cfg = load_config(session)
+    cfg = _load_config(session)
 
     if not cfg:
         return {"error": "config not found"}
 
     cfg = reorder_clips(cfg, new_order)
 
-    config_path = get_config_path(session)
-    with open(config_path, "w", encoding="utf-8") as f:
-        save_config(session, cfg)
+    save_config(session, cfg)
 
     log_step(f"[REORDER] Updated clip order for session '{session}'")
     return cfg
@@ -1596,11 +1573,7 @@ def api_generate_yaml(session: str = "default") -> Dict[str, Any]:
         cta = cfg.setdefault("cta", {})
         cta["duration"] = cta.get("duration", 3.0)
 
-        # Save YAML directly — no merge!
-        config_path = get_config_path(session)
-
-        with open(config_path, "w", encoding="utf-8") as f:
-            save_config(session, cfg)
+        save_config(session, cfg)
 
         log_success("[YAML]", "Generated and saved config.yml")
         return cfg
@@ -1656,23 +1629,15 @@ def api_clip_preview(session: str, filename: str) -> dict:
 # Config retrieval + saving (global)
 # -------------------------------
 def api_get_config() -> Dict[str, Any]:
-    session_id = sanitize_session(request.args.get("session", "default"))
-    config_path = get_config_path(session_id)
+    session = sanitize_session(request.args.get("session", "default"))
+    cfg = _load_config(session)
 
-    if not os.path.exists(config_path):
-        return {"yaml": "", "config": {}, "error": "config.yml not found"}
+    if not cfg:
+        return {"yaml": "", "config": {}, "error": "config not found"}
 
-    # Load YAML text
-    with open(config_path, "r", encoding="utf-8") as f:
-        yaml_text = f.read()
-
-    try:
-        cfg = yaml.safe_load(yaml_text) or {}
-    except Exception as e:
-        log_error("[GET_CONFIG]", e)
-        return {"yaml": yaml_text, "config": {}}
-
+    yaml_text = yaml.safe_dump(cfg, sort_keys=False)
     return {"yaml": yaml_text, "config": cfg}
+
 
 
 
@@ -1683,12 +1648,7 @@ def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
         cfg = sanitize_yaml_filenames(cfg)
 
         session = sanitize_session(request.args.get("session", "default"))
-        config_path = get_config_path(session)
-
-        # ❗ Write ONLY what the user edited
-        # Do NOT merge session overrides here
-        with open(config_path, "w", encoding="utf-8") as f:
-            save_config(session, cfg)
+        save_config(session, cfg)
 
         log_success("[SAVE_YAML]", f"config.yml saved for session '{session}'")
         return {"status": "ok"}
@@ -1825,7 +1785,7 @@ def normalize_variant_text(text: str, expected_blocks: int) -> str:
 
 def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = load_config(session)
+    cfg = _load_config(session)
 
     # --------------------------------------------------
     # Collect captions from YAML
@@ -2009,7 +1969,7 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
 
 
         # 🎯 Intent-based recommendation
-        cfg = load_config(session)
+        cfg = _load_config(session)
         intent = cfg.get("intent", "discovery")
 
         # --------------------------------------------------
@@ -2111,24 +2071,11 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
 def api_save_captions(text: str, session: str) -> Dict[str, Any]:
     try:
         session = sanitize_session(session)
-        config_path = get_config_path(session)
+        cfg = _load_config(session)
 
-        # ✅ Ensure config directory exists
-        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        if not cfg:
+            return {"status": "error", "error": "config not found"}
 
-        # ✅ Load existing config OR create a minimal one
-        if os.path.exists(config_path):
-            with open(config_path, "r", encoding="utf-8") as f:
-                cfg = yaml.safe_load(f) or {}
-        else:
-            cfg = {
-                "first_clip": {},
-                "middle_clips": [],
-                "last_clip": {},
-                "render": {}
-            }
-
-        # 🔥 Robust block split
         blocks = [
             b.strip()
             for b in re.split(r"\n\s*\n", text)
@@ -2137,23 +2084,19 @@ def api_save_captions(text: str, session: str) -> Dict[str, Any]:
 
         idx = 0
 
-        # First clip
         if cfg.get("first_clip") and idx < len(blocks):
             cfg["first_clip"]["text"] = blocks[idx]
             idx += 1
 
-        # Middle clips
         for clip in cfg.get("middle_clips", []):
             if idx < len(blocks):
                 clip["text"] = blocks[idx]
                 idx += 1
 
-        # Last clip
         if cfg.get("last_clip") and idx < len(blocks):
             cfg["last_clip"]["text"] = blocks[idx]
 
-        with open(config_path, "w", encoding="utf-8") as f:
-            save_config(session, cfg)
+        save_config(session, cfg)
 
         log_success("[CAPTIONS]", f"Saved {len(blocks)} caption block(s)")
 
@@ -2169,40 +2112,24 @@ def api_save_captions(text: str, session: str) -> Dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 
-
 # -------------------------------
 # EXPORT 
 # -------------------------------
 def run_export_task(task_id: str, session: str, optimized: bool):
     try:
         session = sanitize_session(session)
-        config_path = get_config_path(session)
 
-        # 🚨 If config does not exist
-        if not os.path.exists(config_path):
-            msg = f"config.yml not found for session '{session}'"
+        # ----------------------------------------------------
+        # Load config from SINGLE SOURCE OF TRUTH
+        # ----------------------------------------------------
+        cfg = _load_config(session)
+        if not cfg:
+            msg = f"config not found for session '{session}'"
             export_tasks[task_id]["status"] = "error"
             export_tasks[task_id]["error"] = msg
             return
 
         # 🚨 CANCEL CHECK (1)
-        if export_tasks[task_id].get("cancel_requested"):
-            export_tasks[task_id]["status"] = "cancelled"
-            return
-
-        # ----------------------------------------------------
-        # Load config (NO MERGING ANYMORE)
-        # ----------------------------------------------------
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                cfg = yaml.safe_load(f) or {}
-        except Exception as e:
-            log_error("[EXPORT][LOAD_CFG]", e)
-            export_tasks[task_id]["status"] = "error"
-            export_tasks[task_id]["error"] = "Failed to load config.yml"
-            return
-
-        # 🚨 CANCEL CHECK (2)
         if export_tasks[task_id].get("cancel_requested"):
             export_tasks[task_id]["status"] = "cancelled"
             return
@@ -2216,7 +2143,7 @@ def run_export_task(task_id: str, session: str, optimized: bool):
 
         filename = os.path.basename(out_path)
 
-        # 🚨 CANCEL CHECK (3)
+        # 🚨 CANCEL CHECK (2)
         if export_tasks[task_id].get("cancel_requested"):
             export_tasks[task_id]["status"] = "cancelled"
             return
@@ -2230,7 +2157,6 @@ def run_export_task(task_id: str, session: str, optimized: bool):
         s3.upload_file(out_path, S3_BUCKET_NAME, export_key)
         log_step(f"[EXPORT] Uploaded to s3://{S3_BUCKET_NAME}/{export_key}")
 
-        # Signed URL
         url = generate_signed_download_url(export_key)
 
         # ----------------------------------------------------
@@ -2251,35 +2177,18 @@ def run_export_task(task_id: str, session: str, optimized: bool):
 # -------------------------------
 
 def api_set_tts(session: str, enabled: bool, voice: str | None) -> Dict[str, Any]:
-    session = sanitize_session(session)
-    config_path = get_config_path(session)
 
-    cfg = {}
-    if os.path.exists(config_path):
-        with open(config_path, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
-
+    cfg = _load_config(session)
     r = cfg.setdefault("render", {})
     r["tts_enabled"] = bool(enabled)
-
     if voice:
         r["tts_voice"] = voice
-
-    with open(config_path, "w", encoding="utf-8") as f:
-        save_config(session, cfg)
-
+    save_config(session, cfg)
     return {"status": "ok", "render": r}
-
-
 
 def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool | None, duration: float | None = None):
     session = sanitize_session(session)
-    config_path = get_config_path(session)
-
-    cfg = {}
-    if os.path.exists(config_path):
-        with open(config_path, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
+    cfg = _load_config(session)
 
     c = cfg.setdefault("cta", {})
     c["enabled"] = bool(enabled)
@@ -2298,10 +2207,9 @@ def api_set_cta(session: str, enabled: bool, text: str | None, voiceover: bool |
     else:
         c.setdefault("duration", 3.0)
 
-    with open(config_path, "w", encoding="utf-8") as f:
-        save_config(session, cfg)
-
+    save_config(session, cfg)
     return {"status": "ok", "cta": c}
+
 
 
 def rewrite_captions(cfg: dict, style: str) -> list[str]:
@@ -2385,7 +2293,7 @@ def api_apply_overlay(
 
     try:
         session_id = sanitize_session(session_id)
-        cfg = load_config(session_id)
+        cfg = _load_config(session_id)
 
         # Always apply visual overlay settings
         apply_overlay(
@@ -2428,7 +2336,7 @@ def api_apply_overlay(
 def api_overlay_preview(session: str, style: str) -> dict:
     
     session = sanitize_session(session)
-    cfg = load_config(session)
+    cfg = _load_config(session)
     first = cfg.get("first_clip",{}).get("text","")
 
 
@@ -2477,7 +2385,7 @@ def generate_overlay_preview(session_id: str, style: str) -> str:
     import base64
     from PIL import Image, ImageDraw, ImageFont
 
-    cfg = load_config(session_id)
+    cfg = _load_config(session_id)
     print(f"[PREVIEW] loaded config keys: {list(cfg.keys()) if cfg else 'NO CONFIG FOUND'}")
 
     text = cfg.get("first_clip", {}).get("text", "") or "No captions found"
@@ -2545,41 +2453,27 @@ def api_apply_timings(session_id: str, smart: bool = False) -> Dict[str, Any]:
 
 def api_set_layout(session: str, mode: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    config_path = get_config_path(session)
-
-    cfg = {}
-    if os.path.exists(config_path):
-        with open(config_path, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
+    cfg = _load_config(session)
 
     r = cfg.setdefault("render", {})
     r["layout_mode"] = mode
 
-    with open(config_path, "w", encoding="utf-8") as f:
-        save_config(session, cfg)
+    save_config(session, cfg)
 
     return {"status": "ok", "layout_mode": mode}
 
 
 def api_fgscale(session: str, fgscale_mode: str, fgscale: float | None) -> Dict[str, Any]:
     session = sanitize_session(session)
-    config_path = get_config_path(session)
-
-    cfg = {}
-    if os.path.exists(config_path):
-        with open(config_path, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
+    cfg = _load_config(session)
 
     r = cfg.setdefault("render", {})
     r["fgscale_mode"] = fgscale_mode
     r["fgscale"] = fgscale
 
-    with open(config_path, "w", encoding="utf-8") as f:
-        save_config(session, cfg)
+    save_config(session, cfg)
 
     return {"status": "ok", "render": r}
-
-
 
 
 # -------------------------------
@@ -2595,7 +2489,7 @@ def api_chat(message: str, session: str = "default") -> Dict[str, Any]:
 
     # Load context
     analyses = load_analysis_results_session(session)
-    cfg = load_config(session)
+    cfg = _load_config(session)
 
     labels = load_labels(session)
 
