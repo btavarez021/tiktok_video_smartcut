@@ -1187,33 +1187,28 @@ async function loadEditStrategy() {
     list.classList.add("fade-refresh");
   setTimeout(() => {
 
-    list.innerHTML = items.map(s => `
-      <div class="director-item impact-${s.impact}" data-area="${s.area}">
-        <div class="director-header">
-          <div class="director-area">${prettyArea(s.area)}</div>
-          <div class="director-impact">
-            ${s.impact.toUpperCase()}
-            <span class="impact-sub">
-              · ${impactLabel(s.impact)}
-            </span>
-          </div>
-
-        </div>
-        <div class="director-issue">${s.issue}</div>
-        <div class="director-action">👉 ${s.action}</div>
+  list.innerHTML = items.map(s => `
+    <div class="director-item impact-${s.impact}" data-area="${(s.area || '').toLowerCase()}">
+      <div class="director-header">
+        <div class="director-area">${prettyArea(s.area)}</div>
+        <div class="director-impact">${s.impact.toUpperCase()}</div>
       </div>
-    `).join("");
-    }, 120);
+      <div class="director-issue">${s.issue}</div>
+      <div class="director-action">👉 ${s.action}</div>
+    </div>
+  `).join("");
 
-
-    // 🎯 Jump to fix
-    list.querySelectorAll(".director-item").forEach(card => {
-      card.addEventListener("click", () => {
-        const area = card.dataset.area;
-        jumpToEditArea(area);
-        showGlobalStatus("Jumped to fix location ✨", "info");
-      });
+  // ✅ NOW elements exist
+  list.querySelectorAll(".director-item").forEach(card => {
+    card.addEventListener("click", () => {
+      const area = card.dataset.area;
+      console.log("🎯 Jump to:", area);
+      jumpToEditArea(area);
+      showGlobalStatus("Jumped to fix location ✨", "info");
     });
+  });
+
+}, 120);
 
     panel.classList.remove("hidden");
 
