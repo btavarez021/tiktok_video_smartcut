@@ -3606,3 +3606,66 @@ body.no-scroll {
   opacity: 0.85;
   margin-top: 2px;
 }
+
+.ai-director {
+  margin-bottom: 18px;
+  padding: 16px;
+  border-radius: 14px;
+  background: linear-gradient(145deg,#111,#171717);
+  border: 1px solid rgba(255,255,255,.06);
+}
+
+.director-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 12px;
+  letter-spacing: .3px;
+}
+
+.director-item {
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.05);
+}
+
+.director-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.director-area {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: .85;
+}
+
+.director-impact {
+  font-size: 11px;
+  opacity: .6;
+}
+
+.director-action {
+  font-size: 13px;
+  opacity: .85;
+}
+
+.director-issue {
+  font-size: 13px;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.impact-high {
+  border-left: 3px solid #ff6b6b;
+}
+
+.impact-medium {
+  border-left: 3px solid #ffd166;
+}
+
+.impact-low {
+  border-left: 3px solid #4dabf7;
+}
