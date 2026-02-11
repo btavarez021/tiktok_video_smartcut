@@ -936,6 +936,8 @@ function renderHookLab(hooks) {
       const isRecommended = h.recommended === true;
       const isSelected = selectedHook === h.text;
       const reason = h.recommend_reason || "";
+      const intentLabel = h.intent_label || "";
+
 
       const confidence = Number(h.confidence || 0);
 
@@ -972,6 +974,7 @@ function renderHookLab(hooks) {
             <span class="ai-badge-confidence">${confLabel}</span>
           </div>
           ${margin > 0 ? `<div class="ai-badge-margin">Wins by +${margin}%</div>` : ""}
+          ${intentLabel ? `<div class="ai-badge-intent">${intentLabel}</div>` : ""}
         `;
 
         const margin = computeVictoryMargin(hooks, h.score);
