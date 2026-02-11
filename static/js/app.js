@@ -901,6 +901,20 @@ function shouldAutoShowWhy(conf) {
   return conf === "clear";
 }
 
+function computeVictoryMargin(hooks, currentScore) {
+  if (!Array.isArray(hooks)) return 0;
+
+  const scores = hooks
+    .map(h => h?.score || 0)
+    .sort((a, b) => b - a);
+
+  if (scores.length < 2) return 0;
+
+  const secondBest = scores[0] === currentScore ? scores[1] : scores[0];
+
+  return Math.max(0, Math.round(currentScore - secondBest));
+}
+
 
 function renderHookLab(hooks) {
   const out = document.getElementById("hookLabOutput");
@@ -957,7 +971,15 @@ function renderHookLab(hooks) {
             <span class="ai-badge-main">⭐ AI Pick</span>
             <span class="ai-badge-confidence">${confLabel}</span>
           </div>
+          ${margin > 0 ? `<div class="ai-badge-margin">Wins by +${margin}%</div>` : ""}
         `;
+
+        const margin = computeVictoryMargin(hooks, h.score);
+
+        if (margin >= 20) {
+          card.classList.add("blowout");
+        }
+
 
         header.appendChild(badge);
         card.appendChild(header);

@@ -3571,3 +3571,32 @@ body.no-scroll {
   font-size: 12px;
   opacity: 0.75;
 }
+
+.ai-badge-margin {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+/* Big winner */
+.hookCard.blowout {
+  box-shadow: 0 0 0 rgba(0, 255, 150, 0.0);
+  animation: aiGlowPulse 2s ease-in-out infinite;
+}
+
+/* The breathing glow */
+@keyframes aiGlowPulse {
+  0%   { box-shadow: 0 0 0 rgba(0, 255, 150, 0.0); }
+  50%  { box-shadow: 0 0 22px rgba(0, 255, 150, 0.45); }
+  100% { box-shadow: 0 0 0 rgba(0, 255, 150, 0.0); }
+}
+
+.hookCard.blowout .ai-recommended-badge {
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
