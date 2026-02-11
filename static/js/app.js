@@ -76,25 +76,6 @@ function showGlobalStatus(text, type = "info") {
   }, 2500);
 }
 
-function setStatus(id, text, type = "info", autoClear = false) {
-  const el = document.getElementById(id);
-  if (!el) return;
-
-  el.textContent = text;
-  el.className = `status-text status-${type}`;
-  el.classList.remove("hidden");
-
-  // ⭐ NEW — also show in global bar
-  showGlobalStatus(text, type);
-
-  if (autoClear) {
-    setTimeout(() => {
-      el.textContent = "";
-      el.className = "status-text";
-    }, 1500);
-  }
-}
-
 async function pollVariantStatus() {
   if (!VARIANT_POLL_ACTIVE) return;
 
@@ -2558,11 +2539,13 @@ async function loadAISetupSummary() {
   renderSetupSummary(data);
 
   const goBtn = document.getElementById("goToVariantsBtn");
-  goBtn?.addEventListener("click", async () => {
+if (goBtn) {
+  goBtn.onclick = async () => {
     goBtn.disabled = true;
     await improveHooksAndCaptionsFlow();
     goBtn.disabled = false;
-  });
+  };
+}
 }
 
 async function retryAnalysis() {
@@ -3417,17 +3400,25 @@ async function undoAIRecommendation() {
 }
 
 
-function openVariantsPanel() {
+function setVariantsDrawerOpen(isOpen) {
   const drawer = document.getElementById("variantsDrawer");
   const btn = document.getElementById("variantsToggleBtn");
-
   if (!drawer) return;
 
-  drawer.classList.remove("closed");
-  drawer.classList.add("open");
-
-  if (btn) btn.textContent = "Collapse";
+  drawer.classList.toggle("closed", !isOpen);
+  if (btn) btn.textContent = isOpen ? "Collapse" : "Expand";
 }
+
+function toggleVariantsPanel(forceClose = false) {
+  const drawer = document.getElementById("variantsDrawer");
+  if (!drawer) return;
+
+  if (forceClose) return setVariantsDrawerOpen(false);
+
+  const isOpen = drawer.classList.contains("closed"); // currently closed
+  setVariantsDrawerOpen(isOpen); // open it
+}
+
 
 
 // Alias used by caption system
@@ -3525,22 +3516,6 @@ function addStepEnterHandler(stepNumber, callback) {
     }, { threshold: 0.4 });
 
     observer.observe(stepCard);
-}
-
-function toggleVariantsPanel(forceClose = false) {
-  const drawer = document.getElementById("variantsDrawer");
-  const btn = document.getElementById("variantsToggleBtn");
-  if (!drawer) return;
-
-  if (forceClose) {
-    drawer.classList.add("closed");
-    if (btn) btn.textContent = "Expand";
-    return;
-  }
-
-  drawer.classList.toggle("closed");
-  const closed = drawer.classList.contains("closed");
-  if (btn) btn.textContent = closed ? "Expand" : "Collapse";
 }
 
 async function scoreStoryFlow() {
@@ -4837,27 +4812,22 @@ async function goToHookLab() {
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
 
-  // Open drawer in a consistent way
-  openVariantsPanel?.(); // <-- use your existing function
+  setVariantsDrawerOpen(true);
   document.getElementById("hookLab")?.classList.remove("hidden");
 
-  await new Promise(r => setTimeout(r, 80));
-
-  // ✅ If hooks exist, hydrate
+  // if hooks exist, show them, otherwise generate
   if (window.lastGeneratedHooks?.length) {
     renderHookLab(window.lastGeneratedHooks);
   } else {
-  console.log("🤖 Auto-generating hooks from storyboard…");
-  await generateHooks();
-}
+    await generateHooks();
+  }
 
-  // Scroll + highlight
-  document.getElementById("hookLab")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  await new Promise(r => setTimeout(r, 50));
+
+  document.getElementById("hookLab")
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   highlightHookLab?.();
-
-  // Score card can still show "—" until hooks exist
-  refreshHookScore?.();
-  refreshStoryFlowScore?.();
 }
 
 // ================================
