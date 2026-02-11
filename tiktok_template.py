@@ -1,5 +1,5 @@
 # tiktok_template.py — MOV/MP4 SAFE, LOW-MEMORY, NO CIRCULAR IMPORTS
-
+from config_store import load_config, normalize_config
 import os
 import logging
 import subprocess
@@ -74,24 +74,6 @@ def blur_frame(frame, radius: int = 18):
     except Exception as e:
         logger.warning(f"[BLUR] Frame blur failed: {e}")
         return frame
-
-
-# -----------------------------------------
-# Config helpers
-# -----------------------------------------
-
-def get_config_path(session_id: str) -> str:
-    folder = os.path.join(BASE_DIR, "configs", session_id)
-    os.makedirs(folder, exist_ok=True)
-    return os.path.join(folder, "config.yml")
-
-def load_config_for_session(session_id: str):
-    path = get_config_path(session_id)
-    if not os.path.exists(path):
-        return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
-
 
 def _get_layout_mode(cfg: Dict[str, Any]) -> str:
     """
@@ -585,7 +567,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     - CTA TTS aligned with the CTA visual segment
     - Background music from YAML (music: { enabled, file, volume })
     """
-    cfg = load_config_for_session(session_id)
+    cfg = normalize_config(load_config(session_id))
     if not cfg:
         raise RuntimeError("config.yml missing or empty")
     
