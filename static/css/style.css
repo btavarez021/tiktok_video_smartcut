@@ -3680,3 +3680,15 @@ body.no-scroll {
   transition: all .15s ease;
 }
 
+
+.director-item.low {
+  opacity: .55;
+  cursor: pointer;
+}
+
+.impact-sub {
+  opacity: .7;
+  font-weight: 400;
+  margin-left: 4px;
+  font-size: 12px;
+}

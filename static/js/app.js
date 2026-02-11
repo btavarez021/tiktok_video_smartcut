@@ -1134,6 +1134,14 @@ function prettyArea(area) {
   }[area] || area;
 }
 
+function impactLabel(level) {
+  return {
+    high: "Fix now",
+    medium: "Recommended",
+    low: "Suggestion"
+  }[level] || "";
+}
+
 
 async function loadEditStrategy() {
   const panel = document.getElementById("editStrategyPanel");
@@ -1183,7 +1191,13 @@ async function loadEditStrategy() {
       <div class="director-item impact-${s.impact}" data-area="${s.area}">
         <div class="director-header">
           <div class="director-area">${prettyArea(s.area)}</div>
-          <div class="director-impact">${s.impact.toUpperCase()}</div>
+          <div class="director-impact">
+            ${s.impact.toUpperCase()}
+            <span class="impact-sub">
+              · ${impactLabel(s.impact)}
+            </span>
+          </div>
+
         </div>
         <div class="director-issue">${s.issue}</div>
         <div class="director-action">👉 ${s.action}</div>
@@ -2678,13 +2692,16 @@ async function loadAISetupSummary() {
   renderSetupSummary(data);
 
   const goBtn = document.getElementById("goToVariantsBtn");
-if (goBtn) {
-  goBtn.onclick = async () => {
-    goBtn.disabled = true;
-    await improveHooksAndCaptionsFlow();
-    goBtn.disabled = false;
-  };
-}
+  if (goBtn) {
+    goBtn.replaceWith(goBtn.cloneNode(true)); // wipes any old listeners
+    const freshBtn = document.getElementById("goToVariantsBtn");
+    freshBtn.onclick = async () => {
+      freshBtn.disabled = true;
+      await improveHooksAndCaptionsFlow();
+      freshBtn.disabled = false;
+    };
+  }
+
 }
 
 async function retryAnalysis() {
@@ -3556,8 +3573,9 @@ function toggleVariantsPanel(forceClose = false) {
 
   if (forceClose) return setVariantsDrawerOpen(false);
 
-  const isOpen = drawer.classList.contains("closed"); // currently closed
-  setVariantsDrawerOpen(isOpen); // open it
+  const shouldOpen = drawer.classList.contains("closed");
+  setVariantsDrawerOpen(shouldOpen);
+
 }
 
 
@@ -4993,6 +5011,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   console.log("[SESSION INIT]", ACTIVE_SESSION);
+
+  setTimeout(async () => {
+  try {
+    const s = await jsonFetch(`/api/analyze_status?session=${getActiveSession()}`);
+    if (s.status === "running") {
+      ANALYZE_POLL_ACTIVE = true;
+      pollAnalyzeStatus();
+    }
+    if (s.status === "done") {
+      // optional: ensure summary shows after refresh
+      await refreshAnalyses();
+      await loadAISetupSummary();
+    }
+  } catch (e) {
+    console.warn("analyze resume check failed", e);
+  }
+}, 300);
+
   
   setTimeout(() => {
   pollAnalyzeStatus();
