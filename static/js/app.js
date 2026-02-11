@@ -1039,6 +1039,17 @@ if (isRecommended && allowAiHighlight) {
   if (lab) lab.classList.remove("hidden");
 }
 
+function prettyArea(area) {
+  return {
+    hook: "🎣 Hook",
+    pacing: "⏱ Pacing",
+    cta: "📢 CTA",
+    overlay: "✨ Overlay",
+    captions: "💬 Captions"
+  }[area] || area;
+}
+
+
 async function loadEditStrategy() {
   const panel = document.getElementById("editStrategyPanel");
   const list = document.getElementById("editStrategyList");
@@ -1059,14 +1070,22 @@ async function loadEditStrategy() {
       panel.classList.remove("hidden");
       return;
     }
+    items.sort((a, b) => {
+      const weight = { high: 3, medium: 2, low: 1 };
+      return weight[b.impact] - weight[a.impact];
+    });
 
     list.innerHTML = items.map(s => `
-      <div class="director-item impact-${s.impact}">
-        <div class="director-area">${s.area.toUpperCase()}</div>
-        <div class="director-issue">${s.issue}</div>
-        <div class="director-action">${s.action}</div>
-      </div>
-    `).join("");
+  <div class="director-item impact-${s.impact}">
+    <div class="director-header">
+      <div class="director-area">${prettyArea(s.area)}</div>
+      <div class="director-impact">${s.impact.toUpperCase()}</div>
+    </div>
+    <div class="director-issue">${s.issue}</div>
+    <div class="director-action">👉 ${s.action}</div>
+  </div>
+`).join("");
+
 
     panel.classList.remove("hidden");
 
