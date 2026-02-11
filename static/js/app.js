@@ -155,16 +155,6 @@ function confidenceLabel(level) {
 }[level] || "";
 }
 
-let strategyRefreshTimer = null;
-
-function refreshEditStrategySoon(delay = 500) {
-  clearTimeout(strategyRefreshTimer);
-  strategyRefreshTimer = setTimeout(() => {
-    loadEditStrategy();
-  }, delay);
-}
-
-
 // =======================================
 // AI Director auto refresh (debounced)
 // =======================================
