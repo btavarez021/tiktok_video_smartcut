@@ -141,10 +141,9 @@ def generate_yaml_start():
 
 @app.route("/api/generate_yaml/status")
 def generate_yaml_status():
-    session = request.args.get("session")
-    return jsonify(
-        api_generate_yaml_status(session)
-    )
+    session = sanitize_session(request.args.get("session", "default"))
+    return jsonify(api_generate_yaml_status(session))
+
 
 # ============================================================================
 # UPLOAD TO S3 (SESSION-AWARE)
@@ -295,16 +294,15 @@ def route_story_flow_improve():
 
 @app.route("/api/save_config", methods=["POST"])
 def save_config_api():
-    data = request.json
-    session = sanitize_session(data["session"])
-    cfg = data["config"]
+    data = request.get_json(silent=True) or {}
+    session = sanitize_session(data.get("session", "default"))
+    cfg = data.get("config") or {}
 
-    path = get_config_path(session)
+    from config_store import save_config
 
-    with open(path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
+    save_config(session, cfg)
+    return jsonify({"status": "ok"})
 
-    return {"status": "ok"}
 
 
 @app.route("/api/reorder_clips", methods=["POST"])
@@ -323,7 +321,7 @@ def api_reorder_clips():
 
 @app.route("/api/analyze_status")
 def analyze_status_route():
-    session = request.args.get("session", "default")
+    session = sanitize_session(request.args.get("session", "default"))
     return jsonify(api_analyze_status(session))
 
 @app.route("/api/variants/start", methods=["POST"])
@@ -557,30 +555,26 @@ def api_music_list_route():
 
 @app.route("/api/music", methods=["POST"])
 def api_music():
-    data = request.get_json(force=True)
+    data = request.get_json(force=True) or {}
 
     session = sanitize_session(data.get("session", "default"))
     enabled = bool(data.get("enabled"))
     file = data.get("file") or ""
     volume = float(data.get("volume", 0.25))
 
-    config_path = get_config_path(session)
+    from config_store import load_config, save_config
 
-    cfg = {}
-    if os.path.exists(config_path):
-        with open(config_path, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
-
+    cfg = load_config(session) or {}
     r = cfg.setdefault("render", {})
+
+    # keep your current schema or rename, but don’t mix
     r["music_enabled"] = enabled
     r["music_file"] = file
     r["music_volume"] = volume
 
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
+    save_config(session, cfg)
 
-
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok", "render": r})
 
 
 @app.route("/api/music_file/<path:filename>")
@@ -639,9 +633,10 @@ def route_timings():
     data = request.get_json() or {}
 
     smart = bool(data.get("smart", False))
-    session_id = data.get("session", "default")
-
+    session_id = sanitize_session(data.get("session", "default"))
+    
     return jsonify(api_apply_timings(session_id, smart))
+
 
 
 @app.route("/api/layout", methods=["POST"])
