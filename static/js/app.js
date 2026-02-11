@@ -45,6 +45,16 @@ function setCurrentVideoIntent(intent) {
   console.log("🎯 Video intent set to:", intent);
 }
 
+function confidenceLabel(level) {
+  if (!level) return "";
+
+  return {
+    clear: "Clear winner",
+    moderate: "Good lead",
+    close: "Very close — creative choice"
+  }[level] || level;
+}
+
 
 function debounce(fn, wait = 350) {
   let t = null;
@@ -700,32 +710,40 @@ function renderVariantCard(num, variant, cardId) {
   const escaped = text.replace(/`/g, "\\`");
 
   // ----------------------------
-  // AI badge
+  // AI badge (smarter hierarchy)
   // ----------------------------
   const badge = recommended
-    ? `<div class="ai-recommended-badge"
-           data-confidence="${confidence}"
-           title="Recommended based on hook strength, story flow, and your selected intent.">
-         <span class="ai-badge-main">🤖 AI Recommended</span>
-         <span class="ai-badge-confidence">${confLabel}</span>
-       </div>`
+    ? `
+      <div class="ai-recommended-badge"
+          data-confidence="${confidence}">
+        <div class="ai-badge-row">
+          <span class="ai-badge-main">⭐ AI Pick</span>
+          <span class="ai-badge-confidence">${confLabel}</span>
+        </div>
+      </div>
+    `
     : "";
 
   // ----------------------------
   // Why this won
   // ----------------------------
   const whyToggle =
-  recommended && reason
-    ? `
-      <div class="variantWhyToggle"
-           onclick="toggleVariantWhy('${cardId}')">
-        Why this won ▾
-      </div>
-      <div class="variantWhy hidden" id="${cardId}_why">
-        ${reason}
-      </div>
-    `
-    : "";
+    recommended && reason
+      ? `
+        <div class="variantWhyToggle"
+            onclick="toggleVariantWhy('${cardId}')">
+          Why this won ▾
+        </div>
+
+        <div class="variantWhy hidden" id="${cardId}_why">
+          ${reason}
+          ${confidence ? `<div class="variantWhyConfidence">
+            Confidence: ${confLabel}
+          </div>` : ""}
+        </div>
+      `
+      : "";
+
 
   // ----------------------------
   // Final render (CORRECT)
@@ -905,6 +923,15 @@ function renderHookLab(hooks) {
       const isSelected = selectedHook === h.text;
       const reason = h.recommend_reason || "";
 
+      const confidence = Number(h.confidence || 0);
+
+      let confLabel = "";
+      if (confidence >= 0.85) confLabel = "Excellent lead";
+      else if (confidence >= 0.7) confLabel = "Strong opener";
+      else if (confidence >= 0.55) confLabel = "Good potential";
+      else confLabel = "Experimental";
+
+
       const card = document.createElement("div");
       card.className = "hookCard";
 
@@ -918,60 +945,47 @@ function renderHookLab(hooks) {
 
       // 🤖 AI badge — confidence-aware + never overlays text
       if (isRecommended && allowAiHighlight) {
-        const conf = normalizeConfidence(h.confidence);
-        const confText = confidenceLabel(conf);
+        const header = document.createElement("div");
+        header.className = "hookHeader";
 
-        // Confidence-aware highlight:
-        // close call => no "recommended" green border highlight
-        if (shouldHighlightRecommended(conf)) {
-          card.classList.add("recommended");
-        }
-
-        card.classList.add("hook-ai-pick");
-
-        // Add a confidence class for CSS styling
-        card.classList.add(`conf-${conf}`);
-
+        // ⭐ Badge
         const badge = document.createElement("div");
-        badge.className = `ai-recommended-badge conf-${conf}`;
-        badge.dataset.confidence = conf;
+        badge.className = "ai-recommended-badge";
 
         badge.innerHTML = `
           <div class="ai-badge-row">
-            <span class="ai-badge-main">🤖 AI Recommended</span>
-            <span class="ai-badge-confidence">${confText}</span>
+            <span class="ai-badge-main">⭐ AI Pick</span>
+            <span class="ai-badge-confidence">${confLabel}</span>
           </div>
         `;
-
-        // Keep the tooltip, but don’t rely on it
-        badge.title = reason || "";
-
-        const header = document.createElement("div");
-        header.className = "hookHeader";
 
         header.appendChild(badge);
         card.appendChild(header);
 
-        // Why text:
-        // - auto-show for CLEAR
-        // - otherwise collapsed/hidden unless you want it always
+        // WHY SECTION
         if (reason) {
+          const toggle = document.createElement("div");
+          toggle.className = "variantWhyToggle";
+          toggle.textContent = "Why this won ▾";
+
           const why = document.createElement("div");
-          why.className = "hookWhy subtle";
-          why.textContent = reason;
+          why.className = "variantWhy hidden";
+          why.innerHTML = `
+            ${reason}
+            <div class="variantWhyConfidence">
+              Confidence: ${confLabel}
+            </div>
+          `;
 
-          if (!shouldAutoShowWhy(conf)) {
-            why.classList.add("hidden"); // keep it quiet for close/moderate
-          }
-
-          card.appendChild(why);
-
-          // For moderate/close: clicking the badge toggles WHY
-          badge.addEventListener("click", (e) => {
+          toggle.addEventListener("click", (e) => {
             e.stopPropagation();
             why.classList.toggle("hidden");
           });
+
+          card.appendChild(toggle);
+          card.appendChild(why);
         }
+
       }
 
 

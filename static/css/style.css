@@ -3558,3 +3558,16 @@ body.no-scroll {
   50% { transform: scale(1.15); }
   100% { transform: scale(1); }
 }
+
+.variantWhy {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+  opacity: 0.95;
+}
+
+.variantWhyConfidence {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.75;
+}
