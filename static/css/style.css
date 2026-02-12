@@ -3740,3 +3740,67 @@ body.no-scroll {
     animation: none !important;
   }
 }
+/* ================================
+   AI DIRECTOR – PRIORITY STYLES
+================================ */
+
+/* base card */
+.director-item {
+  padding: 14px 16px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+
+/* hover = clickable feedback */
+.director-item:hover {
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.03);
+}
+
+/* ---------------- HIGH ---------------- */
+.impact-high {
+  border-left: 4px solid #ff4d4f;
+  background: linear-gradient(
+    90deg,
+    rgba(255,77,79,.18),
+    rgba(255,77,79,.06) 40%,
+    #121212 100%
+  );
+}
+
+.impact-high .director-impact {
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+/* ---------------- MED ---------------- */
+.impact-medium {
+  border-left: 4px solid #f5a623;
+  background: linear-gradient(
+    90deg,
+    rgba(245,166,35,.18),
+    rgba(245,166,35,.05) 40%,
+    #121212 100%
+  );
+}
+
+.impact-medium .director-impact {
+  color: #ffb347;
+}
+
+/* ---------------- LOW ---------------- */
+.impact-low {
+  border-left: 4px solid #4caf50;
+  background: linear-gradient(
+    90deg,
+    rgba(76,175,80,.15),
+    rgba(76,175,80,.04) 40%,
+    #121212 100%
+  );
+}
+
+.impact-low .director-impact {
+  color: #7bd88f;
+}
