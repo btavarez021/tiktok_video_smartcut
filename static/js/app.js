@@ -3614,6 +3614,44 @@ async function improveHook() {
   }
 }
 
+async function boostSelectedHook() {
+  const statusEl = document.getElementById("hookLabStatus");
+
+  // You already use selectedHook elsewhere (Hook Lab uses it)
+  if (!window.selectedHook && typeof selectedHook === "undefined") {
+    toast?.("Select a hook first");
+    return;
+  }
+
+  const hook = window.selectedHook || selectedHook;
+
+  setStatus("hookLabStatus", "AI polishing your selected hook…", "working");
+
+  try {
+    const res = await jsonFetch("/api/hook_boost", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        hook,
+        intent: currentIntent || "discovery"
+      })
+    });
+
+    if (!res?.text) throw new Error("No upgraded hook returned");
+
+    // Reuse your existing rewrite-review UI
+    // Use step3 because this is hook/captions land
+    proposeRewrite(res.text, "Hook upgrade ready", "step3");
+
+    setStatus("hookLabStatus", "Upgrade ready ✓ (review & accept)", "success");
+
+  } catch (err) {
+    console.error(err);
+    setStatus("hookLabStatus", "Failed to upgrade hook", "error");
+  }
+}
+
+
 async function undoAIRecommendation() {
   const snapshot = window.aiUndoSnapshot;
 
@@ -5299,6 +5337,10 @@ async function saveIntent(intent) {
 
     document.getElementById("generateHooksBtn")
   ?.addEventListener("click", generateHooks);
+
+  document.getElementById("boostHookBtn")
+  ?.addEventListener("click", boostSelectedHook);
+
 
   let captionAutoSaveTimer = null;
 

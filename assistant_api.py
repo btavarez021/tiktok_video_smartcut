@@ -183,6 +183,57 @@ def api_edit_strategy(session: str):
         "suggestions": suggestions
     }
 
+def boost_hook(hook: str, intent: str = "discovery") -> str:
+    """
+    Take a selected hook and upgrade it.
+    Returns ONE stronger line.
+    """
+
+    if not hook:
+        return ""
+
+    if not client:
+        return hook  # fail safe
+
+    prompt = f"""
+Improve this TikTok hook.
+
+Intent: {intent}
+
+Current hook:
+"{hook}"
+
+Rules:
+- Return ONE improved line only.
+- Stronger.
+- More curiosity.
+- Clearer benefit.
+- Natural social media voice.
+- Avoid generic phrases like "unlock", "step into".
+"""
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Return ONLY the improved hook. No quotes. No extra text."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.6,
+        )
+
+        text = (resp.choices[0].message.content or "").strip()
+        return text
+
+    except Exception as e:
+        logger.error(f"[HOOK_BOOST] {e}")
+        return hook
 
 def api_generate_yaml_status(session: str):
     session = sanitize_session(session)
