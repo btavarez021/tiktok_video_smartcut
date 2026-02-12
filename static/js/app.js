@@ -3639,11 +3639,43 @@ async function boostSelectedHook() {
 
     if (!res?.text) throw new Error("No upgraded hook returned");
 
-    // Reuse your existing rewrite-review UI
-    // Use step3 because this is hook/captions land
-    proposeRewrite(res.text, "Hook upgrade ready", "step3");
+    const newHook = res.text;
 
-    setStatus("hookLabStatus", "Upgrade ready ✓ (review & accept)", "success");
+    // Build full caption text with upgraded hook
+    const editor = document.getElementById("captionsEditor");
+    let blocks = [];
+
+    if (editor?.value?.trim()) {
+      blocks = editor.value.split(/\n\s*\n/).filter(Boolean);
+    }
+
+    if (blocks.length === 0) {
+      blocks = [newHook];
+    } else {
+      blocks[0] = newHook;
+    }
+
+    const newCaptions = blocks.join("\n\n");
+
+    // Save to backend
+    await jsonFetch("/api/save_captions", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        text: newCaptions
+      })
+    });
+
+    // Update editor UI
+    if (editor) editor.value = newCaptions;
+
+    lastSavedCaptionsText = newCaptions;
+
+    // Refresh AI director
+    refreshEditStrategySoon();
+
+    setStatus("hookLabStatus", "Hook upgraded & applied ✓", "success");
+
 
   } catch (err) {
     console.error(err);
