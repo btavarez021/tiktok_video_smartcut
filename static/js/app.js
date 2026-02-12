@@ -1180,6 +1180,20 @@ async function loadEditStrategy() {
 
     const items = data.suggestions || [];
 
+    /* ================================
+   🎥 FOOTAGE INTELLIGENCE (ADD HERE)
+    ================================ */
+    const contextEl = document.getElementById("editStrategyContext");
+    const setup = document.getElementById("aiSetupSummary");
+
+    if (contextEl && setup?.innerText?.trim()) {
+      contextEl.innerHTML = `
+        <div class="context-title">🎥 Footage Intelligence</div>
+        <div>${setup.innerText}</div>
+      `;
+      contextEl.classList.remove("hidden");
+    }
+
     if (!items.length) {
   list.innerHTML = `
     <div class="director-success">
@@ -1211,6 +1225,23 @@ async function loadEditStrategy() {
       <div class="director-action">👉 ${s.action}</div>
     </div>
   `).join("");
+
+  /* ================================
+   🎯 PROGRESS FOOTER (ADD HERE)
+  ================================ */
+  const remaining = items.length;
+
+  const footer = document.createElement("div");
+  footer.className = "director-progress";
+  footer.innerHTML = `
+    ${remaining === 0
+      ? "✅ No major issues detected"
+      : `🎯 ${remaining} improvement${remaining > 1 ? "s" : ""} left`
+    }
+  `;
+
+  list.appendChild(footer);
+
 
   // ✅ NOW elements exist
   list.querySelectorAll(".director-item").forEach(card => {

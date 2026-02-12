@@ -3805,12 +3805,40 @@ body.no-scroll {
   color: #7bd88f;
 }
 
+/* Context area */
 .director-context {
-  font-size: 13px;
+  background: #0f0f0f;
+  border-radius: 12px;
+  padding: 12px;
   margin-bottom: 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.06);
-  opacity: .85;
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: .9;
+}
+
+.context-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  font-size: 12px;
+  opacity: .7;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.director-divider {
+  height: 1px;
+  background: rgba(255,255,255,.06);
+  margin: 12px 0;
+}
+
+.director-moves-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.director-progress {
+  margin-top: 10px;
+  font-size: 12px;
+  opacity: .7;
 }
