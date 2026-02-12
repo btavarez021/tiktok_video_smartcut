@@ -3583,8 +3583,11 @@ async function improveHook() {
   if (!btn) return;
 
   btn.disabled = true;
-  if (statusEl) statusEl.textContent = "Improving hook…";
+  if (statusEl) {
+  statusEl.textContent = "Improving hook…";
   statusEl.className = "status-text status-working";
+}
+
 
   try {
     const data = await jsonFetch("/api/hook_improve", {
@@ -3615,7 +3618,13 @@ async function improveHook() {
 }
 
 async function boostSelectedHook() {
-  const statusEl = document.getElementById("hookLabStatus");
+  // ✅ use the real Step-3 editor
+  const editor = document.getElementById("captionsText");
+
+  if (!editor) {
+    console.warn("captionsText not found");
+    return;
+  }
 
   // You already use selectedHook elsewhere (Hook Lab uses it)
   if (!window.selectedHook && typeof selectedHook === "undefined") {
@@ -3633,36 +3642,30 @@ async function boostSelectedHook() {
       body: JSON.stringify({
         session: getActiveSession(),
         hook,
-        intent: currentIntent || "discovery"
-      })
+        intent: currentIntent || "discovery",
+      }),
     });
 
     if (!res?.text) throw new Error("No upgraded hook returned");
 
     const newHook = res.text;
 
-    // Build full caption text with upgraded hook
-    const editor = document.getElementById("captionsEditor");
-    let blocks = [];
+    // Build full caption text with upgraded hook (hook = first block)
+    const current = (editor.value || "").trim();
+    let blocks = current ? current.split(/\n\s*\n/).filter(Boolean) : [];
 
-    if (editor?.value?.trim()) {
-      blocks = editor.value.split(/\n\s*\n/).filter(Boolean);
-    }
-
-    if (blocks.length === 0) {
-      blocks = [newHook];
-    } else {
-      blocks[0] = newHook;
-    }
+    if (blocks.length === 0) blocks = [newHook];
+    else blocks[0] = newHook;
 
     const newCaptions = blocks.join("\n\n");
 
     // Save to backend
-    await jsonFetch(`/api/save_captions?session=${getActiveSession()}`, {
+    await jsonFetch("/api/save_captions", {
       method: "POST",
       body: JSON.stringify({
-        text: newCaptions
-      })
+        session: getActiveSession(),
+        text: newCaptions,
+      }),
     });
 
     // Update editor UI
@@ -3670,13 +3673,10 @@ async function boostSelectedHook() {
 
     lastSavedCaptionsText = newCaptions;
 
-    refreshHookScore();
-
-    // Refresh AI director
-    refreshEditStrategySoon();
+    // 🔥 trigger official save pipeline
+    document.getElementById("saveCaptionsBtn")?.click();
 
     setStatus("hookLabStatus", "Hook upgraded & applied ✓", "success");
-
 
   } catch (err) {
     console.error(err);
@@ -3685,13 +3685,15 @@ async function boostSelectedHook() {
 }
 
 
+
 async function undoAIRecommendation() {
   const snapshot = window.aiUndoSnapshot;
 
-  if (!snapshot?.yaml) {
-    toast("Nothing to undo");
-    return;
-  }
+  if (!snapshot?.config) {
+  toast("Nothing to undo");
+  return;
+}
+
 
   if (snapshot.session !== getActiveSession()) {
     alert("Undo is only available for the last AI apply in this session.");
