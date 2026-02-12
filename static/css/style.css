@@ -3672,18 +3672,43 @@ body.no-scroll {
   line-height: 1.4;
 }
 
+/* HIGH PRIORITY */
 .impact-high {
   border-left: 4px solid #ff4d4f;
-  background: linear-gradient(90deg, rgba(255,77,79,.12), #141414);
+  background: linear-gradient(
+    90deg,
+    rgba(255,77,79,.18),
+    rgba(255,77,79,.05) 40%,
+    #111 100%
+  );
 }
 
+/* stronger title */
+.impact-high .director-area {
+  opacity: 1;
+}
 
+/* brighter impact text */
+.impact-high .director-impact {
+  color: #ff6b6b;
+  opacity: 1;
+}
 
 /* MEDIUM = RECOMMENDED */
 .impact-medium {
   border-left: 4px solid #f5a623;
   background: linear-gradient(90deg, rgba(245,166,35,.08), #111);
 }
+
+.impact-high:hover {
+  background: linear-gradient(
+    90deg,
+    rgba(255,77,79,.28),
+    rgba(255,77,79,.08) 40%,
+    #111 100%
+  );
+}
+
 
 /* LOW = OPTIONAL */
 .impact-low {
