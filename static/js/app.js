@@ -3658,18 +3658,20 @@ async function boostSelectedHook() {
     const newCaptions = blocks.join("\n\n");
 
     // Save to backend
-    await jsonFetch("/api/save_captions", {
-      method: "POST",
-      body: JSON.stringify({
-        session: getActiveSession(),
-        text: newCaptions
-      })
-    });
+    await jsonFetch(`/api/save_captions?session=${getActiveSession()}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          text: newCaptions
+        })
+      });
 
     // Update editor UI
     if (editor) editor.value = newCaptions;
 
     lastSavedCaptionsText = newCaptions;
+
+    refreshHookScore();
 
     // Refresh AI director
     refreshEditStrategySoon();
