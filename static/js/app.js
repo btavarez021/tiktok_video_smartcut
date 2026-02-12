@@ -1191,7 +1191,9 @@ async function loadEditStrategy() {
     <div class="director-item impact-${s.impact}" data-area="${(s.area || '').toLowerCase()}">
       <div class="director-header">
         <div class="director-area">${prettyArea(s.area)}</div>
-        <div class="director-impact">${s.impact.toUpperCase()}</div>
+        <div class="director-impact">
+  ${s.impact.toUpperCase()} · ${impactLabel(s.impact)}
+</div>
       </div>
       <div class="director-issue">${s.issue}</div>
       <div class="director-action">👉 ${s.action}</div>
