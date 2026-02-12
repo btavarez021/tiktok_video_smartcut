@@ -29,6 +29,10 @@ let currentIntent = "discovery";
 
 let CONFIG_LOADING = false;
 
+let LAST_HOOK_SCORE = null;
+let LAST_FLOW_SCORE = null;
+
+
 let isInRewriteReview = false;
 let captionViewMode = "rewritten";
 let diffDirty = false;
@@ -77,6 +81,48 @@ function openHookLab() {
 
   highlightHookLab?.();
 }
+
+function celebrateImprovement(type, oldScore, newScore) {
+  const delta = newScore - oldScore;
+
+  // toast
+  toast(`⬆ ${type === "hook" ? "Hook" : "Flow"} improved +${delta}`);
+
+  // director approval
+  showDirectorApproval(type);
+
+  // small pulse animation
+  animateScoreJump(type);
+}
+
+function showDirectorApproval(type) {
+  const area = document.getElementById("editStrategyContext");
+  if (!area) return;
+
+  const el = document.createElement("div");
+  el.className = "director-approved";
+  el.textContent = `🎬 Director approved the ${type}`;
+
+  area.appendChild(el);
+
+  setTimeout(() => {
+    el.remove();
+  }, 2500);
+}
+
+function animateScoreJump(type) {
+  const id = type === "hook"
+    ? "hookScoreValue"
+    : "storyFlowScoreValue";
+
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.classList.remove("score-burst");
+  void el.offsetWidth;
+  el.classList.add("score-burst");
+}
+
 
 function openAccordionSection(title) {
   const headers = document.querySelectorAll("#step-4 .acc-header");
@@ -3431,6 +3477,16 @@ async function refreshHookScore() {
 
     const score = Number(data.score ?? 0);
 
+    // ================================
+    // 🎉 Improvement Detection
+    // ================================
+    if (LAST_HOOK_SCORE !== null && score > LAST_HOOK_SCORE) {
+      celebrateImprovement("hook", LAST_HOOK_SCORE, score);
+    }
+
+    LAST_HOOK_SCORE = score;
+
+
     // -----------------------------
     // 🔒 Story flow lock (NOW safe)
     // -----------------------------
@@ -3774,6 +3830,14 @@ async function refreshStoryFlowScore() {
         const data = await jsonFetch(`/api/story_flow_score?session=${session}`);
 
         const score = Number(data.score ?? 0);
+
+        if (LAST_FLOW_SCORE !== null && score > LAST_FLOW_SCORE) {
+          celebrateImprovement("flow", LAST_FLOW_SCORE, score);
+        }
+
+        LAST_FLOW_SCORE = score;
+
+
         updateImproveButtons(null, score);
         scoreEl.textContent = `${score}/100`;
 

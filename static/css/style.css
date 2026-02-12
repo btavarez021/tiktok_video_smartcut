@@ -3842,3 +3842,31 @@ body.no-scroll {
   font-size: 12px;
   opacity: .7;
 }
+
+.score-burst {
+  animation: scoreBurst .6s ease;
+}
+
+@keyframes scoreBurst {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); color: #00ff95; }
+  100% { transform: scale(1); }
+}
+
+.director-approved {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: linear-gradient(90deg,#003d26,#001e14);
+  border: 1px solid rgba(0,255,150,.25);
+  color: #00ff95;
+  font-size: 13px;
+  animation: fadeOut 2.5s forwards;
+}
+
+@keyframes fadeOut {
+  0% { opacity: 0; transform: translateY(4px); }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
