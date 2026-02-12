@@ -1161,6 +1161,18 @@ async function loadEditStrategy() {
 
   list.innerHTML = "Analyzing edit…";
 
+  const contextEl = document.getElementById("editStrategyContext");
+  const setup = document.getElementById("aiSetupSummary");
+
+  if (contextEl && setup?.innerText?.trim()) {
+    contextEl.innerHTML = `
+      <div class="context-title">🎥 What AI noticed in your footage</div>
+      <div>${setup.innerText}</div>
+    `;
+    contextEl.classList.remove("hidden");
+  }
+
+
   try {
     const data = await jsonFetch(
       `/api/edit_strategy?session=${getActiveSession()}`
