@@ -3659,12 +3659,11 @@ async function boostSelectedHook() {
 
     // Save to backend
     await jsonFetch(`/api/save_captions?session=${getActiveSession()}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          text: newCaptions
-        })
-      });
+      method: "POST",
+      body: JSON.stringify({
+        text: newCaptions
+      })
+    });
 
     // Update editor UI
     if (editor) editor.value = newCaptions;
