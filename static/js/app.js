@@ -942,6 +942,8 @@ async function generateHooks() {
     status.className = "hook-lab-status loading";
   }
 
+  loadEditStrategy();
+
   const out = document.getElementById("hookLabOutput");
   if (out) {
     out.innerHTML = `
@@ -1190,6 +1192,13 @@ function impactLabel(level) {
   }[level] || "";
 }
 
+function getHookNextMove(score, delta) {
+  if (!score) return "generate";
+  if (score < 50 && delta === 0) return "generate";
+  if (score < 70) return "improve";
+  if (score < 85) return "auto";
+  return "done";
+}
 
 async function loadEditStrategy() {
   const panel = document.getElementById("editStrategyPanel");
@@ -1198,6 +1207,10 @@ async function loadEditStrategy() {
   if (!panel || !list) return;
 
   const delta = window.lastHookImprovementDelta || 0;
+
+  // ⭐ NEW — read live hook score
+  const hookScore =
+    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
 
   // No captions yet
   if (!lastSavedCaptionsText?.trim()) {
@@ -1250,6 +1263,11 @@ async function loadEditStrategy() {
     });
 
     // ================================
+    // Smart next action
+    // ================================
+    const nextMove = getHookNextMove(hookScore, delta);
+
+    // ================================
     // Render
     // ================================
     list.classList.add("fade-refresh");
@@ -1267,6 +1285,24 @@ async function loadEditStrategy() {
           toneIssue = "Much better — we can polish it even more.";
         }
 
+        // ⭐ NEW — smart guidance
+        let guidance = `👉 ${s.action}`;
+
+        if (s.area === "hook") {
+          if (nextMove === "generate") {
+            guidance = "👉 Generate new hook ideas";
+          }
+          if (nextMove === "improve") {
+            guidance = "👉 Try Improve Selected Hook";
+          }
+          if (nextMove === "auto") {
+            guidance = "👉 Let AI auto-optimize";
+          }
+          if (nextMove === "done") {
+            guidance = "✅ Strong hook — move to story flow";
+          }
+        }
+
         return `
           <div class="director-item impact-${toneImpact}" data-area="${(s.area || '').toLowerCase()}">
             <div class="director-header">
@@ -1281,7 +1317,7 @@ async function loadEditStrategy() {
               : ""}
 
             <div class="director-issue">${toneIssue}</div>
-            <div class="director-action">👉 ${s.action}</div>
+            <div class="director-action">${guidance}</div>
           </div>
         `;
       }).join("");
@@ -1670,7 +1706,7 @@ async function autoBoostSelectedHook() {
 
     refreshHookScore?.();
     setStatus("hookLabStatus", "Auto optimization complete ✓", "success");
-
+    loadEditStrategy();
   } catch (e) {
     console.error(e);
     setStatus("hookLabStatus", "Auto optimization failed", "error");
@@ -3914,6 +3950,7 @@ async function applyCaptionVariant(text, meta = {}) {
 
     document.getElementById("step4CaptionScroll")?.classList.add("hidden");
     document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
+    loadEditStrategy();
 
   } catch (err) {
     console.error(err);
