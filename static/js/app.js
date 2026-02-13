@@ -3695,6 +3695,10 @@ async function boostSelectedHook() {
     // ✅ Update editor UI immediately
     if (editor) editor.value = newCaptions;
 
+    // ⭐ ADD THIS
+    workingCaptionsText = newCaptions;
+    
+
     // ✨ SHOW DIFF BEFORE SAVE
     renderStep3Diff(beforeBoost, newCaptions);
     focusCaptionChanges();
