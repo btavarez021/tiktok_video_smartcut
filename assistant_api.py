@@ -195,6 +195,7 @@ def boost_hook(hook: str, intent: str = "discovery") -> str:
     if not client:
         return hook  # fail safe
 
+
     prompt = f"""
 You are an elite viral TikTok hook strategist.
 
@@ -228,19 +229,18 @@ RULES:
 - Avoid generic filler
 
 Return JSON:
-{
+{{
   "hooks": [
-    {"text": "hook", "strategy": "curiosity"},
-    {"text": "hook", "strategy": "secret"},
-    {"text": "hook", "strategy": "insider"},
-    {"text": "hook", "strategy": "surprise"},
-    {"text": "hook", "strategy": "luxury"},
-    {"text": "hook", "strategy": "transformation"},
-    {"text": "hook", "strategy": "challenge"},
-    {"text": "hook", "strategy": "dramatic"}
+    {{"text": "hook", "strategy": "curiosity"}},
+    {{"text": "hook", "strategy": "secret"}},
+    {{"text": "hook", "strategy": "insider"}},
+    {{"text": "hook", "strategy": "surprise"}},
+    {{"text": "hook", "strategy": "luxury"}},
+    {{"text": "hook", "strategy": "transformation"}},
+    {{"text": "hook", "strategy": "challenge"}},
+    {{"text": "hook", "strategy": "dramatic"}}
   ]
-}
-
+}}
 """
 
     try:
@@ -255,39 +255,39 @@ Return JSON:
 
         content = (resp.choices[0].message.content or "").strip()
 
-        print("[HOOK BOOST RAW]")
-        print(content)
-
-        # ---------------------------------
-        # SAFE JSON PARSE
-        # ---------------------------------
+        # ================================
+        # 🔒 BULLETPROOF JSON PARSE
+        # ================================
         try:
             start = content.find("{")
             end = content.rfind("}") + 1
 
             if start == -1 or end == 0:
-                raise ValueError("No JSON found")
+                raise ValueError("No JSON object detected")
 
             data = json.loads(content[start:end])
 
         except Exception as e:
-            logger.error(f"[HOOK_BOOST] JSON parse failed: {e}")
-            return hook   # fail safe instead of 500
+            logger.error(f"[HOOK_BOOST PARSE ERROR] {e}")
+            logger.error(f"[HOOK_BOOST RAW OUTPUT]\n{content}")
+            return hook  # graceful fallback
 
 
-        # ---------------------------------
-        # BUILD CANDIDATES SAFELY
-        # ---------------------------------
         candidates = []
 
         for item in data.get("hooks", []):
-            text = (item.get("text") or "").strip()
-            strategy = item.get("strategy") or "unknown"
-
-            if not text:
-                continue
+            # Model might return string instead of object
+            if isinstance(item, dict):
+                text = item.get("text", "")
+                strategy = item.get("strategy", "unknown")
+            else:
+                text = str(item)
+                strategy = "unknown"
 
             clean = strip_emojis(text).strip()
+
+            if not clean:
+                continue
 
             try:
                 s = score_hook_text(clean)["score"]
@@ -300,10 +300,9 @@ Return JSON:
                 "strategy": strategy
             })
 
-        if not candidates:
-            logger.warning("[HOOK BOOST] no valid candidates")
-            return hook
 
+        if not candidates:
+            return hook
 
         # pick best
         candidates.sort(key=lambda x: x["score"], reverse=True)
@@ -315,7 +314,7 @@ Return JSON:
 
 
     except Exception as e:
-        logger.error(f"[HOOK_BOOST] {e}")
+        logger.error(f"[HOOK_BOOST FATAL] {e}")
         return hook
 
 def api_generate_yaml_status(session: str):
