@@ -20,6 +20,8 @@ let intentLockedByUser = false;
 let suppressNextPreview = false;
 
 let lastSavedCaptionsText = "";
+let lastHookScoreBeforeEdit = null;
+
 
 let workingCaptionsText = "";
 
@@ -1195,6 +1197,9 @@ async function loadEditStrategy() {
 
   if (!panel || !list) return;
 
+  const delta = window.lastHookImprovementDelta || 0;
+
+  // No captions yet
   if (!lastSavedCaptionsText?.trim()) {
     list.innerHTML = `
       <div class="hint-text subtle">
@@ -1207,17 +1212,19 @@ async function loadEditStrategy() {
 
   list.innerHTML = "Analyzing edit…";
 
+  // ================================
+  // 🎥 Footage Intelligence (top block)
+  // ================================
   const contextEl = document.getElementById("editStrategyContext");
   const setup = document.getElementById("aiSetupSummary");
 
   if (contextEl && setup?.innerText?.trim()) {
     contextEl.innerHTML = `
-      <div class="context-title">🎥 What AI noticed in your footage</div>
+      <div class="context-title">🎥 Footage Intelligence</div>
       <div>${setup.innerText}</div>
     `;
     contextEl.classList.remove("hidden");
   }
-
 
   try {
     const data = await jsonFetch(
@@ -1226,80 +1233,89 @@ async function loadEditStrategy() {
 
     const items = data.suggestions || [];
 
-    /* ================================
-   🎥 FOOTAGE INTELLIGENCE (ADD HERE)
-    ================================ */
-    const contextEl = document.getElementById("editStrategyContext");
-    const setup = document.getElementById("aiSetupSummary");
-
-    if (contextEl && setup?.innerText?.trim()) {
-      contextEl.innerHTML = `
-        <div class="context-title">🎥 Footage Intelligence</div>
-        <div>${setup.innerText}</div>
+    if (!items.length) {
+      list.innerHTML = `
+        <div class="director-success">
+          🎯 All major issues resolved — you're optimized.
+        </div>
       `;
-      contextEl.classList.remove("hidden");
+      panel.classList.remove("hidden");
+      return;
     }
 
-    if (!items.length) {
-  list.innerHTML = `
-    <div class="director-success">
-      🎯 All major issues resolved — you're optimized.
-    </div>
-  `;
-  panel.classList.remove("hidden");
-  return;
-}
-
-
+    // Sort high → low
     items.sort((a, b) => {
       const weight = { high: 3, medium: 2, low: 1 };
       return weight[b.impact] - weight[a.impact];
     });
 
+    // ================================
+    // Render
+    // ================================
     list.classList.add("fade-refresh");
-  setTimeout(() => {
 
-  list.innerHTML = items.map(s => `
-    <div class="director-item impact-${s.impact}" data-area="${(s.area || '').toLowerCase()}">
-      <div class="director-header">
-        <div class="director-area">${prettyArea(s.area)}</div>
-        <div class="director-impact">
-  ${s.impact.toUpperCase()} · ${impactLabel(s.impact)}
-</div>
-      </div>
-      <div class="director-issue">${s.issue}</div>
-      <div class="director-action">👉 ${s.action}</div>
-    </div>
-  `).join("");
+    setTimeout(() => {
 
-  /* ================================
-   🎯 PROGRESS FOOTER (ADD HERE)
-  ================================ */
-  const remaining = items.length;
+      list.innerHTML = items.map(s => {
 
-  const footer = document.createElement("div");
-  footer.className = "director-progress";
-  footer.innerHTML = `
-    ${remaining === 0
-      ? "✅ No major issues detected"
-      : `🎯 ${remaining} improvement${remaining > 1 ? "s" : ""} left`
-    }
-  `;
+        let toneIssue = s.issue;
+        let toneImpact = s.impact;
 
-  list.appendChild(footer);
+        // If hook improved → soften
+        if (s.area === "hook" && delta > 0) {
+          toneImpact = "medium";
+          toneIssue = "Much better — we can polish it even more.";
+        }
 
+        return `
+          <div class="director-item impact-${toneImpact}" data-area="${(s.area || '').toLowerCase()}">
+            <div class="director-header">
+              <div class="director-area">${prettyArea(s.area)}</div>
+              <div class="director-impact">
+                ${toneImpact.toUpperCase()} · ${impactLabel(toneImpact)}
+              </div>
+            </div>
 
-  // ✅ NOW elements exist
-  list.querySelectorAll(".director-item").forEach(card => {
-    card.addEventListener("click", () => {
-      const area = card.dataset.area;
-      console.log("🎯 Jump to:", area);
-      jumpToEditArea(area);
-      showGlobalStatus("Jumped to fix location ✨", "info");
-    });
-  });
+            ${delta > 0 && s.area === "hook"
+              ? `<div class="director-progress-up">↑ +${delta} points</div>`
+              : ""}
 
-}, 120);
+            <div class="director-issue">${toneIssue}</div>
+            <div class="director-action">👉 ${s.action}</div>
+          </div>
+        `;
+      }).join("");
+
+      // ================================
+      // 🎯 Progress Footer
+      // ================================
+      const remaining = items.length;
+
+      const footer = document.createElement("div");
+      footer.className = "director-progress";
+      footer.innerHTML = `
+        ${remaining === 0
+          ? "✅ No major issues detected"
+          : `🎯 ${remaining} improvement${remaining > 1 ? "s" : ""} left`
+        }
+      `;
+
+      list.appendChild(footer);
+
+      // ================================
+      // Jump to fix
+      // ================================
+      list.querySelectorAll(".director-item").forEach(card => {
+        card.addEventListener("click", () => {
+          const area = card.dataset.area;
+          jumpToEditArea(area);
+          showGlobalStatus("Jumped to fix location ✨", "info");
+        });
+      });
+
+      list.classList.remove("fade-refresh");
+
+    }, 120);
 
     panel.classList.remove("hidden");
 
@@ -3627,6 +3643,20 @@ async function boostSelectedHook() {
 
   const hook = window.selectedHook || selectedHook;
 
+  const currentScore = Number(
+  document.getElementById("hookScoreValue")
+    ?.textContent?.split("/")[0] || 0
+  );
+
+  lastHookScoreBeforeEdit = currentScore;
+
+
+  const oldScore =
+  Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  window.lastHookScoreBeforeBoost = oldScore;
+
+
   setStatus("hookLabStatus", "AI polishing your selected hook…", "working");
 
   try {
@@ -3671,6 +3701,30 @@ async function boostSelectedHook() {
 
     // 🔥 Trigger the official save pipeline
     document.getElementById("saveCaptionsBtn")?.click();
+
+    setTimeout(() => {
+      const newScore =
+        Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+      const diff = newScore - (window.lastHookScoreBeforeBoost || 0);
+
+      if (diff > 0) {
+        toast?.(`⬆ Improved by ${diff} points`);
+      } else if (diff < 0) {
+        toast?.(`⬇ ${Math.abs(diff)} points lower — previous hook may be stronger`);
+      } else {
+        toast?.("No score change");
+      }
+
+      refreshHookScore?.();
+      
+    }, 600);
+
+    const newScore = Number(
+        document.getElementById("hookScoreValue")
+          ?.textContent?.split("/")[0] || 0
+      );
+
 
     setStatus("hookLabStatus", "Hook upgraded & applied ✓", "success");
 
