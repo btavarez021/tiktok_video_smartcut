@@ -253,7 +253,25 @@ Return JSON:
             temperature=0.9,
         )
 
-        content = resp.choices[0].message.content.strip()
+        content = (resp.choices[0].message.content or "").strip()
+
+        try:
+            start = content.find("{")
+            end = content.rfind("}") + 1
+            if start == -1 or end == -1:
+                raise ValueError("JSON block not found")
+
+            data = json.loads(content[start:end])
+
+        except Exception as e:
+            logger.error(f"[HOOK_BOOST] JSON parse failed: {e}")
+            logger.error(content)
+            return hook  # fail safe
+
+        if not candidates:
+            logger.warning("[HOOK BOOST] no valid candidates")
+            return hook
+        
         start = content.find("{")
         end = content.rfind("}") + 1
         data = json.loads(content[start:end])
