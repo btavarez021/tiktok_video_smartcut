@@ -82,6 +82,7 @@ function openHookLab() {
   });
 
   highlightHookLab?.();
+  updateHookLabGuidance();
 }
 
 function celebrateImprovement(type, oldScore, newScore) {
@@ -96,6 +97,21 @@ function celebrateImprovement(type, oldScore, newScore) {
   // small pulse animation
   animateScoreJump(type);
 }
+
+function maybeShowStep4Nudge() {
+  const score =
+    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  const hint = document.getElementById("step3NextHint");
+
+  if (!hint) return;
+
+  // threshold = “good enough”
+  if (score >= 50) {
+    hint.classList.remove("hidden");
+  }
+}
+
 
 function showDirectorApproval(type) {
   const area = document.getElementById("editStrategyContext");
@@ -982,6 +998,7 @@ async function generateHooks() {
     if (out) out.classList.remove("show");
 
     renderHookLab(hooks);
+    updateHookLabGuidance();
 
     requestAnimationFrame(() => {
       out?.classList.add("show");
@@ -1431,6 +1448,7 @@ function selectHook(text) {
   selectedHook = text;
 
   updateHookLockUI();
+  updateHookLabGuidance();
 
   // 🔥 Re-render so AI green recommended border is removed after user selection
 if (window.lastGeneratedHooks?.length) {
@@ -1594,6 +1612,38 @@ function countBlocks(text) {
   if (!text) return 0;
   return text.split(/\n\s*\n/).filter(Boolean).length;
 }
+
+function updateHookLabGuidance() {
+  const el = document.getElementById("hookLabGuidance");
+  if (!el) return;
+
+  const score =
+    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  const hasHooks = Array.isArray(window.lastGeneratedHooks) && window.lastGeneratedHooks.length > 0;
+  const selected = !!selectedHook;
+
+  if (!hasHooks) {
+    el.textContent = "Generate hooks to explore opening ideas.";
+    return;
+  }
+
+  if (hasHooks && !selected) {
+    el.textContent = "Pick a hook you like, then improve or auto-optimize it.";
+    return;
+  }
+
+  if (selected && score < 50) {
+    el.textContent = "Improve the selected hook to raise curiosity.";
+    return;
+  }
+
+  if (selected && score >= 50) {
+    el.textContent = "Auto optimize can test multiple winning strategies.";
+    return;
+  }
+}
+
 
 async function loadClipPreview(filename, imgEl) {
     const session = getActiveSession();
@@ -3075,6 +3125,7 @@ async function applyAIRecommendation() {
     await refreshStoryFlowScore();
 
     setStatus("captionsStatus", "AI recommendation applied ✓", "success");
+    maybeShowStep4Nudge();
 
 
     if (applyBtn) {
@@ -3810,10 +3861,12 @@ async function boostSelectedHook() {
 
       refreshHookScore?.();
       refreshEditStrategySoon?.();
+      updateHookLabGuidance();
 
     }, 700);
 
     setStatus("hookLabStatus", "Test complete ✓", "success");
+    updateHookLabGuidance();
 
   } catch (err) {
     console.error(err);
@@ -3918,6 +3971,7 @@ async function applyCaptionVariant(text, meta = {}) {
 
   try {
     setStatus("captionsStatus", "Applying caption…", "working")
+    maybeShowStep4Nudge();
 
     await jsonFetch("/api/save_captions", {
       method: "POST",
@@ -3951,6 +4005,8 @@ async function applyCaptionVariant(text, meta = {}) {
     clearPendingRewrite();
 
     setStatus("captionsStatus", "Caption applied ✓", "success");
+
+    maybeShowStep4Nudge();
 
     toggleVariantsPanel(true);
 
@@ -4328,6 +4384,8 @@ async function saveCaptions() {
         await loadConfigAndYaml();
         await refreshHookScore();
         await refreshStoryFlowScore();
+        await loadEditStrategy();
+        updateHookLabGuidance();
     } catch (err) {
         console.error(err);
         setStatus(
@@ -5308,6 +5366,7 @@ async function goToHookLab() {
     ?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   highlightHookLab?.();
+  updateHookLabGuidance();
 }
 
 // ================================
@@ -5603,6 +5662,7 @@ if (captionsBox) {
   drawer?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   highlightHookLab();
+  updateHookLabGuidance();
 });
 
     }
@@ -5616,6 +5676,7 @@ if (captionsBox) {
     ?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   highlightHookLab();  
+  updateHookLabGuidance();
 });
 
 
