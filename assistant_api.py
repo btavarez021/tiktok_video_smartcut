@@ -255,34 +255,44 @@ Return JSON:
 
         content = (resp.choices[0].message.content or "").strip()
 
+        print("[HOOK BOOST RAW]")
+        print(content)
+
+        # ---------------------------------
+        # SAFE JSON PARSE
+        # ---------------------------------
         try:
             start = content.find("{")
             end = content.rfind("}") + 1
-            if start == -1 or end == -1:
-                raise ValueError("JSON block not found")
+
+            if start == -1 or end == 0:
+                raise ValueError("No JSON found")
 
             data = json.loads(content[start:end])
 
         except Exception as e:
             logger.error(f"[HOOK_BOOST] JSON parse failed: {e}")
-            logger.error(content)
-            return hook  # fail safe
+            return hook   # fail safe instead of 500
 
-        if not candidates:
-            logger.warning("[HOOK BOOST] no valid candidates")
-            return hook
-        
-        start = content.find("{")
-        end = content.rfind("}") + 1
-        data = json.loads(content[start:end])
 
+        # ---------------------------------
+        # BUILD CANDIDATES SAFELY
+        # ---------------------------------
         candidates = []
+
         for item in data.get("hooks", []):
-            text = item.get("text", "")
-            strategy = item.get("strategy", "unknown")
+            text = (item.get("text") or "").strip()
+            strategy = item.get("strategy") or "unknown"
+
+            if not text:
+                continue
 
             clean = strip_emojis(text).strip()
-            s = score_hook_text(clean)["score"]
+
+            try:
+                s = score_hook_text(clean)["score"]
+            except Exception:
+                s = 0
 
             candidates.append({
                 "text": clean,
@@ -290,9 +300,10 @@ Return JSON:
                 "strategy": strategy
             })
 
-
         if not candidates:
+            logger.warning("[HOOK BOOST] no valid candidates")
             return hook
+
 
         # pick best
         candidates.sort(key=lambda x: x["score"], reverse=True)
