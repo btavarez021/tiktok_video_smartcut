@@ -3618,15 +3618,8 @@ async function improveHook() {
 }
 
 async function boostSelectedHook() {
-  // ✅ use the real Step-3 editor
-  const editor = document.getElementById("captionsText");
+  const statusEl = document.getElementById("hookLabStatus");
 
-  if (!editor) {
-    console.warn("captionsText not found");
-    return;
-  }
-
-  // You already use selectedHook elsewhere (Hook Lab uses it)
   if (!window.selectedHook && typeof selectedHook === "undefined") {
     toast?.("Select a hook first");
     return;
@@ -3642,62 +3635,50 @@ async function boostSelectedHook() {
       body: JSON.stringify({
         session: getActiveSession(),
         hook,
-        intent: currentIntent || "discovery",
-      }),
+        intent: currentIntent || "discovery"
+      })
     });
 
     if (!res?.text) throw new Error("No upgraded hook returned");
 
     const newHook = res.text;
 
-    // 📸 Snapshot before applying AI change
-    window.preBoostCaptions = lastSavedCaptionsText;
+    // 🧊 CAPTURE BEFORE SNAPSHOT (CRITICAL)
+    const beforeBoost = lastSavedCaptionsText || "";
 
+    // Build full caption text with upgraded hook
+    const editor = document.getElementById("captionsEditor");
+    let blocks = [];
 
-    // Build full caption text with upgraded hook (hook = first block)
-    const current = (editor.value || "").trim();
-    let blocks = current ? current.split(/\n\s*\n/).filter(Boolean) : [];
+    if (editor?.value?.trim()) {
+      blocks = editor.value.split(/\n\s*\n/).filter(Boolean);
+    }
 
-    if (blocks.length === 0) blocks = [newHook];
-    else blocks[0] = newHook;
+    if (blocks.length === 0) {
+      blocks = [newHook];
+    } else {
+      blocks[0] = newHook;
+    }
 
     const newCaptions = blocks.join("\n\n");
 
-    // Save to backend
-    await jsonFetch("/api/save_captions", {
-      method: "POST",
-      body: JSON.stringify({
-        session: getActiveSession(),
-        text: newCaptions,
-      }),
-    });
-
-    // Update editor UI
+    // ✅ Update editor UI immediately
     if (editor) editor.value = newCaptions;
 
-    lastSavedCaptionsText = newCaptions;
+    // ✨ SHOW DIFF BEFORE SAVE
+    renderStep3Diff(beforeBoost, newCaptions);
+    focusCaptionChanges();
 
-    proposeRewrite(newCaptions, "Hook upgrade ready", "step3");
-
-
-    // wait for save pipeline
-    setTimeout(async () => {
-      await loadCaptionsFromYaml();   // 🔥 resets baseline
-    }, 200);
+    // 🔥 Trigger the official save pipeline
+    document.getElementById("saveCaptionsBtn")?.click();
 
     setStatus("hookLabStatus", "Hook upgraded & applied ✓", "success");
-
-    toast?.("Score improved — upgrade applied ✨");
-    
-
 
   } catch (err) {
     console.error(err);
     setStatus("hookLabStatus", "Failed to upgrade hook", "error");
   }
 }
-
-
 
 async function undoAIRecommendation() {
   const snapshot = window.aiUndoSnapshot;
