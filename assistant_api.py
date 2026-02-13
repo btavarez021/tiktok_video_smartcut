@@ -196,35 +196,51 @@ def boost_hook(hook: str, intent: str = "discovery") -> str:
         return hook  # fail safe
 
     prompt = f"""
-You are an expert TikTok hook writer.
+You are an elite viral TikTok hook strategist.
 
-Rewrite the hook multiple times to maximize curiosity and retention.
+We will improve ONE hook by attacking it from multiple
+psychological trigger angles.
 
 Intent: {intent}
 
-Current hook:
+Original hook:
 "{hook}"
 
-GOAL:
-Make viewers NEED to keep watching.
+Create 8 NEW hook options.
 
-Use patterns like:
-- near miss
-- secret
-- unexpected reveal
-- challenge
-- dramatic promise
+Each option must use a DIFFERENT strategy:
+1. Curiosity gap
+2. Secret / hidden
+3. Exclusive / insider
+4. Unexpected / surprise
+5. Status / luxury
+6. Transformation
+7. Challenge / dare
+8. Dramatic promise
 
 RULES:
-- Produce 5 options.
-- Each one different.
-- One line each.
-- Under 12 words.
-- Natural, not corporate.
-- No generic hype phrases.
+- Under 12 words
+- One line each
+- Scroll-stopping
+- Natural human voice
+- No corporate phrasing
+- Do NOT repeat the original
+- Avoid generic filler
 
 Return JSON:
-{{ "hooks": ["option1", "option2", ...] }}
+{
+  "hooks": [
+    {"text": "hook", "strategy": "curiosity"},
+    {"text": "hook", "strategy": "secret"},
+    {"text": "hook", "strategy": "insider"},
+    {"text": "hook", "strategy": "surprise"},
+    {"text": "hook", "strategy": "luxury"},
+    {"text": "hook", "strategy": "transformation"},
+    {"text": "hook", "strategy": "challenge"},
+    {"text": "hook", "strategy": "dramatic"}
+  ]
+}
+
 """
 
     try:
@@ -243,21 +259,31 @@ Return JSON:
         data = json.loads(content[start:end])
 
         candidates = []
-        for text in data.get("hooks", []):
+        for item in data.get("hooks", []):
+            text = item.get("text", "")
+            strategy = item.get("strategy", "unknown")
+
             clean = strip_emojis(text).strip()
             s = score_hook_text(clean)["score"]
-            candidates.append((clean, s))
+
+            candidates.append({
+                "text": clean,
+                "score": s,
+                "strategy": strategy
+            })
+
 
         if not candidates:
             return hook
 
         # pick best
-        candidates.sort(key=lambda x: x[1], reverse=True)
-        best_text, best_score = candidates[0]
+        candidates.sort(key=lambda x: x["score"], reverse=True)
+        best = candidates[0]
 
-        print(f"[HOOK BOOST] winner ({best_score}):", best_text)
+        print(f"[HOOK BOOST] winner ({best['score']}) [{best['strategy']}]: {best['text']}")
 
-        return best_text
+        return best["text"]
+
 
     except Exception as e:
         logger.error(f"[HOOK_BOOST] {e}")
