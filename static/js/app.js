@@ -3650,6 +3650,10 @@ async function boostSelectedHook() {
 
     const newHook = res.text;
 
+    // 📸 Snapshot before applying AI change
+    window.preBoostCaptions = lastSavedCaptionsText;
+
+
     // Build full caption text with upgraded hook (hook = first block)
     const current = (editor.value || "").trim();
     let blocks = current ? current.split(/\n\s*\n/).filter(Boolean) : [];
@@ -3673,10 +3677,8 @@ async function boostSelectedHook() {
 
     lastSavedCaptionsText = newCaptions;
 
-    // 🔥 trigger official save pipeline
-    document.getElementById("saveCaptionsBtn")?.click();
+    proposeRewrite(newCaptions, "Hook upgrade ready", "step3");
 
-    document.getElementById("saveCaptionsBtn")?.click();
 
     // wait for save pipeline
     setTimeout(async () => {
@@ -3684,6 +3686,9 @@ async function boostSelectedHook() {
     }, 200);
 
     setStatus("hookLabStatus", "Hook upgraded & applied ✓", "success");
+
+    toast?.("Score improved — upgrade applied ✨");
+    
 
 
   } catch (err) {
@@ -5752,6 +5757,13 @@ if (captionsBox) {
         .getElementById("loadCaptionsFromYamlBtn")
         ?.addEventListener("click", loadCaptionsFromYaml);
     document.getElementById("saveCaptionsBtn")?.addEventListener("click", saveCaptions);
+
+    // Use snapshot for comparison
+    if (window.preBoostCaptions) {
+      renderStep3Diff(window.preBoostCaptions, newCaptions);
+      focusCaptionChanges?.();
+    }
+
 
     document.getElementById("applyOverlayBtn")?.addEventListener("click", applyOverlay);
     document
