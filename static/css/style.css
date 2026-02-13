@@ -3870,3 +3870,29 @@ body.no-scroll {
   80% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-4px); }
 }
+
+/* ================================
+   Hook Lab Mobile Layout Fix
+================================ */
+
+.hook-lab-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;           /* allows wrap instead of overflow */
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .hook-lab-actions {
+    flex-direction: column;  /* stack */
+    align-items: stretch;
+  }
+
+  .hook-lab-actions .btn {
+    width: 100%;
+  }
+}
+
+.hook-lab-actions {
+  margin-top: 10px;
+}
