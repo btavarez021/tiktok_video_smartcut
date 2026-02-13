@@ -185,8 +185,8 @@ def api_edit_strategy(session: str):
 
 def boost_hook(hook: str, intent: str = "discovery") -> str:
     """
-    Take a selected hook and upgrade it.
-    Returns ONE stronger line.
+    Upgrade a hook by generating multiple rewrites
+    and returning the highest scoring one.
     """
 
     if not hook:
@@ -196,40 +196,68 @@ def boost_hook(hook: str, intent: str = "discovery") -> str:
         return hook  # fail safe
 
     prompt = f"""
-Improve this TikTok hook.
+You are an expert TikTok hook writer.
+
+Rewrite the hook multiple times to maximize curiosity and retention.
 
 Intent: {intent}
 
 Current hook:
 "{hook}"
 
-Rules:
-- Return ONE improved line only.
-- Stronger.
-- More curiosity.
-- Clearer benefit.
-- Natural social media voice.
-- Avoid generic phrases like "unlock", "step into".
+GOAL:
+Make viewers NEED to keep watching.
+
+Use patterns like:
+- near miss
+- secret
+- unexpected reveal
+- challenge
+- dramatic promise
+
+RULES:
+- Produce 5 options.
+- Each one different.
+- One line each.
+- Under 12 words.
+- Natural, not corporate.
+- No generic hype phrases.
+
+Return JSON:
+{{ "hooks": ["option1", "option2", ...] }}
 """
 
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
             messages=[
-                {
-                    "role": "system",
-                    "content": "Return ONLY the improved hook. No quotes. No extra text."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "system", "content": "Return JSON only."},
+                {"role": "user", "content": prompt}
             ],
-            temperature=0.6,
+            temperature=0.9,
         )
 
-        text = (resp.choices[0].message.content or "").strip()
-        return text
+        content = resp.choices[0].message.content.strip()
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        data = json.loads(content[start:end])
+
+        candidates = []
+        for text in data.get("hooks", []):
+            clean = strip_emojis(text).strip()
+            s = score_hook_text(clean)["score"]
+            candidates.append((clean, s))
+
+        if not candidates:
+            return hook
+
+        # pick best
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        best_text, best_score = candidates[0]
+
+        print(f"[HOOK BOOST] winner ({best_score}):", best_text)
+
+        return best_text
 
     except Exception as e:
         logger.error(f"[HOOK_BOOST] {e}")
