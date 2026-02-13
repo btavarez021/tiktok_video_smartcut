@@ -3643,21 +3643,12 @@ async function boostSelectedHook() {
 
   const hook = window.selectedHook || selectedHook;
 
-  const currentScore = Number(
-  document.getElementById("hookScoreValue")
-    ?.textContent?.split("/")[0] || 0
-  );
-
-  lastHookScoreBeforeEdit = currentScore;
-
-
   const oldScore =
-  Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
 
   window.lastHookScoreBeforeBoost = oldScore;
 
-
-  setStatus("hookLabStatus", "AI polishing your selected hook…", "working");
+  setStatus("hookLabStatus", "AI testing stronger versions…", "working");
 
   try {
     const res = await jsonFetch("/api/hook_boost", {
@@ -3673,10 +3664,9 @@ async function boostSelectedHook() {
 
     const newHook = res.text;
 
-    // 🧊 CAPTURE BEFORE SNAPSHOT (CRITICAL)
     const beforeBoost = lastSavedCaptionsText || "";
 
-    // Build full caption text with upgraded hook
+    // Build new captions
     const editor = document.getElementById("captionsText");
     let blocks = [];
 
@@ -3692,20 +3682,16 @@ async function boostSelectedHook() {
 
     const newCaptions = blocks.join("\n\n");
 
-    // ✅ Update editor UI immediately
     if (editor) editor.value = newCaptions;
-
-    // ⭐ ADD THIS
     workingCaptionsText = newCaptions;
-    
 
-    // ✨ SHOW DIFF BEFORE SAVE
     renderStep3Diff(beforeBoost, newCaptions);
     focusCaptionChanges();
 
-    // 🔥 Trigger the official save pipeline
+    // Save officially
     document.getElementById("saveCaptionsBtn")?.click();
 
+    // Wait for recalculation
     setTimeout(() => {
       const newScore =
         Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
@@ -3715,22 +3701,22 @@ async function boostSelectedHook() {
       if (diff > 0) {
         toast?.(`⬆ Improved by ${diff} points`);
       } else if (diff < 0) {
-        toast?.(`⬇ ${Math.abs(diff)} points lower — previous hook may be stronger`);
+        // 🚨 REVERT
+        if (editor) editor.value = beforeBoost;
+        workingCaptionsText = beforeBoost;
+        document.getElementById("saveCaptionsBtn")?.click();
+
+        toast?.("AI tested upgrades — your original hook performs better 💪");
       } else {
-        toast?.("No score change");
+        toast?.("No performance change");
       }
 
       refreshHookScore?.();
-      
-    }, 600);
+      refreshEditStrategySoon?.();
 
-    const newScore = Number(
-        document.getElementById("hookScoreValue")
-          ?.textContent?.split("/")[0] || 0
-      );
+    }, 700);
 
-
-    setStatus("hookLabStatus", "Hook upgraded & applied ✓", "success");
+    setStatus("hookLabStatus", "Test complete ✓", "success");
 
   } catch (err) {
     console.error(err);
