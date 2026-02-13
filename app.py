@@ -51,7 +51,8 @@ from assistant_api import (
     api_generate_variants_status,
     api_generate_yaml_start,
     api_generate_yaml_status,
-    boost_hook
+    boost_hook,
+    auto_optimize_hook
     )
 from tiktok_assistant import apply_filename_captions
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -287,6 +288,20 @@ def route_hook_improve():
     data = request.get_json(silent=True) or {}
     session = sanitize_session(data.get("session", request.args.get("session", "default")))
     return jsonify(api_improve_hook(session))
+
+@app.route("/api/hook_autoboost", methods=["POST"])
+def route_hook_autoboost():
+    data = request.get_json(force=True) or {}
+
+    hook = data.get("hook", "")
+    intent = data.get("intent", "discovery")
+
+    try:
+        result = auto_optimize_hook(hook, intent)
+        return jsonify({"status": "ok", **result})
+    except Exception as e:
+        print("auto boost error:", e)
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/api/hook_boost", methods=["POST"])

@@ -1623,6 +1623,61 @@ function updateSessionLabels() {
     labels.forEach((l) => (l.textContent = getActiveSession()));
 }
 
+async function autoBoostSelectedHook() {
+  if (!window.selectedHook && typeof selectedHook === "undefined") {
+    toast?.("Select a hook first");
+    return;
+  }
+
+  const hook = window.selectedHook || selectedHook;
+
+  setStatus("hookLabStatus", "AI auto-optimizing…", "working");
+
+  try {
+    const res = await jsonFetch("/api/hook_autoboost", {
+      method: "POST",
+      body: JSON.stringify({
+        hook,
+        intent: currentIntent || "discovery"
+      })
+    });
+
+    if (!res?.text) throw new Error("No result");
+
+    const newHook = res.text;
+    const attempts = res.attempts || 0;
+    const bestScore = res.score || 0;
+
+    const before = lastSavedCaptionsText || "";
+
+    const editor = document.getElementById("captionsText");
+    let blocks = editor?.value?.split(/\n\s*\n/) || [];
+
+    if (blocks.length === 0) blocks = [newHook];
+    else blocks[0] = newHook;
+
+    const newCaptions = blocks.join("\n\n");
+
+    if (editor) editor.value = newCaptions;
+    workingCaptionsText = newCaptions;
+
+    renderStep3Diff(before, newCaptions);
+    focusCaptionChanges();
+
+    document.getElementById("saveCaptionsBtn")?.click();
+
+    toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
+
+    refreshHookScore?.();
+    setStatus("hookLabStatus", "Auto optimization complete ✓", "success");
+
+  } catch (e) {
+    console.error(e);
+    setStatus("hookLabStatus", "Auto optimization failed", "error");
+  }
+}
+
+
 function updateSessionTags() {
     document.querySelectorAll("#currentSessionTag").forEach((el) => {
         el.textContent = getActiveSession();
@@ -5226,6 +5281,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   console.log("[SESSION INIT]", ACTIVE_SESSION);
+
+  document
+  .getElementById("autoBoostHookBtn")
+  ?.addEventListener("click", autoBoostSelectedHook);
+
 
   setTimeout(async () => {
   try {

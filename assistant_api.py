@@ -183,6 +183,54 @@ def api_edit_strategy(session: str):
         "suggestions": suggestions
     }
 
+def auto_optimize_hook(hook: str, intent: str = "discovery",
+                       max_rounds: int = 6,
+                       target_score: int = 80):
+    """
+    Repeatedly boost a hook and keep the best result.
+    """
+
+    if not hook:
+        return {"text": hook, "score": 0, "attempts": 0}
+
+    best_text = hook
+    best_score = score_hook_text(hook)["score"]
+
+    history = []
+    stall_count = 0
+
+    for i in range(max_rounds):
+
+        candidate = boost_hook(best_text, intent)
+        score = score_hook_text(candidate)["score"]
+
+        history.append({
+            "text": candidate,
+            "score": score
+        })
+
+        if score > best_score:
+            best_text = candidate
+            best_score = score
+            stall_count = 0
+        else:
+            stall_count += 1
+
+        # 🎯 stop conditions
+        if best_score >= target_score:
+            break
+
+        if stall_count >= 2:
+            break
+
+    return {
+        "text": best_text,
+        "score": best_score,
+        "attempts": len(history),
+        "history": history
+    }
+
+
 def boost_hook(hook: str, intent: str = "discovery") -> str:
     """
     Upgrade a hook by generating multiple rewrites
