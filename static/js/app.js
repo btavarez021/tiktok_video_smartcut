@@ -1208,7 +1208,7 @@ async function loadEditStrategy() {
 
   const delta = window.lastHookImprovementDelta || 0;
 
-  // ⭐ NEW — read live hook score
+  // ⭐ live hook score
   const hookScore =
     Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
 
@@ -1226,7 +1226,7 @@ async function loadEditStrategy() {
   list.innerHTML = "Analyzing edit…";
 
   // ================================
-  // 🎥 Footage Intelligence (top block)
+  // 🎥 Footage Intelligence
   // ================================
   const contextEl = document.getElementById("editStrategyContext");
   const setup = document.getElementById("aiSetupSummary");
@@ -1273,34 +1273,40 @@ async function loadEditStrategy() {
     list.classList.add("fade-refresh");
 
     setTimeout(() => {
-
       list.innerHTML = items.map(s => {
 
         let toneIssue = s.issue;
         let toneImpact = s.impact;
 
-        // If hook improved → soften
-        if (s.area === "hook" && delta > 0) {
-          toneImpact = "medium";
-          toneIssue = "Much better — we can polish it even more.";
+        // ================================
+        // ⭐ PROGRESS-AWARE HOOK LOGIC
+        // ================================
+        if (s.area === "hook") {
+
+          if (hookScore >= 80) {
+            toneImpact = "low";
+            toneIssue = "🔥 Excellent hook. Focus on pacing or flow next.";
+          }
+          else if (hookScore >= 60) {
+            toneImpact = "medium";
+            toneIssue = "👍 Strong hook — a small upgrade could make it elite.";
+          }
+          else if (delta > 0) {
+            toneImpact = "medium";
+            toneIssue = "⚠️ Much better — keep pushing toward 70+.";
+          }
         }
 
-        // ⭐ NEW — smart guidance
+        // ================================
+        // ⭐ SMART GUIDANCE
+        // ================================
         let guidance = `👉 ${s.action}`;
 
         if (s.area === "hook") {
-          if (nextMove === "generate") {
-            guidance = "👉 Generate new hook ideas";
-          }
-          if (nextMove === "improve") {
-            guidance = "👉 Try Improve Selected Hook";
-          }
-          if (nextMove === "auto") {
-            guidance = "👉 Let AI auto-optimize";
-          }
-          if (nextMove === "done") {
-            guidance = "✅ Strong hook — move to story flow";
-          }
+          if (nextMove === "generate") guidance = "👉 Generate new hook ideas";
+          if (nextMove === "improve") guidance = "👉 Try Improve Selected Hook";
+          if (nextMove === "auto") guidance = "👉 Let AI auto-optimize";
+          if (nextMove === "done") guidance = "✅ Strong hook — move to story flow";
         }
 
         return `
