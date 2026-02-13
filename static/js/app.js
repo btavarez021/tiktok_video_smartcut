@@ -3676,7 +3676,15 @@ async function boostSelectedHook() {
     // 🔥 trigger official save pipeline
     document.getElementById("saveCaptionsBtn")?.click();
 
+    document.getElementById("saveCaptionsBtn")?.click();
+
+    // wait for save pipeline
+    setTimeout(async () => {
+      await loadCaptionsFromYaml();   // 🔥 resets baseline
+    }, 200);
+
     setStatus("hookLabStatus", "Hook upgraded & applied ✓", "success");
+
 
   } catch (err) {
     console.error(err);
