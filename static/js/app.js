@@ -3677,7 +3677,7 @@ async function boostSelectedHook() {
     const beforeBoost = lastSavedCaptionsText || "";
 
     // Build full caption text with upgraded hook
-    const editor = document.getElementById("captionsEditor");
+    const editor = document.getElementById("captionsText");
     let blocks = [];
 
     if (editor?.value?.trim()) {
