@@ -1528,7 +1528,7 @@ async function loadEditStrategy() {
 
     panel.classList.remove("hidden");
     renderPublishReadyState();
-
+    renderEditProgress();
 
   } catch (err) {
     console.error(err);
@@ -1563,6 +1563,47 @@ function updateHookLockUI() {
     });
   }
 }
+
+function renderEditProgress() {
+  const wrap = document.getElementById("editProgressWrap");
+  const bar  = document.getElementById("editProgressBar");
+  const text = document.getElementById("editProgressText");
+
+  if (!wrap || !bar || !text) return;
+
+  const hook =
+    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  const flow =
+    Number(document.getElementById("storyFlowScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  const directorIssues =
+    document.querySelectorAll(".director-item").length || 0;
+
+  // Director score = fewer issues = better
+  const directorScore = Math.max(0, 100 - directorIssues * 20);
+
+  const total = Math.round(
+    hook * 0.4 +
+    flow * 0.4 +
+    directorScore * 0.2
+  );
+
+  wrap.classList.remove("hidden");
+
+  bar.style.width = `${total}%`;
+  text.textContent =
+    total >= 85 ? "Ready to export 🚀"
+    : total >= 65 ? "Almost there"
+    : "Needs improvement";
+
+  wrap.classList.remove("good", "ok", "bad");
+
+  if (total >= 85) wrap.classList.add("good");
+  else if (total >= 65) wrap.classList.add("ok");
+  else wrap.classList.add("bad");
+}
+
 
 function clearSelectedHook() {
   selectedHook = null;
@@ -3896,6 +3937,7 @@ async function refreshHookScore() {
         }
 
   renderPublishReadyState();
+  renderEditProgress();
   } catch (err) {
     console.error("Hook score error:", err);
     if (statusEl) statusEl.textContent = "Hook score unavailable.";
@@ -4303,6 +4345,7 @@ async function refreshStoryFlowScore() {
         reasonsEl.innerHTML = reasons.length
             ? reasons.map(r => `<li>${r}</li>`).join("")
             : `<li>Flow looks solid ✅</li>`;
+      renderEditProgress();
 
     } catch (err) {
         console.error("Story flow score error:", err);
