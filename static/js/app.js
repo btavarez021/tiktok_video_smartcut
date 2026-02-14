@@ -1627,6 +1627,11 @@ if (window.lastGeneratedHooks?.length) {
     label.textContent = text;
   }
   refreshEditStrategySoon();
+  refreshHookScore();
+  refreshStoryFlowScore();
+  loadEditStrategy();
+  renderPublishReadyState();
+  updateHookLabGuidance()
 
 }
 
@@ -3425,6 +3430,9 @@ document
 }
 
 await loadEditStrategy();
+await refreshHookScore();
+await refreshStoryFlowScore();
+renderPublishReadyState();
 
 }
 
@@ -3640,6 +3648,10 @@ renderStoryboardTimeline({
 
 // ⬇️ ADD THIS
 autoSaveStoryboardOrder();
+
+refreshStoryFlowScore();
+loadEditStrategy();
+renderPublishReadyState();
 
 setStatus(
   "storyboardStatus",
@@ -4025,6 +4037,8 @@ async function boostSelectedHook() {
 
     setStatus("hookLabStatus", "Test complete ✓", "success");
     updateHookLabGuidance();
+    loadEditStrategy();
+    renderPublishReadyState();
 
   } catch (err) {
     console.error(err);
@@ -4151,8 +4165,6 @@ async function applyCaptionVariant(text, meta = {}) {
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
     await refreshOverlayPreview();
-    await refreshHookScore();
-    await refreshStoryFlowScore();
 
     // Show what changed (visual only)
     renderStep3Diff(originalText, text);
@@ -4172,7 +4184,9 @@ async function applyCaptionVariant(text, meta = {}) {
 
     document.getElementById("step4CaptionScroll")?.classList.add("hidden");
     document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
-    await loadEditStrategy();
+    await refreshHookScore();
+    await refreshStoryFlowScore();
+    loadEditStrategy();
     renderPublishReadyState();
 
   } catch (err) {
@@ -5621,9 +5635,11 @@ if (clearHookBtn) {
       }
 
       // 🔄 Re-score hooks if needed
-      if (typeof refreshHookScore === "function") {
-        refreshHookScore();
-      }
+      await refreshHookScore();
+      await refreshStoryFlowScore();
+      await loadEditStrategy();
+      renderPublishReadyState();
+      updateHookLabGuidance();
 
       // 📣 Feedback
       setStatus(
