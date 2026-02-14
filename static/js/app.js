@@ -85,6 +85,23 @@ function openHookLab() {
   updateHookLabGuidance();
 }
 
+function getHookRatingLabel(score) {
+  if (score < 45) return "Needs Work";
+  if (score < 60) return "Building Strength";
+  if (score < 75) return "Strong Hook";
+  if (score < 90) return "Standout";
+  return "Viral Energy";
+}
+
+function getFlowRatingLabel(score) {
+  if (score < 50) return "Rough";
+  if (score < 65) return "Improving";
+  if (score < 80) return "Smooth";
+  if (score < 90) return "Excellent";
+  return "Elite";
+}
+
+
 function renderPublishReadyState() {
   const box = document.getElementById("publishReadyBanner"); // ✅ your real div
   if (!box) return;
@@ -1871,7 +1888,7 @@ async function autoBoostSelectedHook() {
 
     toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
 
-    refreshHookScore?.();
+    refreshHookScore();
     setStatus("hookLabStatus", "Auto optimization complete ✓", "success");
     loadEditStrategy();
   } catch (e) {
@@ -3022,7 +3039,7 @@ async function autoSelectIntentFromReadiness(summary) {
     await saveIntent(intent);
   }
 
-  refreshHookScore?.();
+  refreshHookScore();
 
   setStatus(
     "hookLabStatus",
@@ -3769,6 +3786,12 @@ async function refreshHookScore() {
 
     scoreEl.textContent = `${score}/100`;
 
+    // ⭐ NEW
+    const label = document.getElementById("hookScoreLabel");
+    if (label) {
+      label.textContent = getHookRatingLabel(score);
+}
+
     scoreEl.classList.add("score-pop");
 
     setTimeout(() => {
@@ -3970,7 +3993,7 @@ async function boostSelectedHook() {
         toast?.("No performance change");
       }
 
-      refreshHookScore?.();
+      refreshHookScore();
       refreshEditStrategySoon?.();
       updateHookLabGuidance();
 
@@ -4219,6 +4242,10 @@ async function refreshStoryFlowScore() {
 
         updateImproveButtons(null, score);
         scoreEl.textContent = `${score}/100`;
+
+        document.getElementById("storyFlowScoreLabel").textContent =
+          getFlowRatingLabel(score);
+
 
         card.classList.remove("good", "ok", "bad");
         scoreEl.classList.remove("good", "ok", "bad");
