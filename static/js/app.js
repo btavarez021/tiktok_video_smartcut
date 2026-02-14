@@ -85,6 +85,46 @@ function openHookLab() {
   updateHookLabGuidance();
 }
 
+function evaluatePublishReadiness() {
+  const hookScore =
+    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  const flowScore =
+    Number(document.getElementById("storyFlowScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  // any HIGH items still present?
+  const highIssues =
+    document.querySelectorAll(".director-item.impact-high").length;
+
+  const ready =
+    hookScore >= 70 &&
+    flowScore >= 70 &&
+    highIssues === 0;
+
+  return { ready, hookScore, flowScore, highIssues };
+}
+
+
+function evaluatePublishReadiness() {
+  const hookScore =
+    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  const flowScore =
+    Number(document.getElementById("storyFlowScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  // any HIGH items still present?
+  const highIssues =
+    document.querySelectorAll(".director-item.impact-high").length;
+
+  const ready =
+    hookScore >= 70 &&
+    flowScore >= 70 &&
+    highIssues === 0;
+
+  return { ready, hookScore, flowScore, highIssues };
+}
+
+
 function celebrateImprovement(type, oldScore, newScore) {
   const delta = newScore - oldScore;
 
@@ -1377,6 +1417,8 @@ async function loadEditStrategy() {
     }, 120);
 
     panel.classList.remove("hidden");
+    renderPublishReadyState();
+
 
   } catch (err) {
     console.error(err);
@@ -3725,7 +3767,7 @@ async function refreshHookScore() {
         clearOverlayWarning();
         }
 
-
+  renderPublishReadyState();
   } catch (err) {
     console.error("Hook score error:", err);
     if (statusEl) statusEl.textContent = "Hook score unavailable.";

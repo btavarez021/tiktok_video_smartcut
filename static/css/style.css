@@ -3896,3 +3896,13 @@ body.no-scroll {
 .hook-lab-actions {
   margin-top: 10px;
 }
+
+.publish-ready {
+  background: linear-gradient(135deg, #0f9d58, #34d399);
+  color: white;
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  animation: fadeIn 0.3s ease;
+}
