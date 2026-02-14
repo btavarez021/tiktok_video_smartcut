@@ -85,6 +85,47 @@ function openHookLab() {
   updateHookLabGuidance();
 }
 
+function renderPublishReadyState() {
+  const box = document.getElementById("publishReadyBanner"); // ✅ your real div
+  if (!box) return;
+
+  const hookScore =
+    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  const flowScore =
+    Number(document.getElementById("storyFlowScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  console.log("Publish check → hook:", hookScore, "flow:", flowScore);
+
+  box.classList.remove("hidden"); // 🔥 important
+
+  if (hookScore >= 70 && flowScore >= 60) {
+    box.className = "publish-ready-state ready";
+    box.innerHTML = `
+      🟢 Ready to publish  
+      Your hook and pacing are strong.
+    `;
+    return;
+  }
+
+  if (hookScore >= 50) {
+    const need = 70 - hookScore;
+    box.className = "publish-ready-state close";
+    box.innerHTML = `
+      🟡 Almost there  
+      Improve hook by <b>${need}</b> more.
+    `;
+    return;
+  }
+
+  box.className = "publish-ready-state not-ready";
+  box.innerHTML = `
+    🔴 Needs improvement  
+    Generate or improve your hook.
+  `;
+}
+
+
 function evaluatePublishReadiness() {
   const hookScore =
     Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
@@ -1282,34 +1323,6 @@ function pulseExportButton() {
   setTimeout(() => {
     btn.classList.remove("publish-glow");
   }, 4000);
-}
-
-
-function renderPublishReadyState() {
-  const hook =
-    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
-
-  const flow =
-    Number(document.getElementById("storyFlowScoreValue")?.textContent?.split("/")[0]) || 0;
-
-  const hasHighIssue =
-    document.querySelector('.director-item.impact-high') !== null;
-
-  const ready = hook >= 70 && flow >= 70 && !hasHighIssue;
-
-  // reset state if no longer ready
-  if (!ready) {
-    window.publishReady = false;
-    return;
-  }
-
-  // prevent repeat celebration
-  if (window.publishReady) return;
-
-  window.publishReady = true;
-
-  showPublishBanner();
-  pulseExportButton();
 }
 
 
