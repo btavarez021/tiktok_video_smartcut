@@ -1571,17 +1571,12 @@ function renderEditProgress() {
 
   if (!fill || !percentEl || !hint) return;
 
-  // read live values
-  const hookText =
-    document.getElementById("hookScoreValue")?.textContent || "0";
+  // ✅ use real scores
+  const hook = Number(LAST_HOOK_SCORE) || 0;
+  const flow = Number(LAST_FLOW_SCORE) || 0;
 
-  const flowText =
-    document.getElementById("storyFlowScoreValue")?.textContent || "0";
+  console.log("📊 Progress using:", hook, flow);
 
-  const hook = parseInt(hookText) || 0;
-  const flow = parseInt(flowText) || 0;
-
-  // if nothing yet
   if (!hook && !flow) {
     fill.style.width = "0%";
     percentEl.textContent = "0%";
@@ -1589,13 +1584,11 @@ function renderEditProgress() {
     return;
   }
 
-  // weighted formula
   const progress = Math.min(100, Math.round((hook * 0.6) + (flow * 0.4)));
 
   fill.style.width = `${progress}%`;
   percentEl.textContent = `${progress}%`;
 
-  // dynamic hint
   if (progress < 50) {
     hint.textContent = "Strengthen the hook to gain momentum.";
   } else if (progress < 75) {
@@ -1606,7 +1599,6 @@ function renderEditProgress() {
     hint.textContent = "🔥 Excellent. Your edit is elite.";
   }
 }
-
 
 
 function clearSelectedHook() {
