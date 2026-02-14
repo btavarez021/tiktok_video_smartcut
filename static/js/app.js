@@ -3999,8 +3999,8 @@ async function boostSelectedHook() {
 
   const hook = window.selectedHook || selectedHook;
 
-  const oldScore =
-    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+  const oldScore = LAST_HOOK_SCORE || 0;
+
 
   window.lastHookScoreBeforeBoost = oldScore;
 
@@ -4047,10 +4047,8 @@ async function boostSelectedHook() {
     // Save officially
     document.getElementById("saveCaptionsBtn")?.click();
 
-    // Wait for recalculation
-    setTimeout(() => {
-      const newScore =
-        Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+    const newScore = LAST_HOOK_SCORE || 0;
+
 
       const diff = newScore - (window.lastHookScoreBeforeBoost || 0);
 
@@ -4376,10 +4374,8 @@ function updateImproveButtons(hookScore, storyScore) {
 
   const hasText = text && text.length > 3;
 
-  const hookScore = Number(
-    document.getElementById("hookScoreValue")
-      ?.textContent?.split("/")[0] || 0
-  );
+  const hookScore = LAST_HOOK_SCORE || 0;
+
 
   const rewriteAllowed =
     hasText &&
