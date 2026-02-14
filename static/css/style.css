@@ -3931,3 +3931,53 @@ body.no-scroll {
   50% { box-shadow: 0 0 12px rgba(0, 200, 255, 0.9); }
   100% { box-shadow: 0 0 0px rgba(255,255,255,0); }
 }
+
+
+/* ================================
+   Edit Progress
+================================ */
+.edit-progress-wrap {
+  background: linear-gradient(180deg, #121212, #0e0e0e);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.edit-progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.edit-progress-title {
+  font-weight: 600;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.edit-progress-percent {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.edit-progress-bar {
+  height: 10px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.edit-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg,#ff4d4d,#ffb84d,#4dff88);
+  transition: width 0.45s cubic-bezier(.4,0,.2,1);
+}
+
+.edit-progress-hint {
+  font-size: 12px;
+  margin-top: 10px;
+  opacity: 0.7;
+}

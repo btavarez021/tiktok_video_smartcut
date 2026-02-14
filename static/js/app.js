@@ -1565,44 +1565,48 @@ function updateHookLockUI() {
 }
 
 function renderEditProgress() {
-  const wrap = document.getElementById("editProgressWrap");
-  const bar  = document.getElementById("editProgressBar");
-  const text = document.getElementById("editProgressText");
+  const fill = document.getElementById("editProgressFill");
+  const percentEl = document.getElementById("editProgressPercent");
+  const hint = document.getElementById("editProgressHint");
 
-  if (!wrap || !bar || !text) return;
+  if (!fill || !percentEl || !hint) return;
 
-  const hook =
-    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+  // read live values
+  const hookText =
+    document.getElementById("hookScoreValue")?.textContent || "0";
 
-  const flow =
-    Number(document.getElementById("storyFlowScoreValue")?.textContent?.split("/")[0]) || 0;
+  const flowText =
+    document.getElementById("storyFlowScoreValue")?.textContent || "0";
 
-  const directorIssues =
-    document.querySelectorAll(".director-item").length || 0;
+  const hook = parseInt(hookText) || 0;
+  const flow = parseInt(flowText) || 0;
 
-  // Director score = fewer issues = better
-  const directorScore = Math.max(0, 100 - directorIssues * 20);
+  // if nothing yet
+  if (!hook && !flow) {
+    fill.style.width = "0%";
+    percentEl.textContent = "0%";
+    hint.textContent = "Run AI scoring to start.";
+    return;
+  }
 
-  const total = Math.round(
-    hook * 0.4 +
-    flow * 0.4 +
-    directorScore * 0.2
-  );
+  // weighted formula
+  const progress = Math.min(100, Math.round((hook * 0.6) + (flow * 0.4)));
 
-  wrap.classList.remove("hidden");
+  fill.style.width = `${progress}%`;
+  percentEl.textContent = `${progress}%`;
 
-  bar.style.width = `${total}%`;
-  text.textContent =
-    total >= 85 ? "Ready to export 🚀"
-    : total >= 65 ? "Almost there"
-    : "Needs improvement";
-
-  wrap.classList.remove("good", "ok", "bad");
-
-  if (total >= 85) wrap.classList.add("good");
-  else if (total >= 65) wrap.classList.add("ok");
-  else wrap.classList.add("bad");
+  // dynamic hint
+  if (progress < 50) {
+    hint.textContent = "Strengthen the hook to gain momentum.";
+  } else if (progress < 75) {
+    hint.textContent = "Looking good — refine pacing & flow.";
+  } else if (progress < 90) {
+    hint.textContent = "Almost publish ready.";
+  } else {
+    hint.textContent = "🔥 Excellent. Your edit is elite.";
+  }
 }
+
 
 
 function clearSelectedHook() {
@@ -3937,7 +3941,7 @@ async function refreshHookScore() {
         }
 
   renderPublishReadyState();
-  renderEditProgress();
+  setTimeout(renderEditProgress, 50);
   } catch (err) {
     console.error("Hook score error:", err);
     if (statusEl) statusEl.textContent = "Hook score unavailable.";
@@ -4345,7 +4349,7 @@ async function refreshStoryFlowScore() {
         reasonsEl.innerHTML = reasons.length
             ? reasons.map(r => `<li>${r}</li>`).join("")
             : `<li>Flow looks solid ✅</li>`;
-      renderEditProgress();
+      setTimeout(renderEditProgress, 50);
 
     } catch (err) {
         console.error("Story flow score error:", err);
