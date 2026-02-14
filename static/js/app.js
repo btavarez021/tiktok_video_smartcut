@@ -3999,9 +3999,7 @@ async function boostSelectedHook() {
 
   const hook = window.selectedHook || selectedHook;
 
-  const oldScore = LAST_HOOK_SCORE || 0;
-
-
+  const oldScore = Number(LAST_HOOK_SCORE ?? 0);
   window.lastHookScoreBeforeBoost = oldScore;
 
   setStatus("hookLabStatus", "AI testing stronger versions…", "working");
@@ -4012,14 +4010,13 @@ async function boostSelectedHook() {
       body: JSON.stringify({
         session: getActiveSession(),
         hook,
-        intent: currentIntent || "discovery"
-      })
+        intent: currentIntent || "discovery",
+      }),
     });
 
     if (!res?.text) throw new Error("No upgraded hook returned");
 
     const newHook = res.text;
-
     const beforeBoost = lastSavedCaptionsText || "";
 
     // Build new captions
@@ -4030,11 +4027,8 @@ async function boostSelectedHook() {
       blocks = editor.value.split(/\n\s*\n/).filter(Boolean);
     }
 
-    if (blocks.length === 0) {
-      blocks = [newHook];
-    } else {
-      blocks[0] = newHook;
-    }
+    if (blocks.length === 0) blocks = [newHook];
+    else blocks[0] = newHook;
 
     const newCaptions = blocks.join("\n\n");
 
@@ -4044,38 +4038,55 @@ async function boostSelectedHook() {
     renderStep3Diff(beforeBoost, newCaptions);
     focusCaptionChanges();
 
-    // Save officially
-    document.getElementById("saveCaptionsBtn")?.click();
+    // ✅ Save officially (no click)
+    await jsonFetch("/api/save_captions", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        text: newCaptions,
+      }),
+    });
 
-    const newScore = LAST_HOOK_SCORE || 0;
+    // keep baselines consistent
+    lastSavedCaptionsText = newCaptions;
+    window.hooksReady = false;
+    window.lastGeneratedHooks = null;
+    updateHooksReadyUI();
 
+    // ✅ Force a fresh score so LAST_HOOK_SCORE is real
+    await refreshHookScore();
 
-      const diff = newScore - (window.lastHookScoreBeforeBoost || 0);
+    const newScore = Number(LAST_HOOK_SCORE ?? 0);
+    const diff = newScore - Number(window.lastHookScoreBeforeBoost ?? 0);
 
-      if (diff > 0) {
-        toast?.(`⬆ Improved by ${diff} points`);
-      } else if (diff < 0) {
-        // 🚨 REVERT
-        if (editor) editor.value = beforeBoost;
-        workingCaptionsText = beforeBoost;
-        document.getElementById("saveCaptionsBtn")?.click();
+    if (diff > 0) {
+      toast?.(`⬆ Improved by ${diff} points`);
+    } else if (diff < 0) {
+      // 🚨 REVERT
+      if (editor) editor.value = beforeBoost;
+      workingCaptionsText = beforeBoost;
 
-        toast?.("AI tested upgrades — your original hook performs better 💪");
-      } else {
-        toast?.("No performance change");
-      }
+      await jsonFetch("/api/save_captions", {
+        method: "POST",
+        body: JSON.stringify({
+          session: getActiveSession(),
+          text: beforeBoost,
+        }),
+      });
 
-      refreshHookScore();
-      refreshEditStrategySoon?.();
-      updateHookLabGuidance();
+      lastSavedCaptionsText = beforeBoost;
 
-    }, 700);
+      await refreshHookScore();
+      toast?.("AI tested upgrades — your original hook performs better 💪");
+    } else {
+      toast?.("No performance change");
+    }
+
+    await loadEditStrategy();
+    renderPublishReadyState();
+    updateHookLabGuidance();
 
     setStatus("hookLabStatus", "Test complete ✓", "success");
-    updateHookLabGuidance();
-    loadEditStrategy();
-    renderPublishReadyState();
-
   } catch (err) {
     console.error(err);
     setStatus("hookLabStatus", "Failed to upgrade hook", "error");
