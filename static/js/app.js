@@ -1342,6 +1342,19 @@ function pulseExportButton() {
   }, 4000);
 }
 
+function highlightHookAction(move) {
+  const generate = document.getElementById("generateHooksBtn");
+  const improve = document.getElementById("boostHookBtn");
+  const auto = document.getElementById("autoBoostHookBtn");
+
+  // clear old highlights
+  [generate, improve, auto].forEach(b => b?.classList.remove("pulse"));
+
+  if (move === "generate") generate?.classList.add("pulse");
+  if (move === "improve") improve?.classList.add("pulse");
+  if (move === "auto") auto?.classList.add("pulse");
+}
+
 
 async function loadEditStrategy() {
   const panel = document.getElementById("editStrategyPanel");
@@ -1410,6 +1423,9 @@ async function loadEditStrategy() {
     // ================================
     const nextMove = getHookNextMove(hookScore, delta);
 
+    highlightHookAction(nextMove);
+
+
     // ================================
     // Render
     // ================================
@@ -1446,10 +1462,18 @@ async function loadEditStrategy() {
         let guidance = `👉 ${s.action}`;
 
         if (s.area === "hook") {
-          if (nextMove === "generate") guidance = "👉 Generate new hook ideas";
-          if (nextMove === "improve") guidance = "👉 Try Improve Selected Hook";
-          if (nextMove === "auto") guidance = "👉 Let AI auto-optimize";
-          if (nextMove === "done") guidance = "✅ Strong hook — move to story flow";
+          if (nextMove === "generate") {
+            guidance = "👉 Generate new ideas — this hook may be hard to fix";
+          }
+          if (nextMove === "improve") {
+            guidance = "👉 Improve this hook — AI will strengthen curiosity & clarity";
+          }
+          if (nextMove === "auto") {
+            guidance = "👉 Let AI auto-optimize for the best score";
+          }
+          if (nextMove === "done") {
+            guidance = "✅ Strong hook — move to story flow";
+          }
         }
 
         return `
