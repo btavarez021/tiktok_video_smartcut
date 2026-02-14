@@ -3906,3 +3906,12 @@ body.no-scroll {
   margin-bottom: 12px;
   animation: fadeIn 0.3s ease;
 }
+
+.publish-glow {
+  animation: pulseGlow 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes pulseGlow {
+  from { box-shadow: 0 0 6px #4ade80; }
+  to { box-shadow: 0 0 18px #4ade80; }
+}

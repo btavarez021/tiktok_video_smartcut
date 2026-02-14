@@ -1257,6 +1257,62 @@ function getHookNextMove(score, delta) {
   return "done";
 }
 
+function showPublishBanner() {
+  const messages = [
+    "🚀 This one is ready to post.",
+    "🔥 Strong hook. Clean flow.",
+    "💎 Your audience will watch this.",
+    "🎯 AI approves this edit.",
+    "✨ Send it."
+  ];
+
+  const msg = messages[Math.floor(Math.random() * messages.length)];
+
+  toast?.(msg);
+
+  maybeConfetti?.(); // optional future
+}
+
+function pulseExportButton() {
+  const btn = document.getElementById("exportBtn");
+  if (!btn) return;
+
+  btn.classList.add("publish-glow");
+
+  setTimeout(() => {
+    btn.classList.remove("publish-glow");
+  }, 4000);
+}
+
+
+function renderPublishReadyState() {
+  const hook =
+    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  const flow =
+    Number(document.getElementById("storyFlowScoreValue")?.textContent?.split("/")[0]) || 0;
+
+  const hasHighIssue =
+    document.querySelector('.director-item.impact-high') !== null;
+
+  const ready = hook >= 70 && flow >= 70 && !hasHighIssue;
+
+  // reset state if no longer ready
+  if (!ready) {
+    window.publishReady = false;
+    return;
+  }
+
+  // prevent repeat celebration
+  if (window.publishReady) return;
+
+  window.publishReady = true;
+
+  showPublishBanner();
+  pulseExportButton();
+}
+
+
 async function loadEditStrategy() {
   const panel = document.getElementById("editStrategyPanel");
   const list = document.getElementById("editStrategyList");
@@ -4035,6 +4091,8 @@ async function applyCaptionVariant(text, meta = {}) {
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
     await refreshOverlayPreview();
+    await refreshHookScore();
+    await refreshStoryFlowScore();
 
     // Show what changed (visual only)
     renderStep3Diff(originalText, text);
@@ -4054,7 +4112,8 @@ async function applyCaptionVariant(text, meta = {}) {
 
     document.getElementById("step4CaptionScroll")?.classList.add("hidden");
     document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
-    loadEditStrategy();
+    await loadEditStrategy();
+    renderPublishReadyState();
 
   } catch (err) {
     console.error(err);
@@ -4286,6 +4345,8 @@ async function loadCaptionsFromYaml() {
     updateRewriteModeAvailability();
     await refreshHookScore();
     await refreshStoryFlowScore();
+    await loadEditStrategy();
+    renderPublishReadyState();
 
     setCaptionSource("yaml", "🔵 SOURCE: YAML");
     setCaptionInlineStatus("Captions loaded from YAML", "success");
@@ -5638,6 +5699,7 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
     await refreshHookScore();
     await refreshStoryFlowScore();
     await loadEditStrategy();
+    renderPublishReadyState();
 
     if (status) {
       status.textContent = "Saved ✓";
@@ -6244,6 +6306,7 @@ document.addEventListener("click", async (e) => {
       await refreshHookScore();
       await refreshStoryFlowScore();
       await loadEditStrategy();
+      renderPublishReadyState();
       workingCaptionsText = lastSavedCaptionsText;
 
       hardClearRewriteUI();
