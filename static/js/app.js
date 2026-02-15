@@ -1378,9 +1378,9 @@ function highlightHookAction(move) {
 }
 
 
-async function loadEditStrategy() {
+async function loadEditStrategy(force=false) {
 
-  if (EDIT_STRATEGY_LOADING) return;
+  if (EDIT_STRATEGY_LOADING && !force) return;
 
   EDIT_STRATEGY_LOADING = true;
 
@@ -1438,7 +1438,8 @@ async function loadEditStrategy() {
       items: items.map(i => [i.area, i.impact, i.issue])
     });
 
-    if (signature === LAST_DIRECTOR_SIGNATURE) {
+    if (!force && signature === LAST_DIRECTOR_SIGNATURE) {
+      EDIT_STRATEGY_LOADING = false;
       return; // nothing changed → keep UI calm
     }
 
@@ -3978,6 +3979,7 @@ async function refreshHookScore() {
 
   renderPublishReadyState();
   setTimeout(renderEditProgress, 50);
+  loadEditStrategy(true);
   } catch (err) {
     console.error("Hook score error:", err);
     if (statusEl) statusEl.textContent = "Hook score unavailable.";
@@ -4388,6 +4390,7 @@ async function refreshStoryFlowScore() {
             ? reasons.map(r => `<li>${r}</li>`).join("")
             : `<li>Flow looks solid ✅</li>`;
       setTimeout(renderEditProgress, 50);
+      loadEditStrategy(true);
 
     } catch (err) {
         console.error("Story flow score error:", err);
