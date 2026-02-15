@@ -4507,7 +4507,6 @@ async function loadCaptionsFromYaml() {
 
 
     updateRewriteModeAvailability();
-    await refreshAfterChange({ guidance:false });
 
     setCaptionSource("yaml", "🔵 SOURCE: YAML");
     setCaptionInlineStatus("Captions loaded from YAML", "success");
@@ -4824,7 +4823,6 @@ async function applyOverlay() {
     await loadConfigAndYaml();
     await loadCaptionsFromYaml(); // updates lastSavedCaptionsText
     await previewOverlay("fast");
-    await loadEditStrategy();
     await refreshAfterChange({ guidance:false });
 
 
@@ -4937,6 +4935,7 @@ async function saveCaptionMode() {
             // 🔄 Update live state instantly — no manual refresh required anymore
             await loadConfigAndYaml();
             await loadCaptionMode();
+            await refreshAfterChange({ guidance:false });
             refreshAnalyses?.();   // optional if your UI uses it
         } else {
             setStatus("captionModeStatus", data.error || "Error saving", "error");
@@ -5782,15 +5781,12 @@ document
     const intentSelect = document.getElementById("intentSelect");
 
     if (intentSelect) {
-      intentSelect.addEventListener("change", () => {
-        currentIntent = intentSelect.value;
+      intentSelect.addEventListener("change", async () => {
+      currentIntent = intentSelect.value;
+      await saveIntent(currentIntent);
+      await refreshAfterChange({ flow:false });
+    });
 
-        // Persist intent in session
-        saveIntent(currentIntent);
-
-        // Refresh hook score + AI recommendations
-        refreshHookScore();
-      });
     }
     
 
