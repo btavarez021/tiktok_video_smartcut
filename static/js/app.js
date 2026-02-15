@@ -4253,10 +4253,9 @@ async function applyCaptionVariant(text, meta = {}) {
     window.lastGeneratedHooks = null;
     updateHooksReadyUI();
 
-    // Reload YAML + editor
-    await loadConfigAndYaml();
-    await loadCaptionsFromYaml();
+    await loadConfigAndYaml();   // ok to keep for timeline
     await refreshOverlayPreview();
+
 
     // Show what changed (visual only)
     renderStep3Diff(originalText, text);
@@ -4489,8 +4488,11 @@ async function loadCaptionsFromYaml() {
 
     const yamlText = buildCaptionsFromConfig(cfg).trim();
 
-    // 🔑 YAML baseline
-    lastSavedCaptionsText = yamlText;
+    // 🔑 YAML baseline (never allow empty overwrite)
+    if (yamlText) {
+      lastSavedCaptionsText = yamlText;
+    }
+
 
     rewritePending = false;
     clearPendingRewrite();
