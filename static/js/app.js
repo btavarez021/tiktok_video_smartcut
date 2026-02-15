@@ -1423,6 +1423,18 @@ async function loadEditStrategy(force=false) {
     contextEl.classList.remove("hidden");
   }
 
+  if (LAST_HOOK_SCORE == null || LAST_FLOW_SCORE == null) {
+    console.log("Director waiting for scores");
+    return;
+  }
+
+
+  console.log("Director inputs →", {
+  hook: LAST_HOOK_SCORE,
+  flow: LAST_FLOW_SCORE
+  });
+
+
   try {
     const data = await jsonFetch(
       `/api/edit_strategy?session=${getActiveSession()}`
@@ -2412,8 +2424,9 @@ function initStepper() {
             const id = "#" + entry.target.id;
 
             if (id === "#step-4") {
-              refreshEditStrategySoon();
+              refreshAfterChange({ guidance:false });
             }
+
 
 
             stepButtons.forEach((btn) => {
