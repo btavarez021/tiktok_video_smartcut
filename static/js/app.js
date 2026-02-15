@@ -71,6 +71,27 @@ function openVariantsDrawer() {
   if (btn) btn.textContent = "Collapse";
 }
 
+async function refreshAfterChange({
+  hooks = true,
+  flow = true,
+  director = true,
+  publish = true,
+  progress = true,
+  guidance = true
+} = {}) {
+  try {
+    if (hooks) await refreshHookScore();
+    if (flow) await refreshStoryFlowScore();
+    if (director) await loadEditStrategy();
+    if (publish) renderPublishReadyState();
+    if (progress) setTimeout(renderEditProgress, 50);
+    if (guidance) updateHookLabGuidance();
+  } catch (e) {
+    console.warn("refreshAfterChange failed", e);
+  }
+}
+
+
 function openHookLab() {
   const lab = document.getElementById("hookLab");
   if (!lab) return;
@@ -1418,7 +1439,6 @@ async function loadEditStrategy() {
     });
 
     if (signature === LAST_DIRECTOR_SIGNATURE) {
-      EDIT_STRATEGY_LOADING = false;
       return; // nothing changed → keep UI calm
     }
 
@@ -1556,6 +1576,9 @@ async function loadEditStrategy() {
 
   } catch (err) {
     console.error(err);
+  }
+  finally {
+    EDIT_STRATEGY_LOADING = false;
   }
 }
 
@@ -3490,10 +3513,7 @@ document
   });
 }
 
-await loadEditStrategy();
-await refreshHookScore();
-await refreshStoryFlowScore();
-renderPublishReadyState();
+await refreshAfterChange();
 
 }
 
@@ -4106,9 +4126,7 @@ async function boostSelectedHook() {
       toast?.("No performance change");
     }
 
-    await loadEditStrategy();
-    renderPublishReadyState();
-    updateHookLabGuidance();
+    await refreshAfterChange();
 
     setStatus("hookLabStatus", "Test complete ✓", "success");
   } catch (err) {
@@ -4140,11 +4158,9 @@ async function undoAIRecommendation() {
       })
     });
 
-    // 🔄 FULL UI RESTORE
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
-    await refreshHookScore();
-    await refreshStoryFlowScore();
+    await refreshAfterChange();
 
     window.aiUndoSnapshot = null;
     updateAIRecommendationBar();
@@ -4255,10 +4271,7 @@ async function applyCaptionVariant(text, meta = {}) {
 
     document.getElementById("step4CaptionScroll")?.classList.add("hidden");
     document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
-    await refreshHookScore();
-    await refreshStoryFlowScore();
-    loadEditStrategy();
-    renderPublishReadyState();
+    await refreshAfterChange();
 
   } catch (err) {
     console.error(err);
@@ -4633,10 +4646,7 @@ async function saveCaptions() {
         );
 
         await loadConfigAndYaml();
-        await refreshHookScore();
-        await refreshStoryFlowScore();
-        await loadEditStrategy();
-        updateHookLabGuidance();
+        await refreshAfterChange();
     } catch (err) {
         console.error(err);
         setStatus(
@@ -5704,12 +5714,7 @@ if (clearHookBtn) {
         await saveIntent(intent);
       }
 
-      // 🔄 Re-score hooks if needed
-      await refreshHookScore();
-      await refreshStoryFlowScore();
-      await loadEditStrategy();
-      renderPublishReadyState();
-      updateHookLabGuidance();
+      await refreshAfterChange();
 
       // 📣 Feedback
       setStatus(
@@ -5964,12 +5969,9 @@ if (captionsBox) {
       if (res.updated) {
         if (status) status.textContent = "Story flow improved ✓";
 
-        // 🔥 UX IMPROVEMENT: auto-sync everything
         await loadCaptionsFromYaml();
         await loadConfigAndYaml();
-        await refreshHookScore();
-        await refreshStoryFlowScore();
-        await loadEditStrategy();
+        await refreshAfterChange();
       } else {
         if (status) status.textContent = res.reason || "No changes made.";
       }
