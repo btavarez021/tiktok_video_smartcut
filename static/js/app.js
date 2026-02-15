@@ -621,7 +621,8 @@ async function loadIntentFromConfig() {
     if (select) select.value = intent;
 
     // Refresh dependent systems
-    refreshHookScore();
+    await refreshAfterChange({ flow:false });
+
 
     setStatus(
       "captionStatus",
@@ -1711,13 +1712,7 @@ if (window.lastGeneratedHooks?.length) {
     bar.classList.remove("hidden");
     label.textContent = text;
   }
-  refreshEditStrategySoon();
-  refreshHookScore();
-  refreshStoryFlowScore();
-  loadEditStrategy();
-  renderPublishReadyState();
-  updateHookLabGuidance()
-
+  refreshAfterChange();
 }
 
 
@@ -2002,9 +1997,8 @@ async function autoBoostSelectedHook() {
 
     toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
 
-    refreshHookScore();
     setStatus("hookLabStatus", "Auto optimization complete ✓", "success");
-    loadEditStrategy();
+    await refreshAfterChange();
   } catch (e) {
     console.error(e);
     setStatus("hookLabStatus", "Auto optimization failed", "error");
@@ -2107,8 +2101,7 @@ async function setActiveSession(name) {
   await loadCaptionsFromYaml();
   updateCaptionBaselineHint();
   updateLoadYamlVisibility();
-  await refreshHookScore();
-  await refreshStoryFlowScore();
+  await refreshAfterChange({ guidance:false });
 
   // ----------------------------
   // Secondary refreshes
@@ -3153,7 +3146,7 @@ async function autoSelectIntentFromReadiness(summary) {
     await saveIntent(intent);
   }
 
-  refreshHookScore();
+  await refreshAfterChange({ flow:false });
 
   setStatus(
     "hookLabStatus",
@@ -3360,11 +3353,10 @@ async function applyAIRecommendation() {
       })
     });
 
-    // 🔄 Refresh everything
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
-    await refreshHookScore();
-    await refreshStoryFlowScore();
+    await refreshAfterChange();
+
 
     setStatus("captionsStatus", "AI recommendation applied ✓", "success");
     maybeShowStep4Nudge();
@@ -3629,8 +3621,8 @@ async function generateYaml() {
         });
         setStatus("yamlStatus", "YAML generated!", "success");
         await loadConfigAndYaml();
-        await refreshHookScore();
-        await refreshStoryFlowScore();
+        await refreshAfterChange();
+
     } catch (err) {
         console.error(err);
         setStatus(
@@ -3731,9 +3723,8 @@ renderStoryboardTimeline({
 // ⬇️ ADD THIS
 autoSaveStoryboardOrder();
 
-refreshStoryFlowScore();
-loadEditStrategy();
-renderPublishReadyState();
+refreshAfterChange();
+
 
 setStatus(
   "storyboardStatus",
@@ -3979,7 +3970,6 @@ async function refreshHookScore() {
 
   renderPublishReadyState();
   setTimeout(renderEditProgress, 50);
-  loadEditStrategy(true);
   } catch (err) {
     console.error("Hook score error:", err);
     if (statusEl) statusEl.textContent = "Hook score unavailable.";
@@ -4099,8 +4089,8 @@ async function boostSelectedHook() {
     window.lastGeneratedHooks = null;
     updateHooksReadyUI();
 
-    // ✅ Force a fresh score so LAST_HOOK_SCORE is real
-    await refreshHookScore();
+    // 🧠 Run unified recompute
+    await refreshAfterChange();
 
     const newScore = Number(LAST_HOOK_SCORE ?? 0);
     const diff = newScore - Number(window.lastHookScoreBeforeBoost ?? 0);
@@ -4122,13 +4112,11 @@ async function boostSelectedHook() {
 
       lastSavedCaptionsText = beforeBoost;
 
-      await refreshHookScore();
+      await refreshAfterChange();
       toast?.("AI tested upgrades — your original hook performs better 💪");
     } else {
       toast?.("No performance change");
     }
-
-    await refreshAfterChange();
 
     setStatus("hookLabStatus", "Test complete ✓", "success");
   } catch (err) {
@@ -4390,7 +4378,6 @@ async function refreshStoryFlowScore() {
             ? reasons.map(r => `<li>${r}</li>`).join("")
             : `<li>Flow looks solid ✅</li>`;
       setTimeout(renderEditProgress, 50);
-      loadEditStrategy(true);
 
     } catch (err) {
         console.error("Story flow score error:", err);
@@ -4507,10 +4494,7 @@ async function loadCaptionsFromYaml() {
 
 
     updateRewriteModeAvailability();
-    await refreshHookScore();
-    await refreshStoryFlowScore();
-    await loadEditStrategy();
-    renderPublishReadyState();
+    await refreshAfterChange({ guidance:false });
 
     setCaptionSource("yaml", "🔵 SOURCE: YAML");
     setCaptionInlineStatus("Captions loaded from YAML", "success");
@@ -4828,6 +4812,8 @@ async function applyOverlay() {
     await loadCaptionsFromYaml(); // updates lastSavedCaptionsText
     await previewOverlay("fast");
     await loadEditStrategy();
+    await refreshAfterChange({ guidance:false });
+
 
     workingCaptionsText = lastSavedCaptionsText;
     captionViewMode = "rewritten";
@@ -4855,7 +4841,7 @@ document
 
   document
   .querySelector('input[name="captionRewriteMode"][value="rewrite"]')
-  ?.addEventListener("change", refreshHookScore);
+  ?.addEventListener("change", () => refreshAfterChange({ flow:false }));
 
 
 // Timings
@@ -4881,7 +4867,7 @@ async function applyTiming(smart) {
         });
         setStatus("timingStatus", "Timings updated.", "success", true);
         await loadConfigAndYaml();
-        refreshEditStrategySoon();
+        refreshAfterChange({ guidance:false });
     } catch (err) {
         console.error(err);
         setStatus(
@@ -5853,11 +5839,7 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
   clearTimeout(captionAutoSaveTimer);
 
   captionAutoSaveTimer = setTimeout(async () => {
-    await saveCaptions();
-    await refreshHookScore();
-    await refreshStoryFlowScore();
-    await loadEditStrategy();
-    renderPublishReadyState();
+    await refreshAfterChange();
 
     if (status) {
       status.textContent = "Saved ✓";
@@ -6458,10 +6440,7 @@ document.addEventListener("click", async (e) => {
       await loadConfigAndYaml();
       await loadCaptionsFromYaml();
       await refreshOverlayPreview();
-      await refreshHookScore();
-      await refreshStoryFlowScore();
-      await loadEditStrategy();
-      renderPublishReadyState();
+      await refreshAfterChange();
       workingCaptionsText = lastSavedCaptionsText;
 
       hardClearRewriteUI();
@@ -6513,9 +6492,7 @@ updateRewriteModeAvailability();
         await loadCaptionMode();   // reload caption mode from YAML
         await loadRewriteMode();   // reload rewrite mode from YAML
         updateRewriteWarning();
-        await refreshHookScore();
-        await refreshStoryFlowScore()
-        await loadEditStrategy();
+        await refreshAfterChange({ guidance:false });
 
         document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {
             el.removeEventListener("change", updateRewriteWarning);
