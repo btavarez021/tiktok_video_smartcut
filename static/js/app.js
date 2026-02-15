@@ -82,7 +82,9 @@ async function refreshAfterChange({
   try {
     if (hooks) await refreshHookScore();
     if (flow) await refreshStoryFlowScore();
-    if (director) await loadEditStrategy();
+    if (director && lastSavedCaptionsText?.trim()) {
+  await loadEditStrategy();
+}
     if (publish) renderPublishReadyState();
     if (progress) setTimeout(renderEditProgress, 50);
     if (guidance) updateHookLabGuidance();
@@ -4514,6 +4516,7 @@ async function loadCaptionsFromYaml() {
     lastGeneratedVariants = [];
     updateCaptionBaselineHint();
     updateLoadYamlVisibility();
+    await refreshAfterChange({ guidance:false });
   } catch (err) {
     console.error(err);
     setCaptionInlineStatus("Failed to load captions", "error");
