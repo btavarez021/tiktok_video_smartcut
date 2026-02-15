@@ -34,7 +34,8 @@ let CONFIG_LOADING = false;
 let LAST_HOOK_SCORE = null;
 let LAST_FLOW_SCORE = null;
 
-
+let LAST_DIRECTOR_SIGNATURE = null;
+let EDIT_STRATEGY_LOADING = false;
 let isInRewriteReview = false;
 let captionViewMode = "rewritten";
 let diffDirty = false;
@@ -1357,6 +1358,11 @@ function highlightHookAction(move) {
 
 
 async function loadEditStrategy() {
+
+  if (EDIT_STRATEGY_LOADING) return;
+
+  EDIT_STRATEGY_LOADING = true;
+
   const panel = document.getElementById("editStrategyPanel");
   const list = document.getElementById("editStrategyList");
 
@@ -1401,6 +1407,22 @@ async function loadEditStrategy() {
     );
 
     const items = data.suggestions || [];
+
+    // ================================
+    // 🧠 Prevent useless redraws
+    // ================================
+    const signature = JSON.stringify({
+      hook: LAST_HOOK_SCORE,
+      flow: LAST_FLOW_SCORE,
+      items: items.map(i => [i.area, i.impact, i.issue])
+    });
+
+    if (signature === LAST_DIRECTOR_SIGNATURE) {
+      EDIT_STRATEGY_LOADING = false;
+      return; // nothing changed → keep UI calm
+    }
+
+    LAST_DIRECTOR_SIGNATURE = signature;
 
     if (!items.length) {
       list.innerHTML = `
@@ -1529,6 +1551,8 @@ async function loadEditStrategy() {
     panel.classList.remove("hidden");
     renderPublishReadyState();
     renderEditProgress();
+    EDIT_STRATEGY_LOADING = false;
+
 
   } catch (err) {
     console.error(err);
