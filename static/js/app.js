@@ -55,10 +55,6 @@ function setCurrentVideoIntent(intent) {
 function openStep(stepId) {
   document.querySelector(`.step[data-target="${stepId}"]`)?.click();
 
-  // ⭐ When Step 4 opens → refresh director
-  if (stepId === "#step-4") {
-    refreshEditStrategySoon();
-  }
 }
 
 function openVariantsDrawer() {
@@ -622,8 +618,11 @@ async function loadIntentFromConfig() {
     const select = document.getElementById("intentSelect");
     if (select) select.value = intent;
 
-    // Refresh dependent systems
-    await refreshAfterChange({ flow:false });
+    await refreshAfterChange({
+      flow:false,
+      director:false
+    });
+
 
 
     setStatus(
@@ -785,8 +784,6 @@ async function saveOverlayStyle({ silent = false } = {}) {
 
         // 🔑 THIS IS THE FIX
         await loadConfigAndYaml();
-
-        refreshEditStrategySoon();
 
         if (!silent) {
             setStatus("overlayStyleStatus", "Style saved ✓", "success");
@@ -2115,7 +2112,11 @@ async function setActiveSession(name) {
   await loadCaptionsFromYaml();
   updateCaptionBaselineHint();
   updateLoadYamlVisibility();
-  await refreshAfterChange({ guidance:false });
+  await refreshAfterChange({
+  guidance:false,
+  director:false
+});
+
 
   // ----------------------------
   // Secondary refreshes
@@ -3161,7 +3162,11 @@ async function autoSelectIntentFromReadiness(summary) {
     await saveIntent(intent);
   }
 
-  await refreshAfterChange({ flow:false });
+  await refreshAfterChange({
+  flow:false,
+  director:false
+});
+
 
   setStatus(
     "hookLabStatus",
@@ -4518,7 +4523,11 @@ async function loadCaptionsFromYaml() {
     lastGeneratedVariants = [];
     updateCaptionBaselineHint();
     updateLoadYamlVisibility();
-    await refreshAfterChange({ guidance:false });
+    await refreshAfterChange({
+      guidance:false,
+      director:false
+    });
+
   } catch (err) {
     console.error(err);
     setCaptionInlineStatus("Failed to load captions", "error");
@@ -4828,7 +4837,11 @@ async function applyOverlay() {
     await loadConfigAndYaml();
     await loadCaptionsFromYaml(); // updates lastSavedCaptionsText
     await previewOverlay("fast");
-    await refreshAfterChange({ guidance:false });
+    await refreshAfterChange({
+      guidance:false,
+      director:false
+    });
+
 
 
     workingCaptionsText = lastSavedCaptionsText;
@@ -4940,7 +4953,11 @@ async function saveCaptionMode() {
             // 🔄 Update live state instantly — no manual refresh required anymore
             await loadConfigAndYaml();
             await loadCaptionMode();
-            await refreshAfterChange({ guidance:false });
+            await refreshAfterChange({
+              guidance:false,
+              director:false
+            });
+
             refreshAnalyses?.();   // optional if your UI uses it
         } else {
             setStatus("captionModeStatus", data.error || "Error saving", "error");
@@ -4989,8 +5006,6 @@ async function saveLayoutMode() {
 
         setStatus("layoutStatus", "Layout saved!", "success");
         await loadConfigAndYaml();
-        refreshEditStrategySoon();
-
     } catch (err) {
         console.error(err);
         setStatus("layoutStatus", "Error saving layout: " + err.message, "error");
@@ -5036,8 +5051,6 @@ async function saveTtsSettings({ silent = false } = {}) {
 
         // ✅ THIS IS THE KEY LINE
         await loadConfigAndYaml();   // refresh preview + parsed YAML
-        refreshEditStrategySoon();
-
 
     } catch (err) {
         console.error(err);
@@ -5079,7 +5092,6 @@ async function saveCtaSettings({ silent = false } = {}) {
         }
 
         await loadConfigAndYaml();
-        refreshEditStrategySoon();
         
     } catch (err) {
         console.error(err);
@@ -5376,7 +5388,6 @@ async function saveFgScale({ silent = false } = {}) {
         }
 
         await loadConfigAndYaml();
-        refreshEditStrategySoon();
 
 
     } catch (err) {
@@ -5720,7 +5731,11 @@ if (clearHookBtn) {
         await saveIntent(intent);
       }
 
-      await refreshAfterChange();
+      await refreshAfterChange({
+        flow:false,
+        director:false
+      });
+
 
       // 📣 Feedback
       setStatus(
@@ -5853,7 +5868,10 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
   clearTimeout(captionAutoSaveTimer);
 
   captionAutoSaveTimer = setTimeout(async () => {
-    await refreshAfterChange();
+    await refreshAfterChange({
+  director:false
+});
+
 
     if (status) {
       status.textContent = "Saved ✓";
@@ -6506,7 +6524,11 @@ updateRewriteModeAvailability();
         await loadCaptionMode();   // reload caption mode from YAML
         await loadRewriteMode();   // reload rewrite mode from YAML
         updateRewriteWarning();
-        await refreshAfterChange({ guidance:false });
+       await refreshAfterChange({
+        guidance:false,
+        director:true
+      });
+
 
         document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {
             el.removeEventListener("change", updateRewriteWarning);
