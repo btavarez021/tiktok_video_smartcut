@@ -1723,7 +1723,10 @@ if (window.lastGeneratedHooks?.length) {
     bar.classList.remove("hidden");
     label.textContent = text;
   }
-  refreshAfterChange();
+  refreshAfterChange({
+    director:false
+  });
+
 }
 
 
@@ -2009,7 +2012,10 @@ async function autoBoostSelectedHook() {
     toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
 
     setStatus("hookLabStatus", "Auto optimization complete ✓", "success");
-    await refreshAfterChange();
+    await refreshAfterChange({
+  director:true
+});
+
   } catch (e) {
     console.error(e);
     setStatus("hookLabStatus", "Auto optimization failed", "error");
@@ -2427,8 +2433,12 @@ function initStepper() {
             const id = "#" + entry.target.id;
 
             if (id === "#step-4") {
-              refreshAfterChange({ guidance:false });
+              refreshAfterChange({
+                guidance:false,
+                director:true
+              });
             }
+
 
 
 
@@ -3375,7 +3385,10 @@ async function applyAIRecommendation() {
 
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
-    await refreshAfterChange();
+    await refreshAfterChange({
+  director:true
+});
+
 
 
     setStatus("captionsStatus", "AI recommendation applied ✓", "success");
@@ -3743,7 +3756,10 @@ renderStoryboardTimeline({
 // ⬇️ ADD THIS
 autoSaveStoryboardOrder();
 
-refreshAfterChange();
+refreshAfterChange({
+  director:true
+});
+
 
 
 setStatus(
@@ -4109,8 +4125,10 @@ async function boostSelectedHook() {
     window.lastGeneratedHooks = null;
     updateHooksReadyUI();
 
-    // 🧠 Run unified recompute
-    await refreshAfterChange();
+    await refreshAfterChange({
+      director:true
+    });
+
 
     const newScore = Number(LAST_HOOK_SCORE ?? 0);
     const diff = newScore - Number(window.lastHookScoreBeforeBoost ?? 0);
@@ -4170,7 +4188,10 @@ async function undoAIRecommendation() {
 
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
-    await refreshAfterChange();
+    await refreshAfterChange({
+  director:true
+});
+
 
     window.aiUndoSnapshot = null;
     updateAIRecommendationBar();
@@ -4280,7 +4301,10 @@ async function applyCaptionVariant(text, meta = {}) {
 
     document.getElementById("step4CaptionScroll")?.classList.add("hidden");
     document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
-    await refreshAfterChange();
+    await refreshAfterChange({
+  director:true
+});
+
 
   } catch (err) {
     console.error(err);
@@ -4659,7 +4683,10 @@ async function saveCaptions() {
         );
 
         await loadConfigAndYaml();
-        await refreshAfterChange();
+        await refreshAfterChange({
+          director:true
+        });
+
     } catch (err) {
         console.error(err);
         setStatus(
@@ -4870,7 +4897,13 @@ document
 
   document
   .querySelector('input[name="captionRewriteMode"][value="rewrite"]')
-  ?.addEventListener("change", () => refreshAfterChange({ flow:false }));
+  ?.addEventListener("change", () =>
+  refreshAfterChange({
+    flow:false,
+    director:false
+  })
+);
+
 
 
 // Timings
@@ -4896,7 +4929,11 @@ async function applyTiming(smart) {
         });
         setStatus("timingStatus", "Timings updated.", "success", true);
         await loadConfigAndYaml();
-        refreshAfterChange({ guidance:false });
+        refreshAfterChange({
+  guidance:false,
+  director:false
+});
+
     } catch (err) {
         console.error(err);
         setStatus(
@@ -5988,7 +6025,10 @@ if (captionsBox) {
 
         await loadCaptionsFromYaml();
         await loadConfigAndYaml();
-        await refreshAfterChange();
+        await refreshAfterChange({
+          director:true
+        });
+
       } else {
         if (status) status.textContent = res.reason || "No changes made.";
       }
@@ -6472,7 +6512,10 @@ document.addEventListener("click", async (e) => {
       await loadConfigAndYaml();
       await loadCaptionsFromYaml();
       await refreshOverlayPreview();
-      await refreshAfterChange();
+      await refreshAfterChange({
+        director:true
+      });
+
       workingCaptionsText = lastSavedCaptionsText;
 
       hardClearRewriteUI();
