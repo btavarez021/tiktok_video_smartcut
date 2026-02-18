@@ -3981,3 +3981,22 @@ body.no-scroll {
   margin-top: 10px;
   opacity: 0.7;
 }
+
+.readiness-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.publish-ready .readiness-btn {
+  background: #22c55e;
+  color: white;
+}
+
+.publish-warning .readiness-btn {
+  background: #f59e0b;
+  color: white;
+}

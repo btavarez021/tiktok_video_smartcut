@@ -105,6 +105,70 @@ function openHookLab() {
   updateHookLabGuidance();
 }
 
+function computeReadinessState(hookScore, flowScore) {
+
+  if (!lastSavedCaptionsText?.trim()) {
+    return {
+      status: "empty",
+      message: "Create captions to begin.",
+      next: "write_captions"
+    };
+  }
+
+  if (hookScore < 50) {
+    return {
+      status: "weak_hook",
+      message: "Your hook needs stronger curiosity or clarity.",
+      next: "improve_hook"
+    };
+  }
+
+  if (hookScore < 70) {
+    const need = 70 - hookScore;
+    return {
+      status: "almost_hook",
+      message: `Improve hook by ${need} more points.`,
+      next: "improve_hook"
+    };
+  }
+
+  if (flowScore < 60) {
+    return {
+      status: "weak_flow",
+      message: "Tighten pacing and transitions.",
+      next: "improve_flow"
+    };
+  }
+
+  if (hookScore >= 75 && flowScore >= 65) {
+    return {
+      status: "ready",
+      message: "Strong edit. Ready to publish.",
+      next: "publish"
+    };
+  }
+
+  return {
+    status: "polish",
+    message: "Good edit. Minor improvements possible.",
+    next: "polish"
+  };
+}
+
+function renderNextActionButton(action) {
+
+  const actions = {
+    write_captions: `<button onclick="openStep('#step-3')" class="readiness-btn">Write Captions</button>`,
+    improve_hook: `<button onclick="openStep('#step-4')" class="readiness-btn">Improve Hook</button>`,
+    improve_flow: `<button onclick="openStep('#step-3')" class="readiness-btn">Improve Flow</button>`,
+    polish: `<button onclick="openStep('#step-4')" class="readiness-btn">Polish Edit</button>`,
+    publish: `<button class="readiness-btn publish-ready">Ready to Export</button>`
+  };
+
+  return actions[action] || "";
+}
+
+
 function getHookRatingLabel(score) {
   if (score < 45) return "Needs Work";
   if (score < 60) return "Building Strength";
@@ -123,7 +187,8 @@ function getFlowRatingLabel(score) {
 
 
 function renderPublishReadyState() {
-  const box = document.getElementById("publishReadyBanner"); // ✅ your real div
+
+  const box = document.getElementById("publishReadyBanner");
   if (!box) return;
 
   const hookScore =
@@ -132,35 +197,28 @@ function renderPublishReadyState() {
   const flowScore =
     Number(document.getElementById("storyFlowScoreValue")?.textContent?.split("/")[0]) || 0;
 
-  console.log("Publish check → hook:", hookScore, "flow:", flowScore);
+  const state = computeReadinessState(hookScore, flowScore);
 
-  box.classList.remove("hidden"); // 🔥 important
+  box.classList.remove("hidden");
 
-  if (hookScore >= 70 && flowScore >= 60) {
-    box.className = "publish-ready-state ready";
-    box.innerHTML = `
-      🟢 Ready to publish  
-      Your hook and pacing are strong.
-    `;
-    return;
-  }
+  let colorClass = "publish-neutral";
 
-  if (hookScore >= 50) {
-    const need = 70 - hookScore;
-    box.className = "publish-ready-state close";
-    box.innerHTML = `
-      🟡 Almost there  
-      Improve hook by <b>${need}</b> more.
-    `;
-    return;
-  }
+  if (state.status === "ready") colorClass = "publish-ready";
+  if (state.status === "weak_hook" || state.status === "weak_flow") colorClass = "publish-warning";
+  if (state.status === "empty") colorClass = "publish-empty";
 
-  box.className = "publish-ready-state not-ready";
+  box.className = `publish-ready-state ${colorClass}`;
+
   box.innerHTML = `
-    🔴 Needs improvement  
-    Generate or improve your hook.
+    <div class="readiness-title">🧠 AI Readiness</div>
+    <div class="readiness-message">${state.message}</div>
+    <div class="readiness-scores">
+      Hook: ${hookScore}/100 &nbsp; | &nbsp; Flow: ${flowScore}/100
+    </div>
+    ${renderNextActionButton(state.next)}
   `;
 }
+
 
 
 function evaluatePublishReadiness() {
@@ -1456,6 +1514,7 @@ async function loadEditStrategy(force=false) {
     }
 
     LAST_DIRECTOR_SIGNATURE = signature;
+
 
     if (!items.length) {
       list.innerHTML = `
