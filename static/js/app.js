@@ -16,6 +16,7 @@ let ACTIVE_EXPORT_TASK = null;
 let rewriteCommitted = false;
 
 let intentLockedByUser = false;
+let REFRESH_LOCK = false;
 
 let suppressNextPreview = false;
 
@@ -47,6 +48,19 @@ let YAML_POLL_ACTIVE = false;
 let lastYamlStatus = null;
 let PENDING_SCROLL_TO_STORYBOARD = false;
 
+let CONFIG_CACHE = null;
+
+async function getConfigCached(force = false) {
+  if (CONFIG_CACHE && !force) return CONFIG_CACHE;
+
+  const session = encodeURIComponent(getActiveSession());
+  const data = await jsonFetch(`/api/config?session=${session}`);
+
+  CONFIG_CACHE = data;
+  return data;
+}
+
+
 function setCurrentVideoIntent(intent) {
   currentIntent = intent;
   console.log("🎯 Video intent set to:", intent);
@@ -67,6 +81,29 @@ function openVariantsDrawer() {
   if (btn) btn.textContent = "Collapse";
 }
 
+// ========================================
+// GLOBAL STATE SNAPSHOT (Debug + Stability)
+// ========================================
+function getAppState() {
+  return {
+    hookScore: LAST_HOOK_SCORE,
+    flowScore: LAST_FLOW_SCORE,
+    captionsLength: (lastSavedCaptionsText || "").length,
+    rewritePending,
+    rewriteCommitted,
+    hooksReady: window.hooksReady,
+    clipOrderDirty,
+    intent: currentIntent,
+    yamlPolling: YAML_POLL_ACTIVE,
+    variantPolling: VARIANT_POLL_ACTIVE,
+  };
+}
+
+function logAppState(label = "STATE") {
+  console.log(`🧠 ${label} →`, getAppState());
+}
+
+
 async function refreshAfterChange({
   hooks = true,
   flow = true,
@@ -75,19 +112,42 @@ async function refreshAfterChange({
   progress = true,
   guidance = true
 } = {}) {
+
+  if (REFRESH_LOCK) {
+    console.log("🔒 Refresh skipped (locked)");
+    return;
+  }
+
+  REFRESH_LOCK = true;
+
   try {
+
+    logAppState("Before refresh");
+
     if (hooks) await refreshHookScore();
     if (flow) await refreshStoryFlowScore();
-    if (director && lastSavedCaptionsText?.trim()) {
-  await loadEditStrategy();
-}
-    if (publish) renderPublishReadyState();
+
+    if (director && lastSavedCaptionsText?.trim() && !YAML_POLL_ACTIVE) {
+      await loadEditStrategy();
+    }
+
+    if (publish && (!hooks || LAST_HOOK_SCORE == null))
+
+
     if (progress) setTimeout(renderEditProgress, 50);
+
     if (guidance) updateHookLabGuidance();
+
+    logAppState("After refresh");
+
   } catch (e) {
     console.warn("refreshAfterChange failed", e);
   }
+  finally {
+    REFRESH_LOCK = false;
+  }
 }
+
 
 
 function openHookLab() {
@@ -219,26 +279,6 @@ function renderPublishReadyState() {
   `;
 }
 
-
-
-function evaluatePublishReadiness() {
-  const hookScore =
-    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
-
-  const flowScore =
-    Number(document.getElementById("storyFlowScoreValue")?.textContent?.split("/")[0]) || 0;
-
-  // any HIGH items still present?
-  const highIssues =
-    document.querySelectorAll(".director-item.impact-high").length;
-
-  const ready =
-    hookScore >= 70 &&
-    flowScore >= 70 &&
-    highIssues === 0;
-
-  return { ready, hookScore, flowScore, highIssues };
-}
 
 
 function evaluatePublishReadiness() {
@@ -657,9 +697,7 @@ function syncIntentPills(intent) {
 
 async function loadIntentFromConfig() {
   try {
-    const res = await jsonFetch(
-      `/api/config?session=${encodeURIComponent(getActiveSession())}`
-    );
+    const res = await getConfigCached();
 
     const intent = res?.intent || "discovery";
 
@@ -826,7 +864,7 @@ async function saveOverlayStyle({ silent = false } = {}) {
 
     try {
         const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
+        const data = await getConfigCached();
         const cfg = data.config || {};
 
         cfg.render = cfg.render || {};
@@ -839,6 +877,7 @@ async function saveOverlayStyle({ silent = false } = {}) {
                 config: cfg
             })
         });
+        CONFIG_CACHE = null;
 
         // 🔑 THIS IS THE FIX
         await loadConfigAndYaml();
@@ -1445,7 +1484,11 @@ async function loadEditStrategy(force=false) {
   const panel = document.getElementById("editStrategyPanel");
   const list = document.getElementById("editStrategyList");
 
-  if (!panel || !list) return;
+  if (!panel || !list) {
+  EDIT_STRATEGY_LOADING = false;
+  return;
+}
+
 
   const delta = window.lastHookImprovementDelta || 0;
 
@@ -1455,14 +1498,15 @@ async function loadEditStrategy(force=false) {
 
   // No captions yet
   if (!lastSavedCaptionsText?.trim()) {
-    list.innerHTML = `
-      <div class="hint-text subtle">
-        Create captions to unlock AI direction.
-      </div>
-    `;
-    panel.classList.remove("hidden");
-    return;
-  }
+  list.innerHTML = `
+    <div class="hint-text subtle">
+      Create captions to unlock AI direction.
+    </div>
+  `;
+  panel.classList.remove("hidden");
+  EDIT_STRATEGY_LOADING = false; // 🔥 ADD THIS
+  return;
+}
 
   list.innerHTML = "Analyzing edit…";
 
@@ -1505,7 +1549,12 @@ async function loadEditStrategy(force=false) {
     const signature = JSON.stringify({
       hook: LAST_HOOK_SCORE,
       flow: LAST_FLOW_SCORE,
-      items: items.map(i => [i.area, i.impact, i.issue])
+      items: items.map(i => ({
+  area: i.area,
+  impact: i.impact,
+  issue: i.issue
+}))
+
     });
 
     if (!force && signature === LAST_DIRECTOR_SIGNATURE) {
@@ -1696,7 +1745,16 @@ function renderEditProgress() {
 
   console.log("📊 Progress using:", hook, flow);
 
-  if (!hook && !flow) {
+  if (LAST_HOOK_SCORE == null || LAST_FLOW_SCORE == null) {
+    fill.style.width = "0%";
+    percentEl.textContent = "–";
+    hint.textContent = "Scoring in progress…";
+    return;
+  }
+
+
+  if (hook === 0 && flow === 0)
+ {
     fill.style.width = "0%";
     percentEl.textContent = "0%";
     hint.textContent = "Run AI scoring to start.";
@@ -2137,6 +2195,7 @@ function toast(message, duration = 2500) {
 async function setActiveSession(name) {
   const safe = sanitizeSessionName(name);
   ACTIVE_SESSION = safe;
+  CONFIG_CACHE = null; // 🔥 ADD THIS
 
   // ----------------------------
   // Reset AI apply / undo state
@@ -3442,6 +3501,8 @@ async function applyAIRecommendation() {
       })
     });
 
+    CONFIG_CACHE = null; // 🔥 invalidate cache before reload
+
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
     await refreshAfterChange({
@@ -3739,7 +3800,8 @@ async function loadConfigAndYaml() {
 
   try {
     const session = encodeURIComponent(getActiveSession());
-    const data = await jsonFetch(`/api/config?session=${session}`);
+    const data = await getConfigCached();
+
 
     yamlTextEl.value = data.yaml || "# No config.yml yet.";
     yamlPreviewEl.textContent = JSON.stringify(data.config || {}, null, 2);
@@ -3837,7 +3899,7 @@ async function saveStoryboardOrder({ silent = false } = {}) {
     const sessionQ = encodeURIComponent(session);
 
     // 1️⃣ Load latest config
-    const data = await jsonFetch(`/api/config?session=${sessionQ}`);
+    const data = await getConfigCached(true);
     const cfg = data.config || {};
 
     // 2️⃣ Rebuild storyboard from workingClipOrder
@@ -3862,6 +3924,9 @@ async function saveStoryboardOrder({ silent = false } = {}) {
         config: cfg
       })
     });
+
+    CONFIG_CACHE = null;
+
 
     // 🔑 THIS is what you were missing
     await loadCaptionsFromYaml();
@@ -4178,6 +4243,9 @@ async function boostSelectedHook() {
       }),
     });
 
+    CONFIG_CACHE = null; // 🔥 captions affect config state
+
+
     // keep baselines consistent
     lastSavedCaptionsText = newCaptions;
     window.hooksReady = false;
@@ -4206,6 +4274,9 @@ async function boostSelectedHook() {
           text: beforeBoost,
         }),
       });
+
+      CONFIG_CACHE = null; // 🔥 captions affect config state
+
 
       lastSavedCaptionsText = beforeBoost;
 
@@ -4244,6 +4315,9 @@ async function undoAIRecommendation() {
         config: snapshot.config
       })
     });
+
+    CONFIG_CACHE = null;
+
 
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
@@ -4329,6 +4403,9 @@ async function applyCaptionVariant(text, meta = {}) {
         text
       })
     });
+
+    CONFIG_CACHE = null; // 🔥 captions affect config state
+
 
     // 🔑 This variant is now the truth
     lastSavedCaptionsText = text;
@@ -4571,7 +4648,7 @@ async function loadCaptionsFromYaml() {
 
   try {
     const session = encodeURIComponent(getActiveSession());
-    const data = await jsonFetch(`/api/config?session=${session}`);
+    const data = await getConfigCached();
     const cfg = data.config || {};
 
     const yamlText = buildCaptionsFromConfig(cfg).trim();
@@ -4727,6 +4804,8 @@ async function saveCaptions() {
             }),
         });
        
+        CONFIG_CACHE = null; // 🔥 captions affect config state
+
 
         lastSavedCaptionsText = text;   // 🔑 THIS IS REQUIRED
 
@@ -4781,6 +4860,8 @@ async function regenerateCaptionsFromClips() {
             method: "POST",
             body: JSON.stringify({ session: getActiveSession() }),
         });
+
+        CONFIG_CACHE = null;
 
         // ✅ NOW load from YAML (this sets baseline)
         await loadCaptionsFromYaml({ preserveSource: true });
@@ -5072,7 +5153,7 @@ async function loadLayoutFromYaml() {
 
     try {
         const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
+        const data = await getConfigCached();
         const cfg = data.config || {};
         const render = cfg.render || {};
 
@@ -5122,7 +5203,7 @@ async function saveTtsSettings({ silent = false } = {}) {
 
     try {
         const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
+        const data = await getConfigCached();
         const cfg = data.config || {};
 
         cfg.tts = {
@@ -5137,6 +5218,9 @@ async function saveTtsSettings({ silent = false } = {}) {
                 config: cfg
             })
         });
+
+        CONFIG_CACHE = null;
+
 
         // ✅ feedback
         if (!silent) {
@@ -5170,7 +5254,7 @@ async function saveCtaSettings({ silent = false } = {}) {
 
     try {
         const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
+        const data = await getConfigCached();
         const cfg = data.config || {};
 
         cfg.cta = { enabled, text, voiceover };
@@ -5182,6 +5266,9 @@ async function saveCtaSettings({ silent = false } = {}) {
                 config: cfg
             })
         });
+
+        CONFIG_CACHE = null;
+
 
         if (!silent) {
             setStatus("ctaStatus", "CTA saved ✓", "success");
@@ -5229,7 +5316,7 @@ async function loadMusicSettingsFromYaml() {
 
     try {
         const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
+        const data = await getConfigCached();
         const cfg = data.config || {};
 
         const music = cfg.music || {};
@@ -5274,7 +5361,7 @@ async function saveMusicSettings({ silent = false } = {}) {
 
     try {
         const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
+        const data = await getConfigCached();
         const cfg = data.config || {};
 
         cfg.music = { enabled, file, volume };
@@ -5286,6 +5373,9 @@ async function saveMusicSettings({ silent = false } = {}) {
                 config: cfg
             })
         });
+
+        CONFIG_CACHE = null;
+
 
         // ✅ THIS IS THE MISSING PIECE
         await loadConfigAndYaml();
@@ -5461,7 +5551,7 @@ async function saveFgScale({ silent = false } = {}) {
 
     try {
         const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/config?session=${session}`);
+        const data = await getConfigCached();
         const cfg = data.config || {};
 
         cfg.foreground_scale = {
@@ -5476,6 +5566,9 @@ async function saveFgScale({ silent = false } = {}) {
                 config: cfg
             })
         });
+
+        CONFIG_CACHE = null;
+
 
         if (!silent) {
             setStatus("fgStatus", "Foreground scale saved ✓", "success");
@@ -5679,7 +5772,7 @@ async function exportVideo() {
 
 
 async function loadRewriteMode() {
-    const data = await jsonFetch(`/api/config?session=${getActiveSession()}`);
+    const data = await getConfigCached();
     const mode = data.config?.render?.rewrite_mode || "visual";
 
     const radio = document.querySelector(`input[name="captionRewriteMode"][value="${mode}"]`);
@@ -5928,7 +6021,10 @@ async function saveIntent(intent) {
       config: cfg
     })
   });
+  CONFIG_CACHE = null;
 }
+
+
 
     // YAML preview toggle
     const toggleBtn = document.getElementById("toggleYamlPreviewBtn");
@@ -6565,6 +6661,9 @@ document.addEventListener("click", async (e) => {
           text: workingCaptionsText
         })
       });
+
+      CONFIG_CACHE = null; // 🔥 invalidate cache after caption save
+
 
       lastSavedCaptionsText = workingCaptionsText;
       rewriteCommitted = true;
