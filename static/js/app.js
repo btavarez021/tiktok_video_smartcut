@@ -3633,6 +3633,8 @@ async function improveHooksAndCaptionsFlow() {
 }
 
 async function hydrateStoryboardAndScroll() {
+  CONFIG_CACHE = null;
+  
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
 
