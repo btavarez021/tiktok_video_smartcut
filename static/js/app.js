@@ -3505,9 +3505,13 @@ const before = await jsonFetch(
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
     await refreshAfterChange({
-  director:true
-});
+      hooks: true,
+      flow: true,
+      director: false   // ⛔ don't run director yet
+    });
 
+    // 🔁 Now that scores are fresh, run director
+    await loadEditStrategy(true);
 
 
     setStatus("captionsStatus", "AI recommendation applied ✓", "success");
@@ -3678,6 +3682,22 @@ async function pollYamlStatus() {
       setTimeout(pollYamlStatus, 1200);
       return;
     }
+
+    if (status === "error") {
+  YAML_POLL_ACTIVE = false;
+  lastYamlStatus = null;
+  setStatus("yamlStatus", data.error || "Storyboard failed", "error");
+  return;
+}
+
+if (status === "idle" || status === "not_started") {
+  // stop polling if job isn't running
+  YAML_POLL_ACTIVE = false;
+  lastYamlStatus = null;
+  setStatus("yamlStatus", "Storyboard not running", "info");
+  return;
+}
+
 
     if (status === "done") {
   YAML_POLL_ACTIVE = false;
@@ -4683,10 +4703,6 @@ async function loadCaptionsFromYaml() {
     lastGeneratedVariants = [];
     updateCaptionBaselineHint();
     updateLoadYamlVisibility();
-    await refreshAfterChange({
-      guidance:false,
-      director:false
-    });
 
   } catch (err) {
     console.error(err);
