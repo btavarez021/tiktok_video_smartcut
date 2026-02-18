@@ -127,9 +127,16 @@ async function refreshAfterChange({
     if (hooks) await refreshHookScore();
     if (flow) await refreshStoryFlowScore();
 
-    if (director && lastSavedCaptionsText?.trim() && !YAML_POLL_ACTIVE) {
+    if (
+      director &&
+      lastSavedCaptionsText?.trim() &&
+      !YAML_POLL_ACTIVE &&
+      LAST_HOOK_SCORE != null &&
+      LAST_FLOW_SCORE != null
+    ) {
       await loadEditStrategy();
     }
+
 
     if (publish) {
   renderPublishReadyState();
@@ -1528,11 +1535,18 @@ async function loadEditStrategy(force=false) {
 
   try {
 
-    // 🔥 MOVED INSIDE TRY (CRITICAL FIX)
     if (LAST_HOOK_SCORE == null || LAST_FLOW_SCORE == null) {
-      console.log("Director waiting for scores");
-      return;
-    }
+  console.log("Director waiting for scores");
+
+  list.innerHTML = `
+    <div class="hint-text subtle">
+      Waiting for AI scores…
+    </div>
+  `;
+
+  EDIT_STRATEGY_LOADING = false;
+  return;
+}
 
     console.log("Director inputs →", {
       hook: LAST_HOOK_SCORE,
