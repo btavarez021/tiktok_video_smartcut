@@ -1488,10 +1488,9 @@ async function loadEditStrategy(force=false) {
   const list = document.getElementById("editStrategyList");
 
   if (!panel || !list) {
-  EDIT_STRATEGY_LOADING = false;
-  return;
-}
-
+    EDIT_STRATEGY_LOADING = false;
+    return;
+  }
 
   const delta = window.lastHookImprovementDelta || 0;
 
@@ -1501,15 +1500,15 @@ async function loadEditStrategy(force=false) {
 
   // No captions yet
   if (!lastSavedCaptionsText?.trim()) {
-  list.innerHTML = `
-    <div class="hint-text subtle">
-      Create captions to unlock AI direction.
-    </div>
-  `;
-  panel.classList.remove("hidden");
-  EDIT_STRATEGY_LOADING = false; // 🔥 ADD THIS
-  return;
-}
+    list.innerHTML = `
+      <div class="hint-text subtle">
+        Create captions to unlock AI direction.
+      </div>
+    `;
+    panel.classList.remove("hidden");
+    EDIT_STRATEGY_LOADING = false;
+    return;
+  }
 
   list.innerHTML = "Analyzing edit…";
 
@@ -1527,19 +1526,19 @@ async function loadEditStrategy(force=false) {
     contextEl.classList.remove("hidden");
   }
 
-  if (LAST_HOOK_SCORE == null || LAST_FLOW_SCORE == null) {
-    console.log("Director waiting for scores");
-    return;
-  }
-
-
-  console.log("Director inputs →", {
-  hook: LAST_HOOK_SCORE,
-  flow: LAST_FLOW_SCORE
-  });
-
-
   try {
+
+    // 🔥 MOVED INSIDE TRY (CRITICAL FIX)
+    if (LAST_HOOK_SCORE == null || LAST_FLOW_SCORE == null) {
+      console.log("Director waiting for scores");
+      return;
+    }
+
+    console.log("Director inputs →", {
+      hook: LAST_HOOK_SCORE,
+      flow: LAST_FLOW_SCORE
+    });
+
     const data = await jsonFetch(
       `/api/edit_strategy?session=${getActiveSession()}`
     );
@@ -1553,20 +1552,17 @@ async function loadEditStrategy(force=false) {
       hook: LAST_HOOK_SCORE,
       flow: LAST_FLOW_SCORE,
       items: items.map(i => ({
-  area: i.area,
-  impact: i.impact,
-  issue: i.issue
-}))
-
+        area: i.area,
+        impact: i.impact,
+        issue: i.issue
+      }))
     });
 
     if (!force && signature === LAST_DIRECTOR_SIGNATURE) {
-      EDIT_STRATEGY_LOADING = false;
       return; // nothing changed → keep UI calm
     }
 
     LAST_DIRECTOR_SIGNATURE = signature;
-
 
     if (!items.length) {
       list.innerHTML = `
@@ -1588,9 +1584,7 @@ async function loadEditStrategy(force=false) {
     // Smart next action
     // ================================
     const nextMove = getHookNextMove(hookScore, delta);
-
     highlightHookAction(nextMove);
-
 
     // ================================
     // Render
@@ -1603,11 +1597,7 @@ async function loadEditStrategy(force=false) {
         let toneIssue = s.issue;
         let toneImpact = s.impact;
 
-        // ================================
-        // ⭐ PROGRESS-AWARE HOOK LOGIC
-        // ================================
         if (s.area === "hook") {
-
           if (hookScore >= 80) {
             toneImpact = "low";
             toneIssue = "🔥 Excellent hook. Focus on pacing or flow next.";
@@ -1622,9 +1612,6 @@ async function loadEditStrategy(force=false) {
           }
         }
 
-        // ================================
-        // ⭐ SMART GUIDANCE
-        // ================================
         let guidance = `👉 ${s.action}`;
 
         if (s.area === "hook") {
@@ -1661,9 +1648,6 @@ async function loadEditStrategy(force=false) {
         `;
       }).join("");
 
-      // ================================
-      // 🎯 Progress Footer
-      // ================================
       const remaining = items.length;
 
       const footer = document.createElement("div");
@@ -1677,9 +1661,6 @@ async function loadEditStrategy(force=false) {
 
       list.appendChild(footer);
 
-      // ================================
-      // Jump to fix
-      // ================================
       list.querySelectorAll(".director-item").forEach(card => {
         card.addEventListener("click", () => {
           const area = card.dataset.area;
@@ -1695,8 +1676,6 @@ async function loadEditStrategy(force=false) {
     panel.classList.remove("hidden");
     renderPublishReadyState();
     renderEditProgress();
-    EDIT_STRATEGY_LOADING = false;
-
 
   } catch (err) {
     console.error(err);
