@@ -1517,7 +1517,7 @@ async function loadEditStrategy(force=false) {
     return;
   }
 
-  list.innerHTML = "Analyzing edit…";
+  
 
   // ================================
   // 🎥 Footage Intelligence
@@ -1573,10 +1573,16 @@ async function loadEditStrategy(force=false) {
     });
 
     if (!force && signature === LAST_DIRECTOR_SIGNATURE) {
-      return; // nothing changed → keep UI calm
-    }
+  console.log("🧠 Director unchanged — skipping render");
+
+  EDIT_STRATEGY_LOADING = false;   // 🔥 ensure unlock
+  return;
+}
+
 
     LAST_DIRECTOR_SIGNATURE = signature;
+
+    list.innerHTML = "Analyzing edit…";
 
     if (!items.length) {
       list.innerHTML = `
