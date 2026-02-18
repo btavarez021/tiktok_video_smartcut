@@ -131,7 +131,10 @@ async function refreshAfterChange({
       await loadEditStrategy();
     }
 
-    if (publish && (!hooks || LAST_HOOK_SCORE == null))
+    if (publish) {
+  renderPublishReadyState();
+}
+
 
 
     if (progress) setTimeout(renderEditProgress, 50);
@@ -3457,10 +3460,13 @@ async function applyAIRecommendation() {
   if (!ok) return;
 
   try {
-    // 🔒 SNAPSHOT FULL YAML (UNDO SAFETY)
-    const before = await jsonFetch(
-      `/api/config?session=${encodeURIComponent(session)}`
-    );
+    // 🔒 IMPORTANT: bypass CONFIG_CACHE intentionally.
+// We need a fresh server snapshot for undo safety.
+// Using getConfigCached() could return stale or mutated state.
+const before = await jsonFetch(
+  `/api/config?session=${encodeURIComponent(session)}`
+);
+
 
     window.aiUndoSnapshot = {
   session,
@@ -3963,6 +3969,7 @@ async function saveYaml() {
                 session: getActiveSession(),
             }),
         });
+        CONFIG_CACHE = null;
         setStatus("yamlStatus", "YAML saved to config.yml.", "success");
         await loadConfigAndYaml();
     } catch (err) {
@@ -4128,8 +4135,6 @@ async function refreshHookScore() {
         clearOverlayWarning();
         }
 
-  renderPublishReadyState();
-  setTimeout(renderEditProgress, 50);
   } catch (err) {
     console.error("Hook score error:", err);
     if (statusEl) statusEl.textContent = "Hook score unavailable.";
@@ -5099,13 +5104,18 @@ function getCaptionMode(){
 }
 
 async function loadCaptionMode() {
-    const session = getActiveSession();
-    const resp = await fetch(`/api/config?session=${session}`);
-    const data = await resp.json();
-
+  try {
+    const data = await getConfigCached(); 
     const mode = data.config?.render?.captions_mode || "all";
 
-    document.getElementById("captionModeSelect").value = mode;
+    const select = document.getElementById("captionModeSelect");
+    if (select) {
+      select.value = mode;
+    }
+
+  } catch (err) {
+    console.error("Failed to load caption mode", err);
+  }
 }
 
 
