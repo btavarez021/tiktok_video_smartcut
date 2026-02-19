@@ -4062,7 +4062,13 @@ async function refreshHookScore() {
     if (statusEl) statusEl.textContent = "Checking hook…";
 
     const session = encodeURIComponent(getActiveSession());
-    const data = await jsonFetch(`/api/hook_score?session=${session}`);
+    const data = await jsonFetch("/api/hook_score", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: getCurrentCaptionsText()
+    })
+  });
 
     const score = Number(data.score ?? 0);
 

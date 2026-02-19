@@ -98,6 +98,37 @@ def _run_variant_job(session: str, modes: dict, selected_hook: str | None):
             "error": str(e),
         }
 
+
+def score_hook_from_text(text: str) -> Dict[str, Any]:
+    """
+    Stateless hook scoring directly from editor text.
+    Used for live UI scoring without requiring save.
+    """
+
+    if not text:
+        return {
+            "hook": "",
+            "score": 0,
+            "reasons": ["No hook found."]
+        }
+
+    blocks = [
+        b.strip()
+        for b in re.split(r"\n\s*\n", text)
+        if b.strip()
+    ]
+
+    hook = blocks[0] if blocks else ""
+
+    result = score_hook_text(hook)
+
+    return {
+        "hook": hook,
+        "score": result.get("score", 0),
+        "reasons": result.get("reasons", [])
+    }
+
+
 def _run_yaml_job(session: str):
     try:
         api_generate_yaml(session)  # 👈 YOUR EXISTING LOGIC

@@ -277,8 +277,22 @@ def route_generate_hooks():
 # Hook Score
 #-------------------------------------------
 
-@app.route("/api/hook_score", methods=["GET"])
+@app.route("/api/hook_score", methods=["GET", "POST"])
 def route_hook_score():
+
+    # -----------------------------
+    # POST → score raw editor text
+    # -----------------------------
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        text = (data.get("text") or "").strip()
+
+        from assistant_api import score_hook_from_text
+        return jsonify(score_hook_from_text(text))
+
+    # -----------------------------
+    # GET → score from YAML (existing behavior)
+    # -----------------------------
     session = sanitize_session(request.args.get("session", "default"))
     return jsonify(api_hook_score(session))
 
