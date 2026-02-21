@@ -3305,6 +3305,36 @@ async function autoSelectIntentFromReadiness(summary) {
   );
 }
 
+function renderSetupSummary(data) {
+  const el = document.getElementById("aiSetupSummary");
+  if (!el) return;
+
+  // You can customize the copy based on your API payload
+  const clips = data?.clip_count ?? data?.clips ?? null;
+  const goal  = data?.recommended_goal ?? "";
+  const note  = data?.summary ?? data?.message ?? "";
+
+  el.innerHTML = `
+    <div class="ai-summary-row">
+      <div class="ai-summary-title">🧠 AI Setup Ready</div>
+      <div class="ai-summary-sub">
+        ${clips != null ? `Clips analyzed: <b>${clips}</b>.` : `Clips analyzed.`}
+        ${goal ? ` Recommended goal: <b>${goal}</b>.` : ``}
+      </div>
+      ${note ? `<div class="ai-summary-note">${note}</div>` : ``}
+    </div>
+
+    <div class="ai-summary-actions">
+      <button id="prepareStoryboardBtn" class="btn primary">
+        ⚡ Prepare storyboard
+      </button>
+      <button id="jumpToStoryboardBtn" class="btn ghost">
+        🎬 Jump to storyboard order
+      </button>
+    </div>
+  `;
+}
+
 async function loadAISetupSummary() {
   const data = await jsonFetch(
     `/api/ai_setup_summary?session=${getActiveSession()}`
@@ -3322,20 +3352,34 @@ async function loadAISetupSummary() {
 
   el.classList.remove("hidden");
 
-  // ⭐ THE IMPORTANT LINE
+  // ✅ Render the panel (and buttons)
   renderSetupSummary(data);
 
-  const goBtn = document.getElementById("goToVariantsBtn");
-  if (goBtn) {
-    goBtn.replaceWith(goBtn.cloneNode(true)); // wipes any old listeners
-    const freshBtn = document.getElementById("goToVariantsBtn");
-    freshBtn.onclick = async () => {
-      freshBtn.disabled = true;
-      await improveHooksAndCaptionsFlow();
-      freshBtn.disabled = false;
+  // ✅ Prepare storyboard (generate config + captions + scroll)
+  const prepBtn = document.getElementById("prepareStoryboardBtn");
+  if (prepBtn) {
+    prepBtn.replaceWith(prepBtn.cloneNode(true));
+    const fresh = document.getElementById("prepareStoryboardBtn");
+
+    fresh.onclick = async () => {
+      fresh.disabled = true;
+      try {
+        await improveHooksAndCaptionsFlow(); // your existing flow
+      } finally {
+        fresh.disabled = false;
+      }
     };
   }
 
+  // ✅ Jump-only helper (optional)
+  const jumpBtn = document.getElementById("jumpToStoryboardBtn");
+  if (jumpBtn) {
+    jumpBtn.onclick = () => {
+      openStep("#step-3");
+      document.getElementById("storyboardTimeline")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+  }
 }
 
 async function retryAnalysis() {
@@ -3598,6 +3642,22 @@ function renderSetupSummary(summary) {
     <div id="improveHooksStatus" class="status-text subtle"></div>
   </div>
 `;
+
+// ✅ Wire dynamic button after innerHTML injection
+  const goBtn = document.getElementById("goToVariantsBtn");
+  if (goBtn) {
+    goBtn.onclick = async () => {
+      goBtn.disabled = true;
+      setStatus("improveHooksStatus", "Preparing storyboard…", "working");
+
+      // optional: jump user into step 3 immediately (UI feedback)
+      await enterStoryboardStep();
+
+      await improveHooksAndCaptionsFlow();
+
+      goBtn.disabled = false;
+    };
+  }
 }
 
 async function enterStoryboardStep() {
@@ -3902,7 +3962,7 @@ renderStoryboardTimeline({
 });
 
 // ⬇️ ADD THIS
-autoSaveStoryboardOrder();
+saveStoryboardOrder({ silent: true });
 
 refreshAfterChange({
   director:true
