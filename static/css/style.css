@@ -4028,3 +4028,12 @@ body.no-scroll {
 @media (max-width: 900px){
   .ai-score-grid{ grid-template-columns: 1fr; }
 }
+
+
+@media (min-width: 1000px){
+  #aiControlPanel{
+    position: sticky;
+    top: 14px;
+    z-index: 5;
+  }
+}

@@ -212,8 +212,6 @@
         🤖 Generating AI variants…
         </div>
 
-        <div id="aiSetupSummary" class="ai-summary hidden"></div>
-
         <div class="card-subsection">
         <h3>
             Detected Clips & Analyses
@@ -459,10 +457,10 @@
 ================================ -->
 <section id="aiControlPanel" class="ai-control-panel">
 
-  <!-- Readiness (move here from Step 1) -->
+  <!-- Readiness -->
   <div id="aiSetupSummary" class="ai-summary hidden"></div>
 
-  <!-- Progress (move here from Step 4) -->
+  <!-- Progress -->
   <div id="editProgressWrap" class="edit-progress-wrap">
     <div class="edit-progress-top">
       <div class="edit-progress-title">Edit Progress</div>
@@ -478,20 +476,100 @@
     </div>
   </div>
 
-  <!-- Scores row -->
+  <!-- Scores -->
   <div class="ai-score-grid">
-    <!-- HOOK SCORE (leave your existing markup, just move it inside here) -->
+
+    <!-- ================================
+         HOOK SCORE
+    ================================= -->
     <div class="ai-score-card">
-      <!-- paste your existing Hook Score markup here -->
+
+      <div class="hook-score-card">
+
+        <div class="hook-score-header">
+          <strong>
+            Hook Score
+            <span class="tooltip">ⓘ
+              <span class="tooltiptext tooltip-wide">
+                Scores how strong your <b>first caption</b> is at stopping scroll.<br><br>
+                Based on curiosity, clarity, emotional pull, and pacing.<br><br>
+                <b>Higher score = more people keep watching.</b>
+              </span>
+            </span>
+          </strong>
+
+          <span id="hookScoreValue" class="hook-score-value clickable">–/100</span>
+          <div id="hookScoreLabel" class="score-label"></div>
+        </div>
+
+        <p class="hint-text subtle">
+          Used to recommend the strongest hook and captions.
+        </p>
+
+        <!-- Current hook -->
+        <div id="hookScoreHook" class="hook-score-hook">
+          (no opening caption yet)
+        </div>
+
+        <!-- Reasons -->
+        <ul id="hookScoreReasons" class="hook-score-reasons"></ul>
+        <span id="hookScoreStatus" class="hint-text"></span>
+
+        <!-- CTA -->
+        <div class="hook-score-actions">
+          <button id="openHookLabBtn" class="btn primary small">
+            🔍 Find better hooks
+          </button>
+          <p class="hint-text subtle">
+            Click to generate stronger openings for this video.
+          </p>
+        </div>
+
+      </div>
     </div>
 
-    <!-- STORY FLOW (leave your existing markup, just move it inside here) -->
+
+    <!-- ================================
+         STORY FLOW
+    ================================= -->
     <div class="ai-score-card">
-      <!-- paste your existing Story Flow markup here -->
+
+      <div id="storyFlowLockedHint" class="hint-text hidden">
+        🔒 Improve the opening hook to unlock story flow scoring.
+      </div>
+
+      <div class="story-flow-card hidden">
+
+        <div class="story-flow-header">
+          <strong>
+            📖 Story Flow
+            <span class="tooltip">ⓘ
+              <span class="tooltiptext tooltip-wide">
+                Scores how well captions <b>after the hook</b> flow together.<br><br>
+                Focuses on pacing, clarity, and keeping curiosity alive.<br><br>
+                <b>Higher score = viewers are more likely to finish the video.</b>
+              </span>
+            </span>
+          </strong>
+
+          <span id="storyFlowScoreValue" class="story-flow-value">–/100</span>
+          <div id="storyFlowScoreLabel" class="score-label"></div>
+        </div>
+
+        <p class="hint-text subtle">
+          Scoring captions after the hook (caption 2+)
+        </p>
+
+        <ul id="storyFlowReasons" class="story-flow-reasons"></ul>
+
+      </div>
     </div>
+
   </div>
 
-  <!-- AI Director (move here from Step 4) -->
+  <!-- ================================
+       AI DIRECTOR
+  ================================= -->
   <div id="editStrategyPanel" class="ai-director hidden">
     <div class="director-title">🧠 AI Edit Strategy</div>
     <div id="editStrategyContext" class="director-context hidden"></div>
@@ -503,89 +581,8 @@
 </section>
 
 
-        <!-- ================================
-            HOOK SCORE (Primary Entry Point)
-        ================================ -->
-        <div class="hook-score-card">
-
-        <div class="hook-score-header">
-            <strong>
-            Hook Score
-            
-            <span class="tooltip">ⓘ
-                <span class="tooltiptext tooltip-wide">
-                Scores how strong your <b>first caption</b> is at stopping scroll.<br><br>
-                Based on curiosity, clarity, emotional pull, and pacing.<br><br>
-                <b>Higher score = more people keep watching.</b>
-                </span>
-            </span>
-            </strong>
-
-            <span id="hookScoreValue" class="hook-score-value clickable">–/100</span>
-            <div id="hookScoreLabel" class="score-label"></div>
-
-        </div>
-
         
 
-        <p class="hint-text subtle">
-            Used to recommend the strongest hook and captions.
-        </p>
-        </div>
-
-
-        <!-- Current hook -->
-        <div id="hookScoreHook" class="hook-score-hook">
-            (no opening caption yet)
-        </div>
-
-        <!-- Why it scored this way -->
-        <ul id="hookScoreReasons" class="hook-score-reasons"></ul>
-        <span id="hookScoreStatus" class="hint-text"></span>
-
-        <!-- CTA -->
-        <div class="hook-score-actions">
-            <button id="openHookLabBtn" class="btn primary small">
-            🔍 Find better hooks
-            </button>
-            <p class="hint-text subtle">
-            Click to generate stronger openings for this video.
-            </p>
-        </div>
-
-        </div>
-
-
-        <!-- ================================
-            STORY FLOW (Locked by Hook)
-        ================================ -->
-        <div id="storyFlowLockedHint" class="hint-text hidden">
-        🔒 Improve the opening hook to unlock story flow scoring.
-        </div>
-
-        <div class="story-flow-card hidden">
-        <div class="story-flow-header">
-            <strong>
-            📖 Story Flow
-            <span class="tooltip">ⓘ
-                <span class="tooltiptext tooltip-wide">
-                Scores how well captions <b>after the hook</b> flow together.<br><br>
-                Focuses on pacing, clarity, and keeping curiosity alive.<br><br>
-                <b>Higher score = viewers are more likely to finish the video.</b>
-                </span>
-            </span>
-            </strong>
-
-            <span id="storyFlowScoreValue" class="story-flow-value">–/100</span>
-            <div id="storyFlowScoreLabel" class="score-label"></div>
-
-        </div>
-
-        <p class="hint-text subtle">
-            Scoring captions after the hook (caption 2+)
-        </p>
-
-        <ul id="storyFlowReasons" class="story-flow-reasons"></ul>
         </div>
 
         <!-- ================================
@@ -772,25 +769,6 @@
         </p>
     </div>
     
-    <!-- ================================ -->
-    <!-- Edit Progress -->
-    <!-- ================================ -->
-    <div id="editProgressWrap" class="edit-progress-wrap">
-    <div class="edit-progress-top">
-        <div class="edit-progress-title">Edit Progress</div>
-        <div id="editProgressPercent" class="edit-progress-percent">0%</div>
-    </div>
-
-    <div class="edit-progress-bar">
-        <div id="editProgressFill" class="edit-progress-fill"></div>
-    </div>
-
-    <div id="editProgressHint" class="edit-progress-hint">
-        Start improving your video to unlock publish quality.
-    </div>
-    </div>
-
-    <div id="editStrategyPanel" class="ai-director hidden">
     <div class="director-title">🧠 AI Edit Strategy</div>
     <div id="editStrategyContext" class="director-context hidden"></div>
     <div class="director-divider"></div>
