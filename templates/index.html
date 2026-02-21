@@ -454,6 +454,54 @@
 
 </div>
 
+<!-- ================================
+    AI CONTROL PANEL (all together)
+================================ -->
+<section id="aiControlPanel" class="ai-control-panel">
+
+  <!-- Readiness (move here from Step 1) -->
+  <div id="aiSetupSummary" class="ai-summary hidden"></div>
+
+  <!-- Progress (move here from Step 4) -->
+  <div id="editProgressWrap" class="edit-progress-wrap">
+    <div class="edit-progress-top">
+      <div class="edit-progress-title">Edit Progress</div>
+      <div id="editProgressPercent" class="edit-progress-percent">0%</div>
+    </div>
+
+    <div class="edit-progress-bar">
+      <div id="editProgressFill" class="edit-progress-fill"></div>
+    </div>
+
+    <div id="editProgressHint" class="edit-progress-hint">
+      Start improving your video to unlock publish quality.
+    </div>
+  </div>
+
+  <!-- Scores row -->
+  <div class="ai-score-grid">
+    <!-- HOOK SCORE (leave your existing markup, just move it inside here) -->
+    <div class="ai-score-card">
+      <!-- paste your existing Hook Score markup here -->
+    </div>
+
+    <!-- STORY FLOW (leave your existing markup, just move it inside here) -->
+    <div class="ai-score-card">
+      <!-- paste your existing Story Flow markup here -->
+    </div>
+  </div>
+
+  <!-- AI Director (move here from Step 4) -->
+  <div id="editStrategyPanel" class="ai-director hidden">
+    <div class="director-title">🧠 AI Edit Strategy</div>
+    <div id="editStrategyContext" class="director-context hidden"></div>
+    <div class="director-divider"></div>
+    <div class="director-moves-title">🎬 Director Moves</div>
+    <div id="editStrategyList"></div>
+  </div>
+
+</section>
+
 
         <!-- ================================
             HOOK SCORE (Primary Entry Point)
@@ -681,7 +729,7 @@
             <button id="generateVariantsBtn" class="btn primary">
             ⚡ Generate Caption Variants
             </button>
-            <div id="variantsInlineStatus" class="stats-text subtle"></div>
+            <div id="variantsInlineStatusText" class="stats-text subtle"></div>
             </div>
 
             <div id="variantsInlineStatus" class="inline-status hidden"></div>
@@ -703,16 +751,7 @@
         </div>
     </div>
 </section>
-<!-- ================================
-    // 
-    
-    <div id="editStrategyPanel" class="ai-director hidden">
-  <div class="director-title">🧠 AI Edit Strategy</div>
-  <div id="editStrategyList"></div>
-</div>
-= PRESENTATION & STYLE
-    // Visual preview only — no content mutation unless Apply is clicked  
-================================== -->
+
 <section class="card step-card" id="step-4">
     <div class="card-header">
         <div class="session-tag active-session-tag"> Session: <span class="sessionLabel"></span></div>

@@ -4000,3 +4000,31 @@ body.no-scroll {
   background: #f59e0b;
   color: white;
 }
+
+
+.ai-control-panel{
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+}
+
+.ai-score-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.ai-score-card{
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.20);
+}
+
+/* mobile */
+@media (max-width: 900px){
+  .ai-score-grid{ grid-template-columns: 1fr; }
+}
