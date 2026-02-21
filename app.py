@@ -405,7 +405,7 @@ def api_analyses_cache():
     session = request.args.get("session", "default")
     session = sanitize_session(session)
     results = load_analysis_results_session(session)
-    return results
+    return jsonify(results)
 
 @app.route("/api/analyze", methods=["POST"])
 def route_analyze():
@@ -424,7 +424,8 @@ def route_generate_yaml():
 
 @app.route("/api/config", methods=["GET"])
 def route_get_config():
-    return jsonify(api_get_config())
+    session = sanitize_session(request.args.get("session", "default"))
+    return jsonify(api_get_config(session))
 
 
 @app.route("/api/save_yaml", methods=["POST"])
@@ -436,12 +437,7 @@ def route_save_yaml_route():
         request.args.get("session", data.get("session", "default"))
     )
 
-    old_args = request.args
-    try:
-        request.args = ImmutableMultiDict({**old_args, "session": session})
-        return jsonify(api_save_yaml(yaml_text))
-    finally:
-        request.args = old_args
+    return jsonify(api_save_yaml(yaml_text, session=session))
 
 
 
@@ -488,10 +484,19 @@ def api_apply_variant():
     text = data.get("text", "")
 
     if not text.strip():
-        return {"status": "error", "error": "Empty variant text"}
+        return jsonify({"status": "error", "error": "Empty variant text"}), 400
 
-    # Reuse existing caption save logic
-    return api_save_captions(text, session)
+    save_result = api_save_captions(text, session)
+
+    hook_score = api_hook_score(session)
+    flow_score = api_story_flow_score(session)
+
+    return jsonify({
+        "status": "ok",
+        "save": save_result,
+        "hook_score": hook_score,
+        "story_flow": flow_score
+    })
 
 
 @app.route("/api/captions_mode", methods=["POST"])
@@ -509,7 +514,7 @@ def clip_preview():
     filename = data.get("filename")
     if not filename:
         return jsonify({"error": "Missing filename"}), 400
-    return api_clip_preview(session, filename)
+    return jsonify(api_clip_preview(session, filename))
 
 
 

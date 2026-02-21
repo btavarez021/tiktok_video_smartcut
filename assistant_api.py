@@ -131,11 +131,15 @@ def score_hook_from_text(text: str) -> Dict[str, Any]:
 
 def _run_yaml_job(session: str):
     try:
-        api_generate_yaml(session)  # 👈 YOUR EXISTING LOGIC
-        YAML_JOBS[session]["status"] = "done"
+        api_generate_yaml(session)
+        job = YAML_JOBS.get(session) or {}
+        job["status"] = "done"
+        YAML_JOBS[session] = job
     except Exception as e:
-        YAML_JOBS[session]["status"] = "error"
-        YAML_JOBS[session]["error"] = str(e)
+        job = YAML_JOBS.get(session) or {}
+        job["status"] = "error"
+        job["error"] = str(e)
+        YAML_JOBS[session] = job
 
 
 def api_generate_yaml_start(session: str):
@@ -1899,8 +1903,8 @@ def api_clip_preview(session: str, filename: str) -> dict:
 # -------------------------------
 # Config retrieval + saving (global)
 # -------------------------------
-def api_get_config() -> Dict[str, Any]:
-    session = sanitize_session(request.args.get("session", "default"))
+def api_get_config(session: str = "default") -> Dict[str, Any]:
+    session = sanitize_session(session)
     cfg = _load_config(session)
 
     if not cfg:
@@ -1912,13 +1916,12 @@ def api_get_config() -> Dict[str, Any]:
 
 
 
-def api_save_yaml(yaml_text: str) -> Dict[str, Any]:
+def api_save_yaml(yaml_text: str, session: str = "default") -> Dict[str, Any]:
     try:
-        # Parse raw user YAML
         cfg = yaml.safe_load(yaml_text) or {}
         cfg = sanitize_yaml_filenames(cfg)
 
-        session = sanitize_session(request.args.get("session", "default"))
+        session = sanitize_session(session)
         save_config(session, cfg)
 
         log_success("[SAVE_YAML]", f"config.yml saved for session '{session}'")
@@ -2054,9 +2057,87 @@ def normalize_variant_text(text: str, expected_blocks: int) -> str:
 
     return "\n\n".join(blocks)
 
+def score_story_flow_from_text(text: str) -> dict:
+    """
+    Stateless story flow scoring for raw variant text.
+    Used when evaluating generated caption variants.
+    """
+
+    blocks = [
+        b.strip()
+        for b in re.split(r"\n\s*\n", text)
+        if b.strip()
+    ]
+
+    # Ignore first block (hook)
+    middle = blocks[1:]
+
+    if len(middle) < 2:
+        return {
+            "score": 0,
+            "reasons": ["Not enough captions to evaluate flow."]
+        }
+
+    if not client:
+        return {
+            "score": 70,
+            "reasons": ["AI unavailable — default score."]
+        }
+
+    prompt = f"""
+Score the narrative flow of these captions from 1–100.
+
+Evaluate positively if:
+- They feel cohesive
+- Logical progression
+- Consistent tone
+
+Evaluate negatively if:
+- Disconnected
+- Random jumps
+- Confusing order
+
+Captions:
+{json.dumps(middle, indent=2)}
+
+Return JSON only:
+{{
+  "score": number,
+  "reasons": ["reason1", "reason2"]
+}}
+"""
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": "Return ONLY valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.4,
+        )
+
+        content = resp.choices[0].message.content.strip()
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        result = json.loads(content[start:end])
+
+        return {
+            "score": int(result.get("score", 70)),
+            "reasons": result.get("reasons", [])
+        }
+
+    except Exception:
+        return {
+            "score": 70,
+            "reasons": ["Flow evaluation failed."]
+        }
+
 def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
     cfg = _load_config(session)
+
+    
 
     # --------------------------------------------------
     # Collect captions from YAML
@@ -2175,7 +2256,10 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
                         "It may be longer and may be a full sentence. "
                         "DO NOT rewrite or remove it."
                     )
-
+            
+            if not client:
+                return {"variants": [], "error": "ai_unavailable", "message": "AI unavailable (missing API key)"}
+            
             resp = client.chat.completions.create(
                 model=TEXT_MODEL,
                 messages=[
@@ -2194,6 +2278,12 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
                 raw_text,
                 expected_blocks=len(captions)
             )
+
+            if hook_locked:
+                blocks = [b.strip() for b in re.split(r"\n\s*\n", normalized) if b.strip()]
+                if blocks:
+                    blocks[0] = selected_hook  # force verbatim
+                    normalized = "\n\n".join(blocks)
 
             variants.append({
                 "text": normalized,
@@ -2240,7 +2330,6 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
 
 
         # 🎯 Intent-based recommendation
-        cfg = _load_config(session)
         intent = cfg.get("intent", "discovery")
 
         # --------------------------------------------------
@@ -2248,12 +2337,6 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
         # --------------------------------------------------
         for idx, v in enumerate(variants):
             text = v.get("text", "")
-            tone = v.get("tone", "").lower()
-
-            is_punchy = "punchy" in tone
-            is_story = "story" in tone
-            is_minimal = "minimal" in tone
-            is_rewrite = "rewrite" in tone
 
             if hook_locked:
                 v["uses_selected_hook"] = True
@@ -2261,39 +2344,22 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
                 v["uses_selected_hook"] = False
 
 
-            # Simple heuristics (fast + deterministic)
-            hook_score = 0
-            flow_score = 0
+            text = v.get("text", "")
 
-            # Hook strength
-            if any(word in text.lower() for word in ["you", "this", "watch", "wait", "from"]):
-                hook_score += 20
-            if "!" in text:
-                hook_score += 10
+            # --- REAL HOOK SCORE ---
+            blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
+            first_block = blocks[0] if blocks else ""
+            hook_score = score_hook_text(first_block).get("score", 0)
 
-            # Flow / structure
-            blocks = [b for b in text.split("\n\n") if b.strip()]
-            flow_score += min(len(blocks) * 10, 40)
-
-
-            # Tone bias
-            if is_punchy:
-                hook_score += 15
-            if is_story:
-                flow_score += 15
-            if is_minimal:
-                flow_score += 10
+            # --- REAL STORY FLOW SCORE ---
+            flow_result = score_story_flow_from_text(text)
+            flow_score = flow_result.get("score", 0)
 
             v["id"] = idx
             v["hook_score"] = hook_score
             v["story_flow"] = flow_score
 
-            import random
-
-            jitter = random.random() * 0.5  # tiny randomness
-            v["hook_score"] += jitter
-            v["story_flow"] += jitter
-
+        
 
 
         best = choose_best_variant(variants, intent)
