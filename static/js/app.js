@@ -3355,21 +3355,6 @@ async function loadAISetupSummary() {
   // ✅ Render the panel (and buttons)
   renderSetupSummary(data);
 
-  // ✅ Prepare storyboard (generate config + captions + scroll)
-  const prepBtn = document.getElementById("prepareStoryboardBtn");
-  if (prepBtn) {
-    prepBtn.replaceWith(prepBtn.cloneNode(true));
-    const fresh = document.getElementById("prepareStoryboardBtn");
-
-    fresh.onclick = async () => {
-      fresh.disabled = true;
-      try {
-        await improveHooksAndCaptionsFlow(); // your existing flow
-      } finally {
-        fresh.disabled = false;
-      }
-    };
-  }
 
   // ✅ Jump-only helper (optional)
   const jumpBtn = document.getElementById("jumpToStoryboardBtn");
@@ -3456,24 +3441,25 @@ if (status === "done") {
 
   await autoSelectIntentFromReadiness(summary);
 
-  // 🔥 AUTO-ADVANCE TO STORYBOARD
-  const yamlStatus = await jsonFetch(
-    `/api/generate_yaml/status?session=${getActiveSession()}`
-  );
+  // 🔥 AUTO-ADVANCE TO STORYBOARD (safe guard)
+const yamlStatus = await jsonFetch(
+  `/api/generate_yaml/status?session=${getActiveSession()}`
+);
 
-  if (
-    !yamlStatus ||
-    yamlStatus.status === "idle" ||
-    yamlStatus.status === "not_started"
-  ) {
-    console.log("⚡ Auto-generating storyboard");
-    PENDING_SCROLL_TO_STORYBOARD = true;
-    await generateYamlAsync();
-  } else if (yamlStatus.status === "done") {
-    console.log("📦 Storyboard already exists — hydrating");
-    PENDING_SCROLL_TO_STORYBOARD = true;
-    await hydrateStoryboardAndScroll();
-  }
+if (
+  !YAML_POLL_ACTIVE &&
+  yamlStatus &&
+  (yamlStatus.status === "idle" || yamlStatus.status === "not_started")
+) {
+  console.log("⚡ Auto-generating storyboard");
+  PENDING_SCROLL_TO_STORYBOARD = true;
+  await generateYamlAsync();
+
+} else if (yamlStatus?.status === "done") {
+  console.log("📦 Storyboard already exists — hydrating");
+  PENDING_SCROLL_TO_STORYBOARD = true;
+  await hydrateStoryboardAndScroll();
+}
 
   ANALYZE_POLL_ACTIVE = false;
   lastAnalyzeStatus = null;
