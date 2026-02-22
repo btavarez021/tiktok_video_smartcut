@@ -3434,37 +3434,51 @@ async function pollAnalyzeStatus() {
       setTimeout(pollAnalyzeStatus, 1200);
       return;
     }
+// -----------------------------
+// DONE (auto-advance to storyboard)
+// -----------------------------
+if (status === "done") {
+  console.log("✅ Analysis finished");
 
-    // -----------------------------
-    // DONE (robust — no transition required)
-    // -----------------------------
-    if (status === "done") {
-      console.log("✅ Analysis finished");
+  setStatus(
+    "analyzeStatus",
+    "AI analysis ready ✓",
+    "success",
+    false
+  );
 
-      setStatus(
-        "analyzeStatus",
-        "AI analysis ready ✓",
-        "success",
-        false
-      );
+  // Refresh analysis-driven UI
+  await refreshAnalyses();
 
-      // 🔄 Refresh analysis-driven UI
-      await refreshAnalyses();
+  const summary = await jsonFetch(
+    `/api/ai_setup_summary?session=${getActiveSession()}`
+  );
 
-      await new Promise(r => setTimeout(r, 60));
-      
-      await loadAISetupSummary();
+  await autoSelectIntentFromReadiness(summary);
 
-      const summary = await jsonFetch(
-        `/api/ai_setup_summary?session=${getActiveSession()}`
-      );
+  // 🔥 AUTO-ADVANCE TO STORYBOARD
+  const yamlStatus = await jsonFetch(
+    `/api/generate_yaml/status?session=${getActiveSession()}`
+  );
 
-      await autoSelectIntentFromReadiness(summary);
+  if (
+    !yamlStatus ||
+    yamlStatus.status === "idle" ||
+    yamlStatus.status === "not_started"
+  ) {
+    console.log("⚡ Auto-generating storyboard");
+    PENDING_SCROLL_TO_STORYBOARD = true;
+    await generateYamlAsync();
+  } else if (yamlStatus.status === "done") {
+    console.log("📦 Storyboard already exists — hydrating");
+    PENDING_SCROLL_TO_STORYBOARD = true;
+    await hydrateStoryboardAndScroll();
+  }
 
-      ANALYZE_POLL_ACTIVE = false;
-      lastAnalyzeStatus = null;
-      return;
-    }
+  ANALYZE_POLL_ACTIVE = false;
+  lastAnalyzeStatus = null;
+  return;
+}
 
     // -----------------------------
     // UNKNOWN / IDLE → stop polling
@@ -3634,30 +3648,8 @@ function renderSetupSummary(summary) {
     <div class="ai-summary-recommend">
       🎯 AI suggests: <strong>${summary.recommended_goal || "General highlight"}</strong>
     </div>
-
-    <button id="goToVariantsBtn" class="btn primary">
-      Prepare storyboard →
-    </button>
-
-    <div id="improveHooksStatus" class="status-text subtle"></div>
   </div>
 `;
-
-// ✅ Wire dynamic button after innerHTML injection
-  const goBtn = document.getElementById("goToVariantsBtn");
-  if (goBtn) {
-    goBtn.onclick = async () => {
-      goBtn.disabled = true;
-      setStatus("improveHooksStatus", "Preparing storyboard…", "working");
-
-      // optional: jump user into step 3 immediately (UI feedback)
-      await enterStoryboardStep();
-
-      await improveHooksAndCaptionsFlow();
-
-      goBtn.disabled = false;
-    };
-  }
 }
 
 async function enterStoryboardStep() {
