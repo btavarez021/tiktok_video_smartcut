@@ -3340,31 +3340,13 @@ async function loadAISetupSummary() {
     `/api/ai_setup_summary?session=${getActiveSession()}`
   );
 
-  console.log("AI summary data:", data);
+  // Step 1 summary (near Analyze)
+  renderSetupSummary(data, "aiSetupSummaryStep1");
 
-  const el = document.getElementById("aiSetupSummary");
-  if (!el || !data) return;
+  // Step 3 summary (inside AI Control Panel)
+  renderSetupSummary(data, "aiSetupSummary");
 
-  if (!data.has_analysis) {
-    el.classList.add("hidden");
-    return;
-  }
-
-  el.classList.remove("hidden");
-
-  // ✅ Render the panel (and buttons)
-  renderSetupSummary(data);
-
-
-  // ✅ Jump-only helper (optional)
-  const jumpBtn = document.getElementById("jumpToStoryboardBtn");
-  if (jumpBtn) {
-    jumpBtn.onclick = () => {
-      openStep("#step-3");
-      document.getElementById("storyboardTimeline")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
-  }
+  return data;
 }
 
 async function retryAnalysis() {
@@ -3432,14 +3414,13 @@ if (status === "done") {
     false
   );
 
-  // Refresh analysis-driven UI
-  await refreshAnalyses();
+ await refreshAnalyses();
 
-  const summary = await jsonFetch(
-    `/api/ai_setup_summary?session=${getActiveSession()}`
-  );
+ await loadConfigAndYaml();
+ await loadCaptionsFromYaml();
 
-  await autoSelectIntentFromReadiness(summary);
+const summary = await loadAISetupSummary();   // ✅ renders the panels
+await autoSelectIntentFromReadiness(summary);
 
   // 🔥 AUTO-ADVANCE TO STORYBOARD (safe guard)
 const yamlStatus = await jsonFetch(
@@ -3589,11 +3570,11 @@ const before = await jsonFetch(
   }
 }
 
-function renderSetupSummary(summary) {
-  const el = document.getElementById("aiSetupSummary");
+function renderSetupSummary(summary, targetId = "aiSetupSummary") {
+  const el = document.getElementById(targetId);
   if (!el) return;
 
-  if (!summary.has_analysis) {
+  if (!summary?.has_analysis) {
     el.classList.add("hidden");
     return;
   }
@@ -3601,41 +3582,39 @@ function renderSetupSummary(summary) {
   el.classList.remove("hidden");
 
   el.innerHTML = `
-  <div class="ai-summary-card premium">
-    <div class="ai-summary-header">
-      <h3>🧠 AI Readiness Summary</h3>
-      <p class="hint-text subtle">
-        Here’s what AI understands about your video.
-      </p>
+    <div class="ai-summary-card premium">
+      <div class="ai-summary-header">
+        <h3>🧠 AI Readiness Summary</h3>
+        <p class="hint-text subtle">Here’s what AI understands about your video.</p>
+      </div>
+
+      <div class="ai-summary-stats">
+        <div class="stat">
+          <div class="stat-value">${summary.clips ?? "-"}</div>
+          <div class="stat-label">Clips</div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-value">${summary.hook_confidence || "unknown"}</div>
+          <div class="stat-label">Hook</div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-value">${summary.labels?.quality || "none"}</div>
+          <div class="stat-label">Labels</div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-value">${summary.estimated_length || "-"}</div>
+          <div class="stat-label">Length</div>
+        </div>
+      </div>
+
+      <div class="ai-summary-recommend">
+        🎯 AI suggests: <strong>${summary.recommended_goal || "General highlight"}</strong>
+      </div>
     </div>
-
-    <div class="ai-summary-stats">
-      <div class="stat">
-        <div class="stat-value">${summary.clips ?? "-"}</div>
-        <div class="stat-label">Clips</div>
-      </div>
-
-      <div class="stat">
-        <div class="stat-value">${summary.hook_confidence || "unknown"}</div>
-        <div class="stat-label">Hook</div>
-      </div>
-
-      <div class="stat">
-        <div class="stat-value">${summary.labels?.quality || "none"}</div>
-        <div class="stat-label">Labels</div>
-      </div>
-
-      <div class="stat">
-        <div class="stat-value">${summary.estimated_length || "-"}</div>
-        <div class="stat-label">Length</div>
-      </div>
-    </div>
-
-    <div class="ai-summary-recommend">
-      🎯 AI suggests: <strong>${summary.recommended_goal || "General highlight"}</strong>
-    </div>
-  </div>
-`;
+  `;
 }
 
 async function enterStoryboardStep() {
