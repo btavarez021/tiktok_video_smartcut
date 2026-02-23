@@ -4930,6 +4930,20 @@ async function regenerateCaptionsFromClips() {
     }
 }
 
+function toggleHookDetails() {
+  const body = document.getElementById("hookDetailsBody");
+  if (!body) return;
+
+  body.classList.toggle("collapsed");
+}
+
+function toggleStoryDetails() {
+  const body = document.getElementById("storyDetailsBody");
+  if (!body) return;
+
+  body.classList.toggle("collapsed");
+}
+
 function focusCaptionChanges() {
   const wrapper = document.getElementById("captionCompareWrapper");
   if (!wrapper || wrapper.classList.contains("hidden")) return;

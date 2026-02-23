@@ -4048,3 +4048,15 @@ body.no-scroll {
 .ai-director.collapsed {
   display: none;
 }
+
+.collapsible-header {
+  font-weight: 600;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.collapsible-body.collapsed {
+  display: none;
+}

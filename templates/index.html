@@ -477,13 +477,19 @@
     </div>
   </div>
 
-  <!-- Scores -->
-  <div class="ai-score-grid">
+  <!-- Scores (Collapsible) -->
+<div class="ai-score-grid">
 
-    <!-- ================================
-         HOOK SCORE
-    ================================= -->
-    <div class="ai-score-card">
+  <!-- ================================
+       HOOK DETAILS (Collapsible)
+  ================================= -->
+  <div class="ai-score-card collapsible-section">
+
+    <div class="collapsible-header" onclick="toggleHookDetails()">
+      ▸ Hook Details
+    </div>
+
+    <div id="hookDetailsBody" class="collapsible-body collapsed">
 
       <div class="hook-score-card">
 
@@ -492,14 +498,16 @@
             Hook Score
             <span class="tooltip">ⓘ
               <span class="tooltiptext tooltip-wide">
-                Scores how strong your <b>first caption</b> is at stopping scroll.<br><br>
-                Based on curiosity, clarity, emotional pull, and pacing.<br><br>
-                <b>Higher score = more people keep watching.</b>
+                Scores how strong your <b>first caption</b> is at stopping scroll.
               </span>
             </span>
           </strong>
 
-          <span id="hookScoreValue" class="hook-score-value clickable" style="font-size:18px;">–/100</span>
+          <span id="hookScoreValue"
+                class="hook-score-value clickable"
+                style="font-size:18px;">
+            –/100
+          </span>
           <div id="hookScoreLabel" class="score-label"></div>
         </div>
 
@@ -507,16 +515,13 @@
           Used to recommend the strongest hook and captions.
         </p>
 
-        <!-- Current hook -->
         <div id="hookScoreHook" class="hook-score-hook">
           (no opening caption yet)
         </div>
 
-        <!-- Reasons -->
         <ul id="hookScoreReasons" class="hook-score-reasons"></ul>
         <span id="hookScoreStatus" class="hint-text"></span>
 
-        <!-- CTA -->
         <div class="hook-score-actions">
           <button id="openHookLabBtn" class="btn primary small">
             🔍 Find better hooks
@@ -528,12 +533,19 @@
 
       </div>
     </div>
+  </div>
 
 
-    <!-- ================================
-         STORY FLOW
-    ================================= -->
-    <div class="ai-score-card">
+  <!-- ================================
+       STORY FLOW (Collapsible)
+  ================================= -->
+  <div class="ai-score-card collapsible-section">
+
+    <div class="collapsible-header" onclick="toggleStoryDetails()">
+      ▸ Story Flow Details
+    </div>
+
+    <div id="storyDetailsBody" class="collapsible-body collapsed">
 
       <div id="storyFlowLockedHint" class="hint-text hidden">
         🔒 Improve the opening hook to unlock story flow scoring.
@@ -546,14 +558,16 @@
             📖 Story Flow
             <span class="tooltip">ⓘ
               <span class="tooltiptext tooltip-wide">
-                Scores how well captions <b>after the hook</b> flow together.<br><br>
-                Focuses on pacing, clarity, and keeping curiosity alive.<br><br>
-                <b>Higher score = viewers are more likely to finish the video.</b>
+                Scores how well captions after the hook flow together.
               </span>
             </span>
           </strong>
 
-          <span id="storyFlowScoreValue" class="story-flow-value" style="font-size:18px;">–/100</span>
+          <span id="storyFlowScoreValue"
+                class="story-flow-value"
+                style="font-size:18px;">
+            –/100
+          </span>
           <div id="storyFlowScoreLabel" class="score-label"></div>
         </div>
 
@@ -565,8 +579,9 @@
 
       </div>
     </div>
-
   </div>
+
+</div>
 
   <!-- ================================
        AI DIRECTOR
