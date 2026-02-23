@@ -3343,9 +3343,6 @@ async function loadAISetupSummary() {
   // Step 1 summary (near Analyze)
   renderSetupSummary(data, "aiSetupSummaryStep1");
 
-  // Step 3 summary (inside AI Control Panel)
-  renderSetupSummary(data, "aiSetupSummary");
-
   return data;
 }
 
