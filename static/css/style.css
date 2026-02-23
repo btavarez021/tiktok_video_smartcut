@@ -4028,3 +4028,23 @@ body.no-scroll {
 @media (max-width: 900px){
   .ai-score-grid{ grid-template-columns: 1fr; }
 }
+
+#aiControlPanel {
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  background: #111;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.ai-score-card {
+  padding: 8px;
+}
+
+.edit-progress-wrap {
+  margin-bottom: 8px;
+}
+.ai-director.collapsed {
+  display: none;
+}

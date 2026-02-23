@@ -5902,6 +5902,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   .getElementById("autoBoostHookBtn")
   ?.addEventListener("click", autoBoostSelectedHook);
 
+  // ================================
+  // AI Director Toggle (3.1)
+  // ================================
+  const directorPanel = document.getElementById("editStrategyPanel");
+  const toggleDirectorBtn = document.getElementById("toggleDirectorBtn");
+
+  if (directorPanel) {
+    // Ensure starts collapsed (even if HTML forgot the class)
+    directorPanel.classList.add("collapsed");
+  }
+
+  if (toggleDirectorBtn && directorPanel) {
+    toggleDirectorBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      directorPanel.classList.toggle("collapsed");
+
+      // Optional: update button label
+      toggleDirectorBtn.textContent = directorPanel.classList.contains("collapsed")
+        ? "🧠 AI Director"
+        : "🧠 Hide Director";
+    });
+  }
+
 
   setTimeout(async () => {
   try {

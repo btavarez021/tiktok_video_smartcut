@@ -499,7 +499,7 @@
             </span>
           </strong>
 
-          <span id="hookScoreValue" class="hook-score-value clickable">–/100</span>
+          <span id="hookScoreValue" class="hook-score-value clickable" style="font-size:18px;">–/100</span>
           <div id="hookScoreLabel" class="score-label"></div>
         </div>
 
@@ -553,7 +553,7 @@
             </span>
           </strong>
 
-          <span id="storyFlowScoreValue" class="story-flow-value">–/100</span>
+          <span id="storyFlowScoreValue" class="story-flow-value" style="font-size:18px;">–/100</span>
           <div id="storyFlowScoreLabel" class="score-label"></div>
         </div>
 
@@ -571,7 +571,10 @@
   <!-- ================================
        AI DIRECTOR
   ================================= -->
-  <div id="editStrategyPanel" class="ai-director hidden">
+  <button id="toggleDirectorBtn" class="btn ghost small">
+  🧠 AI Director
+</button>
+  <div id="editStrategyPanel" class="ai-director hidden collapsed">
     <div class="director-title">🧠 AI Edit Strategy</div>
     <div id="editStrategyContext" class="director-context hidden"></div>
     <div class="director-divider"></div>
