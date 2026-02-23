@@ -149,7 +149,8 @@ async function refreshAfterChange({
     if (guidance) updateHookLabGuidance();
 
     logAppState("After refresh");
-
+    await refreshHookScore();
+    await refreshStoryFlowScore();
   } catch (e) {
     console.warn("refreshAfterChange failed", e);
   }
@@ -4095,6 +4096,17 @@ async function refreshHookScore() {
 
     LAST_HOOK_SCORE = score;
 
+    const hookLabel = getHookRatingLabel(score);
+
+    updateCollapsibleHeaders(
+      LAST_HOOK_SCORE,
+      hookLabel,
+      LAST_FLOW_SCORE,
+      LAST_FLOW_SCORE != null ? getFlowRatingLabel(LAST_FLOW_SCORE) : null
+    );
+
+    renderEditProgress();
+
 
     // -----------------------------
     // 🔒 Story flow lock (NOW safe)
@@ -4576,6 +4588,17 @@ async function refreshStoryFlowScore() {
 
         LAST_FLOW_SCORE = score;
 
+        const flowLabel = getFlowRatingLabel(score);
+
+        updateCollapsibleHeaders(
+          LAST_HOOK_SCORE,
+          LAST_HOOK_SCORE != null ? getHookRatingLabel(LAST_HOOK_SCORE) : null,
+          LAST_FLOW_SCORE,
+          flowLabel
+        );
+
+        renderEditProgress();
+
 
         updateImproveButtons(null, score);
         scoreEl.textContent = `${score}/100`;
@@ -4876,6 +4899,19 @@ async function saveCaptions() {
             false
         );
     }
+}
+
+function updateCollapsibleHeaders(hookScore, hookLabel, flowScore, flowLabel) {
+  const hookHeader = document.getElementById("hookHeaderScore");
+  const storyHeader = document.getElementById("storyHeaderScore");
+
+  if (hookHeader) {
+    hookHeader.textContent = `${hookScore ?? "–"}/100 (${hookLabel ?? ""})`;
+  }
+
+  if (storyHeader) {
+    storyHeader.textContent = `${flowScore ?? "–"}/100 (${flowLabel ?? ""})`;
+  }
 }
 
 async function regenerateCaptionsFromClips() {

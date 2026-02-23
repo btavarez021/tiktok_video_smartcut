@@ -4050,6 +4050,9 @@ body.no-scroll {
 }
 
 .collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-weight: 600;
   padding: 6px 0;
   cursor: pointer;
@@ -4059,4 +4062,11 @@ body.no-scroll {
 
 .collapsible-body.collapsed {
   display: none;
+}
+
+
+
+.header-score {
+  font-size: 13px;
+  opacity: 0.8;
 }
