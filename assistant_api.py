@@ -1532,37 +1532,74 @@ def reorder_storyboard(session, new_order):
     return cfg
 
 
-def build_variant_reason(best, variants, intent):
+def build_variant_reason(best: dict, variants: list, intent: str) -> str:
     hook = best.get("hook_score", 0)
     flow = best.get("story_flow", 0)
     tone = (best.get("tone") or "").lower()
 
-    avg_hook = sum(v.get("hook_score", 0) for v in variants) / len(variants)
-    avg_flow = sum(v.get("story_flow", 0) for v in variants) / len(variants)
+    intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
 
-    if best.get("uses_selected_hook"):
-        return "Preserves your selected hook while improving structure."
-    if intent == "discovery":
-        if hook > avg_hook + 8:
-            return "Stronger opening hook than other variants"
-        if "punchy" in tone:
-            return "Punchier tone optimized for discovery"
-        return "Best overall hook performance for reach"
+    reasons = []
 
-    if intent == "personal":
-        if flow > avg_flow + 8:
-            return "More natural storytelling flow than other options"
-        return "Stronger emotional progression for personal content"
+    # ----------------------------------
+    # 1️⃣ Hook / Flow Trade-Off Analysis
+    # ----------------------------------
 
-    if intent == "aesthetic":
-        if "minimal" in tone:
-            return "Cleaner, more minimal pacing than other variants"
-        return "Calmest visual rhythm for aesthetic content"
+    if hook >= 75 and flow >= 70:
+        reasons.append("Strong hook with smooth pacing.")
 
-    if intent == "informational":
-        return "Clearer structure and explanation than alternatives"
+    elif hook >= 75 and flow < 60:
+        reasons.append("Scroll-stopping hook, but pacing could improve.")
 
-    return "Best overall balance across variants"
+    elif hook < 55 and flow >= 70:
+        reasons.append("Great flow and structure, but opening lacks impact.")
+
+    elif hook >= 65 and flow >= 65:
+        reasons.append("Balanced hook and flow.")
+
+    elif hook >= 65:
+        reasons.append("Strong opening hook.")
+
+    elif flow >= 70:
+        reasons.append("Strong pacing and progression.")
+
+    else:
+        reasons.append("Solid overall structure.")
+
+    # ----------------------------------
+    # 2️⃣ Intent Alignment
+    # ----------------------------------
+
+    if intent == "discovery" and hook >= 70:
+        reasons.append("Well suited for discovery-focused content.")
+
+    elif intent == "authority" and flow >= 70:
+        reasons.append("Supports authority through clear progression.")
+
+    elif intent == "engagement" and "punchy" in tone:
+        reasons.append("Energetic tone supports engagement intent.")
+
+    elif intent == "luxury" and "minimal" in tone:
+        reasons.append("Minimal tone aligns with luxury positioning.")
+
+    # ----------------------------------
+    # 3️⃣ Comparative Strength (Optional polish)
+    # ----------------------------------
+
+    max_hook = max(v.get("hook_score", 0) for v in variants)
+    max_flow = max(v.get("story_flow", 0) for v in variants)
+
+    if hook == max_hook and hook > 0:
+        reasons.append("Highest hook strength among options.")
+
+    if flow == max_flow and flow > 0:
+        reasons.append("Best pacing among options.")
+
+    # ----------------------------------
+    # 4️⃣ Return Clean Sentence
+    # ----------------------------------
+
+    return " ".join(reasons)
 
 SESSION_PREFS_DIR = "session_prefs"
 os.makedirs(SESSION_PREFS_DIR, exist_ok=True)
