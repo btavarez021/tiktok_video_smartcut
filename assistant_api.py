@@ -1582,9 +1582,9 @@ def choose_best_variant(variants: list, intent: str):
 
     intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
 
-    # -----------------------------
+    # ----------------------------------
     # 1️⃣ BASE SCORE
-    # -----------------------------
+    # ----------------------------------
     def base_score(v):
         hook = v.get("hook_score", 0)
         flow = v.get("story_flow", 0)
@@ -1605,13 +1605,28 @@ def choose_best_variant(variants: list, intent: str):
     scored = [{**v, "_base": base_score(v)} for v in variants]
     scored.sort(key=lambda v: v["_base"], reverse=True)
 
-    best = scored[0]
+    # ----------------------------------
+    # 🔥 SAFETY FLOOR — prevent weak hook wins
+    # ----------------------------------
+    MIN_HOOK_RECOMMEND = 55
+
+    strong_hooks = [
+        v for v in scored
+        if v.get("hook_score", 0) >= MIN_HOOK_RECOMMEND
+    ]
+
+    if strong_hooks:
+        best = strong_hooks[0]
+    else:
+        # fallback if all hooks are weak
+        best = scored[0]
+
     second = scored[1] if len(scored) > 1 else None
     gap = best["_base"] - (second["_base"] if second else 0)
 
-    # -----------------------------
+    # ----------------------------------
     # 2️⃣ CONFIDENCE
-    # -----------------------------
+    # ----------------------------------
     if gap > 15:
         confidence = "clear"
     elif gap > 7:
@@ -1630,9 +1645,9 @@ def choose_best_variant(variants: list, intent: str):
         "confidence=", confidence
     )
 
-    # -----------------------------
+    # ----------------------------------
     # 3️⃣ FEEDBACK-AWARE FINAL SCORE
-    # -----------------------------
+    # ----------------------------------
     def final_score(v):
         fb = get_feedback_adjustment(
             intent=intent,
@@ -1655,22 +1670,31 @@ def choose_best_variant(variants: list, intent: str):
 
         return final
 
-    # -----------------------------
+    # ----------------------------------
     # 4️⃣ APPLY FEEDBACK IF UNCERTAIN
-    # -----------------------------
+    # ----------------------------------
     if confidence != "clear":
         scored.sort(key=final_score, reverse=True)
-        best = scored[0]
 
-    # -----------------------------
+        # reapply safety floor after feedback sort
+        strong_hooks = [
+            v for v in scored
+            if v.get("hook_score", 0) >= MIN_HOOK_RECOMMEND
+        ]
+
+        if strong_hooks:
+            best = strong_hooks[0]
+        else:
+            best = scored[0]
+
+    # ----------------------------------
     # 5️⃣ RETURN DECISION
-    # -----------------------------
+    # ----------------------------------
     return {
         "id": best["id"],
         "reason": build_variant_reason(best, variants, intent),
         "confidence": confidence
     }
-
 
 # -------------------------------
 # Analyze APIs (per session)
