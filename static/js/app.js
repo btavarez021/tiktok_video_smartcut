@@ -82,14 +82,14 @@ function openVariantsDrawer() {
   if (btn) btn.textContent = "Collapse";
 }
 
-function maybeCelebrateReadiness(state) {
-  if (LAST_READINESS_STATUS !== "ready" && state.status === "ready") {
-    toast("🚀 Publish Ready — AI approves this edit");
-    pulseExportButton();
-    // maybeConfetti?.(); // optional
+  function maybeCelebrateReadiness(state) {
+    if (LAST_READINESS_STATUS !== "ready" && state.status === "ready") {
+      toast("🚀 Publish Ready — AI approves this edit");
+      pulseExportButton();
+      // maybeConfetti?.(); // optional
+    }
+    LAST_READINESS_STATUS = state.status;
   }
-  LAST_READINESS_STATUS = state.status;
-}
 
 // ========================================
 // GLOBAL STATE SNAPSHOT (Debug + Stability)

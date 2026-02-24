@@ -54,6 +54,8 @@ AGG_PATH = os.path.join(DATA_DIR, "feedback_aggregates.json")
 ANALYSIS_JOBS: dict[str, dict] = {}
 VARIANT_JOBS: dict[str, dict] = {}
 YAML_JOBS = {}
+# --- Flow score cache (in-memory) ---
+FLOW_SCORE_CACHE: dict[str, dict] = {}
 
 ANALYSIS_STATUS_DIR = os.path.join(DATA_DIR, "analysis_status")
 os.makedirs(ANALYSIS_STATUS_DIR, exist_ok=True)
@@ -2117,29 +2119,31 @@ def normalize_variant_text(text: str, expected_blocks: int) -> str:
 def score_story_flow_from_text(text: str) -> dict:
     """
     Stateless story flow scoring for raw variant text.
-    Used when evaluating generated caption variants.
+    Cached to avoid repeat LLM calls for identical text.
     """
 
-    blocks = [
-        b.strip()
-        for b in re.split(r"\n\s*\n", text)
-        if b.strip()
-    ]
+    if not text:
+        return {"score": 0, "reasons": ["Not enough captions to evaluate flow."]}
+
+    # ✅ Cache key: exact text (simple + safe)
+    cached = FLOW_SCORE_CACHE.get(text)
+    if cached:
+        return cached
+
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
 
     # Ignore first block (hook)
     middle = blocks[1:]
 
     if len(middle) < 2:
-        return {
-            "score": 0,
-            "reasons": ["Not enough captions to evaluate flow."]
-        }
+        result = {"score": 0, "reasons": ["Not enough captions to evaluate flow."]}
+        FLOW_SCORE_CACHE[text] = result
+        return result
 
     if not client:
-        return {
-            "score": 70,
-            "reasons": ["AI unavailable — default score."]
-        }
+        result = {"score": 70, "reasons": ["AI unavailable — default score."]}
+        FLOW_SCORE_CACHE[text] = result
+        return result
 
     prompt = f"""
 Score the narrative flow of these captions from 1–100.
@@ -2169,24 +2173,32 @@ Return JSON only:
             model=TEXT_MODEL,
             messages=[
                 {"role": "system", "content": "Return ONLY valid JSON."},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             temperature=0.4,
         )
 
-        content = resp.choices[0].message.content.strip()
-        result = safe_json_extract(content)
+        content = (resp.choices[0].message.content or "").strip()
 
-        return {
-            "score": int(result.get("score", 70)),
-            "reasons": result.get("reasons", [])
+        # ✅ Use your safe_json_extract here (if it returns dict or None)
+        data = safe_json_extract(content)
+        if not isinstance(data, dict):
+            result = {"score": 70, "reasons": ["Flow evaluation failed."]}
+            FLOW_SCORE_CACHE[text] = result
+            return result
+
+        result = {
+            "score": int(data.get("score", 70)),
+            "reasons": data.get("reasons", []),
         }
+
+        FLOW_SCORE_CACHE[text] = result
+        return result
 
     except Exception:
-        return {
-            "score": 70,
-            "reasons": ["Flow evaluation failed."]
-        }
+        result = {"score": 70, "reasons": ["Flow evaluation failed."]}
+        FLOW_SCORE_CACHE[text] = result
+        return result
 
 def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
