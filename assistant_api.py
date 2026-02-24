@@ -68,6 +68,16 @@ def save_analysis_status(session: str, data: dict):
     with open(_analysis_status_path(session), "w", encoding="utf-8") as f:
         json.dump(data, f)
 
+def safe_json_extract(text: str) -> dict:
+    try:
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start == -1 or end == 0:
+            raise ValueError("No JSON found")
+        return json.loads(text[start:end])
+    except Exception:
+        return {}
+    
 def load_analysis_status(session: str) -> dict | None:
     path = _analysis_status_path(session)
     if not os.path.exists(path):
@@ -342,13 +352,7 @@ Return JSON:
         # 🔒 BULLETPROOF JSON PARSE
         # ================================
         try:
-            start = content.find("{")
-            end = content.rfind("}") + 1
-
-            if start == -1 or end == 0:
-                raise ValueError("No JSON object detected")
-
-            data = json.loads(content[start:end])
+            data = safe_json_extract(content)
 
         except Exception as e:
             logger.error(f"[HOOK_BOOST PARSE ERROR] {e}")
@@ -910,9 +914,7 @@ Return JSON:
         )
 
         content = resp.choices[0].message.content.strip()
-        start = content.find("{")
-        end = content.rfind("}") + 1
-        data = json.loads(content[start:end])
+        data = safe_json_extract(content)
 
         hooks = []
         for text in data.get("hooks", []):
@@ -999,9 +1001,7 @@ def api_generate_body_from_hook(session, hook, style):
     )
 
     content = (resp.choices[0].message.content or "").strip()
-    start = content.find("{")
-    end = content.rfind("}") + 1
-    data = json.loads(content[start:end])
+    data = safe_json_extract(content)
     return {"status": "ok", "body": data.get("body", [])}
 
 
@@ -1082,9 +1082,7 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
         content = resp.choices[0].message.content.strip()
 
         # Extract JSON safely
-        start = content.find("{")
-        end = content.rfind("}") + 1
-        result = json.loads(content[start:end])
+        result = safe_json_extract(content)
 
 
         return {
@@ -1145,9 +1143,7 @@ Return:
         )
 
         content = resp.choices[0].message.content.strip()
-        start = content.find("{")
-        end = content.rfind("}") + 1
-        result = json.loads(content[start:end])
+        result = safe_json_extract(content)
 
         rewrites = result.get("rewrites", [])
 
@@ -2118,9 +2114,7 @@ Return JSON only:
         )
 
         content = resp.choices[0].message.content.strip()
-        start = content.find("{")
-        end = content.rfind("}") + 1
-        result = json.loads(content[start:end])
+        result = safe_json_extract(content)
 
         return {
             "score": int(result.get("score", 70)),
@@ -2137,14 +2131,11 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
     session = sanitize_session(session)
     cfg = _load_config(session)
 
-    
-
     # --------------------------------------------------
-    # Collect captions from YAML
+    # Collect captions
     # --------------------------------------------------
     captions = []
 
-    # 🔥 Use selected hook if provided
     if selected_hook:
         captions.append(selected_hook)
     elif cfg.get("first_clip", {}).get("text"):
@@ -2165,13 +2156,13 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
     if not base:
         return {
             "variants": [{
-                "text": "⚠ No captions found in YAML. Generate or import captions first.",
+                "text": "⚠ No captions found in YAML.",
                 "tone": "Error"
             }]
         }
 
     # --------------------------------------------------
-    # Tone labels (authoritative)
+    # Tone labels
     # --------------------------------------------------
     STYLE_TONE_LABELS = {
         "rewrite": "Standard · Clean Rewrite",
@@ -2179,100 +2170,127 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
         "punchy": "Punchy · TikTok / Reels",
         "story": "Storytelling · Voiceover",
         "influencer": "Influencer · Creator Style",
-        "minimal": "Minimal · Luxury Aesthetic (brand implied)",
+        "minimal": "Minimal · Luxury Aesthetic",
     }
 
-    style_prompts = {
-        "rewrite": "Rewrite captions clean and natural.",
-        "hook": (
-            "Improve ONLY the first caption as a scroll-stopping hook. "
-            "Do NOT rewrite the other captions except for capitalization or punctuation fixes."
-        ),
-        "punchy": "Rewrite punchy, energetic TikTok creator style.",
-        "story": (
-            "Rewrite with storytelling and emotional progression. "
-            "Assume the viewer understands the location after the first caption."
-        ),
-        "influencer": "Rewrite as a confident influencer speaking to camera.",
-        "minimal": "Rewrite in minimal luxury style."
+    # --------------------------------------------------
+    # Strict per-style rule blocks
+    # --------------------------------------------------
+    STYLE_RULES = {
+        "rewrite": """
+Clean rewrite. Improve clarity and flow.
+Keep captions natural and concise.
+""",
+        "hook": """
+ONLY improve the first caption.
+Make it scroll-stopping.
+Do NOT rewrite remaining captions except minor polish.
+""",
+        "punchy": """
+Energetic TikTok creator tone.
+Shorter sentences.
+Stronger verbs.
+High engagement energy.
+""",
+        "story": """
+Smooth storytelling progression.
+Natural emotional build.
+Feels like spoken voiceover.
+""",
+        "influencer": """
+Confident creator voice.
+Personal, direct, charismatic.
+Natural but elevated tone.
+""",
+        "minimal": """
+Minimal luxury aesthetic.
+CRITICAL RULES:
+- 3–7 words per NON-HOOK caption
+- No emojis
+- No hashtags
+- No full sentences (except hook)
+- No brand repetition
+- Editorial, high-end tone
+"""
     }
 
-    # If nothing selected, return empty list
-    if not any(modes.values()):
+    enabled_styles = [
+        style for style, enabled in modes.items()
+        if enabled and style in STYLE_RULES
+    ]
+
+    if not enabled_styles:
         return {"variants": []}
 
+    if not client:
+        return {"variants": [], "error": "ai_unavailable"}
+
     try:
-        variants: List[Dict[str, str]] = []
 
         # --------------------------------------------------
-        # Base system guardrail (used everywhere)
+        # Build strict unified prompt
         # --------------------------------------------------
-        BASE_SYSTEM_PROMPT = (
+        style_sections = ""
+        for style in enabled_styles:
+            style_sections += f"""
+STYLE: {style}
+RULES:
+{STYLE_RULES[style]}
+"""
+
+        system_prompt = (
             CAPTION_ONLY_GUARDRAIL +
-            " Rewrite captions in blocks separated by blank lines. "
-            "Keep the SAME number of caption blocks as the input. "
-            "Do NOT merge captions into one paragraph. "
+            " Rewrite captions in blocks separated by ONE blank line. "
+            "Keep EXACT same number of caption blocks as input."
         )
 
-
-        # --------------------------------------------------
-        # Generate variants per selected mode
-        # --------------------------------------------------
-        for style, enabled in modes.items():
-            if not enabled or style not in style_prompts:
-                continue
-
-            system_prompt = BASE_SYSTEM_PROMPT
-
-            if hook_locked:
-                system_prompt += (
-                    " IMPORTANT: The first paragraph is a FIXED hook. "
-                    "It MUST be used verbatim in every variant. "
-                    "Do NOT rewrite it. "
-                    "Do NOT rephrase it. "
-                    "Do NOT shorten it. "
-                    "Do NOT change punctuation. "
-                    "Do NOT add or remove words. "
-                    "Only rewrite the remaining captions to match the tone."
-                )
-
-
-
-            if style == "minimal":  
-                system_prompt += (
-                    " Minimal luxury captions. "
-                    "Assume the hotel name is already established in context. "
-                    "DO NOT include or repeat the hotel or brand name. "
-                    "CRITICAL FORMAT RULES: "
-                    "- Each caption must be its own block separated by ONE blank line. "
-                    "- 3–7 words per caption for NON-HOOK captions. "
-                    "- Editorial, high-end luxury tone. "
-                    "- No emojis. No hashtags. No full sentences. "
-                )
-
-                if hook_locked:
-                    system_prompt += (
-                        " The FIRST caption is a locked hook. "
-                        "It may be longer and may be a full sentence. "
-                        "DO NOT rewrite or remove it."
-                    )
-            
-            if not client:
-                return {"variants": [], "error": "ai_unavailable", "message": "AI unavailable (missing API key)"}
-            
-            resp = client.chat.completions.create(
-                model=TEXT_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": f"{style_prompts[style]}\n\n{base}"
-                    },
-                ],
-                temperature=0.6,
+        if hook_locked:
+            system_prompt += (
+                " The FIRST caption is LOCKED. "
+                "It MUST be used verbatim in every variant. "
+                "Do NOT change it."
             )
 
-            raw_text = resp.choices[0].message.content.strip()
+        user_prompt = f"""
+Generate caption variants using the style definitions below.
+
+{style_sections}
+
+Return STRICT JSON:
+
+{{
+  "variants": [
+    {{
+      "style": "style_name",
+      "text": "caption blocks separated by blank lines"
+    }}
+  ]
+}}
+
+Captions:
+{base}
+"""
+
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.6,
+        )
+
+        content = resp.choices[0].message.content.strip()
+        data = safe_json_extract(content)
+
+        variants = []
+
+        # --------------------------------------------------
+        # Build variants
+        # --------------------------------------------------
+        for idx, item in enumerate(data.get("variants", [])):
+            raw_text = item.get("text", "")
+            style_key = item.get("style", "")
 
             normalized = normalize_variant_text(
                 raw_text,
@@ -2282,128 +2300,58 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
             if hook_locked:
                 blocks = [b.strip() for b in re.split(r"\n\s*\n", normalized) if b.strip()]
                 if blocks:
-                    blocks[0] = selected_hook  # force verbatim
+                    blocks[0] = selected_hook
                     normalized = "\n\n".join(blocks)
 
             variants.append({
+                "id": idx,
                 "text": normalized,
-                "tone": STYLE_TONE_LABELS.get(style, style),
+                "tone": STYLE_TONE_LABELS.get(style_key, style_key),
             })
+
+        if not variants:
+            return {"variants": []}
 
         # --------------------------------------------------
-        # Combo variants (optional enhancement)
+        # Attach scoring (unchanged)
         # --------------------------------------------------
-        COMBO_SYSTEM_PROMPT = (
-            CAPTION_ONLY_GUARDRAIL +
-            " Rewrite captions in blocks separated by blank lines. "
-            "Keep the SAME number of caption blocks. "
-            "Assume shared context across captions and avoid repeating location names."
-        )
-
-        if modes.get("rewrite") and modes.get("punchy"):
-            r = client.chat.completions.create(
-                model=TEXT_MODEL,
-                messages=[
-                    {"role": "system", "content": COMBO_SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Rewrite punchy + clear:\n\n{base}"}
-                ],
-                temperature=0.6,
-            )
-            variants.append({
-                "text": r.choices[0].message.content.strip(),
-                "tone": "Rewrite + Punchy",
-            })
-
-        if modes.get("rewrite") and modes.get("story"):
-            r = client.chat.completions.create(
-                model=TEXT_MODEL,
-                messages=[
-                    {"role": "system", "content": COMBO_SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Rewrite storytelling + smooth:\n\n{base}"}
-                ],
-                temperature=0.6,
-            )
-            variants.append({
-                "text": r.choices[0].message.content.strip(),
-                "tone": "Rewrite + Story",
-            })
-
-
-        # 🎯 Intent-based recommendation
         intent = cfg.get("intent", "discovery")
 
-        # --------------------------------------------------
-        # Attach lightweight scores to variants (REQUIRED)
-        # --------------------------------------------------
-        for idx, v in enumerate(variants):
+        for v in variants:
             text = v.get("text", "")
-
-            if hook_locked:
-                v["uses_selected_hook"] = True
-            else:
-                v["uses_selected_hook"] = False
-
-
-            text = v.get("text", "")
-
-            # --- REAL HOOK SCORE ---
             blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
             first_block = blocks[0] if blocks else ""
-            hook_score = score_hook_text(first_block).get("score", 0)
 
-            # --- REAL STORY FLOW SCORE ---
+            hook_score = score_hook_text(first_block).get("score", 0)
             flow_result = score_story_flow_from_text(text)
             flow_score = flow_result.get("score", 0)
 
-            v["id"] = idx
             v["hook_score"] = hook_score
             v["story_flow"] = flow_score
-
-        
-
+            v["uses_selected_hook"] = hook_locked
 
         best = choose_best_variant(variants, intent)
-
-        for v in variants:
-            v.pop("recommended", None)
-            v.pop("recommend_reason", None)
 
         if best:
             for v in variants:
                 if v.get("id") == best["id"]:
                     v["recommended"] = True
                     v["recommend_reason"] = best["reason"]
-                    v["confidence"] = best["confidence"]  # 🔥 CRITICAL FIX
-
+                    v["confidence"] = best["confidence"]
                     save_session_pref(session, "last_best_tone", v.get("tone"))
                     save_session_pref(session, "last_intent", intent)
                 else:
-                    # Non-winners still need confidence for UI + feedback
                     v["confidence"] = best["confidence"]
 
+        return {"variants": variants[:7]}
 
-
-
-
-        # --------------------------------------------------
-        # Cap to UI max (defensive)
-        # --------------------------------------------------
-        return {
-            "variants": variants[:7]
-        }
     except RateLimitError:
-        log_error("[VARIANTS]", Exception("OpenAI quota exceeded"))
-        return{
-            "variants": [],
-            "error":"quota_exceeded",
-            "message": "AI Quota exceeded. Please try again later"
-        }
+        log_error("[VARIANTS]", Exception("quota exceeded"))
+        return {"variants": [], "error": "quota_exceeded"}
+
     except Exception as e:
         log_error("[VARIANTS]", e)
-        return {"variants": [],
-                "error":"generation_failed",
-                "message": "Failed to generate captions variants"
-                }
+        return {"variants": [], "error": "generation_failed"}
 
 def api_save_captions(text: str, session: str) -> Dict[str, Any]:
     try:
@@ -2602,9 +2550,7 @@ Return JSON ONLY:
         )
 
         content = resp.choices[0].message.content.strip()
-        start = content.find("{")
-        end = content.rfind("}") + 1
-        data = json.loads(content[start:end])
+        data = safe_json_extract(content)
 
         rewrites = data.get("rewrites", [])
 
