@@ -81,6 +81,15 @@ function openVariantsDrawer() {
   if (btn) btn.textContent = "Collapse";
 }
 
+function maybeCelebrateReadiness(state) {
+  if (LAST_READINESS_STATUS !== "ready" && state.status === "ready") {
+    toast("🚀 Publish Ready — AI approves this edit");
+    pulseExportButton();
+    // maybeConfetti?.(); // optional
+  }
+  LAST_READINESS_STATUS = state.status;
+}
+
 // ========================================
 // GLOBAL STATE SNAPSHOT (Debug + Stability)
 // ========================================
@@ -113,20 +122,23 @@ async function refreshAfterChange({
   guidance = true
 } = {}) {
 
-  if (REFRESH_LOCK) {
-    console.log("🔒 Refresh skipped (locked)");
-    return;
-  }
-
+  if (REFRESH_LOCK) return;
   REFRESH_LOCK = true;
 
   try {
-
     logAppState("Before refresh");
 
+    // 1) Scores
     if (hooks) await refreshHookScore();
-    if (flow) await refreshStoryFlowScore();
+    if (flow)  await refreshStoryFlowScore();
 
+    autoExpandIfWeak(LAST_HOOK_SCORE, LAST_FLOW_SCORE);
+
+    // 2) Publish + progress should key off the same source of truth
+    if (publish) renderPublishReadyState();
+    if (progress) setTimeout(renderEditProgress, 50);
+
+    // 3) Director (only when scores exist)
     if (
       director &&
       lastSavedCaptionsText?.trim() &&
@@ -137,24 +149,14 @@ async function refreshAfterChange({
       await loadEditStrategy();
     }
 
-
-    if (publish) {
-  renderPublishReadyState();
-}
-
-
-
-    if (progress) setTimeout(renderEditProgress, 50);
-
+    // 4) Guidance
     if (guidance) updateHookLabGuidance();
 
     logAppState("After refresh");
-    await refreshHookScore();
-    await refreshStoryFlowScore();
+
   } catch (e) {
     console.warn("refreshAfterChange failed", e);
-  }
-  finally {
+  } finally {
     REFRESH_LOCK = false;
   }
 }
@@ -258,22 +260,20 @@ function getFlowRatingLabel(score) {
 
 
 function renderPublishReadyState() {
-
   const box = document.getElementById("publishReadyBanner");
   if (!box) return;
 
-  const hookScore =
-    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
-
-  const flowScore =
-    Number(document.getElementById("storyFlowScoreValue")?.textContent?.split("/")[0]) || 0;
+  // ✅ single source of truth
+  const hookScore = (LAST_HOOK_SCORE == null) ? 0 : Number(LAST_HOOK_SCORE);
+  const flowScore = (LAST_FLOW_SCORE == null) ? 0 : Number(LAST_FLOW_SCORE);
 
   const state = computeReadinessState(hookScore, flowScore);
+
+  maybeCelebrateReadiness(state);
 
   box.classList.remove("hidden");
 
   let colorClass = "publish-neutral";
-
   if (state.status === "ready") colorClass = "publish-ready";
   if (state.status === "weak_hook" || state.status === "weak_flow") colorClass = "publish-warning";
   if (state.status === "empty") colorClass = "publish-empty";
@@ -293,13 +293,9 @@ function renderPublishReadyState() {
 
 
 function evaluatePublishReadiness() {
-  const hookScore =
-    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+  const hookScore = Number(LAST_HOOK_SCORE) || 0;
+  const flowScore = Number(LAST_FLOW_SCORE) || 0;
 
-  const flowScore =
-    Number(document.getElementById("storyFlowScoreValue")?.textContent?.split("/")[0]) || 0;
-
-  // any HIGH items still present?
   const highIssues =
     document.querySelectorAll(".director-item.impact-high").length;
 
@@ -1698,6 +1694,8 @@ async function loadEditStrategy(force=false) {
     renderPublishReadyState();
     renderEditProgress();
 
+    const readiness = computeReadinessState(LAST_HOOK_SCORE || 0, LAST_FLOW_SCORE || 0);
+    document.body.classList.toggle("readiness-ready", readiness.status === "ready");
   } catch (err) {
     console.error(err);
   }
@@ -2087,12 +2085,11 @@ function updateSessionLabels() {
 }
 
 async function autoBoostSelectedHook() {
-  if (!window.selectedHook && typeof selectedHook === "undefined") {
-    toast?.("Select a hook first");
-    return;
-  }
-
-  const hook = window.selectedHook || selectedHook;
+  const hook = window.selectedHook;
+if (!hook) {
+  toast?.("Select a hook first");
+  return;
+}
 
   setStatus("hookLabStatus", "AI auto-optimizing…", "working");
 
@@ -4050,51 +4047,61 @@ function handleHookScoreSideEffects(score) {
 }
 
 async function refreshHookScore() {
-  const captionsEl = document.getElementById("captionsText");
   const card = document.querySelector(".hook-score-card");
   const scoreEl = document.getElementById("hookScoreValue");
   const reasonsEl = document.getElementById("hookScoreReasons");
   const hookEl = document.getElementById("hookScoreHook");
   const statusEl = document.getElementById("hookScoreStatus");
-  const improveBtn = document.getElementById("improveHookBtn");
 
   if (!card || !scoreEl || !reasonsEl || !hookEl) return;
 
   const text = getCurrentCaptionsText();
 
+  // ----------------------------
+  // No captions yet
+  // ----------------------------
   if (!text) {
     card.classList.remove("hidden");
     scoreEl.textContent = "—";
     reasonsEl.innerHTML = `<li>Generate storyboard to evaluate hook.</li>`;
     hookEl.textContent = "";
+
+    LAST_HOOK_SCORE = null;
+    updateRewriteModeAvailability();
+    updateImproveButtons(null, LAST_FLOW_SCORE);
+    updateSmartStatus();
+
     return;
   }
-  if (!card || !scoreEl || !reasonsEl || !hookEl) return;
 
   card.classList.remove("hidden");
 
   try {
     if (statusEl) statusEl.textContent = "Checking hook…";
 
-    const session = encodeURIComponent(getActiveSession());
     const data = await jsonFetch("/api/hook_score", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text: getCurrentCaptionsText()
-    })
-  });
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session: getActiveSession(),
+        text: text,
+      }),
+    });
 
     const score = Number(data.score ?? 0);
 
-    // ================================
-    // 🎉 Improvement Detection
-    // ================================
+    // 🎉 Improvement animation
     if (LAST_HOOK_SCORE !== null && score > LAST_HOOK_SCORE) {
       celebrateImprovement("hook", LAST_HOOK_SCORE, score);
     }
 
+    // ---------------------------------
+    // 🔑 Core State Update
+    // ---------------------------------
     LAST_HOOK_SCORE = score;
+
+    updateRewriteModeAvailability();
+    updateImproveButtons(score, LAST_FLOW_SCORE);
 
     const hookLabel = getHookRatingLabel(score);
 
@@ -4107,30 +4114,18 @@ async function refreshHookScore() {
 
     renderEditProgress();
 
-
     // -----------------------------
-    // 🔒 Story flow lock (NOW safe)
+    // UI Rendering
     // -----------------------------
-    handleHookScoreSideEffects(score);
-
     scoreEl.textContent = `${score}/100`;
+    hookEl.textContent = data.hook || "(no opening caption yet)";
 
-    // ⭐ NEW
     const label = document.getElementById("hookScoreLabel");
-    if (label) {
-      label.textContent = getHookRatingLabel(score);
-}
+    if (label) label.textContent = hookLabel;
 
     scoreEl.classList.add("score-pop");
+    setTimeout(() => scoreEl.classList.remove("score-pop"), 600);
 
-    setTimeout(() => {
-      scoreEl.classList.remove("score-pop");
-    }, 600);
-
-    hookEl.textContent = data.hook || "(no opening caption yet)";
-   
-
-    // Reset classes
     card.classList.remove("good", "ok", "bad");
     scoreEl.classList.remove("good", "ok", "bad");
 
@@ -4150,45 +4145,22 @@ async function refreshHookScore() {
       ? reasons.map(r => `<li>${r}</li>`).join("")
       : `<li>Looks solid ✅</li>`;
 
+    // -----------------------------
+    // Weak hook guidance
+    // -----------------------------
     const diffOpen = !document
-    .getElementById("captionCompareBody")
-    ?.classList.contains("hidden");
+      .getElementById("captionCompareBody")
+      ?.classList.contains("hidden");
 
     if (score < 60 && !diffOpen) {
-        statusEl.textContent =
-            "⚠ Weak hook — click the score to explore better ones.";
+      statusEl.textContent =
+        "⚠ Weak hook — click the score to explore better ones.";
     } else {
-        statusEl.textContent = "";
+      statusEl.textContent = "";
     }
 
-
-    // ================================
-    // ⚠ Soft Warning: Low Hook + Rewrite Mode Active
-    // ================================
-    const rewriteRadio = document.querySelector(
-        'input[name="captionRewriteMode"][value="rewrite"]'
-        );
-
-        const rewriteSelected = rewriteRadio?.checked;
-        const rewriteEnabled = rewriteRadio && !rewriteRadio.disabled;
-
-        if (score < 60 && rewriteEnabled) {
-            setStatus(
-                "overlayStatus",
-                rewriteSelected
-                    ? "⚠ Hook is weak — rewrite may hurt clarity. Improve Hook first."
-                    : "⚠ Hook is weak. Fix it before using Rewrite for best results.",
-                "warning",
-                false
-            );
-        }
-
-
-    if (score >= 60) {
-        clearOverlayWarning();
-        }
-
     updateSmartStatus();
+
   } catch (err) {
     console.error("Hook score error:", err);
     if (statusEl) statusEl.textContent = "Hook score unavailable.";
@@ -4217,10 +4189,11 @@ async function improveHook() {
 
 
   try {
-    const data = await jsonFetch("/api/hook_improve", {
-      method: "POST",
-      body: JSON.stringify({ session: getActiveSession() }),
-    });
+    await jsonFetch("/api/hook_improve", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ session: getActiveSession() }),
+});
 
     if (data.status === "error") throw new Error(data.error || "failed");
 
@@ -4247,12 +4220,11 @@ async function improveHook() {
 async function boostSelectedHook() {
   const statusEl = document.getElementById("hookLabStatus");
 
-  if (!window.selectedHook && typeof selectedHook === "undefined") {
+  const hook = window.selectedHook;
+  if (!hook) {
     toast?.("Select a hook first");
     return;
   }
-
-  const hook = window.selectedHook || selectedHook;
 
   const oldScore = Number(LAST_HOOK_SCORE ?? 0);
   window.lastHookScoreBeforeBoost = oldScore;
@@ -4272,7 +4244,7 @@ async function boostSelectedHook() {
     if (!res?.text) throw new Error("No upgraded hook returned");
 
     const newHook = res.text;
-    const beforeBoost = lastSavedCaptionsText || "";
+    const beforeBoost = getCurrentCaptionsText();
 
     // Build new captions
     const editor = document.getElementById("captionsText");
@@ -4639,7 +4611,7 @@ async function refreshStoryFlowScore() {
         renderEditProgress();
 
 
-        updateImproveButtons(null, score);
+        updateImproveButtons(LAST_HOOK_SCORE, score);
         scoreEl.textContent = `${score}/100`;
 
         document.getElementById("storyFlowScoreLabel").textContent =
@@ -4688,7 +4660,7 @@ function updateImproveButtons(hookScore, storyScore) {
     // ================================
     // Disable Rewrite Mode if no captions exist
     // ================================
-    function updateRewriteModeAvailability() {
+  function updateRewriteModeAvailability() {
   const text = getCurrentCaptionsText();
   const rewriteRadio = document.querySelector(
     'input[name="captionRewriteMode"][value="rewrite"]'
@@ -4698,9 +4670,7 @@ function updateImproveButtons(hookScore, storyScore) {
   if (!rewriteRadio) return;
 
   const hasText = text && text.length > 3;
-
-  const hookScore = LAST_HOOK_SCORE || 0;
-
+  const hookScore = Number(LAST_HOOK_SCORE ?? 0);
 
   const rewriteAllowed =
     hasText &&
