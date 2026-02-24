@@ -313,17 +313,18 @@ function evaluatePublishReadiness() {
   const hookScore = Number(LAST_HOOK_SCORE) || 0;
   const flowScore = Number(LAST_FLOW_SCORE) || 0;
 
+  const state = computeReadinessState(hookScore, flowScore);
+
   const highIssues =
     document.querySelectorAll(".director-item.impact-high").length;
 
-  const ready =
-    hookScore >= 70 &&
-    flowScore >= 70 &&
-    highIssues === 0;
-
-  return { ready, hookScore, flowScore, highIssues };
+  return {
+    ready: state.status === "ready",
+    hookScore,
+    flowScore,
+    highIssues
+  };
 }
-
 
 function celebrateImprovement(type, oldScore, newScore) {
   const delta = newScore - oldScore;
