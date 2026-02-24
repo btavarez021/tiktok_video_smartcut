@@ -112,6 +112,22 @@ function logAppState(label = "STATE") {
   console.log(`🧠 ${label} →`, getAppState());
 }
 
+function autoExpandIfWeak(hookScore, flowScore) {
+  const hookBody = document.getElementById("hookDetailsBody");
+  const storyBody = document.getElementById("storyDetailsBody");
+
+  if (!hookBody || !storyBody) return;
+
+  if (typeof hookScore === "number" && hookScore < 60) {
+    hookBody.classList.remove("collapsed");
+  }
+
+  if (typeof flowScore === "number" && flowScore < 60) {
+    storyBody.classList.remove("collapsed");
+  }
+}
+
+
 
 async function refreshAfterChange({
   hooks = true,
