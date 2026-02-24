@@ -4188,6 +4188,7 @@ async function refreshHookScore() {
         clearOverlayWarning();
         }
 
+    updateSmartStatus();
   } catch (err) {
     console.error("Hook score error:", err);
     if (statusEl) statusEl.textContent = "Hook score unavailable.";
@@ -4524,6 +4525,44 @@ function addStepEnterHandler(stepNumber, callback) {
     observer.observe(stepCard);
 }
 
+function updateSmartStatus() {
+  const el = document.getElementById("editSmartStatus");
+  if (!el) return;
+
+  const hook = LAST_HOOK_SCORE ?? null;
+  const flow = LAST_FLOW_SCORE ?? null;
+
+  if (hook === null || flow === null) {
+    el.classList.add("hidden");
+    return;
+  }
+
+  el.classList.remove("hidden");
+  el.className = "edit-smart-status";
+
+  if (hook < 60) {
+    el.textContent = "🔴 Fix Hook First";
+    el.classList.add("red");
+  } 
+  else if (flow < 70) {
+    el.textContent = "🟡 Improve Story Flow";
+    el.classList.add("yellow");
+  } 
+  else if (hook >= 85 && flow >= 85) {
+    el.textContent = "🚀 Publish Ready";
+    el.classList.add("green");
+  } 
+  else {
+    el.textContent = "🔵 Polish & Optimize";
+    el.classList.add("blue");
+  }
+
+  el.classList.remove("pulse");
+  void el.offsetWidth;
+  el.classList.add("pulse");
+
+}
+
 async function scoreStoryFlow() {
   const session = getActiveSession();
 
@@ -4626,7 +4665,7 @@ async function refreshStoryFlowScore() {
             ? reasons.map(r => `<li>${r}</li>`).join("")
             : `<li>Flow looks solid ✅</li>`;
       setTimeout(renderEditProgress, 50);
-
+      updateSmartStatus();
     } catch (err) {
         console.error("Story flow score error:", err);
         card.classList.add("hidden");
@@ -5974,6 +6013,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         : "🧠 Hide Director";
     });
   }
+
+  document.getElementById("editSmartStatus")?.addEventListener("click", () => {
+  const hook = LAST_HOOK_SCORE ?? 0;
+  const flow = LAST_FLOW_SCORE ?? 0;
+
+  if (hook < 60) {
+    goToHookLab();
+  } 
+  else if (flow < 70) {
+    document.getElementById("improveStoryFlowBtn")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  } 
+  else {
+    document.getElementById("exportBtn")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+});
 
 
   setTimeout(async () => {

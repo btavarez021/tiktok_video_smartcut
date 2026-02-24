@@ -4070,3 +4070,43 @@ body.no-scroll {
   font-size: 13px;
   opacity: 0.8;
 }
+
+.edit-smart-status {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  transition: all 0.25s ease;
+}
+
+.edit-smart-status.red {
+  background: rgba(255, 80, 80, 0.12);
+  color: #ff4d4d;
+}
+
+.edit-smart-status.yellow {
+  background: rgba(255, 200, 0, 0.12);
+  color: #d9a400;
+}
+
+.edit-smart-status.green {
+  background: rgba(0, 200, 120, 0.12);
+  color: #00b36b;
+}
+
+.edit-smart-status.blue {
+  background: rgba(0, 150, 255, 0.12);
+  color: #0096ff;
+}
+
+.edit-smart-status.pulse {
+  animation: smartPulse 0.4s ease;
+}
+
+@keyframes smartPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
