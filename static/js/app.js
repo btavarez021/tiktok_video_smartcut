@@ -7,6 +7,7 @@ let previewPlaying = false;
 let workingClipOrder = [];
 let clipOrderDirty = false;
 
+let LAST_READINESS_STATUS = null;
 
 // 🔵 Active session (hotel / batch)
 let ACTIVE_SESSION = "default";
