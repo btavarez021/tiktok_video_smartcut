@@ -1841,7 +1841,6 @@ function clearSelectedHook() {
   state.hook.locked = false;
 
   updateHookLockUI();
-  renderHookSelectionUI();
   refreshAfterChange();
 }
 
