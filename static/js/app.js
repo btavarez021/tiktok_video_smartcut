@@ -1857,7 +1857,6 @@ function selectHook(text) {
   state.hook.locked = true;
 
   updateHookLockUI();
-  renderHookSelectionUI();
   refreshAfterChange();
 }
 
