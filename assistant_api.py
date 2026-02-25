@@ -919,6 +919,37 @@ def api_generate_hooks(session: str, intent: str | None = None):
     if not scenes:
         return {"hooks": []}
 
+    # ----------------------------------------
+    # Intent-aware generation guidance
+    # ----------------------------------------
+    intent = intent or cfg.get("intent", "discovery")
+
+    intent_guidance = ""
+
+    if intent == "discovery":
+        intent_guidance = """
+        Focus on curiosity gaps, surprise, and open loops.
+        Create tension or withheld information.
+        """
+
+    elif intent == "authority":
+        intent_guidance = """
+        Focus on confidence, credibility, and strong positioning.
+        Avoid sounding uncertain or vague.
+        """
+
+    elif intent == "luxury":
+        intent_guidance = """
+        Focus on exclusivity, refinement, and understated power.
+        Avoid hype or loud energy.
+        """
+
+    elif intent == "engagement":
+        intent_guidance = """
+        Focus on emotional pull and viewer inclusion.
+        Use phrases like "would you", "imagine", or subtle invitation.
+        """
+
     if not client:
         # fallback
         return {
@@ -926,30 +957,29 @@ def api_generate_hooks(session: str, intent: str | None = None):
         }
 
     prompt = f"""
-        Generate 8 scroll-stopping TikTok hooks based on these scenes.
+            Generate 8 scroll-stopping TikTok hooks.
 
-        CRITICAL REQUIREMENTS:
-        - Each hook must create curiosity, tension, or an open loop.
-        - Use contrast, surprise, or withheld information.
-        - Avoid generic influencer phrasing.
-        - Do NOT summarize all scenes.
-        - Tease the experience instead of explaining it.
-        - 8–12 words maximum.
-        - No emojis.
-        - Refer to the SAME experience.
+            Intent: {intent}
 
-        Examples of strong patterns:
-        - "I didn’t expect this rooftop to feel like this."
-        - "This luxury stay surprised me for one reason."
-        - "Wait until you see what happens here."
-        - "This gym view changed how I train."
+            Intent Guidance:
+            {intent_guidance}
 
-        Scenes:
-        {json.dumps(scenes, indent=2)}
+            CRITICAL REQUIREMENTS:
+            - Each hook must create curiosity, tension, or emotional pull.
+            - Use contrast, surprise, or withheld information.
+            - Avoid generic influencer phrasing.
+            - Do NOT summarize all scenes.
+            - Tease the experience instead of explaining it.
+            - 8–12 words maximum.
+            - No emojis.
+            - Refer to the SAME experience.
 
-        Return JSON only:
-        {{ "hooks": ["hook1", "hook2", ...] }}
-        """
+            Scenes:
+            {json.dumps(scenes, indent=2)}
+
+            Return JSON only:
+            {{ "hooks": ["hook1", "hook2", ...] }}
+            """
 
     try:
         resp = client.chat.completions.create(
