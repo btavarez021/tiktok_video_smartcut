@@ -119,10 +119,9 @@ def _run_variant_job(session: str, modes: dict, selected_hook: str | None):
         }
 
 
-def score_hook_from_text(text: str) -> Dict[str, Any]:
+def score_hook_from_text(text: str, intent: str = "discovery") -> Dict[str, Any]:
     """
-    Stateless hook scoring directly from editor text.
-    Used for live UI scoring without requiring save.
+    Stateless hook scoring with light intent weighting.
     """
 
     if not text:
@@ -142,12 +141,39 @@ def score_hook_from_text(text: str) -> Dict[str, Any]:
 
     result = score_hook_text(hook)
 
+    base_score = result.get("score", 0)
+    reasons = result.get("reasons", [])
+
+    # --- Intent emphasis (light adjustment only) ---
+    lower = hook.lower()
+
+    if intent == "discovery":
+        # Boost curiosity-based hooks
+        if any(t in lower for t in ["surprised", "unexpected", "didn't expect", "but", "however", "until"]):
+            base_score += 5
+
+    elif intent == "authority":
+        # Boost clarity and specificity
+        if any(k in lower for k in ["hotel", "room", "resort", "stay"]):
+            base_score += 5
+
+    elif intent == "luxury":
+        # Slightly reward clean, short phrasing
+        if len(hook.split()) <= 10:
+            base_score += 3
+
+    elif intent == "engagement":
+        # Boost direct address hooks
+        if any(w in lower for w in ["you", "your"]):
+            base_score += 5
+
+    final_score = min(base_score, 100)
+
     return {
         "hook": hook,
-        "score": result.get("score", 0),
-        "reasons": result.get("reasons", [])
+        "score": final_score,
+        "reasons": reasons
     }
-
 
 def _run_yaml_job(session: str):
     try:
@@ -2449,7 +2475,7 @@ Captions:
             blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
             first_block = blocks[0] if blocks else ""
 
-            hook_score = score_hook_text(first_block).get("score", 0)
+            hook_score = score_hook_text(first_block, intent).get("score", 0)
             flow_result = score_story_flow_from_text(text)
             flow_score = flow_result.get("score", 0)
 
