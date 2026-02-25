@@ -1222,7 +1222,12 @@ def api_story_flow_improve(session: str, intent: str = "discovery"):
         return {"error": "AI unavailable"}
 
     prompt = f"""
-        Improve the narrative flow of these captions.
+        Improve the narrative flow of these captions based on selected intent.
+
+        Intent: {intent}
+        
+        Intent focus:
+        {intent_guidance}
 
         Rules:
         - Do NOT rewrite the opening hook
@@ -1231,9 +1236,6 @@ def api_story_flow_improve(session: str, intent: str = "discovery"):
         - Keep captions concise and natural
         - Return JSON only
         - Keep the same meaning per caption (no new facts)
-
-        Intent focus:
-        {intent_guidance}
 
         Captions:
         {json.dumps(middle, indent=2)}
