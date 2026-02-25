@@ -71,12 +71,20 @@ def save_analysis_status(session: str, data: dict):
         json.dump(data, f)
 
 def safe_json_extract(text: str) -> dict:
+    if not text:
+        return {}
+
     try:
         start = text.find("{")
         end = text.rfind("}") + 1
-        if start == -1 or end == 0:
-            raise ValueError("No JSON found")
-        return json.loads(text[start:end])
+
+        if start == -1 or end <= start:
+            return {}
+
+        candidate = text[start:end].strip()
+
+        return json.loads(candidate)
+
     except Exception:
         return {}
     
@@ -2182,7 +2190,7 @@ Return JSON only:
 
         # ✅ Use your safe_json_extract here (if it returns dict or None)
         data = safe_json_extract(content)
-        if not isinstance(data, dict):
+        if not data or "score" not in data:
             result = {"score": 70, "reasons": ["Flow evaluation failed."]}
             FLOW_SCORE_CACHE[text] = result
             return result
