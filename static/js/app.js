@@ -139,8 +139,10 @@ async function refreshAfterChange({
   guidance = true
 } = {}) {
 
-  if (REFRESH_LOCK) return;
-  REFRESH_LOCK = true;
+  if (REFRESH_LOCK){
+    console.log("Refreshed skipped(locked)");
+    return;
+  }
 
   try {
     logAppState("Before refresh");
@@ -739,11 +741,7 @@ async function loadIntentFromConfig() {
     const select = document.getElementById("intentSelect");
     if (select) select.value = intent;
 
-    await refreshAfterChange({
-      flow:false,
-      director:false
-    });
-
+    await refreshAfterChange();
 
 
     setStatus(
@@ -1200,8 +1198,6 @@ async function generateHooks() {
     status.className = "hook-lab-status loading";
   }
 
-  loadEditStrategy();
-
   const out = document.getElementById("hookLabOutput");
   if (out) {
     out.innerHTML = `
@@ -1221,6 +1217,7 @@ async function generateHooks() {
         intent: currentIntent || "discovery"
       })
     });
+
   } catch (e) {
     console.warn("Hook fetch warning:", e);
   }
@@ -1250,6 +1247,9 @@ async function generateHooks() {
       status.textContent = `✓ ${hooks.length} hooks generated`;
       status.className = "hook-lab-status success";
     }
+
+    loadEditStrategy();
+
 
   } else {
     if (status) {
@@ -1859,9 +1859,7 @@ if (window.lastGeneratedHooks?.length) {
     bar.classList.remove("hidden");
     label.textContent = text;
   }
-  refreshAfterChange({
-    director:false
-  });
+  refreshAfterChange();
 
 }
 
@@ -2147,9 +2145,7 @@ if (!hook) {
     toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
 
     setStatus("hookLabStatus", "Auto optimization complete ✓", "success");
-    await refreshAfterChange({
-  director:true
-});
+    await refreshAfterChange();
 
   } catch (e) {
     console.error(e);
@@ -2254,10 +2250,7 @@ async function setActiveSession(name) {
   await loadCaptionsFromYaml();
   updateCaptionBaselineHint();
   updateLoadYamlVisibility();
-  await refreshAfterChange({
-  guidance:false,
-  director:false
-});
+  await refreshAfterChange();
 
 
   // ----------------------------
@@ -2569,10 +2562,7 @@ function initStepper() {
             const id = "#" + entry.target.id;
 
             if (id === "#step-4") {
-              refreshAfterChange({
-                guidance:false,
-                director:true
-              });
+              refreshAfterChange();
             }
 
 
@@ -3308,10 +3298,7 @@ async function autoSelectIntentFromReadiness(summary) {
     await saveIntent(intent);
   }
 
-  await refreshAfterChange({
-  flow:false,
-  director:false
-});
+  await refreshAfterChange();
 
 
   setStatus(
@@ -3548,14 +3535,7 @@ const before = await jsonFetch(
 
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
-    await refreshAfterChange({
-      hooks: true,
-      flow: true,
-      director: false   // ⛔ don't run director yet
-    });
-
-    // 🔁 Now that scores are fresh, run director
-    await loadEditStrategy(true);
+    await refreshAfterChange();
 
 
     setStatus("captionsStatus", "AI recommendation applied ✓", "success");
@@ -3864,6 +3844,7 @@ async function loadConfigAndYaml() {
     yamlPreviewEl.textContent = JSON.stringify(data.config || {}, null, 2);
 
     renderStoryboardTimeline(data.config);
+    await refreshAfterChange();
   } catch (err) {
     console.error("loadConfigAndYaml failed", err);
   } finally {
@@ -3934,9 +3915,7 @@ renderStoryboardTimeline({
 // ⬇️ ADD THIS
 saveStoryboardOrder({ silent: true });
 
-refreshAfterChange({
-  director:true
-});
+refreshAfterChange();
 
 
 
@@ -4301,9 +4280,7 @@ async function boostSelectedHook() {
     window.lastGeneratedHooks = null;
     updateHooksReadyUI();
 
-    await refreshAfterChange({
-      director:true
-    });
+    await refreshAfterChange();
 
 
     const newScore = Number(LAST_HOOK_SCORE ?? 0);
@@ -4370,9 +4347,7 @@ async function undoAIRecommendation() {
 
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
-    await refreshAfterChange({
-  director:true
-});
+    await refreshAfterChange();
 
 
     window.aiUndoSnapshot = null;
@@ -4486,9 +4461,7 @@ async function applyCaptionVariant(text, meta = {}) {
 
     document.getElementById("step4CaptionScroll")?.classList.add("hidden");
     document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
-    await refreshAfterChange({
-  director:true
-});
+    await refreshAfterChange();
 
 
   } catch (err) {
@@ -4913,9 +4886,7 @@ async function saveCaptions() {
         );
 
         await loadConfigAndYaml();
-        await refreshAfterChange({
-          director:true
-        });
+        await refreshAfterChange();
 
     } catch (err) {
         console.error(err);
@@ -5123,10 +5094,7 @@ async function applyOverlay() {
     await loadConfigAndYaml();
     await loadCaptionsFromYaml(); // updates lastSavedCaptionsText
     await previewOverlay("fast");
-    await refreshAfterChange({
-      guidance:false,
-      director:false
-    });
+    await refreshAfterChange();
 
 
 
@@ -5157,10 +5125,7 @@ document
   document
   .querySelector('input[name="captionRewriteMode"][value="rewrite"]')
   ?.addEventListener("change", () =>
-  refreshAfterChange({
-    flow:false,
-    director:false
-  })
+  refreshAfterChange()
 );
 
 
@@ -5188,10 +5153,7 @@ async function applyTiming(smart) {
         });
         setStatus("timingStatus", "Timings updated.", "success", true);
         await loadConfigAndYaml();
-        refreshAfterChange({
-  guidance:false,
-  director:false
-});
+        refreshAfterChange();
 
     } catch (err) {
         console.error(err);
@@ -5254,10 +5216,7 @@ async function saveCaptionMode() {
             // 🔄 Update live state instantly — no manual refresh required anymore
             await loadConfigAndYaml();
             await loadCaptionMode();
-            await refreshAfterChange({
-              guidance:false,
-              director:false
-            });
+            await refreshAfterChange();
 
             refreshAnalyses?.();   // optional if your UI uses it
         } else {
@@ -6084,10 +6043,7 @@ if (clearHookBtn) {
         await saveIntent(intent);
       }
 
-      await refreshAfterChange({
-        flow:false,
-        director:false
-      });
+      await refreshAfterChange();
 
 
       // 📣 Feedback
@@ -6157,7 +6113,7 @@ document
       intentSelect.addEventListener("change", async () => {
       currentIntent = intentSelect.value;
       await saveIntent(currentIntent);
-      await refreshAfterChange({ flow:false });
+      await refreshAfterChange();
     });
 
     }
@@ -6224,9 +6180,7 @@ document.getElementById("captionsText")?.addEventListener("input", () => {
   clearTimeout(captionAutoSaveTimer);
 
   captionAutoSaveTimer = setTimeout(async () => {
-    await refreshAfterChange({
-  director:false
-});
+    await refreshAfterChange();
 
 
     if (status) {
@@ -6344,9 +6298,7 @@ if (captionsBox) {
 
         await loadCaptionsFromYaml();
         await loadConfigAndYaml();
-        await refreshAfterChange({
-          director:true
-        });
+        await refreshAfterChange();
 
       } else {
         if (status) status.textContent = res.reason || "No changes made.";
@@ -6834,9 +6786,7 @@ document.addEventListener("click", async (e) => {
       await loadConfigAndYaml();
       await loadCaptionsFromYaml();
       await refreshOverlayPreview();
-      await refreshAfterChange({
-        director:true
-      });
+      await refreshAfterChange();
 
       workingCaptionsText = lastSavedCaptionsText;
 
@@ -6889,10 +6839,7 @@ updateRewriteModeAvailability();
         await loadCaptionMode();   // reload caption mode from YAML
         await loadRewriteMode();   // reload rewrite mode from YAML
         updateRewriteWarning();
-       await refreshAfterChange({
-        guidance:false,
-        director:true
-      });
+       await refreshAfterChange();
 
 
         document.querySelectorAll('input[name="captionRewriteMode"]').forEach(el => {

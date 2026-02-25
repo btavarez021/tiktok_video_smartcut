@@ -148,12 +148,49 @@ def score_hook_text(text: str, intent: str = "discovery") -> dict:
     else:
         reasons.append("Opening doesn’t clearly say what’s being reviewed.")
 
-    curiosity_terms = ["surprised", "unexpected", "didn't expect", "but", "however", "until", "for one reason"]
-    if any(t in lower for t in curiosity_terms):
+    # -----------------------------
+    # 2) Curiosity / tension (0–30)
+    # -----------------------------
+
+    strong_curiosity = [
+        "wait until",
+        "until you",
+        "didn't expect",
+        "did not expect",
+        "for one reason",
+        "but then",
+    ]
+
+    soft_curiosity = [
+        "you won't believe",
+        "you won’t believe",
+        "what happens",
+        "what's behind",
+        "what’s behind",
+        "secret",
+        "hidden",
+    ]
+
+    if any(t in lower for t in strong_curiosity):
         score += 30
+    elif any(t in lower for t in soft_curiosity):
+        score += 20
     else:
         reasons.append("Opening lacks curiosity/tension (no open loop).")
 
+    # -----------------------------
+    # Pattern interrupt bonus (+10)
+    # -----------------------------
+    pattern_interrupt_starts = (
+        "they said",
+        "i thought",
+        "no one told me",
+        "everyone said",
+    )
+
+    if lower.startswith(pattern_interrupt_starts):
+        score += 10
+    
     if wc <= 12:
         score += 20
     elif wc <= 18:
@@ -168,15 +205,31 @@ def score_hook_text(text: str, intent: str = "discovery") -> dict:
     else:
         reasons.append("Opening starts with filler words (hurts scroll-stop).")
 
+
+    # -----------------------------
+    # Generic marketing opener penalty (-10)
+    # -----------------------------
+    generic_starts = {"experience", "discover", "welcome", "step", "explore"}
+
+    if words and words[0] in generic_starts:
+        score -= 10
+    
     # ----------------------------
     # 🔥 Light intent weighting
     # ----------------------------
     if intent == "luxury":
         if wc <= 10:
             score += 5
-    elif intent == "discovery":
-        if any(t in lower for t in curiosity_terms):
+        luxury_terms = ["exclusive", "private", "refined", "elevated"]
+        if any(t in lower for t in luxury_terms):
             score += 5
+
+    elif intent == "discovery":
+        if any(t in lower for t in strong_curiosity):
+            score += 5
+        elif any(t in lower for t in soft_curiosity):
+            score += 3
+
     elif intent == "authority":
         if wc <= 14:
             score += 3
