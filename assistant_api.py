@@ -2124,7 +2124,7 @@ def normalize_variant_text(text: str, expected_blocks: int) -> str:
 
     return "\n\n".join(blocks)
 
-def score_story_flow_from_text(text: str) -> dict:
+def score_story_flow_from_text(text: str, intent: str = "discovery") -> dict:
     """
     Stateless story flow scoring for raw variant text.
     Cached to avoid repeat LLM calls for identical text.
@@ -2133,8 +2133,9 @@ def score_story_flow_from_text(text: str) -> dict:
     if not text:
         return {"score": 0, "reasons": ["Not enough captions to evaluate flow."]}
 
-    # ✅ Cache key: exact text (simple + safe)
-    cached = FLOW_SCORE_CACHE.get(text)
+    cache_key = f"{intent}::{text}"
+
+    cached = FLOW_SCORE_CACHE.get(cache_key)
     if cached:
         return cached
 
@@ -2145,36 +2146,81 @@ def score_story_flow_from_text(text: str) -> dict:
 
     if len(middle) < 2:
         result = {"score": 0, "reasons": ["Not enough captions to evaluate flow."]}
-        FLOW_SCORE_CACHE[text] = result
+        FLOW_SCORE_CACHE[cache_key] = result
         return result
 
     if not client:
         result = {"score": 70, "reasons": ["AI unavailable — default score."]}
-        FLOW_SCORE_CACHE[text] = result
+        FLOW_SCORE_CACHE[cache_key] = result
         return result
 
+    intent_guidance = ""
+
+    if intent == "discovery":
+        intent_guidance = """
+    Reward:
+    - Escalating energy
+    - Curiosity progression
+    - Momentum between captions
+
+    Penalize:
+    - Flat pacing
+    - Repetition
+    - Slow exposition
+    """
+
+    elif intent == "authority":
+        intent_guidance = """
+    Reward:
+    - Logical sequencing
+    - Clear informational build
+    - Structured progression
+
+    Penalize:
+    - Disorganized order
+    - Jumping between ideas
+    """
+
+    elif intent == "luxury":
+        intent_guidance = """
+    Reward:
+    - Tone consistency
+    - Smooth emotional transitions
+    - Polished rhythm
+
+    Penalize:
+    - Abrupt tonal shifts
+    - Jarring progression
+    """
+
+    elif intent == "engagement":
+        intent_guidance = """
+    Reward:
+    - Emotional pull
+    - Strong pacing variation
+    - Clear escalation
+
+    Penalize:
+    - Monotony
+    - Low emotional movement
+    """
+
     prompt = f"""
-Score the narrative flow of these captions from 1–100.
+    Score the narrative flow of these captions from 1–100.
 
-Evaluate positively if:
-- They feel cohesive
-- Logical progression
-- Consistent tone
+    Evaluate based on the following intent-specific guidance:
 
-Evaluate negatively if:
-- Disconnected
-- Random jumps
-- Confusing order
+    {intent_guidance}
 
-Captions:
-{json.dumps(middle, indent=2)}
+    Captions:
+    {json.dumps(middle, indent=2)}
 
-Return JSON only:
-{{
-  "score": number,
-  "reasons": ["reason1", "reason2"]
-}}
-"""
+    Return JSON only:
+    {{
+    "score": number,
+    "reasons": ["reason1", "reason2"]
+    }}
+    """
 
     try:
         resp = client.chat.completions.create(
@@ -2192,7 +2238,7 @@ Return JSON only:
         data = safe_json_extract(content)
         if not data or "score" not in data:
             result = {"score": 70, "reasons": ["Flow evaluation failed."]}
-            FLOW_SCORE_CACHE[text] = result
+            FLOW_SCORE_CACHE[cache_key] = result
             return result
 
         result = {
@@ -2200,12 +2246,12 @@ Return JSON only:
             "reasons": data.get("reasons", []),
         }
 
-        FLOW_SCORE_CACHE[text] = result
+        FLOW_SCORE_CACHE[cache_key] = result
         return result
 
     except Exception:
         result = {"score": 70, "reasons": ["Flow evaluation failed."]}
-        FLOW_SCORE_CACHE[text] = result
+        FLOW_SCORE_CACHE[cache_key] = result
         return result
 
 def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
