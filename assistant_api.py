@@ -1176,40 +1176,36 @@ def api_story_flow_improve(session: str, intent: str = "discovery"):
     session = sanitize_session(session)
     cfg = _load_config(session)
 
+    intent = (cfg.get("intent") or "discovery").strip().lower()
+
     # Collect captions
     hook = cfg.get("first_clip", {}).get("text", "")
 
-    intent = cfg.get("intent", "discovery")
-
-    intent_guidance = ""
-
-    if intent == "discovery":
-        intent_guidance = """
+    INTENT_GUIDANCE = {
+    "discovery": """
     Increase escalation between captions.
     Build momentum.
     Make each scene feel like it raises energy.
-    """
-
-    elif intent == "luxury":
-        intent_guidance = """
+    """,
+        "luxury": """
     Smooth transitions.
     Maintain elegant tone.
     Avoid abrupt pacing changes.
-    """
-
-    elif intent == "informational":
-        intent_guidance = """
+    """,
+        "informational": """
     Improve logical sequencing.
     Clarify transitions between ideas.
     Ensure structured progression.
-    """
-
-    elif intent == "personal":
-        intent_guidance = """
+    """,
+        "personal": """
     Strengthen emotional continuity.
     Make transitions feel human and natural.
     Deepen connection between scenes.
-    """
+    """,
+    }
+
+    intent_guidance = INTENT_GUIDANCE.get(intent, INTENT_GUIDANCE["discovery"])
+
 
     middle = []
     for clip in cfg.get("middle_clips", []):
@@ -1226,24 +1222,25 @@ def api_story_flow_improve(session: str, intent: str = "discovery"):
         return {"error": "AI unavailable"}
 
     prompt = f"""
-Improve the narrative flow of these captions.
+        Improve the narrative flow of these captions.
 
-Rules:
-- Do NOT rewrite the opening hook
-- Do NOT add or remove captions
-- Improve flow by rephrasing sentences only
-- Keep captions concise and natural
-- Return JSON only
+        Rules:
+        - Do NOT rewrite the opening hook
+        - Do NOT add or remove captions
+        - Improve flow by rephrasing sentences only
+        - Keep captions concise and natural
+        - Return JSON only
+        - Keep the same meaning per caption (no new facts)
 
-Intent focus:
-{intent_guidance}
+        Intent focus:
+        {intent_guidance}
 
-Captions:
-{json.dumps(middle, indent=2)}
+        Captions:
+        {json.dumps(middle, indent=2)}
 
-Return:
-{{ "rewrites": ["caption 1", "caption 2", "..."] }}
-"""
+        Return:
+        {{ "rewrites": ["caption 1", "caption 2", "..."] }}
+        """
 
     try:
         resp = client.chat.completions.create(
