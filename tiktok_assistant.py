@@ -125,11 +125,7 @@ def extract_hook_text(cfg: dict) -> str:
 def _normalize_spaces(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "")).strip()
 
-def score_hook_text(text: str) -> dict:
-    """
-    Score hook from 0-100 with calm reasons (max 2).
-    Deterministic V1 (no LLM).
-    """
+def score_hook_text(text: str, intent: str = "discovery") -> dict:
     text = _normalize_spaces(text)
     if not text:
         return {"score": 0, "reasons": ["No opening sentence detected."]}
@@ -141,30 +137,23 @@ def score_hook_text(text: str) -> dict:
     score = 0
     reasons = []
 
-    # 1) Clarity (0–30)
+    # --- Base scoring (unchanged logic) ---
     if any(k in lower for k in ["hotel", "room", "stay", "resort"]):
         score += 30
-
-    # Brand name clarity (e.g. "Le Meridien", "Four Seasons")
     elif re.search(r"\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)+\b", text):
         score += 20
-
     elif any(k in lower for k in ["this place", "this spot", "this stay"]):
         score += 15
         reasons.append("Subject is vague; consider naming the hotel or location.")
-
     else:
         reasons.append("Opening doesn’t clearly say what’s being reviewed.")
 
-
-    # 2) Curiosity / tension (0–30)
     curiosity_terms = ["surprised", "unexpected", "didn't expect", "but", "however", "until", "for one reason"]
     if any(t in lower for t in curiosity_terms):
         score += 30
     else:
         reasons.append("Opening lacks curiosity/tension (no open loop).")
 
-    # 3) Brevity (0–20)
     if wc <= 12:
         score += 20
     elif wc <= 18:
@@ -173,14 +162,31 @@ def score_hook_text(text: str) -> dict:
     else:
         reasons.append("Opening sentence is too long for a strong hook.")
 
-    # 4) Spoken safety (0–20)
     filler_starters = {"so", "today", "we", "okay", "basically", "alright"}
     if words and words[0] not in filler_starters:
         score += 20
     else:
         reasons.append("Opening starts with filler words (hurts scroll-stop).")
 
-    return {"score": min(score, 100), "reasons": reasons[:2]}
+    # ----------------------------
+    # 🔥 Light intent weighting
+    # ----------------------------
+    if intent == "luxury":
+        if wc <= 10:
+            score += 5
+    elif intent == "discovery":
+        if any(t in lower for t in curiosity_terms):
+            score += 5
+    elif intent == "authority":
+        if wc <= 14:
+            score += 3
+
+    score = max(min(score, 100), 0)
+
+    return {
+        "score": score,
+        "reasons": reasons[:2]
+    }
 
 def improve_hook_text(original: str, filename: str | None = None, label: str | None = None) -> str:
     original = _normalize_spaces(original)
