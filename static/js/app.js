@@ -1799,7 +1799,7 @@ function renderEditProgress() {
 
 function clearSelectedHook() {
   selectedHook = null;
-
+  window.selectedHook = null;
   // Remove selection visuals
   document.querySelectorAll(".hookCard").forEach(card => {
     card.classList.remove("selected", "hook-locked");
@@ -1831,6 +1831,7 @@ function selectHook(text) {
   }
 
   selectedHook = text;
+  window.selectedHook = text
 
   updateHookLockUI();
   updateHookLabGuidance();
@@ -6830,7 +6831,7 @@ document
       minimal: document.getElementById("mode_minimal")?.checked,
     };
 
-    await generateVariantsAsync(modes, selectedHook || null);
+    await generateVariantsAsync(modes, window.selectedHook || null);
   });
 
 // Run once after load
