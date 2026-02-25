@@ -993,7 +993,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
         hooks = []
         for text in data.get("hooks", []):
-            score = score_hook_text(text)["score"]
+            score = score_hook_text(text, intent)["score"]
             clean = strip_emojis(text).strip()
             lower = clean.lower()
 
