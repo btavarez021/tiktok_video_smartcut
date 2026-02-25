@@ -1172,12 +1172,44 @@ def api_story_flow_score(session: str) -> Dict[str, Any]:
             "reasons": ["Could not evaluate story flow."]
         }
 
-def api_story_flow_improve(session: str) -> Dict[str, Any]:
+def api_story_flow_improve(session: str, intent: str = "discovery"):
     session = sanitize_session(session)
     cfg = _load_config(session)
 
     # Collect captions
     hook = cfg.get("first_clip", {}).get("text", "")
+
+    intent = cfg.get("intent", "discovery")
+
+    intent_guidance = ""
+
+    if intent == "discovery":
+        intent_guidance = """
+    Increase escalation between captions.
+    Build momentum.
+    Make each scene feel like it raises energy.
+    """
+
+    elif intent == "luxury":
+        intent_guidance = """
+    Smooth transitions.
+    Maintain elegant tone.
+    Avoid abrupt pacing changes.
+    """
+
+    elif intent == "informational":
+        intent_guidance = """
+    Improve logical sequencing.
+    Clarify transitions between ideas.
+    Ensure structured progression.
+    """
+
+    elif intent == "personal":
+        intent_guidance = """
+    Strengthen emotional continuity.
+    Make transitions feel human and natural.
+    Deepen connection between scenes.
+    """
 
     middle = []
     for clip in cfg.get("middle_clips", []):
@@ -1202,6 +1234,9 @@ Rules:
 - Improve flow by rephrasing sentences only
 - Keep captions concise and natural
 - Return JSON only
+
+Intent focus:
+{intent_guidance}
 
 Captions:
 {json.dumps(middle, indent=2)}

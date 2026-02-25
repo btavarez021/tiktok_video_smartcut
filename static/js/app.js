@@ -4494,6 +4494,13 @@ function updateSmartStatus() {
   const hook = LAST_HOOK_SCORE ?? null;
   const flow = LAST_FLOW_SCORE ?? null;
 
+  const flowThreshold = {
+    discovery: 70,
+    luxury: 80,
+    informational: 75,
+    personal: 72
+  }[currentIntent] || 70;
+
   if (hook === null || flow === null) {
     el.classList.add("hidden");
     return;
@@ -4506,10 +4513,12 @@ function updateSmartStatus() {
     el.textContent = "🔴 Fix Hook First";
     el.classList.add("red");
   } 
-  else if (flow < 70) {
-    el.textContent = "🟡 Improve Story Flow";
-    el.classList.add("yellow");
-  } 
+  
+
+  else if (flow < flowThreshold) {
+      el.textContent = "🟡 Improve Story Flow";
+      el.classList.add("yellow");
+    } 
   else if (hook >= 85 && flow >= 85) {
     el.textContent = "🚀 Publish Ready";
     el.classList.add("green");
