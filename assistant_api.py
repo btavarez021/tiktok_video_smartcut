@@ -926,21 +926,30 @@ def api_generate_hooks(session: str, intent: str | None = None):
         }
 
     prompt = f"""
-Generate 8 short viral TikTok hooks based on these scenes.
+        Generate 8 scroll-stopping TikTok hooks based on these scenes.
 
-Rules:
-- Hooks must refer to the SAME experience
-- Different tones: hype, curiosity, luxury, influencer, cinematic
-- Max 12 words
-- No emojis
-- Do NOT describe all scenes — tease the experience
+        CRITICAL REQUIREMENTS:
+        - Each hook must create curiosity, tension, or an open loop.
+        - Use contrast, surprise, or withheld information.
+        - Avoid generic influencer phrasing.
+        - Do NOT summarize all scenes.
+        - Tease the experience instead of explaining it.
+        - 8–12 words maximum.
+        - No emojis.
+        - Refer to the SAME experience.
 
-Scenes:
-{json.dumps(scenes, indent=2)}
+        Examples of strong patterns:
+        - "I didn’t expect this rooftop to feel like this."
+        - "This luxury stay surprised me for one reason."
+        - "Wait until you see what happens here."
+        - "This gym view changed how I train."
 
-Return JSON:
-{{ "hooks": ["hook1", "hook2", ...] }}
-"""
+        Scenes:
+        {json.dumps(scenes, indent=2)}
+
+        Return JSON only:
+        {{ "hooks": ["hook1", "hook2", ...] }}
+        """
 
     try:
         resp = client.chat.completions.create(
