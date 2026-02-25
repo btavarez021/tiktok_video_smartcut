@@ -29,8 +29,6 @@ let workingCaptionsText = "";
 
 let rewritePending = false;
 
-let currentIntent = "discovery";
-
 let CONFIG_LOADING = false;
 
 let LAST_HOOK_SCORE = null;
@@ -51,6 +49,47 @@ let PENDING_SCROLL_TO_STORYBOARD = false;
 
 let CONFIG_CACHE = null;
 
+// =======================================
+// GLOBAL APP STATE (Single Source of Truth)
+// =======================================
+
+window.appState = {
+  session: null,
+
+  hook: {
+    selected: null,
+    intent: "discovery",
+    locked: false,
+    lastGenerated: []
+  },
+
+  variants: {
+    modes: {},
+    list: [],
+    recommendedId: null,
+    generating: false
+  },
+
+  captions: {
+    baseline: "",
+    current: "",
+    source: "none"
+  },
+
+  storyboard: {
+    order: []
+  },
+
+  scores: {
+    hook: null,
+    storyFlow: null
+  },
+
+  ui: {
+    yamlPolling: false
+  }
+};
+
 async function getConfigCached(force = false) {
   if (CONFIG_CACHE && !force) return CONFIG_CACHE;
 
@@ -63,7 +102,7 @@ async function getConfigCached(force = false) {
 
 
 function setCurrentVideoIntent(intent) {
-  currentIntent = intent;
+  window.appState.hook.intent = intent;
   console.log("🎯 Video intent set to:", intent);
 }
 
@@ -101,9 +140,9 @@ function getAppState() {
     captionsLength: (lastSavedCaptionsText || "").length,
     rewritePending,
     rewriteCommitted,
-    hooksReady: window.hooksReady,
+    hooksReady: !!window.appState.hook.lastGenerated?.length,
     clipOrderDirty,
-    intent: currentIntent,
+    intent: window.appState.hook.intent,
     yamlPolling: YAML_POLL_ACTIVE,
     variantPolling: VARIANT_POLL_ACTIVE,
   };
@@ -529,7 +568,7 @@ async function pollVariantStatus() {
       const variants = data.result?.variants || [];
 
       // 🔑 Global state
-      window.lastGeneratedVariants = variants;
+      window.appState.variants.list = variants;
 
       // Sort: AI recommended first
       variants.sort((a, b) => {
@@ -557,7 +596,7 @@ async function pollVariantStatus() {
         // 🔥 Feedback: viewed
         sendVariantFeedback({
           variantId: cardId,
-          intent: currentIntent || "discovery",
+          intent: window.appState.hook.intent,
           tone: variant.tone,
           confidence: variant.confidence,
           recommended: variant.recommended === true,
@@ -609,7 +648,7 @@ function updateHooksReadyUI() {
   const btn = document.getElementById("continueToHooksBtn");
   if (!btn) return;
 
-  if (window.hooksReady) {
+  if (window.appState.hook.lastGenerated?.length) {
     btn.classList.add("ai-ready");
     btn.dataset.ready = "true";
   } else {
@@ -626,8 +665,8 @@ function updateAIRecommendationBar() {
   if (!bar) return;
 
   const hasRecommendation =
-    Array.isArray(window.lastGeneratedVariants) &&
-    window.lastGeneratedVariants.some(v => v.recommended === true);
+    Array.isArray(window.appState.variants.list) &&
+    window.appState.variants.list.some(v => v.recommended === true);
 
   // 1️⃣ Show / hide bar
   bar.classList.toggle("hidden", !hasRecommendation);
@@ -652,11 +691,10 @@ function updateAIRecommendationBar() {
 }
 
 function hydrateExistingHooksIfAny() {
-  if (!window.lastGeneratedHooks?.length) return;
+  const hooks = window.appState.hook.lastGenerated;
+  if (!hooks?.length) return;
 
-  console.log("💧 Hydrating existing hooks into UI");
-
-  renderHookLab(window.lastGeneratedHooks);
+  renderHookLab(hooks);
 }
 
 function updateIntentHint(intent) {
@@ -697,8 +735,8 @@ function updateCaptionBaselineHint() {
   if (!hint) return;
 
   const hasVariants =
-  Array.isArray(window.lastGeneratedVariants) &&
-  window.lastGeneratedVariants.length > 0;
+  Array.isArray(window.appState.variants.list) &&
+  window.appState.variants.list.length > 0;
 
 
   hint.style.display = hasVariants ? "none" : "block";
@@ -709,8 +747,8 @@ function updateLoadYamlVisibility() {
   if (!btn) return;
 
   const hasVariants =
-  Array.isArray(window.lastGeneratedVariants) &&
-  window.lastGeneratedVariants.length > 0;
+  Array.isArray(window.appState.variants.list) &&
+  window.appState.variants.list.length > 0;
 
   btn.style.display = hasVariants ? "inline-block" : "none";
 }
@@ -730,6 +768,8 @@ async function loadIntentFromConfig() {
 
     // 🔑 Core state
     window.userForcedIntent = false;
+
+    window.appState.hook.intent = intent;
 
     // ✅ SYNC PILL UI (single source of truth)
     syncIntentPills(intent);
@@ -1162,7 +1202,7 @@ function renderVariantCard(num, variant, cardId) {
         event.stopPropagation();
         sendVariantFeedback({
           variantId: '${cardId}',
-          intent: '${currentIntent}',
+          intent: '${window.appState.hook.intent}',
           tone: '${tone}',
           confidence: '${confidence}',
           recommended: ${recommended},
@@ -1214,7 +1254,7 @@ async function generateHooks() {
       method: "POST",
       body: JSON.stringify({
         session: getActiveSession(),
-        intent: currentIntent || "discovery"
+        intent: window.appState.hook.intent
       })
     });
 
@@ -1226,10 +1266,9 @@ async function generateHooks() {
 
   if (Array.isArray(hooks) && hooks.length > 0) {
     // 🔑 global state for hydration / refresh
-    window.lastGeneratedHooks = hooks;
+    window.appState.hook.lastGenerated = hooks;
 
     // 🔥 mark ready → button glows
-    window.hooksReady = true;
     updateHooksReadyUI();
 
     // If already in Hook Lab, render immediately
@@ -1270,8 +1309,6 @@ async function generateHooks() {
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
-
-let selectedHook = null;
 
 
 // ================================
@@ -1328,7 +1365,7 @@ function renderHookLab(hooks) {
     })
     .forEach(h => {
       const isRecommended = h.recommended === true;
-      const isSelected = selectedHook === h.text;
+      const isSelected = window.appState.hook.selected === h.text;
       const reason = h.recommend_reason || "";
       const intentLabel = h.intent_label || "";
 
@@ -1347,7 +1384,7 @@ function renderHookLab(hooks) {
 
       // 🔒 GLOBAL RULE:
       // If user selected ANY hook, AI visuals are suppressed
-      const allowAiHighlight = !selectedHook;
+      const allowAiHighlight = !window.appState.hook.selected;
 
       if (isSelected) {
         card.classList.add("selected");
@@ -1423,7 +1460,7 @@ if (isRecommended && allowAiHighlight) {
     });
 
   // Lock visual state when user selects a hook
-  if (selectedHook) {
+  if (window.appState.hook.selected) {
     document.querySelectorAll(".hookCard").forEach(card => {
       card.classList.add("locked");
     });
@@ -1730,7 +1767,7 @@ function updateHookLockUI() {
 
   if (!clearBtn) return;
 
-  if (selectedHook) {
+  if (window.appState.hook.selected) {
     // 🔒 Locked state
     lockBar?.classList.remove("hidden");
     clearBtn.classList.remove("hidden");
@@ -1798,70 +1835,31 @@ function renderEditProgress() {
 
 
 function clearSelectedHook() {
-  selectedHook = null;
-  window.selectedHook = null;
-  // Remove selection visuals
-  document.querySelectorAll(".hookCard").forEach(card => {
-    card.classList.remove("selected", "hook-locked");
-  });
+  const state = window.appState;
 
-  // Hide selected hook bar
-  document.getElementById("selectedHookBar")?.classList.add("hidden");
-
-  // Re-render hooks so AI recommendations re-appear
-  if (window.lastGeneratedHooks?.length) {
-  renderHookLab(window.lastGeneratedHooks);
-}
+  state.hook.selected = null;
+  state.hook.locked = false;
 
   updateHookLockUI();
+  renderHookSelectionUI();
+  refreshAfterChange();
 }
 
 function selectHook(text) {
 
-  // 🚫 HARD LOCK: do nothing if already locked
-  if (selectedHook && selectedHook !== text) {
+  const state = window.appState;
 
-
-    setStatus(
-      "hookLabStatus",
-      "🔒 Hook is locked — clear it to choose another",
-      "info"
-    );
+  if (state.hook.locked && state.hook.selected !== text) {
+    setStatus("hookLabStatus", "🔒 Hook locked — clear to change", "info");
     return;
   }
 
-  selectedHook = text;
-  window.selectedHook = text
+  state.hook.selected = text;
+  state.hook.locked = true;
 
   updateHookLockUI();
-  updateHookLabGuidance();
-
-  // 🔥 Re-render so AI green recommended border is removed after user selection
-if (window.lastGeneratedHooks?.length) {
-  renderHookLab(window.lastGeneratedHooks);
-}
-
-  // Remove previous highlight
-  document.querySelectorAll(".hookCard").forEach(c =>
-    c.classList.remove("selected")
-  );
-
-  // Highlight selected
-  document.querySelectorAll(".hookCard").forEach(c => {
-    if (c.querySelector(".hookText")?.textContent === text) {
-      c.classList.add("selected");
-    }
-  });
-
-  const bar = document.getElementById("selectedHookBar");
-  const label = document.getElementById("selectedHookDisplay");
-
-  if (bar && label) {
-    bar.classList.remove("hidden");
-    label.textContent = text;
-  }
+  renderHookSelectionUI();
   refreshAfterChange();
-
 }
 
 
@@ -2006,8 +2004,8 @@ function updateHookLabGuidance() {
   const score =
     Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
 
-  const hasHooks = Array.isArray(window.lastGeneratedHooks) && window.lastGeneratedHooks.length > 0;
-  const selected = !!selectedHook;
+  const hasHooks = Array.isArray(window.appState.hook.lastGenerated) && window.appState.hook.lastGenerated.length > 0;
+  const selected = !!window.appState.hook.selected;
 
   if (!hasHooks) {
     el.textContent = "Generate hooks to explore opening ideas.";
@@ -2102,7 +2100,7 @@ function updateSessionLabels() {
 }
 
 async function autoBoostSelectedHook() {
-  const hook = window.selectedHook;
+  const hook = window.appState.hook.selected;
 if (!hook) {
   toast?.("Select a hook first");
   return;
@@ -2115,7 +2113,7 @@ if (!hook) {
       method: "POST",
       body: JSON.stringify({
         hook,
-        intent: currentIntent || "discovery"
+        intent: window.appState.hook.intent
       })
     });
 
@@ -2226,12 +2224,13 @@ async function setActiveSession(name) {
   // ----------------------------
   workingClipOrder = [];
   clipOrderDirty = false;
-  selectedHook = null;
+  window.appState.hook.selected = null;
+  window.appState.hook.locked = false;
 
   // 🔥 VARIANTS RESET (you were missing this)
   lastVariantStatus = null;
   VARIANT_POLL_ACTIVE = false;
-  window.lastGeneratedVariants = [];
+  window.appState.variants.list = [];
   updateVariantRunningBadge("idle");
 
   // 🔥 ANALYSIS badge reset (safe default)
@@ -3290,7 +3289,7 @@ async function autoSelectIntentFromReadiness(summary) {
 
   console.log("🧠 Auto-selecting intent:", raw, "→", intent);
 
-  currentIntent = intent;
+  window.appState.hook.intent = intent;
 
   syncIntentPills(intent);
   updateIntentHint(intent);
@@ -3471,7 +3470,7 @@ async function applyAIRecommendation() {
   const applyBtn = document.getElementById("applyAiRecommendationBtn");
   const undoBtn  = document.getElementById("undoAiRecommendationBtn");
 
-  const variant = window.lastGeneratedVariants
+  const variant = window.appState.variants.list
     ?.find(v => v.recommended === true);
 
   if (!variant) {
@@ -3661,7 +3660,7 @@ async function hydrateStoryboardAndScroll() {
   updateAIRecommendationBar();
 
   // 🔥 Option A: auto-generate hooks once storyboard is ready
-  if (!window.lastGeneratedHooks?.length) {
+  if (!window.appState.hook.lastGenerated?.length) {
     generateHooks(); // runs async, sets hooksReady + renders if lab is open
   }
 
@@ -3903,7 +3902,7 @@ function moveClip(index, direction) {
 
   clipOrderDirty = true;
 
-  window.hooksReady = false;
+  window.appState.hook.lastGenerated = null;
   updateHooksReadyUI();
 
 renderStoryboardTimeline({
@@ -4185,14 +4184,16 @@ async function improveHook() {
 }
 
 
-  try {
-    await jsonFetch("/api/hook_improve", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ session: getActiveSession() }),
-});
+try {
+  const data = await jsonFetch("/api/hook_improve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session: getActiveSession() }),
+  });
 
-    if (data.status === "error") throw new Error(data.error || "failed");
+  if (data.status === "error") {
+    throw new Error(data.error || "failed");
+  }
 
     // 🔥 Rewrite proposal
     if (data.status === "proposed") {
@@ -4217,7 +4218,7 @@ async function improveHook() {
 async function boostSelectedHook() {
   const statusEl = document.getElementById("hookLabStatus");
 
-  const hook = window.selectedHook;
+  const hook = window.appState.hook.selected;
   if (!hook) {
     toast?.("Select a hook first");
     return;
@@ -4234,7 +4235,7 @@ async function boostSelectedHook() {
       body: JSON.stringify({
         session: getActiveSession(),
         hook,
-        intent: currentIntent || "discovery",
+        intent: window.appState.hook.intent
       }),
     });
 
@@ -4276,8 +4277,7 @@ async function boostSelectedHook() {
 
     // keep baselines consistent
     lastSavedCaptionsText = newCaptions;
-    window.hooksReady = false;
-    window.lastGeneratedHooks = null;
+    window.appState.hook.lastGenerated = null;
     updateHooksReadyUI();
 
     await refreshAfterChange();
@@ -4435,8 +4435,7 @@ async function applyCaptionVariant(text, meta = {}) {
     lastSavedCaptionsText = text;
     workingCaptionsText = text;
 
-    window.hooksReady = false;
-    window.lastGeneratedHooks = null;
+    window.appState.hook.lastGenerated = null;
     updateHooksReadyUI();
 
     await loadConfigAndYaml();   // ok to keep for timeline
@@ -4500,7 +4499,7 @@ function updateSmartStatus() {
     luxury: 80,
     informational: 75,
     personal: 72
-  }[currentIntent] || 70;
+  }[window.appState.hook.intent] || 70;
 
   if (hook === null || flow === null) {
     el.classList.add("hidden");
@@ -4883,8 +4882,7 @@ async function saveCaptions() {
 
         lastSavedCaptionsText = text;   // 🔑 THIS IS REQUIRED
 
-        window.hooksReady = false;
-        window.lastGeneratedHooks = null;
+        window.appState.hook.lastGenerated = null;
         updateHooksReadyUI();
 
         setStatus(
@@ -4951,8 +4949,7 @@ async function regenerateCaptionsFromClips() {
         // ✅ NOW load from YAML (this sets baseline)
         await loadCaptionsFromYaml({ preserveSource: true });
 
-        window.hooksReady = false;
-        window.lastGeneratedHooks = null;
+        window.appState.hook.lastGenerated = null;
         updateHooksReadyUI();
 
         flashElement(captionsEl);
@@ -4961,7 +4958,6 @@ async function regenerateCaptionsFromClips() {
         "Captions regenerated from clips — previous captions replaced",
         "info"
         );
-
 
         setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
         setCaptionInlineStatus("Captions generated from filenames", "success");
@@ -5913,8 +5909,11 @@ async function goToHookLab() {
   document.getElementById("hookLab")?.classList.remove("hidden");
 
   // if hooks exist, show them, otherwise generate
-  if (window.lastGeneratedHooks?.length) {
-    renderHookLab(window.lastGeneratedHooks);
+  const hooks = window.appState.hook.lastGenerated;
+
+if (hooks?.length) {
+  renderHookLab(hooks);
+
   } else {
     await generateHooks();
   }
@@ -6026,26 +6025,34 @@ if (clearHookBtn) {
 
 
 
-   // -------------------------------
-  // Intent pill wiring (FIXED)
   // -------------------------------
-  const pillContainer = document.querySelector(".intent-pills");
-  if (pillContainer) {
-    pillContainer.addEventListener("click", async (e) => {
-      const pill = e.target.closest(".pill");
-      if (!pill) return;
+// Intent pill wiring (STATE DRIVEN)
+// -------------------------------
+const pillContainer = document.querySelector(".intent-pills");
 
-      const intent = pill.dataset.intent;
-      if (!intent || intent === currentIntent) return;
+if (pillContainer) {
+  pillContainer.addEventListener("click", async(e) => {
 
-      // 🔑 Update core state
-      currentIntent = intent;
+    const pill = e.target.closest(".pill");
+    if (!pill) return;
 
-      // 🎨 Sync UI
-      syncIntentPills(intent);
+    const intent = pill.dataset.intent;
+    if (!intent) return;
 
-      // 🔔 Update hint
-      updateIntentHint(intent);
+    const state = window.appState;
+
+    // If already selected, do nothing
+    if (intent === state.hook.intent) return;
+
+    // 🔑 Update centralized state
+    state.hook.intent = intent;
+
+    // 🎨 Sync UI from state
+    syncIntentPills();
+
+    // 🔔 Update hint
+    updateIntentHint(intent);
+
 
       // 💾 Persist intent (optional)
       if (typeof saveIntent === "function") {
@@ -6120,8 +6127,8 @@ document
 
     if (intentSelect) {
       intentSelect.addEventListener("change", async () => {
-      currentIntent = intentSelect.value;
-      await saveIntent(currentIntent);
+      window.appState.hook.intent = intentSelect.value;
+      await saveIntent(window.appState.hook.intent);
       await refreshAfterChange();
     });
 
@@ -6831,7 +6838,10 @@ document
       minimal: document.getElementById("mode_minimal")?.checked,
     };
 
-    await generateVariantsAsync(modes, window.selectedHook || null);
+    await generateVariantsAsync(
+  modes,
+  window.appState.hook.selected || null
+);
   });
 
 // Run once after load
