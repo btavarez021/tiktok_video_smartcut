@@ -144,6 +144,8 @@ async function refreshAfterChange({
     return;
   }
 
+  REFRESH_LOCK = true;
+
   try {
     logAppState("Before refresh");
 
@@ -179,8 +181,6 @@ async function refreshAfterChange({
     REFRESH_LOCK = false;
   }
 }
-
-
 
 function openHookLab() {
   const lab = document.getElementById("hookLab");
@@ -3844,7 +3844,6 @@ async function loadConfigAndYaml() {
     yamlPreviewEl.textContent = JSON.stringify(data.config || {}, null, 2);
 
     renderStoryboardTimeline(data.config);
-    await refreshAfterChange();
   } catch (err) {
     console.error("loadConfigAndYaml failed", err);
   } finally {
@@ -5153,7 +5152,7 @@ async function applyTiming(smart) {
         });
         setStatus("timingStatus", "Timings updated.", "success", true);
         await loadConfigAndYaml();
-        refreshAfterChange();
+        await refreshAfterChange();
 
     } catch (err) {
         console.error(err);
