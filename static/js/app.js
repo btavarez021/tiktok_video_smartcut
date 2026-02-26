@@ -1344,62 +1344,6 @@
     });
   }
 
-  function computeReadinessState(hookScore, flowScore) {
-
-  if (!lastSavedCaptionsText?.trim()) {
-    return {
-      status: "empty",
-      message: "Create captions to begin.",
-      next: "write_captions"
-    };
-  }
-
-  if (hookScore == null || flowScore == null) {
-    return {
-      status: "loading",
-      message: "Calculating AI readiness…",
-      next: null
-    };
-  }
-
-  if (hookScore < 50) {
-    return {
-      status: "weak_hook",
-      message: "Your hook needs stronger curiosity or clarity.",
-      next: "improve_hook"
-    };
-  }
-
-  if (hookScore < 70) {
-    return {
-      status: "almost_hook",
-      message: `Improve hook by ${70 - hookScore} more points.`,
-      next: "improve_hook"
-    };
-  }
-
-  if (flowScore < 60) {
-    return {
-      status: "weak_flow",
-      message: "Tighten pacing and transitions.",
-      next: "improve_flow"
-    };
-  }
-
-  if (hookScore >= 75 && flowScore >= 65) {
-    return {
-      status: "ready",
-      message: "Strong edit. Ready to publish.",
-      next: "publish"
-    };
-  }
-
-  return {
-    status: "polish",
-    message: "Good edit. Minor improvements possible.",
-    next: "polish"
-  };
-}
 
   // ================================
   // Hook Lab — Confidence-aware UI helpers
@@ -1885,9 +1829,9 @@
 
     if (!fill || !percentEl || !hint) return;
 
-    // ✅ use real scores
-    const hook = Number(LAST_HOOK_SCORE) || 0;
-    const flow = Number(LAST_FLOW_SCORE) || 0;
+    const state = evaluateCreativeState();
+    const hook = state.hook_score ?? 0;
+    const flow = state.flow_score ?? 0;
 
     console.log("📊 Progress using:", hook, flow);
 
@@ -4216,6 +4160,31 @@ function evaluateCreativeState() {
 
   const publishReady = readiness >= 80 && weaknesses.length === 0;
 
+  let status = "polish";
+  let message = "Good edit. Minor improvements possible.";
+  let next = "polish";
+
+  if (!captions.trim()) {
+    status = "empty";
+    message = "Create captions to begin.";
+    next = "write_captions";
+  }
+  else if (hook !== null && hook < 60) {
+    status = "weak_hook";
+    message = "Your hook needs stronger curiosity or clarity.";
+    next = "improve_hook";
+  }
+  else if (flow !== null && flow < 65) {
+    status = "weak_flow";
+    message = "Tighten pacing and transitions.";
+    next = "improve_flow";
+  }
+  else if (publishReady) {
+    status = "ready";
+    message = "Strong edit. Ready to publish.";
+    next = "publish";
+  }
+
   return {
     hook_score: hook,
     flow_score: flow,
@@ -4225,7 +4194,10 @@ function evaluateCreativeState() {
     primary_weakness: weaknesses[0] || null,
     all_weaknesses: weaknesses,
     priority_actions: priority,
-    publish_ready: publishReady
+    publish_ready: publishReady,
+    status,
+    message,
+    next
   };
 }
 
