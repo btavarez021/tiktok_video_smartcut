@@ -1344,6 +1344,62 @@
     });
   }
 
+  function computeReadinessState(hookScore, flowScore) {
+
+  if (!lastSavedCaptionsText?.trim()) {
+    return {
+      status: "empty",
+      message: "Create captions to begin.",
+      next: "write_captions"
+    };
+  }
+
+  if (hookScore == null || flowScore == null) {
+    return {
+      status: "loading",
+      message: "Calculating AI readiness…",
+      next: null
+    };
+  }
+
+  if (hookScore < 50) {
+    return {
+      status: "weak_hook",
+      message: "Your hook needs stronger curiosity or clarity.",
+      next: "improve_hook"
+    };
+  }
+
+  if (hookScore < 70) {
+    return {
+      status: "almost_hook",
+      message: `Improve hook by ${70 - hookScore} more points.`,
+      next: "improve_hook"
+    };
+  }
+
+  if (flowScore < 60) {
+    return {
+      status: "weak_flow",
+      message: "Tighten pacing and transitions.",
+      next: "improve_flow"
+    };
+  }
+
+  if (hookScore >= 75 && flowScore >= 65) {
+    return {
+      status: "ready",
+      message: "Strong edit. Ready to publish.",
+      next: "publish"
+    };
+  }
+
+  return {
+    status: "polish",
+    message: "Good edit. Minor improvements possible.",
+    next: "polish"
+  };
+}
 
   // ================================
   // Hook Lab — Confidence-aware UI helpers
