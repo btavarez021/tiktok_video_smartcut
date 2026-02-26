@@ -1,4029 +1,4029 @@
-// ================================
-// Variables
-// ================================
-let previewAudio = null;
-let previewPlaying = false;
+  // ================================
+  // Variables
+  // ================================
+  let previewAudio = null;
+  let previewPlaying = false;
 
-let workingClipOrder = [];
-let clipOrderDirty = false;
+  let workingClipOrder = [];
+  let clipOrderDirty = false;
 
-let LAST_READINESS_STATUS = null;
+  let LAST_READINESS_STATUS = null;
 
-// 🔵 Active session (hotel / batch)
-let ACTIVE_SESSION = "default";
+  // 🔵 Active session (hotel / batch)
+  let ACTIVE_SESSION = "default";
 
-let ACTIVE_EXPORT_TASK = null;
+  let ACTIVE_EXPORT_TASK = null;
 
-let rewriteCommitted = false;
+  let rewriteCommitted = false;
 
-let intentLockedByUser = false;
-let REFRESH_LOCK = false;
+  let intentLockedByUser = false;
+  let REFRESH_LOCK = false;
 
-let suppressNextPreview = false;
+  let suppressNextPreview = false;
 
-let lastSavedCaptionsText = "";
-let lastHookScoreBeforeEdit = null;
-
-
-let workingCaptionsText = "";
-
-let rewritePending = false;
-
-let CONFIG_LOADING = false;
-
-let LAST_HOOK_SCORE = null;
-let LAST_FLOW_SCORE = null;
-
-let LAST_DIRECTOR_SIGNATURE = null;
-let EDIT_STRATEGY_LOADING = false;
-let isInRewriteReview = false;
-let captionViewMode = "rewritten";
-let diffDirty = false;
-let lastAnalyzeStatus = null;
-let ANALYZE_POLL_ACTIVE = false;
-let lastVariantStatus = null;
-let VARIANT_POLL_ACTIVE = false;
-let YAML_POLL_ACTIVE = false;
-let lastYamlStatus = null;
-let PENDING_SCROLL_TO_STORYBOARD = false;
-
-let CONFIG_CACHE = null;
-
-// =======================================
-// GLOBAL APP STATE (Single Source of Truth)
-// =======================================
-
-window.appState = {
-  session: null,
-
-  hook: {
-    selected: null,
-    intent: "discovery",
-    locked: false,
-    lastGenerated: []
-  },
-
-  variants: {
-    modes: {},
-    list: [],
-    recommendedId: null,
-    generating: false
-  },
-
-  captions: {
-    baseline: "",
-    current: "",
-    source: "none"
-  },
-
-  storyboard: {
-    order: []
-  },
-
-  scores: {
-    hook: null,
-    storyFlow: null
-  },
-
-  ui: {
-    yamlPolling: false
-  }
-};
-
-async function getConfigCached(force = false) {
-  if (CONFIG_CACHE && !force) return CONFIG_CACHE;
-
-  const session = encodeURIComponent(getActiveSession());
-  const data = await jsonFetch(`/api/config?session=${session}`);
-
-  CONFIG_CACHE = data;
-  return data;
-}
+  let lastSavedCaptionsText = "";
+  let lastHookScoreBeforeEdit = null;
 
 
-function setCurrentVideoIntent(intent) {
-  window.appState.hook.intent = intent;
-  console.log("🎯 Video intent set to:", intent);
-}
+  let workingCaptionsText = "";
 
-function openStep(stepId) {
-  document.querySelector(`.step[data-target="${stepId}"]`)?.click();
+  let rewritePending = false;
 
-}
+  let CONFIG_LOADING = false;
 
-function openVariantsDrawer() {
-  const drawer = document.getElementById("variantsDrawer");
-  if (!drawer) return;
+  let LAST_HOOK_SCORE = null;
+  let LAST_FLOW_SCORE = null;
 
-  drawer.classList.remove("closed");
+  let LAST_DIRECTOR_SIGNATURE = null;
+  let EDIT_STRATEGY_LOADING = false;
+  let isInRewriteReview = false;
+  let captionViewMode = "rewritten";
+  let diffDirty = false;
+  let lastAnalyzeStatus = null;
+  let ANALYZE_POLL_ACTIVE = false;
+  let lastVariantStatus = null;
+  let VARIANT_POLL_ACTIVE = false;
+  let YAML_POLL_ACTIVE = false;
+  let lastYamlStatus = null;
+  let PENDING_SCROLL_TO_STORYBOARD = false;
 
-  const btn = document.getElementById("variantsToggleBtn");
-  if (btn) btn.textContent = "Collapse";
-}
+  let CONFIG_CACHE = null;
 
-  function maybeCelebrateReadiness(state) {
-    if (LAST_READINESS_STATUS !== "ready" && state.status === "ready") {
-      toast("🚀 Publish Ready — AI approves this edit");
-      pulseExportButton();
-      // maybeConfetti?.(); // optional
+  // =======================================
+  // GLOBAL APP STATE (Single Source of Truth)
+  // =======================================
+
+  window.appState = {
+    session: null,
+
+    hook: {
+      selected: null,
+      intent: "discovery",
+      locked: false,
+      lastGenerated: []
+    },
+
+    variants: {
+      modes: {},
+      list: [],
+      recommendedId: null,
+      generating: false
+    },
+
+    captions: {
+      baseline: "",
+      current: "",
+      source: "none"
+    },
+
+    storyboard: {
+      order: []
+    },
+
+    scores: {
+      hook: null,
+      storyFlow: null
+    },
+
+    ui: {
+      yamlPolling: false
     }
-    LAST_READINESS_STATUS = state.status;
-  }
-
-// ========================================
-// GLOBAL STATE SNAPSHOT (Debug + Stability)
-// ========================================
-function getAppState() {
-  return {
-    hookScore: LAST_HOOK_SCORE,
-    flowScore: LAST_FLOW_SCORE,
-    captionsLength: (lastSavedCaptionsText || "").length,
-    rewritePending,
-    rewriteCommitted,
-    hooksReady: !!window.appState.hook.lastGenerated?.length,
-    clipOrderDirty,
-    intent: window.appState.hook.intent,
-    yamlPolling: YAML_POLL_ACTIVE,
-    variantPolling: VARIANT_POLL_ACTIVE,
   };
-}
 
-function logAppState(label = "STATE") {
-  console.log(`🧠 ${label} →`, getAppState());
-}
+  async function getConfigCached(force = false) {
+    if (CONFIG_CACHE && !force) return CONFIG_CACHE;
 
-function autoExpandIfWeak(hookScore, flowScore) {
-  const hookBody = document.getElementById("hookDetailsBody");
-  const storyBody = document.getElementById("storyDetailsBody");
+    const session = encodeURIComponent(getActiveSession());
+    const data = await jsonFetch(`/api/config?session=${session}`);
 
-  if (!hookBody || !storyBody) return;
-
-  if (typeof hookScore === "number" && hookScore < 60) {
-    hookBody.classList.remove("collapsed");
+    CONFIG_CACHE = data;
+    return data;
   }
 
-  if (typeof flowScore === "number" && flowScore < 60) {
-    storyBody.classList.remove("collapsed");
-  }
-}
 
-
-
-async function refreshAfterChange({
-  hooks = true,
-  flow = true,
-  director = true,
-  publish = true,
-  progress = true,
-  guidance = true
-} = {}) {
-
-  if (REFRESH_LOCK){
-    console.log("Refreshed skipped(locked)");
-    return;
+  function setCurrentVideoIntent(intent) {
+    window.appState.hook.intent = intent;
+    console.log("🎯 Video intent set to:", intent);
   }
 
-  REFRESH_LOCK = true;
+  function openStep(stepId) {
+    document.querySelector(`.step[data-target="${stepId}"]`)?.click();
 
-  try {
-    logAppState("Before refresh");
+  }
 
-    // 1) Scores
-    if (hooks) await refreshHookScore();
-    if (flow)  await refreshStoryFlowScore();
+  function openVariantsDrawer() {
+    const drawer = document.getElementById("variantsDrawer");
+    if (!drawer) return;
 
-    autoExpandIfWeak(LAST_HOOK_SCORE, LAST_FLOW_SCORE);
+    drawer.classList.remove("closed");
 
-    // 2) Publish + progress should key off the same source of truth
-    // 2) Unified Evaluation Engine
-    const creativeState = evaluateCreativeState();
+    const btn = document.getElementById("variantsToggleBtn");
+    if (btn) btn.textContent = "Collapse";
+  }
 
-    // Publish readiness now comes from engine
-    if (publish) renderPublishReadyState(creativeState);
-
-    // Progress still updates
-    if (progress) setTimeout(renderEditProgress, 50);
-
-    // 3) Director (only when scores exist)
-    if (
-      director &&
-      lastSavedCaptionsText?.trim() &&
-      !YAML_POLL_ACTIVE &&
-      LAST_HOOK_SCORE != null &&
-      LAST_FLOW_SCORE != null
-    ) {
-      const creativeState = evaluateCreativeState();
-      await loadEditStrategy(creativeState);
+    function maybeCelebrateReadiness(state) {
+      if (LAST_READINESS_STATUS !== "ready" && state.status === "ready") {
+        toast("🚀 Publish Ready — AI approves this edit");
+        pulseExportButton();
+        // maybeConfetti?.(); // optional
+      }
+      LAST_READINESS_STATUS = state.status;
     }
 
-    // 4) Guidance
-    if (guidance) updateHookLabGuidance();
-
-    logAppState("After refresh");
-
-  } catch (e) {
-    console.warn("refreshAfterChange failed", e);
-  } finally {
-    REFRESH_LOCK = false;
-  }
-}
-
-function openHookLab() {
-  const lab = document.getElementById("hookLab");
-  if (!lab) return;
-
-  lab.classList.remove("hidden");
-
-  lab.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
-
-  highlightHookLab?.();
-  updateHookLabGuidance();
-}
-
-function evaluateCreativeState() {
-  const hook = window.appState?.scores?.hook ?? LAST_HOOK_SCORE ?? null;
-  const flow = window.appState?.scores?.storyFlow ?? LAST_FLOW_SCORE ?? null;
-  const hasCaptions = !!lastSavedCaptionsText?.trim();
-
-  if (!hasCaptions) {
+  // ========================================
+  // GLOBAL STATE SNAPSHOT (Debug + Stability)
+  // ========================================
+  function getAppState() {
     return {
-      hook_score: hook,
-      flow_score: flow,
-      readiness_score: 0,
-      publish_ready: false,
-      primary_weakness: "No captions",
-      status: "empty",
-      message: "Create captions to begin.",
-      next: "write_captions"
+      hookScore: LAST_HOOK_SCORE,
+      flowScore: LAST_FLOW_SCORE,
+      captionsLength: (lastSavedCaptionsText || "").length,
+      rewritePending,
+      rewriteCommitted,
+      hooksReady: !!window.appState.hook.lastGenerated?.length,
+      clipOrderDirty,
+      intent: window.appState.hook.intent,
+      yamlPolling: YAML_POLL_ACTIVE,
+      variantPolling: VARIANT_POLL_ACTIVE,
     };
   }
 
-  if (hook < 50) {
-    return {
-      hook_score: hook,
-      flow_score: flow,
-      readiness_score: hook,
-      publish_ready: false,
-      primary_weakness: "Hook clarity",
-      status: "weak_hook",
-      message: "Your hook needs stronger curiosity or clarity.",
-      next: "improve_hook"
-    };
+  function logAppState(label = "STATE") {
+    console.log(`🧠 ${label} →`, getAppState());
   }
 
-  if (hook < 70) {
-    return {
-      hook_score: hook,
-      flow_score: flow,
-      readiness_score: hook,
-      publish_ready: false,
-      primary_weakness: "Hook strength",
-      status: "almost_hook",
-      message: `Improve hook by ${70 - hook} more points.`,
-      next: "improve_hook"
-    };
+  function autoExpandIfWeak(hookScore, flowScore) {
+    const hookBody = document.getElementById("hookDetailsBody");
+    const storyBody = document.getElementById("storyDetailsBody");
+
+    if (!hookBody || !storyBody) return;
+
+    if (typeof hookScore === "number" && hookScore < 60) {
+      hookBody.classList.remove("collapsed");
+    }
+
+    if (typeof flowScore === "number" && flowScore < 60) {
+      storyBody.classList.remove("collapsed");
+    }
   }
 
-  if (flow < 60) {
-    return {
-      hook_score: hook,
-      flow_score: flow,
-      readiness_score: Math.min(hook, flow),
-      publish_ready: false,
-      primary_weakness: "Story pacing",
-      status: "weak_flow",
-      message: "Tighten pacing and transitions.",
-      next: "improve_flow"
-    };
+
+
+  async function refreshAfterChange({
+    hooks = true,
+    flow = true,
+    director = true,
+    publish = true,
+    progress = true,
+    guidance = true
+  } = {}) {
+
+    if (REFRESH_LOCK){
+      console.log("Refreshed skipped(locked)");
+      return;
+    }
+
+    REFRESH_LOCK = true;
+
+    try {
+      logAppState("Before refresh");
+
+      // 1) Scores
+      if (hooks) await refreshHookScore();
+      if (flow)  await refreshStoryFlowScore();
+
+      autoExpandIfWeak(LAST_HOOK_SCORE, LAST_FLOW_SCORE);
+
+      // 2) Publish + progress should key off the same source of truth
+      // 2) Unified Evaluation Engine
+      const creativeState = evaluateCreativeState();
+
+      // Publish readiness now comes from engine
+      if (publish) renderPublishReadyState(creativeState);
+
+      // Progress still updates
+      if (progress) setTimeout(renderEditProgress, 50);
+
+      // 3) Director (only when scores exist)
+      if (
+        director &&
+        lastSavedCaptionsText?.trim() &&
+        !YAML_POLL_ACTIVE &&
+        LAST_HOOK_SCORE != null &&
+        LAST_FLOW_SCORE != null
+      ) {
+        const creativeState = evaluateCreativeState();
+        await loadEditStrategy(creativeState);
+      }
+
+      // 4) Guidance
+      if (guidance) updateHookLabGuidance();
+
+      logAppState("After refresh");
+
+    } catch (e) {
+      console.warn("refreshAfterChange failed", e);
+    } finally {
+      REFRESH_LOCK = false;
+    }
   }
 
-  if (hook >= 75 && flow >= 65) {
+  function openHookLab() {
+    const lab = document.getElementById("hookLab");
+    if (!lab) return;
+
+    lab.classList.remove("hidden");
+
+    lab.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+
+    highlightHookLab?.();
+    updateHookLabGuidance();
+  }
+
+  function evaluateCreativeState() {
+    const hook = window.appState?.scores?.hook ?? LAST_HOOK_SCORE ?? null;
+    const flow = window.appState?.scores?.storyFlow ?? LAST_FLOW_SCORE ?? null;
+    const hasCaptions = !!lastSavedCaptionsText?.trim();
+
+    if (!hasCaptions) {
+      return {
+        hook_score: hook,
+        flow_score: flow,
+        readiness_score: 0,
+        publish_ready: false,
+        primary_weakness: "No captions",
+        status: "empty",
+        message: "Create captions to begin.",
+        next: "write_captions"
+      };
+    }
+
+    if (hook < 50) {
+      return {
+        hook_score: hook,
+        flow_score: flow,
+        readiness_score: hook,
+        publish_ready: false,
+        primary_weakness: "Hook clarity",
+        status: "weak_hook",
+        message: "Your hook needs stronger curiosity or clarity.",
+        next: "improve_hook"
+      };
+    }
+
+    if (hook < 70) {
+      return {
+        hook_score: hook,
+        flow_score: flow,
+        readiness_score: hook,
+        publish_ready: false,
+        primary_weakness: "Hook strength",
+        status: "almost_hook",
+        message: `Improve hook by ${70 - hook} more points.`,
+        next: "improve_hook"
+      };
+    }
+
+    if (flow < 60) {
+      return {
+        hook_score: hook,
+        flow_score: flow,
+        readiness_score: Math.min(hook, flow),
+        publish_ready: false,
+        primary_weakness: "Story pacing",
+        status: "weak_flow",
+        message: "Tighten pacing and transitions.",
+        next: "improve_flow"
+      };
+    }
+
+    if (hook >= 75 && flow >= 65) {
+      return {
+        hook_score: hook,
+        flow_score: flow,
+        readiness_score: Math.round((hook + flow) / 2),
+        publish_ready: true,
+        primary_weakness: null,
+        status: "ready",
+        message: "Strong edit. Ready to publish.",
+        next: "publish"
+      };
+    }
+
     return {
       hook_score: hook,
       flow_score: flow,
       readiness_score: Math.round((hook + flow) / 2),
-      publish_ready: true,
+      publish_ready: false,
       primary_weakness: null,
-      status: "ready",
-      message: "Strong edit. Ready to publish.",
-      next: "publish"
+      status: "polish",
+      message: "Good edit. Minor improvements possible.",
+      next: "polish"
     };
   }
 
-  return {
-    hook_score: hook,
-    flow_score: flow,
-    readiness_score: Math.round((hook + flow) / 2),
-    publish_ready: false,
-    primary_weakness: null,
-    status: "polish",
-    message: "Good edit. Minor improvements possible.",
-    next: "polish"
-  };
-}
-
-function renderNextActionButton(action) {
-
-  const actions = {
-    write_captions: `<button onclick="openStep('#step-3')" class="readiness-btn">Write Captions</button>`,
-    improve_hook: `<button onclick="openStep('#step-4')" class="readiness-btn">Improve Hook</button>`,
-    improve_flow: `<button onclick="openStep('#step-3')" class="readiness-btn">Improve Flow</button>`,
-    polish: `<button onclick="openStep('#step-4')" class="readiness-btn">Polish Edit</button>`,
-    publish: `<button class="readiness-btn publish-ready">Ready to Export</button>`
-  };
-
-  return actions[action] || "";
-}
-
-
-function getHookRatingLabel(score) {
-  if (score < 45) return "Needs Work";
-  if (score < 60) return "Building Strength";
-  if (score < 75) return "Strong Hook";
-  if (score < 90) return "Standout";
-  return "Viral Energy";
-}
-
-function getFlowRatingLabel(score) {
-  if (score < 50) return "Rough";
-  if (score < 65) return "Improving";
-  if (score < 80) return "Smooth";
-  if (score < 90) return "Excellent";
-  return "Elite";
-}
-
-
-function renderPublishReadyState(state) {
-  if (!state) state = evaluateCreativeState();
-
-  const box = document.getElementById("publishReadyBanner");
-  if (!box) return;
-
-  maybeCelebrateReadiness({ status: state.status });
-
-  box.classList.remove("hidden");
-
-  let colorClass = "publish-neutral";
-
-  if (state.status === "ready") colorClass = "publish-ready";
-  if (state.status === "weak_hook" || state.status === "weak_flow")
-    colorClass = "publish-warning";
-  if (state.status === "empty") colorClass = "publish-empty";
-
-  box.className = `publish-ready-state ${colorClass}`;
-
-  box.innerHTML = `
-    <div class="readiness-title">🧠 AI Readiness</div>
-    <div class="readiness-message">${state.message}</div>
-    <div class="readiness-scores">
-      Hook: ${state.hook_score}/100 &nbsp; | &nbsp; Flow: ${state.flow_score}/100
-    </div>
-    ${renderNextActionButton(state.next)}
-  `;
-}
-
-
-function evaluatePublishReadiness() {
-  const state = evaluateCreativeState();
-
-  const highIssues =
-    document.querySelectorAll(".director-item.impact-high").length;
-
-  return {
-    ready: state.publish_ready,
-    hookScore: state.hook_score,
-    flowScore: state.flow_score,
-    highIssues
-  };
-}
-
-
-function celebrateImprovement(type, oldScore, newScore) {
-  const delta = newScore - oldScore;
-
-  // toast
-  toast(`⬆ ${type === "hook" ? "Hook" : "Flow"} improved +${delta}`);
-
-  // director approval
-  showDirectorApproval(type);
-
-  // small pulse animation
-  animateScoreJump(type);
-}
-
-function maybeShowStep4Nudge() {
-  const score =
-    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
-
-  const hint = document.getElementById("step3NextHint");
-
-  if (!hint) return;
-
-  // threshold = “good enough”
-  if (score >= 50) {
-    hint.classList.remove("hidden");
-  }
-}
-
-
-function showDirectorApproval(type) {
-  const area = document.getElementById("editStrategyContext");
-  if (!area) return;
-
-  const el = document.createElement("div");
-  el.className = "director-approved";
-  el.textContent = `🎬 Director approved the ${type}`;
-
-  area.appendChild(el);
-
-  setTimeout(() => {
-    el.remove();
-  }, 2500);
-}
-
-function animateScoreJump(type) {
-  const id = type === "hook"
-    ? "hookScoreValue"
-    : "storyFlowScoreValue";
-
-  const el = document.getElementById(id);
-  if (!el) return;
-
-  el.classList.remove("score-burst");
-  void el.offsetWidth;
-  el.classList.add("score-burst");
-}
-
-
-function openAccordionSection(title) {
-  const headers = document.querySelectorAll("#step-4 .acc-header");
-
-  headers.forEach(h => {
-    if (h.textContent.includes(title)) {
-      h.click();
-    }
-  });
-}
-
-
-function jumpToEditArea(area) {
-  console.log("🎯 Jump to:", area);
-
-  area = (area || "").toLowerCase();
-
-  if (area === "hook") {
-    openStep("#step-3");
-    openVariantsDrawer();
-    openHookLab();
-    return;
-  }
-
-  if (area === "captions") {
-    openStep("#step-3");
-    document.getElementById("captionsText")?.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-    return;
-  }
-
-  if (area === "overlay") {
-    openStep("#step-4");
-    openAccordionSection("✍️ Captions & Timing");
-    document.getElementById("overlayStyle")?.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-    return;
-  }
-
-  if (area === "cta") {
-    openStep("#step-4");
-    openAccordionSection("🎤 Voice (TTS) & CTA");
-    document.getElementById("ctaText")?.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-    return;
-  }
-
-  if (area === "pacing") {
-    openStep("#step-4");
-    openAccordionSection("✍️ Captions & Timing");
-    document.getElementById("applyStandardTimingBtn")?.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-    return;
-  }
-
-  console.warn("No jump rule for:", area);
-}
-
-
-
-function confidenceLabel(level) {
-  if (!level) return "";
-
-  return {
-  clear: "Clear winner",
-  moderate: "Strong option",
-  close: "Creative choice"
-}[level] || "";
-}
-
-// =======================================
-// AI Director auto refresh (debounced)
-// =======================================
-const refreshEditStrategySoon = debounce(() => {
-  console.log("🧠 Refreshing AI edit strategy");
-  loadEditStrategy();
-}, 400);
-
-
-function debounce(fn, wait = 350) {
-  let t = null;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), wait);
-  };
-}
-
-function showGlobalStatus(text, type = "info") {
-  const bar = document.getElementById("globalStatusBar");
-  if (!bar) return;
-
-  bar.textContent = text;
-  bar.className = `global-status show ${type}`;
-
-  setTimeout(() => {
-    bar.classList.remove("show");
-  }, 2500);
-}
-
-async function pollVariantStatus() {
-  if (!VARIANT_POLL_ACTIVE) return;
-
-  const session = getActiveSession(); // ✅ FIXED
-
-  try {
-    const data = await jsonFetch(
-      `/api/variants/status?session=${session}`
-    );
-
-    // 🧠 Session switched mid-poll → stop safely
-    if (session !== getActiveSession()) {
-      VARIANT_POLL_ACTIVE = false;
-      updateVariantRunningBadge("idle");
-      return;
-    }
-
-    const status = data.status;
-
-    // 🔴 Badge: visible while running
-    updateVariantRunningBadge(status);
-
-    // Show inline "working" once
-    if (status === "running" && lastVariantStatus !== "running") {
-      setStatus(
-        "variantsInlineStatus",
-        "Generating AI variants…",
-        "working"
-      );
-    }
-
-    // ✅ Transition: running → done
-    if (lastVariantStatus === "running" && status === "done") {
-      console.log("✅ Variants ready");
-
-      const variants = data.result?.variants || [];
-
-      // 🔑 Global state
-      window.appState.variants.list = variants;
-
-      // Sort: AI recommended first
-      variants.sort((a, b) => {
-        if (a.recommended) return -1;
-        if (b.recommended) return 1;
-        return (
-          (b.hook_score || 0) + (b.story_flow || 0) -
-          ((a.hook_score || 0) + (a.story_flow || 0))
-        );
-      });
-
-      const box = document.getElementById("variantsOutput");
-      box.innerHTML = "";
-      box.dataset.rendered = "false";
-
-      variants.forEach((variant, i) => {
-        const cardId = `variant_${i}`;
-
-        box.innerHTML += renderVariantCard(
-          i + 1,
-          variant,
-          cardId
-        );
-
-        // 🔥 Feedback: viewed
-        sendVariantFeedback({
-          variantId: cardId,
-          intent: window.appState.hook.intent,
-          tone: variant.tone,
-          confidence: variant.confidence,
-          recommended: variant.recommended === true,
-          action: "viewed"
-        });
-      });
-
-      box.dataset.rendered = "true";
-      updateAIRecommendationBar();
-
-      // 🟢 Inline success
-      setStatus(
-        "variantsInlineStatus",
-        "AI variants ready ✓",
-        "success"
-      );
-
-      setTimeout(() => {
-        setStatus("variantsInlineStatus", "");
-      }, 2000);
-
-      // 🔴 Hide badge immediately
-      updateVariantRunningBadge("idle");
-
-      // 🔓 Unlock button
-      document
-        .getElementById("generateVariantsBtn")
-        ?.removeAttribute("disabled");
-
-      VARIANT_POLL_ACTIVE = false;
-    }
-
-    lastVariantStatus = status;
-
-    if (status === "running") {
-      setTimeout(pollVariantStatus, 1200);
-    }
-
-  } catch (err) {
-    console.warn("pollVariantStatus failed", err);
-
-    if (VARIANT_POLL_ACTIVE) {
-      setTimeout(pollVariantStatus, 2000);
-    }
-  }
-}
-
-function updateHooksReadyUI() {
-  const btn = document.getElementById("continueToHooksBtn");
-  if (!btn) return;
-
-  if (window.appState.hook.lastGenerated?.length) {
-    btn.classList.add("ai-ready");
-    btn.dataset.ready = "true";
-  } else {
-    btn.classList.remove("ai-ready");
-    btn.dataset.ready = "false";
-  }
-}
-
-function updateAIRecommendationBar() {
-  const bar = document.getElementById("aiRecommendationBar");
-  const applyBtn = document.getElementById("applyAiRecommendationBtn");
-  const undoBtn = document.getElementById("undoAiRecommendationBtn");
-
-  if (!bar) return;
-
-  const hasRecommendation =
-    Array.isArray(window.appState.variants.list) &&
-    window.appState.variants.list.some(v => v.recommended === true);
-
-  // 1️⃣ Show / hide bar
-  bar.classList.toggle("hidden", !hasRecommendation);
-
-  // 2️⃣ Apply button state
-  if (applyBtn) {
-    applyBtn.disabled = !hasRecommendation || !!window.aiUndoSnapshot;
-    applyBtn.textContent = window.aiUndoSnapshot
-      ? "Applied ✓"
-      : "Apply AI recommendation";
-  }
-
-  // 3️⃣ Undo button state
-  if (undoBtn) {
-    const canUndo =
-      window.aiUndoSnapshot &&
-      window.aiUndoSnapshot.session === getActiveSession();
-
-    undoBtn.classList.toggle("hidden", !canUndo);
-    undoBtn.disabled = false;
-  }
-}
-
-function hydrateExistingHooksIfAny() {
-  const hooks = window.appState.hook.lastGenerated;
-  if (!hooks?.length) return;
-
-  renderHookLab(hooks);
-}
-
-function updateIntentHint(intent) {
-  const hint = document.getElementById("intentHint");
-  if (!hint) return;
-
-  const copy = {
-    discovery: "Optimized for reach, virality, and scroll-stopping hooks.",
-    personal: "Optimized for emotion, story, and connection.",
-    aesthetic: "Optimized for calm pacing and visual flow.",
-    informational: "Optimized for clarity, structure, and explanation."
-  };
-
-  hint.textContent = copy[intent] || "";
-}
-
-function setUiBusy(busy) {
-  document.body.classList.toggle("ui-busy", busy);
-}
-
-
-function syncTtsUIState() {
-  const enabled = document.getElementById("ttsEnabled")?.checked;
-  const voiceSelect = document.getElementById("ttsVoice");
-
-  if (!voiceSelect) return;
-
-  voiceSelect.disabled = !enabled;
-  voiceSelect.style.opacity = enabled ? "1" : "0.5";
-}
-
-const autoSaveStoryboardOrder = debounce(() => {
-  saveStoryboardOrder({ silent: true });
-}, 600);
-
-function updateCaptionBaselineHint() {
-  const hint = document.getElementById("captionBaselineHint");
-  if (!hint) return;
-
-  const hasVariants =
-  Array.isArray(window.appState.variants.list) &&
-  window.appState.variants.list.length > 0;
-
-
-  hint.style.display = hasVariants ? "none" : "block";
-}
-
-function updateLoadYamlVisibility() {
-  const btn = document.getElementById("loadCaptionsFromYamlBtn");
-  if (!btn) return;
-
-  const hasVariants =
-  Array.isArray(window.appState.variants.list) &&
-  window.appState.variants.list.length > 0;
-
-  btn.style.display = hasVariants ? "inline-block" : "none";
-}
-
-function syncIntentPills(intent) {
-  document.querySelectorAll(".intent-pills .pill").forEach(pill => {
-    pill.classList.toggle("active", pill.dataset.intent === intent);
-  });
-}
-
-
-async function loadIntentFromConfig() {
-  try {
-    const res = await getConfigCached();
-
-    const intent = res?.intent || "discovery";
-
-    // 🔑 Core state
-    window.userForcedIntent = false;
-
-    window.appState.hook.intent = intent;
-
-    // ✅ SYNC PILL UI (single source of truth)
-    syncIntentPills(intent);
-
-    // 🔔 Update intent hint
-    updateIntentHint(intent);
-
-    // Optional legacy select support
-    const select = document.getElementById("intentSelect");
-    if (select) select.value = intent;
-
-    await refreshAfterChange();
-
-
-    setStatus(
-      "captionStatus",
-      `Intent set to “${intent}”`,
-      "info"
-    );
-
-  } catch (e) {
-    console.warn("Failed to load intent, using default");
-  }
-}
-
-
-function sendVariantFeedback({ variantId, intent, tone, action, confidence = null, recommended = false }) {
-  return fetch("/api/variant_feedback", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      session: getActiveSession(),
-      variant_id: variantId,          // match backend naming
-      intent,
-      tone,
-      confidence,                     // "clear" | "moderate" | "close" | null
-      recommended: recommended === true,
-      action                          // "viewed" | "chosen"
-    })
-  });
-}
-
-
-function syncFgScaleUI() {
-    const autoEl = document.getElementById("autoFgScale");
-    const manualContainer = document.getElementById("manualFgScaleContainer");
-
-    if (!autoEl || !manualContainer) return;
-
-    manualContainer.style.display = autoEl.checked ? "none" : "block";
-}
-
-function animateSessionGlow() {
-  const tags = document.querySelectorAll(".active-session-tag");
-
-  if (!tags.length) {
-    console.warn("[SESSION] No active-session-tag found");
-    return;
-  }
-
-  tags.forEach(tag => {
-    tag.classList.remove("session-glow");
-    void tag.offsetWidth; // force reflow
-    tag.classList.add("session-glow");
-  });
-}
-
-// ================================
-// Mobile Session Panel Toggle
-// ================================
-function toggleMobileSessionPanel() {
-  const panel = document.getElementById("sidebarSessionCard");
-  const btn = document.getElementById("mobileSessionBtn");
-  if (!panel || !btn) return;
-
-  const isOpen = panel.classList.toggle("open");
-  console.log("[MOBILE] toggle session panel", { isOpen, panel });
-
-  document.body.classList.toggle("no-scroll", isOpen);
-  btn.textContent = isOpen ? "Close Sessions" : "Sessions";
-}
-
-
-
-function syncMusicUIState() {
-  const enabled = document.getElementById("musicEnabled")?.checked;
-  const hint = document.getElementById("musicDisabledHint");
-
-  if (!hint) return;
-
-  hint.style.display = enabled ? "none" : "block";
-}
-
-
-function renderCaptionView() {
-
-  const box = document.getElementById("captionsText");
-  if (!box) return;
-
-  if (captionViewMode === "original") {
-    box.value = lastSavedCaptionsText || "";
-    box.readOnly = true;
-  }
-  else if (captionViewMode === "rewritten") {
-    box.value = workingCaptionsText || lastSavedCaptionsText || "";
-    box.readOnly = false;
-  }
-  else {
-    // diff
-    box.value = "";
-    box.readOnly = true;
-  }
-}
-
-
-
-function syncCtaUIState() {
-    const enabled = document.getElementById("ctaEnabled")?.checked;
-    const textEl = document.getElementById("ctaText");
-    const voiceEl = document.getElementById("ctaVoiceover");
-    const rowEl = document.getElementById("ctaRow");
-
-    if (!textEl || !voiceEl || !rowEl) return;
-
-    textEl.disabled = !enabled;
-    voiceEl.disabled = !enabled;
-
-    rowEl.style.opacity = enabled ? "1" : "0.5";
-}
-
-
-function showAutoSaveStatus(id, message = "Saved ✓", timeout = 1500) {
-    const el = document.getElementById(id);
-    if (!el) return;
-
-    el.textContent = message;
-    el.className = "status-text status-success subtle";
-
-    clearTimeout(el._hideTimer);
-    el._hideTimer = setTimeout(() => {
-        el.textContent = "";
-    }, timeout);
-}
-
-// ================================
-// OVERLAY STYLE — Save (SAFE)
-// ================================
-async function saveOverlayStyle({ silent = false } = {}) {
-    const selectEl = document.getElementById("overlayStyle");
-    const statusEl = document.getElementById("overlayStyleStatus");
-
-    if (!selectEl || !statusEl) return;
-
-    const style = selectEl.value;
-
-    try {
-        const session = encodeURIComponent(getActiveSession());
-        const data = await getConfigCached();
-        const cfg = data.config || {};
-
-        cfg.render = cfg.render || {};
-        cfg.render.overlay_style = style;
-
-        await jsonFetch("/api/save_config", {
-            method: "POST",
-            body: JSON.stringify({
-                session: getActiveSession(),
-                config: cfg
-            })
-        });
-        CONFIG_CACHE = null;
-
-        // 🔑 THIS IS THE FIX
-        await loadConfigAndYaml();
-
-        if (!silent) {
-            setStatus("overlayStyleStatus", "Style saved ✓", "success");
-        } else {
-            showAutoSaveStatus("overlayStyleStatus");
-        }
-        
-
-    } catch (err) {
-        console.error(err);
-        setStatus("overlayStyleStatus", "Failed to save style", "error");
-    }
-}
-
-
-function updateVariantRunningBadge(status) {
-  const el = document.getElementById("variantRunningBadge");
-  if (!el) return;
-
-  el.classList.toggle("hidden", status !== "running");
-}
-
-function showPendingRewrite() {
-  document.getElementById("pendingRewriteBadge")?.classList.remove("hidden");
-}
-
-function clearPendingRewrite() {
-  document.getElementById("pendingRewriteBadge")?.classList.add("hidden");
-}
-
-async function generateVariantsAsync(modes, selectedHook) {
-
-lastVariantStatus = null;
-
-  // 🔒 Lock button
-  const btn = document.getElementById("generateVariantsBtn");
-  if (btn) btn.disabled = true;
-
-  // Inline + badge feedback
-  setStatus(
-    "variantsInlineStatus",
-    "Generating AI variants…",
-    "working",
-    false
-  );
-
-  updateVariantRunningBadge("running");
-
-  // Optional UX polish: auto-open drawer
-  if (typeof openVariantsPanel === "function") {
-    openVariantsPanel({ silent: true });
-  }
-
-  try {
-    const res = await jsonFetch("/api/variants/start", {
-      method: "POST",
-      body: JSON.stringify({
-        session: getActiveSession(),
-        modes,
-        selected_hook: selectedHook
-      })
-    });
-
-    // 🔁 Already running → just poll
-    VARIANT_POLL_ACTIVE = true;
-    pollVariantStatus();
-
-  } catch (err) {
-    console.error(err);
-
-    setStatus(
-      "variantsInlineStatus",
-      "Failed to start AI variants",
-      "error"
-    );
-
-    updateVariantRunningBadge("idle");
-
-    // 🔓 Unlock button on failure
-    if (btn) btn.disabled = false;
-  }
-}
-
-
-function lockRewriteDecision() {
-  const bar = document.getElementById("rewriteDecisionBar");
-  if (!bar) return;
-
-  bar.querySelectorAll("button").forEach(btn => {
-    btn.disabled = true;
-  });
-}
-
-
-function proposeRewrite(newText, sourceLabel = "Rewrite ready", source = "step3") {
-
-    rewriteCommitted = false;
-  const original = lastSavedCaptionsText || "";
-  const proposed = (newText || "").trim();
-  if (!proposed) return;
-
-  workingCaptionsText = proposed;
-
-  // Step 3 diff
-  renderStep3Diff(original, proposed);
-
-    // Only auto-scroll if coming from Step 3
-    if (source === "step3") {
-    focusCaptionChanges();
-    }
-
-
-  // Step 4 diff
-  renderStep4Diff(original, proposed);
-
-  // Switch UI into review mode
-  captionViewMode = "diff";
-
-    isInRewriteReview = true;
-  rewritePending = true;
- 
-  enterRewriteReviewMode();
-  showPendingRewrite();
-
-  setStatus("overlayStatus", `${sourceLabel} — review & accept or reject`, "info");
-}
-
-
-function enterRewriteReviewMode() {
-  console.log("🔥 ENTERED REWRITE REVIEW MODE");
-
-  if (!rewritePending) return;
-
-  // Decision bar
-  const bar = document.getElementById("rewriteDecisionBar");
-  bar?.classList.remove("hidden");
-  bar?.querySelectorAll("button").forEach(btn => btn.disabled = false);
-
-  // Diff UI
-  document.getElementById("captionDiffHeader")?.classList.remove("hidden");
-  document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
-
-  // Pending badge
-  document.getElementById("pendingRewriteBadge")?.classList.remove("hidden");
-
-  // Force Step-4 diff visible
-  captionViewMode = "diff";
-  renderCaptionView();
-  syncCaptionToggleUI();
-}
-
-function hardClearRewriteUI() {
-  // Kill rewrite state
-  rewritePending = false;
-  isInRewriteReview = false;
-  rewriteCommitted = true;
-
-  // Hide rewrite UI
-  clearPendingRewrite();
-  exitRewriteReviewMode();
-
-  // Kill warning overlays that look like rewrite UI
-  clearOverlayWarning();
-  document.getElementById("rewriteWarning")?.classList.add("hidden");
-
-  // Force normal caption mode
-  captionViewMode = "rewritten";
-  renderCaptionView();
-  syncCaptionToggleUI();
-}
-
-
-function exitRewriteReviewMode() {
-  rewritePending = false;
-  isInRewriteReview = false;
-  captionViewMode = "rewritten";   // 🔥 force exit diff mode
-
-  document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
-  document.getElementById("captionDiffHeader")?.classList.add("hidden");
-  document.getElementById("step4CaptionScroll")?.classList.add("hidden");
-  document.getElementById("pendingRewriteBadge")?.classList.add("hidden");
-}
-
-function toggleVariantWhy(cardId) {
-  const el = document.getElementById(`${cardId}_why`);
-  if (!el) return;
-
-  el.classList.toggle("hidden");
-}
-
-
-
-function renderVariantCard(num, variant, cardId) {
-  const text = variant.text || "";
-  const tone = variant.tone || "";
-  const recommended = variant.recommended === true;
-  const reason = variant.recommend_reason || "";
-  const confidence = variant.confidence || "close";
-  const confLabel = confidenceLabel(normalizeConfidence(confidence));
-  const escaped = text.replace(/`/g, "\\`");
-
-  // ----------------------------
-  // AI badge (smarter hierarchy)
-  // ----------------------------
-  const badge = recommended
-    ? `
-      <div class="ai-recommended-badge"
-          data-confidence="${confidence}">
-        <div class="ai-badge-row">
-          <span class="ai-badge-main">⭐ AI Pick</span>
-          <span class="ai-badge-confidence">${confLabel}</span>
-        </div>
-      </div>
-    `
-    : "";
-
-  // ----------------------------
-  // Why this won
-  // ----------------------------
-  const whyToggle =
-    recommended && reason
-      ? `
-        <div class="variantWhyToggle"
-            onclick="toggleVariantWhy('${cardId}')">
-          Why this won ▾
-        </div>
-
-        <div class="variantWhy hidden" id="${cardId}_why">
-          ${reason}
-          ${confidence ? `<div class="variantWhyConfidence">
-            Confidence: ${confLabel}
-          </div>` : ""}
-        </div>
-      `
-      : "";
-
-
-  // ----------------------------
-  // Final render (CORRECT)
-  // ----------------------------
-  return `
-  <div class="variantCard ${recommended ? "recommended" : ""}" id="${cardId}">
-
-    <div class="variantHeader">
-      <h4>Version ${num}</h4>
-      ${badge}
-    </div>
-
-      ${tone ? `<div class="variantTone">${tone}</div>` : ""}
-
-      ${whyToggle}
-
-      <pre style="white-space:pre-wrap">${text}</pre>
-
-      <button onclick="
-        event.stopPropagation();
-        sendVariantFeedback({
-          variantId: '${cardId}',
-          intent: '${window.appState.hook.intent}',
-          tone: '${tone}',
-          confidence: '${confidence}',
-          recommended: ${recommended},
-          action: 'chosen'
-        });
-        applyCaptionVariant(\`${escaped}\`);
-      ">
-        Use This
-      </button>
-    </div>
-  `;
-}
-
-
-
-function updateVariantStoryScore(id, flow) {
-  const el = document.querySelector(`#${id} .storyScoreValue`);
-  if (el) el.textContent = flow?.score ?? "—";
-}
-
-
-async function generateHooks() {
-  const btn = document.getElementById("generateHooksBtn");
-  const status = document.getElementById("hookLabStatus");
-
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = "Generating…";
-  }
-
-  if (status) {
-    status.textContent = "Generating hooks…";
-    status.className = "hook-lab-status loading";
-  }
-
-  const out = document.getElementById("hookLabOutput");
-  if (out) {
-    out.innerHTML = `
-      <div class="ai-thinking">
-        🧠 AI is crafting strong openings…
-      </div>
-    `;
-  }
-
-  let res = null;
-
-  try {
-    res = await jsonFetch("/api/hooks", {
-      method: "POST",
-      body: JSON.stringify({
-        session: getActiveSession(),
-        intent: window.appState.hook.intent
-      })
-    });
-
-  } catch (e) {
-    console.warn("Hook fetch warning:", e);
-  }
-
-  const hooks = res?.hooks;
-
-  if (Array.isArray(hooks) && hooks.length > 0) {
-    // 🔑 global state for hydration / refresh
-    window.appState.hook.lastGenerated = hooks;
-
-    // 🔥 mark ready → button glows
-    updateHooksReadyUI();
-
-    // If already in Hook Lab, render immediately
-    const out = document.getElementById("hookLabOutput");
-    if (out) out.classList.remove("show");
-
-    renderHookLab(hooks);
-    updateHookLabGuidance();
-
-    requestAnimationFrame(() => {
-      out?.classList.add("show");
-    });
-
-    if (status) {
-      status.textContent = `✓ ${hooks.length} hooks generated`;
-      status.className = "hook-lab-status success";
-    }
-
-    loadEditStrategy();
-
-
-  } else {
-    if (status) {
-      status.textContent = "⚠ Failed to generate hooks";
-      status.className = "hook-lab-status error";
-    }
-  }
-
-  if (btn) {
-    btn.disabled = false;
-    btn.textContent = "Generate Hooks";
-  }
-
-  // If user is already here → scroll to results
-  requestAnimationFrame(() => {
-    document
-      .getElementById("hookLabOutput")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-}
-
-
-// ================================
-// Hook Lab — Confidence-aware UI helpers
-// ================================
-function normalizeConfidence(c) {
-  const v = (c || "").toLowerCase();
-  if (v === "clear" || v === "moderate" || v === "close") return v;
-  return "close";
-}
-
-function shouldHighlightRecommended(conf) {
-  // Confidence-aware highlight rules
-  // - clear: strong highlight
-  // - moderate: normal highlight
-  // - close: no green border highlight (reduces “AI yelling”)
-  return conf !== "close";
-}
-
-function shouldAutoShowWhy(conf) {
-  // Only auto-show why for CLEAR picks (otherwise too noisy)
-  return conf === "clear";
-}
-
-function computeVictoryMargin(hooks, currentScore) {
-  if (!Array.isArray(hooks)) return 0;
-
-  const scores = hooks
-    .map(h => h?.score || 0)
-    .sort((a, b) => b - a);
-
-  if (scores.length < 2) return 0;
-
-  const secondBest = scores[0] === currentScore ? scores[1] : scores[0];
-
-  return Math.max(0, Math.round(currentScore - secondBest));
-}
-
-function renderHookLab(hooks) {
-  const out = document.getElementById("hookLabOutput");
-  out.innerHTML = "";
-
-  if (!Array.isArray(hooks) || hooks.length === 0) {
-    out.innerHTML = `<div class="hint-text subtle">No hooks generated. Try again.</div>`;
-    return;
-  }
-
-  hooks
-    .filter(h => h && h.text)
-    .sort((a, b) => {
-      if (a.recommended) return -1;
-      if (b.recommended) return 1;
-      return (b.score || 0) - (a.score || 0);
-    })
-    .forEach(h => {
-      const isRecommended = h.recommended === true;
-      const isSelected = window.appState.hook.selected === h.text;
-      const reason = h.recommend_reason || "";
-      const intentLabel = h.intent_label || "";
-
-
-      const confidence = Number(h.confidence || 0);
-
-      let confLabel = "";
-      if (confidence >= 0.85) confLabel = "Excellent lead";
-      else if (confidence >= 0.7) confLabel = "Strong opener";
-      else if (confidence >= 0.55) confLabel = "Good potential";
-      else confLabel = "Experimental";
-
-
-      const card = document.createElement("div");
-      card.className = "hookCard";
-
-      // 🔒 GLOBAL RULE:
-      // If user selected ANY hook, AI visuals are suppressed
-      const allowAiHighlight = !window.appState.hook.selected;
-
-      if (isSelected) {
-        card.classList.add("selected");
-      }
-
-      // 🤖 AI badge — confidence-aware + never overlays text
-if (isRecommended && allowAiHighlight) {
-  const header = document.createElement("div");
-  header.className = "hookHeader";
-
-  const margin = computeVictoryMargin(hooks, h.score);
-
-  if (margin >= 20) {
-    card.classList.add("blowout");
-  }
-
-  // ⭐ Badge
-  const badge = document.createElement("div");
-  badge.className = "ai-recommended-badge";
-
-  badge.innerHTML = `
-    <div class="ai-badge-row">
-      <span class="ai-badge-main">⭐ AI Pick</span>
-      <span class="ai-badge-confidence">${confLabel}</span>
-    </div>
-    ${margin > 0 ? `<div class="ai-badge-margin">Wins by +${margin}%</div>` : ""}
-    ${intentLabel ? `<div class="ai-badge-intent">${intentLabel}</div>` : ""}
-  `;
-
-  header.appendChild(badge);
-  card.appendChild(header);
-
-  // WHY SECTION
-  if (reason) {
-    const toggle = document.createElement("div");
-    toggle.className = "variantWhyToggle";
-    toggle.textContent = "Why this won ▾";
-
-    const why = document.createElement("div");
-    why.className = "variantWhy hidden";
-    why.innerHTML = `
-      ${reason}
-      <div class="variantWhyConfidence">
-        Confidence: ${confLabel}
-      </div>
-    `;
-
-    toggle.addEventListener("click", (e) => {
-      e.stopPropagation();
-      why.classList.toggle("hidden");
-    });
-
-    card.appendChild(toggle);
-    card.appendChild(why);
-  }
-}
-
-
-      const textSpan = document.createElement("span");
-      textSpan.className = "hookText";
-      textSpan.textContent = h.text;
-
-      const scoreSpan = document.createElement("span");
-      scoreSpan.className = "hookScore";
-      scoreSpan.textContent = `🔥 ${h.score ?? 0}`;
-
-      card.appendChild(textSpan);
-      card.appendChild(scoreSpan);
-
-      card.addEventListener("click", () => selectHook(h.text));
-
-      out.appendChild(card);
-    });
-
-  // Lock visual state when user selects a hook
-  if (window.appState.hook.selected) {
-    document.querySelectorAll(".hookCard").forEach(card => {
-      card.classList.add("locked");
-    });
-  }
-
-  const lab = document.getElementById("hookLab");
-  if (lab) lab.classList.remove("hidden");
-}
-
-function prettyArea(area) {
-  return {
-    hook: "🎣 Hook",
-    pacing: "⏱ Pacing",
-    cta: "📢 CTA",
-    overlay: "✨ Overlay",
-    captions: "💬 Captions"
-  }[area] || area;
-}
-
-function impactLabel(level) {
-  return {
-    high: "Fix now",
-    medium: "Recommended",
-    low: "Suggestion"
-  }[level] || "";
-}
-
-function getHookNextMove(score, delta) {
-  if (!score) return "generate";
-  if (score < 50 && delta === 0) return "generate";
-  if (score < 70) return "improve";
-  if (score < 85) return "auto";
-  return "done";
-}
-
-function showPublishBanner() {
-  const messages = [
-    "🚀 This one is ready to post.",
-    "🔥 Strong hook. Clean flow.",
-    "💎 Your audience will watch this.",
-    "🎯 AI approves this edit.",
-    "✨ Send it."
-  ];
-
-  const msg = messages[Math.floor(Math.random() * messages.length)];
-
-  toast?.(msg);
-
-  maybeConfetti?.(); // optional future
-}
-
-function pulseExportButton() {
-  const btn = document.getElementById("exportBtn");
-  if (!btn) return;
-
-  btn.classList.add("publish-glow");
-
-  setTimeout(() => {
-    btn.classList.remove("publish-glow");
-  }, 4000);
-}
-
-function highlightHookAction(move) {
-  const generate = document.getElementById("generateHooksBtn");
-  const improve = document.getElementById("boostHookBtn");
-  const auto = document.getElementById("autoBoostHookBtn");
-
-  // clear old highlights
-  [generate, improve, auto].forEach(b => b?.classList.remove("pulse"));
-
-  if (move === "generate") generate?.classList.add("pulse");
-  if (move === "improve") improve?.classList.add("pulse");
-  if (move === "auto") auto?.classList.add("pulse");
-}
-
-
-async function loadEditStrategy(force=false) {
-
-  if (EDIT_STRATEGY_LOADING && !force) return;
-
-  EDIT_STRATEGY_LOADING = true;
-
-  const panel = document.getElementById("editStrategyPanel");
-  const list = document.getElementById("editStrategyList");
-
-  if (!panel || !list) {
-    EDIT_STRATEGY_LOADING = false;
-    return;
-  }
-
-  const delta = window.lastHookImprovementDelta || 0;
-
-  // ⭐ live hook score
-  const hookScore =
-    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
-
-  // No captions yet
-  if (!lastSavedCaptionsText?.trim()) {
-    list.innerHTML = `
-      <div class="hint-text subtle">
-        Create captions to unlock AI direction.
-      </div>
-    `;
-    panel.classList.remove("hidden");
-    EDIT_STRATEGY_LOADING = false;
-    return;
-  }
-
-  
-
-  // ================================
-  // 🎥 Footage Intelligence
-  // ================================
-  const contextEl = document.getElementById("editStrategyContext");
-  const setup = document.getElementById("aiSetupSummary");
-
-  if (contextEl && setup?.innerText?.trim()) {
-    contextEl.innerHTML = `
-      <div class="context-title">🎥 Footage Intelligence</div>
-      <div>${setup.innerText}</div>
-    `;
-    contextEl.classList.remove("hidden");
-  }
-
-  try {
-
-    if (LAST_HOOK_SCORE == null || LAST_FLOW_SCORE == null) {
-  console.log("Director waiting for scores");
-
-  list.innerHTML = `
-    <div class="hint-text subtle">
-      Waiting for AI scores…
-    </div>
-  `;
-
-  EDIT_STRATEGY_LOADING = false;
-  return;
-}
-
-    console.log("Director inputs →", {
-      hook: LAST_HOOK_SCORE,
-      flow: LAST_FLOW_SCORE
-    });
-
-    const data = await jsonFetch(
-      `/api/edit_strategy?session=${getActiveSession()}`
-    );
-
-    const items = data.suggestions || [];
-
-    // ================================
-    // 🧠 Prevent useless redraws
-    // ================================
-    const signature = JSON.stringify({
-      hook: LAST_HOOK_SCORE,
-      flow: LAST_FLOW_SCORE,
-      items: items.map(i => ({
-        area: i.area,
-        impact: i.impact,
-        issue: i.issue
-      }))
-    });
-
-    if (!force && signature === LAST_DIRECTOR_SIGNATURE) {
-  console.log("🧠 Director unchanged — skipping render");
-
-  EDIT_STRATEGY_LOADING = false;   // 🔥 ensure unlock
-  return;
-}
-
-
-    LAST_DIRECTOR_SIGNATURE = signature;
-
-    list.innerHTML = "Analyzing edit…";
-
-    if (!items.length) {
-      list.innerHTML = `
-        <div class="director-success">
-          🎯 All major issues resolved — you're optimized.
-        </div>
-      `;
-      panel.classList.remove("hidden");
-      return;
-    }
-
-    // Sort high → low
-    items.sort((a, b) => {
-      const weight = { high: 3, medium: 2, low: 1 };
-      return weight[b.impact] - weight[a.impact];
-    });
-
-    // ================================
-    // Smart next action
-    // ================================
-    const nextMove = getHookNextMove(hookScore, delta);
-    highlightHookAction(nextMove);
-
-    // ================================
-    // Render
-    // ================================
-    list.classList.add("fade-refresh");
-
-    setTimeout(() => {
-      list.innerHTML = items.map(s => {
-
-        let toneIssue = s.issue;
-        let toneImpact = s.impact;
-
-        if (s.area === "hook") {
-          if (hookScore >= 80) {
-            toneImpact = "low";
-            toneIssue = "🔥 Excellent hook. Focus on pacing or flow next.";
-          }
-          else if (hookScore >= 60) {
-            toneImpact = "medium";
-            toneIssue = "👍 Strong hook — a small upgrade could make it elite.";
-          }
-          else if (delta > 0) {
-            toneImpact = "medium";
-            toneIssue = "⚠️ Much better — keep pushing toward 70+.";
-          }
-        }
-
-        let guidance = `👉 ${s.action}`;
-
-        if (s.area === "hook") {
-          if (nextMove === "generate") {
-            guidance = "👉 Generate new ideas — this hook may be hard to fix";
-          }
-          if (nextMove === "improve") {
-            guidance = "👉 Improve this hook — AI will strengthen curiosity & clarity";
-          }
-          if (nextMove === "auto") {
-            guidance = "👉 Let AI auto-optimize for the best score";
-          }
-          if (nextMove === "done") {
-            guidance = "✅ Strong hook — move to story flow";
-          }
-        }
-
-        return `
-          <div class="director-item impact-${toneImpact}" data-area="${(s.area || '').toLowerCase()}">
-            <div class="director-header">
-              <div class="director-area">${prettyArea(s.area)}</div>
-              <div class="director-impact">
-                ${toneImpact.toUpperCase()} · ${impactLabel(toneImpact)}
-              </div>
-            </div>
-
-            ${delta > 0 && s.area === "hook"
-              ? `<div class="director-progress-up">↑ +${delta} points</div>`
-              : ""}
-
-            <div class="director-issue">${toneIssue}</div>
-            <div class="director-action">${guidance}</div>
-          </div>
-        `;
-      }).join("");
-
-      const remaining = items.length;
-
-      const footer = document.createElement("div");
-      footer.className = "director-progress";
-      footer.innerHTML = `
-        ${remaining === 0
-          ? "✅ No major issues detected"
-          : `🎯 ${remaining} improvement${remaining > 1 ? "s" : ""} left`
-        }
-      `;
-
-      list.appendChild(footer);
-
-      list.querySelectorAll(".director-item").forEach(card => {
-        card.addEventListener("click", () => {
-          const area = card.dataset.area;
-          jumpToEditArea(area);
-          showGlobalStatus("Jumped to fix location ✨", "info");
-        });
-      });
-
-      list.classList.remove("fade-refresh");
-
-    }, 120);
-
-    panel.classList.remove("hidden");
-    renderPublishReadyState();
-    renderEditProgress();
-
-    const creativeState = evaluateCreativeState();
-  document.body.classList.toggle("readiness-ready", creativeState.publish_ready);
-  } catch (err) {
-    console.error(err);
-  }
-  finally {
-    EDIT_STRATEGY_LOADING = false;
-  }
-}
-
-function updateHookLockUI() {
-
-  
-  const clearBtn = document.getElementById("clearHookBtn");
-  const lockBar = document.getElementById("hookLockedBar");
-
-  if (!clearBtn) return;
-
-  if (window.appState.hook.selected) {
-    // 🔒 Locked state
-    lockBar?.classList.remove("hidden");
-    clearBtn.classList.remove("hidden");
-
-    // Visual lock on hook cards
-    document.querySelectorAll(".hookCard").forEach(card => {
-      card.classList.add("hook-locked");
-    });
-
-  } else {
-    // 🔓 Unlocked state
-    lockBar?.classList.add("hidden");
-    clearBtn.classList.add("hidden");
-
-    document.querySelectorAll(".hookCard").forEach(card => {
-      card.classList.remove("hook-locked");
-    });
-  }
-}
-
-function renderEditProgress() {
-  const fill = document.getElementById("editProgressFill");
-  const percentEl = document.getElementById("editProgressPercent");
-  const hint = document.getElementById("editProgressHint");
-
-  if (!fill || !percentEl || !hint) return;
-
-  // ✅ use real scores
-  const hook = Number(LAST_HOOK_SCORE) || 0;
-  const flow = Number(LAST_FLOW_SCORE) || 0;
-
-  console.log("📊 Progress using:", hook, flow);
-
-  if (LAST_HOOK_SCORE == null || LAST_FLOW_SCORE == null) {
-    fill.style.width = "0%";
-    percentEl.textContent = "–";
-    hint.textContent = "Scoring in progress…";
-    return;
+  function renderNextActionButton(action) {
+
+    const actions = {
+      write_captions: `<button onclick="openStep('#step-3')" class="readiness-btn">Write Captions</button>`,
+      improve_hook: `<button onclick="openStep('#step-4')" class="readiness-btn">Improve Hook</button>`,
+      improve_flow: `<button onclick="openStep('#step-3')" class="readiness-btn">Improve Flow</button>`,
+      polish: `<button onclick="openStep('#step-4')" class="readiness-btn">Polish Edit</button>`,
+      publish: `<button class="readiness-btn publish-ready">Ready to Export</button>`
+    };
+
+    return actions[action] || "";
   }
 
 
-  if (hook === 0 && flow === 0)
- {
-    fill.style.width = "0%";
-    percentEl.textContent = "0%";
-    hint.textContent = "Run AI scoring to start.";
-    return;
+  function getHookRatingLabel(score) {
+    if (score < 45) return "Needs Work";
+    if (score < 60) return "Building Strength";
+    if (score < 75) return "Strong Hook";
+    if (score < 90) return "Standout";
+    return "Viral Energy";
   }
 
-  const progress = Math.min(100, Math.round((hook * 0.6) + (flow * 0.4)));
-
-  fill.style.width = `${progress}%`;
-  percentEl.textContent = `${progress}%`;
-
-  if (progress < 50) {
-    hint.textContent = "Strengthen the hook to gain momentum.";
-  } else if (progress < 75) {
-    hint.textContent = "Looking good — refine pacing & flow.";
-  } else if (progress < 90) {
-    hint.textContent = "Almost publish ready.";
-  } else {
-    hint.textContent = "🔥 Excellent. Your edit is elite.";
-  }
-}
-
-
-function clearSelectedHook() {
-  const state = window.appState;
-
-  state.hook.selected = null;
-  state.hook.locked = false;
-
-  updateHookLockUI();
-  refreshAfterChange();
-}
-
-function selectHook(text) {
-
-  const state = window.appState;
-
-  if (state.hook.locked && state.hook.selected !== text) {
-    setStatus("hookLabStatus", "🔒 Hook locked — clear to change", "info");
-    return;
+  function getFlowRatingLabel(score) {
+    if (score < 50) return "Rough";
+    if (score < 65) return "Improving";
+    if (score < 80) return "Smooth";
+    if (score < 90) return "Excellent";
+    return "Elite";
   }
 
-  state.hook.selected = text;
-  state.hook.locked = true;
 
-  updateHookLockUI();
-  refreshAfterChange();
-}
+  function renderPublishReadyState(state) {
+    if (!state) state = evaluateCreativeState();
 
-
-function highlightHookLab() {
-  const lab = document.getElementById("hookLab");
-  if (!lab) return;
-
-  lab.classList.remove("hook-lab-highlight"); // reset
-  void lab.offsetWidth;                       // force reflow
-  lab.classList.add("hook-lab-highlight");
-
-  // Remove class after animation finishes
-  setTimeout(() => {
-    lab.classList.remove("hook-lab-highlight");
-  }, 2000);
-}
-
-
-
-function showLabelWarning(file, badLabel, reason) {
-  if (!confirm(
-    `⚠️ Label is weak: ${reason}\n\nFixing labels improves captions, hooks and story flow.\n\nClick OK to auto-fix it or Cancel to edit yourself.`
-  )) {
-    return;
-  }
-
-  fetch("/repair_label", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      file,
-      label: badLabel,
-      session: getActiveSession()
-    })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.fixed_label) {
-      document.querySelector(`input[data-file="${file}"]`).value = data.fixed_label;
-    }
-  });
-}
-
-
-
-function renderStep3Diff(oldText, newText) {
-  const grid = document.getElementById("step3DiffGrid");
-  const wrapper = document.getElementById("captionCompareWrapper");
-  const scroll = document.getElementById("step3CaptionScroll");
-  const toggleBtn = document.getElementById("step3DiffToggle");
-
-  if (!grid || !wrapper || !scroll) return;
-
-  // Split into blocks and REMOVE blank lines
-  const oldLines = (oldText || "")
-    .split("\n")
-    .map(l => l.trim())
-    .filter(l => l !== "");
-
-  const newLines = (newText || "")
-    .split("\n")
-    .map(l => l.trim())
-    .filter(l => l !== "");
-
-  grid.innerHTML = "";
-
-// Keep wrapper visible (button lives inside), but respect collapsed state
-wrapper.classList.remove("hidden");
-
-  const max = Math.max(oldLines.length, newLines.length);
-
-  for (let i = 0; i < max; i++) {
-    const o = oldLines[i] || "";
-    const n = newLines[i] || "";
-
-    // OLD
-    const oldCard = document.createElement("div");
-    oldCard.className = "diff-card old";
-    oldCard.textContent = o || "—";
-
-    // NEW
-    const newCard = document.createElement("div");
-    newCard.className = "diff-card new";
-    newCard.textContent = n || "—";
-
-    grid.appendChild(oldCard);
-    grid.appendChild(newCard);
-  }
-}
-
-
-
-function renderStep4Diff(original, rewritten) {
-  const grid = document.getElementById("step4DiffGrid");
-  if (!grid) return;
-
-  grid.innerHTML = "";
-
-  const oldLines = (original || "").split("\n").map(l=>l.trim()).filter(Boolean);
-  const newLines = (rewritten || "").split("\n").map(l=>l.trim()).filter(Boolean);
-
-  const max = Math.max(oldLines.length, newLines.length);
-
-  for (let i=0;i<max;i++){
-    const o = oldLines[i] || "—";
-    const n = newLines[i] || "—";
-
-    const oldCard = document.createElement("div");
-    oldCard.className = "diff-card old";
-    oldCard.textContent = o;
-
-    const newCard = document.createElement("div");
-    newCard.className = "diff-card new";
-    newCard.textContent = n;
-
-    grid.appendChild(oldCard);
-    grid.appendChild(newCard);
-  }
-}
-
-
-
-
-function setVariantsStatus(message, state = "loading") {
-  const el = document.getElementById("variantsInlineStatus");
-  if (!el) return;
-
-  el.textContent = message;
-  el.className = `inline-status ${state}`;
-  el.classList.remove("hidden");
-}
-
-function countBlocks(text) {
-  if (!text) return 0;
-  return text.split(/\n\s*\n/).filter(Boolean).length;
-}
-
-function updateHookLabGuidance() {
-  const el = document.getElementById("hookLabGuidance");
-  if (!el) return;
-
-  const score =
-    Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
-
-  const hasHooks = Array.isArray(window.appState.hook.lastGenerated) && window.appState.hook.lastGenerated.length > 0;
-  const selected = !!window.appState.hook.selected;
-
-  if (!hasHooks) {
-    el.textContent = "Generate hooks to explore opening ideas.";
-    return;
-  }
-
-  if (hasHooks && !selected) {
-    el.textContent = "Pick a hook you like, then improve or auto-optimize it.";
-    return;
-  }
-
-  if (selected && score < 50) {
-    el.textContent = "Improve the selected hook to raise curiosity.";
-    return;
-  }
-
-  if (selected && score >= 50) {
-    el.textContent = "Auto optimize can test multiple winning strategies.";
-    return;
-  }
-}
-
-
-async function loadClipPreview(filename, imgEl) {
-    const session = getActiveSession();
-
-    try {
-        const res = await fetch("/api/clip_preview", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ session, filename })
-        });
-
-        const data = await res.json();
-        if (data.image) {
-            imgEl.src = data.image;
-        }
-    } catch (e) {
-        console.warn("Preview failed for", filename);
-    }
-}
-
-
-
-function flashElement(el) {
-  if (!el) return;
-  el.classList.remove("flash");
-  void el.offsetWidth; // force reflow
-  el.classList.add("flash");
-}
-
-function setCaptionSource(type, text, noChange = false) {
-  const el = document.getElementById("captionStatus");
-  if (!el) return;
-
-  el.textContent = text;
-
-  el.className = "caption-source"; // reset
-
-  if (type === "yaml") el.classList.add("source-yaml");
-  if (type === "filenames") el.classList.add("source-filenames");
-
-  if (noChange) {
-    el.classList.add("no-change");
-    el.textContent += " · No changes";
-  }
-}
-
-
-function setCaptionInlineStatus(text, type = "info") {
-  const el = document.getElementById("captionInlineStatus");
-  if (!el) return;
-
-  el.textContent = text;
-  el.className = `caption-inline-status ${type}`;
-  el.classList.remove("hidden");
-
-    // Auto-hide after short delay
-  setTimeout(() => {
-    el.classList.add("hidden");
-  }, 2200);
-
-}
-
-
-// -------------------------
-// Session helpers
-// -------------------------
-function updateSessionLabels() {
-    const labels = document.querySelectorAll(".sessionLabel");
-    labels.forEach((l) => (l.textContent = getActiveSession()));
-}
-
-async function autoBoostSelectedHook() {
-  const hook = window.appState.hook.selected;
-if (!hook) {
-  toast?.("Select a hook first");
-  return;
-}
-
-  setStatus("hookLabStatus", "AI auto-optimizing…", "working");
-
-  try {
-    const res = await jsonFetch("/api/hook_autoboost", {
-      method: "POST",
-      body: JSON.stringify({
-        hook,
-        intent: window.appState.hook.intent
-      })
-    });
-
-    if (!res?.text) throw new Error("No result");
-
-    const newHook = res.text;
-    const attempts = res.attempts || 0;
-    const bestScore = res.score || 0;
-
-    const before = lastSavedCaptionsText || "";
-
-    const editor = document.getElementById("captionsText");
-    let blocks = editor?.value?.split(/\n\s*\n/) || [];
-
-    if (blocks.length === 0) blocks = [newHook];
-    else blocks[0] = newHook;
-
-    const newCaptions = blocks.join("\n\n");
-
-    if (editor) editor.value = newCaptions;
-    workingCaptionsText = newCaptions;
-
-    renderStep3Diff(before, newCaptions);
-    focusCaptionChanges();
-
-    document.getElementById("saveCaptionsBtn")?.click();
-
-    toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
-
-    setStatus("hookLabStatus", "Auto optimization complete ✓", "success");
-    await refreshAfterChange();
-
-  } catch (e) {
-    console.error(e);
-    setStatus("hookLabStatus", "Auto optimization failed", "error");
-  }
-}
-
-
-function updateSessionTags() {
-    document.querySelectorAll("#currentSessionTag").forEach((el) => {
-        el.textContent = getActiveSession();
-    });
-}
-
-function sanitizeSessionName(raw) {
-    let s = (raw || "").toLowerCase().trim();
-
-    try {
-        s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
-    } catch {
-        // ignore
-    }
-
-    s = s.replace(/[^a-z0-9]+/g, "_");
-    s = s.replace(/^_+|_+$/g, "");
-
-    if (!s) s = "default";
-    return s;
-}
-
-function sessionQS() {
-  const s = getActiveSession();
-  console.log("[API] Using session:", s);
-  return "?session=" + encodeURIComponent(s);
-}
-
-
-function getActiveSession() {
-  if (!ACTIVE_SESSION) {
-    console.warn("[SESSION] ACTIVE_SESSION unset, forcing default");
-    ACTIVE_SESSION = "default";
-  }
-  return ACTIVE_SESSION;
-}
-
-function toast(message, duration = 2500) {
-  const el = document.createElement("div");
-  el.className = "toast";
-  el.textContent = message;
-
-  document.body.appendChild(el);
-
-  requestAnimationFrame(() => el.classList.add("show"));
-
-  setTimeout(() => {
-    el.classList.remove("show");
-    setTimeout(() => el.remove(), 300);
-  }, duration);
-}
-
-async function setActiveSession(name) {
-  const safe = sanitizeSessionName(name);
-  ACTIVE_SESSION = safe;
-  CONFIG_CACHE = null; // 🔥 ADD THIS
-
-  // Reset session-dependent state
-  LAST_HOOK_SCORE = null;
-  LAST_FLOW_SCORE = null;
-
- const hookEl = document.getElementById("hookScoreValue");
-  if (hookEl) hookEl.textContent = "—";
-
-  const flowEl = document.getElementById("storyFlowScoreValue");
-if (flowEl) flowEl.textContent = "—";
-
-  window.appState.hook.selected = null;
-  window.appState.hook.locked = false;
-  window.appState.hook.lastGenerated = null;
-
-  window.appState.variants.list = [];
-
-  // ----------------------------
-  // Reset AI apply / undo state
-  // ----------------------------
-  window.aiUndoSnapshot = null;
-
-  document
-    .getElementById("undoAiRecommendationBtn")
-    ?.classList.add("hidden");
-
-  // ----------------------------
-  // Reset per-session frontend state
-  // ----------------------------
-  workingClipOrder = [];
-  clipOrderDirty = false;
-
-  // 🔥 VARIANTS RESET (you were missing this)
-  lastVariantStatus = null;
-  VARIANT_POLL_ACTIVE = false;
-  window.appState.variants.list = [];
-  updateVariantRunningBadge("idle");
-
-  // 🔥 ANALYSIS badge reset (safe default)
-  updateAnalyzingBadge?.("idle");
-
-  // ----------------------------
-  // Persist + sync session UI
-  // ----------------------------
-  updateSessionLabels();
-  sidebarSyncActiveLabel();
-  localStorage.setItem("activeSession", ACTIVE_SESSION);
-
-  // ----------------------------
-  // Load core state
-  // ----------------------------
-  await loadConfigAndYaml();
-  await loadCaptionsFromYaml();
-  updateCaptionBaselineHint();
-  updateLoadYamlVisibility();
-  await refreshAfterChange();
-
-  // ----------------------------
-  // Secondary refreshes
-  // ----------------------------
-  loadUploadManager();
-  refreshAnalyses();
-  loadSessionDropdown();
-  loadSessions();
-  sidebarLoadSessions();
-
-  requestAnimationFrame(() =>
-    requestAnimationFrame(animateSessionGlow)
-  );
-
-  // ----------------------------
-  // Resume analysis polling ONLY if needed
-  // ----------------------------
-  pollAnalyzeStatus();
-
-  // ----------------------------
-  // AI readiness summary
-  // ----------------------------
-  loadAISetupSummary();
-}
-
-
-
-// =========================================
-// SIDEBAR SESSION MANAGER v2
-// =========================================
-function sidebarToast(msg) {
-    const area = document.getElementById("sidebarSessionToastArea");
-    if (!area) return;
-
-    const div = document.createElement("div");
-    div.className = "sidebar-toast";
-    div.textContent = msg;
-
-    area.appendChild(div);
-    setTimeout(() => div.classList.add("fade-out"), 1300);
-    setTimeout(() => div.remove(), 1600);
-}
-
-function activateStep(stepSelector) {
-  document.querySelectorAll(".step").forEach(btn => {
-    btn.classList.toggle(
-      "active",
-      btn.dataset.target === stepSelector
-    );
-  });
-
-  const stepCard = document.querySelector(stepSelector);
-  stepCard?.classList.add("step-active");
-}
-
-
-async function sidebarLoadSessions() {
-    try {
-        const res = await fetch("/api/sessions");
-        const data = await res.json();
-
-        const ddl = document.getElementById("sidebarSessionDropdown");
-        if (!ddl) return;
-
-        ddl.innerHTML = "";
-
-        (data.sessions || []).forEach((s) => {
-            const opt = document.createElement("option");
-            opt.value = s;
-            opt.textContent = s;
-            ddl.appendChild(opt);
-        });
-
-        ddl.value = getActiveSession();
-    } catch (err) {
-        console.error("Failed loading sessions:", err);
-    }
-}
-
-function sidebarSyncActiveLabel() {
-    const el = document.getElementById("sidebarActiveSession");
-    if (!el) return;
-    el.textContent = getActiveSession();
-}
-
-
-function getOverlayStyle() {
-    return (document.getElementById("overlayStyle")?.value || "ai_recommended").toLowerCase();
-}
-
-// ===============================
-// 🔥 Overlay Preview System
-// ===============================
-async function previewOverlay(mode = "fast") {
-
-    if (!document.getElementById("overlayPreviewBox")) return;
-
-    const session = getActiveSession();
-    const box = document.getElementById("overlayPreviewBox");
+    const box = document.getElementById("publishReadyBanner");
     if (!box) return;
 
-    box.innerHTML = "⏳ generating preview…";
+    maybeCelebrateReadiness({ status: state.status });
 
-    try {
-        let res;
+    box.classList.remove("hidden");
 
-        if (mode === "fast") {
-            res = await jsonFetch("/api/overlay_preview", {
-                method: "POST",
-                body: JSON.stringify({
-                    session,
-                    style: getOverlayStyle()
-                }),
-            });
-        } else {
-    // Full preview is STILL READ-ONLY
-    // It just asks for a higher-quality preview image
+    let colorClass = "publish-neutral";
 
-    res = await jsonFetch("/api/overlay_preview", {
-        method: "POST",
-        body: JSON.stringify({
-            session,
-            style: getOverlayStyle(),
-            quality: "full"   // optional hint to backend
-        }),
-    });
-}
+    if (state.status === "ready") colorClass = "publish-ready";
+    if (state.status === "weak_hook" || state.status === "weak_flow")
+      colorClass = "publish-warning";
+    if (state.status === "empty") colorClass = "publish-empty";
 
-        if (res?.image) {
-            box.innerHTML = "";
-            const img = document.createElement("img");
-            img.src = res.image;
-            img.style.width = "100%";
-            img.style.height = "100%";
-            img.style.objectFit = "cover";
-            img.style.position = "absolute";
-            img.style.zIndex = "3";
+    box.className = `publish-ready-state ${colorClass}`;
 
-            box.appendChild(img);
-        } else {
-            box.innerHTML = "⚠ No preview returned.";
-        }
-    } catch (e) {
-        console.error(e);
-        box.innerHTML = "❌ Preview failed — check logs.";
+    box.innerHTML = `
+      <div class="readiness-title">🧠 AI Readiness</div>
+      <div class="readiness-message">${state.message}</div>
+      <div class="readiness-scores">
+        Hook: ${state.hook_score}/100 &nbsp; | &nbsp; Flow: ${state.flow_score}/100
+      </div>
+      ${renderNextActionButton(state.next)}
+    `;
+  }
+
+
+  function evaluatePublishReadiness() {
+    const state = evaluateCreativeState();
+
+    const highIssues =
+      document.querySelectorAll(".director-item.impact-high").length;
+
+    return {
+      ready: state.publish_ready,
+      hookScore: state.hook_score,
+      flowScore: state.flow_score,
+      highIssues
+    };
+  }
+
+
+  function celebrateImprovement(type, oldScore, newScore) {
+    const delta = newScore - oldScore;
+
+    // toast
+    toast(`⬆ ${type === "hook" ? "Hook" : "Flow"} improved +${delta}`);
+
+    // director approval
+    showDirectorApproval(type);
+
+    // small pulse animation
+    animateScoreJump(type);
+  }
+
+  function maybeShowStep4Nudge() {
+    const score =
+      Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+    const hint = document.getElementById("step3NextHint");
+
+    if (!hint) return;
+
+    // threshold = “good enough”
+    if (score >= 50) {
+      hint.classList.remove("hidden");
     }
-}
+  }
 
 
-// ================================
-// Utility helpers
-// ================================
-
-// ================================
-// Emoji-safe overlay text helper
-// ================================
-function stripEmojis(text) {
-  if (!text) return text;
-  return text.replace(/[\p{Extended_Pictographic}]/gu, "").trim();
-}
-
-
-function disableDownloadButton() {
-    const btn = document.getElementById("downloadLink");
-    if (!btn) return;
-
-    btn.classList.add("disabled");
-    btn.textContent = "Exporting…";
-    btn.removeAttribute("href");   // remove old link
-}
-
-
-function showSessionToast(msg) {
-    const area = document.getElementById("sessionToastArea");
+  function showDirectorApproval(type) {
+    const area = document.getElementById("editStrategyContext");
     if (!area) return;
 
     const el = document.createElement("div");
-    el.className = "session-toast";
-    el.textContent = msg;
+    el.className = "director-approved";
+    el.textContent = `🎬 Director approved the ${type}`;
 
     area.appendChild(el);
 
     setTimeout(() => {
-        el.classList.add("fade-out");
-        setTimeout(() => el.remove(), 500);
-    }, 1300);
-}
-
-// EXPORT URL helper – checks if S3 link is live
-async function probeUrl(url) {
-    try {
-        const res = await fetch(url, { method: "HEAD" });
-        return res.ok;
-    } catch {
-        return false;
-    }
-}
-
-
-function toggleUploadManager() {
-    const content = document.getElementById("uploadManagerContent");
-    const icon = document.getElementById("uploadManagerToggle");
-    if (!content || !icon) return;
-
-    content.classList.toggle("collapsed");
-
-    if (content.classList.contains("collapsed")) {
-        icon.textContent = "▲";
-    } else {
-        icon.textContent = "▼";
-    }
-}
-
-// Auto-fading status helper
-let _statusTimers = {};
-
-function setStatus(id, msg, type = "info", autoHide = true) {
-  const el = document.getElementById(id);
-  if (!el) return; // ✅ correct place
-
-  el.className = "status-text status-" + type;
-  el.textContent = msg;
-
-  if (_statusTimers[id]) {
-    clearTimeout(_statusTimers[id]);
-    delete _statusTimers[id];
+      el.remove();
+    }, 2500);
   }
 
-  if (!autoHide) return;
+  function animateScoreJump(type) {
+    const id = type === "hook"
+      ? "hookScoreValue"
+      : "storyFlowScoreValue";
 
-  _statusTimers[id] = setTimeout(() => {
-    el.textContent = "";
-    el.className = "status-text status-info";
-    delete _statusTimers[id];
-  }, 5000);
-}
-
-
-async function jsonFetch(url, opts = {}) {
-  const headers = {
-    "Content-Type": "application/json",
-    ...(opts.headers || {})
-  };
-
-  const res = await fetch(url, {
-    credentials: "same-origin",
-    ...opts,
-    headers
-  });
-
-  if (!res.ok) {
-    throw new Error(`[jsonFetch] ${url} failed (${res.status})`);
-  }
-
-  const text = await res.text();
-  if (!text || text.startsWith("<")) return null;
-  return JSON.parse(text);
-}
-
-// Status hint helper (bottom style line)
-function showStatus(msg, type = "info") {
-    const el = document.getElementById("styleStatus");
-    if (!el) return;
-    el.textContent = msg;
-    el.className = "hint-text " + type;
-}
-
-// Simple download helper
-function safeDownload(url, filename = "export.mp4") {
-    const a = document.createElement("a");
-    a.href = url;
-    a.style.display = "none";
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-}
-
-// ================================
-// Stepper behavior
-// ================================
-function initStepper() {
-    const stepButtons = document.querySelectorAll(".stepper .step");
-
-    stepButtons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-            const targetSel = btn.dataset.target;
-            const targetEl = document.querySelector(targetSel);
-            if (targetEl) {
-                targetEl.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                });
-            }
-            stepButtons.forEach((b) => b.classList.remove("active"));
-            btn.classList.add("active");
-        });
-    });
-
-    const steps = Array.from(document.querySelectorAll(".step-card"));
-    if (!steps.length) return;
-
-    const observer = new IntersectionObserver(
-    (entries) => {
-        entries.forEach((entry) => {
-            if (!entry.isIntersecting) return;
-
-            const id = "#" + entry.target.id;
-
-            if (id === "#step-4") {
-              refreshAfterChange();
-            }
-
-
-
-
-            stepButtons.forEach((btn) => {
-                if (btn.dataset.target === id) {
-                    stepButtons.forEach((b) => b.classList.remove("active"));
-                    btn.classList.add("active");
-                }
-            });
-        });
-    },
-    { threshold: 0.4 }
-);
-
-
-    steps.forEach((s) => observer.observe(s));
-}
-
-// ================================
-// Status log polling
-// ================================
-let statusLogTimer = null;
-
-async function refreshStatusLog() {
-  try {
-    const data = await jsonFetch("/api/status");
-    const log = data.status_log || [];
-    const el = document.getElementById("statusLog");
-    const autoScroll = document.getElementById("autoScrollLogs")?.checked;
-
+    const el = document.getElementById(id);
     if (!el) return;
 
-    const wasAtBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-
-    el.textContent = log.join("\n");
-
-    // ✅ Only scroll if:
-    // - Auto-scroll is ON
-    // - User was already near the bottom
-    if (autoScroll && wasAtBottom) {
-      el.scrollTop = el.scrollHeight;
-    }
-  } catch {
-    // silent
+    el.classList.remove("score-burst");
+    void el.offsetWidth;
+    el.classList.add("score-burst");
   }
-}
 
 
-function startStatusLogPolling() {
-    if (statusLogTimer) clearInterval(statusLogTimer);
-    refreshStatusLog();
-    statusLogTimer = setInterval(refreshStatusLog, 2000);
-}
+  function openAccordionSection(title) {
+    const headers = document.querySelectorAll("#step-4 .acc-header");
 
-// ================================
-// Upload: plain + drag & drop UI
-// ================================
-async function uploadFiles() {
-    const input = document.getElementById("uploadFiles");
-    const status = document.getElementById("uploadStatus");
-    if (!input || !status) return;
+    headers.forEach(h => {
+      if (h.textContent.includes(title)) {
+        h.click();
+      }
+    });
+  }
 
-    if (!input.files.length) {
-        status.textContent = "❌ No files selected.";
-        return;
+
+  function jumpToEditArea(area) {
+    console.log("🎯 Jump to:", area);
+
+    area = (area || "").toLowerCase();
+
+    if (area === "hook") {
+      openStep("#step-3");
+      openVariantsDrawer();
+      openHookLab();
+      return;
     }
 
-    const formData = new FormData();
-    for (let f of input.files) {
-        formData.append("files", f);
+    if (area === "captions") {
+      openStep("#step-3");
+      document.getElementById("captionsText")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+      return;
     }
 
-    setStatus("uploadStatus", "⬆ Uploading…", "working", false);
+    if (area === "overlay") {
+      openStep("#step-4");
+      openAccordionSection("✍️ Captions & Timing");
+      document.getElementById("overlayStyle")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+      return;
+    }
+
+    if (area === "cta") {
+      openStep("#step-4");
+      openAccordionSection("🎤 Voice (TTS) & CTA");
+      document.getElementById("ctaText")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+      return;
+    }
+
+    if (area === "pacing") {
+      openStep("#step-4");
+      openAccordionSection("✍️ Captions & Timing");
+      document.getElementById("applyStandardTimingBtn")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+      return;
+    }
+
+    console.warn("No jump rule for:", area);
+  }
+
+
+
+  function confidenceLabel(level) {
+    if (!level) return "";
+
+    return {
+    clear: "Clear winner",
+    moderate: "Strong option",
+    close: "Creative choice"
+  }[level] || "";
+  }
+
+  // =======================================
+  // AI Director auto refresh (debounced)
+  // =======================================
+  const refreshEditStrategySoon = debounce(() => {
+    console.log("🧠 Refreshing AI edit strategy");
+    loadEditStrategy();
+  }, 400);
+
+
+  function debounce(fn, wait = 350) {
+    let t = null;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), wait);
+    };
+  }
+
+  function showGlobalStatus(text, type = "info") {
+    const bar = document.getElementById("globalStatusBar");
+    if (!bar) return;
+
+    bar.textContent = text;
+    bar.className = `global-status show ${type}`;
+
+    setTimeout(() => {
+      bar.classList.remove("show");
+    }, 2500);
+  }
+
+  async function pollVariantStatus() {
+    if (!VARIANT_POLL_ACTIVE) return;
+
+    const session = getActiveSession(); // ✅ FIXED
 
     try {
-        const session = encodeURIComponent(getActiveSession());
-        const resp = await fetch(`/api/upload?session=${session}`, {
-            method: "POST",
-            body: formData,
-        });
-        const data = await resp.json();
-        if (data.uploaded?.length) {
-            setStatus(
-                "uploadStatus",
-                `✅ Uploaded ${data.uploaded.length} file(s).`,
-                "success"
-            );
-            loadUploadManager();
-        } else {
-            status.textContent = `⚠ No files uploaded (check logs).`;
-        }
-    } catch (err) {
-        console.error(err);
-        setStatus("uploadStatus", `❌ Upload failed: ${err.message}`, "error");
-    }
-}
+      const data = await jsonFetch(
+        `/api/variants/status?session=${session}`
+      );
 
-
-function initUploadUI() {
-    const dropZone = document.getElementById("dropZone");
-    const fileInput = document.getElementById("uploadFiles");
-    const preview = document.getElementById("uploadPreview");
-    const uploadBtn = document.getElementById("uploadBtn");
-    const progressWrapper = document.getElementById("uploadProgressWrapper");
-    const progressBar = document.getElementById("uploadProgress");
-    const statusEl = document.getElementById("uploadStatus");
-
-    if (
-        !dropZone ||
-        !fileInput ||
-        !preview ||
-        !uploadBtn ||
-        !progressWrapper ||
-        !progressBar ||
-        !statusEl
-    ) {
+      // 🧠 Session switched mid-poll → stop safely
+      if (session !== getActiveSession()) {
+        VARIANT_POLL_ACTIVE = false;
+        updateVariantRunningBadge("idle");
         return;
-    }
+      }
 
-    let selectedFiles = [];
+      const status = data.status;
 
-    function updatePreview() {
-        preview.innerHTML = "";
-        selectedFiles.forEach((file, idx) => {
-            const wrapper = document.createElement("div");
-            wrapper.className = "preview-item";
+      // 🔴 Badge: visible while running
+      updateVariantRunningBadge(status);
 
-            const name = document.createElement("div");
-            name.className = "preview-name";
-            name.textContent = file.name;
+      // Show inline "working" once
+      if (status === "running" && lastVariantStatus !== "running") {
+        setStatus(
+          "variantsInlineStatus",
+          "Generating AI variants…",
+          "working"
+        );
+      }
 
-            const removeBtn = document.createElement("button");
-            removeBtn.className = "preview-remove";
-            removeBtn.innerHTML = "✖";
+      // ✅ Transition: running → done
+      if (lastVariantStatus === "running" && status === "done") {
+        console.log("✅ Variants ready");
 
-            removeBtn.onclick = () => {
-                selectedFiles.splice(idx, 1);
-                updatePreview();
-            };
+        const variants = data.result?.variants || [];
 
-            wrapper.appendChild(name);
-            wrapper.appendChild(removeBtn);
-            preview.appendChild(wrapper);
+        // 🔑 Global state
+        window.appState.variants.list = variants;
+
+        // Sort: AI recommended first
+        variants.sort((a, b) => {
+          if (a.recommended) return -1;
+          if (b.recommended) return 1;
+          return (
+            (b.hook_score || 0) + (b.story_flow || 0) -
+            ((a.hook_score || 0) + (a.story_flow || 0))
+          );
         });
 
-        uploadBtn.disabled = selectedFiles.length === 0;
-    }
+        const box = document.getElementById("variantsOutput");
+        box.innerHTML = "";
+        box.dataset.rendered = "false";
 
-    dropZone.addEventListener("click", () => fileInput.click());
+        variants.forEach((variant, i) => {
+          const cardId = `variant_${i}`;
 
-    fileInput.addEventListener("change", (e) => {
-        selectedFiles = Array.from(e.target.files);
-        updatePreview();
-    });
+          box.innerHTML += renderVariantCard(
+            i + 1,
+            variant,
+            cardId
+          );
 
-    dropZone.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        dropZone.classList.add("dragover");
-    });
-
-    dropZone.addEventListener("dragleave", () => {
-        dropZone.classList.remove("dragover");
-    });
-
-    dropZone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        dropZone.classList.remove("dragover");
-        selectedFiles = Array.from(e.dataTransfer.files);
-        updatePreview();
-    });
-
-    function markPreviewUploaded() {
-        // Visually mark the preview rows as done before clearing
-        preview.querySelectorAll(".preview-item").forEach((row) => {
-            row.classList.add("uploaded");
-            const x = row.querySelector(".preview-remove");
-            if (x) {
-                x.disabled = true;
-                x.style.opacity = "0.4";
-                x.style.cursor = "not-allowed";
-            }
+          // 🔥 Feedback: viewed
+          sendVariantFeedback({
+            variantId: cardId,
+            intent: window.appState.hook.intent,
+            tone: variant.tone,
+            confidence: variant.confidence,
+            recommended: variant.recommended === true,
+            action: "viewed"
+          });
         });
-    }
 
-    function clearSelectedUploadsUI({ showToast = true, delayMs = 2200 } = {}) {
-        // Show a short success pause so user sees confirmation
+        box.dataset.rendered = "true";
+        updateAIRecommendationBar();
+
+        // 🟢 Inline success
+        setStatus(
+          "variantsInlineStatus",
+          "AI variants ready ✓",
+          "success"
+        );
+
         setTimeout(() => {
-            selectedFiles = [];
-            preview.innerHTML = "";
-            fileInput.value = ""; // important: allows re-uploading same filename(s)
-            uploadBtn.disabled = true;
+          setStatus("variantsInlineStatus", "");
+        }, 2000);
 
-            // Optional: collapse progress UI after done
-            progressWrapper.classList.add("hidden");
-            progressBar.style.width = "0%";
+        // 🔴 Hide badge immediately
+        updateVariantRunningBadge("idle");
 
-            if (showToast) {
-                // Keep your existing status line
-                // (no-op if you prefer)
-            }
-        }, delayMs);
+        // 🔓 Unlock button
+        document
+          .getElementById("generateVariantsBtn")
+          ?.removeAttribute("disabled");
+
+        VARIANT_POLL_ACTIVE = false;
+      }
+
+      lastVariantStatus = status;
+
+      if (status === "running") {
+        setTimeout(pollVariantStatus, 1200);
+      }
+
+    } catch (err) {
+      console.warn("pollVariantStatus failed", err);
+
+      if (VARIANT_POLL_ACTIVE) {
+        setTimeout(pollVariantStatus, 2000);
+      }
     }
-
-    uploadBtn.addEventListener("click", () => {
-        if (!selectedFiles.length) {
-            setStatus(
-                "uploadStatus",
-                "❗ Please select at least one video before uploading.",
-                "error"
-            );
-
-            uploadBtn.classList.add("error-flash");
-            setTimeout(() => uploadBtn.classList.remove("error-flash"), 400);
-
-            return;
-        }
-
-        statusEl.textContent = "Uploading…";
-        progressWrapper.classList.remove("hidden");
-        progressBar.style.width = "0%";
-
-        const formData = new FormData();
-        selectedFiles.forEach((f) => formData.append("files", f));
-
-        const xhr = new XMLHttpRequest();
-        const session = encodeURIComponent(getActiveSession());
-        xhr.open("POST", `/api/upload?session=${session}`);
-
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-                const pct = (e.loaded / e.total) * 100;
-                progressBar.style.width = pct.toFixed(1) + "%";
-            }
-        };
-
-                xhr.onload = () => {
-            if (xhr.status === 200) {
-                const resp = JSON.parse(xhr.responseText);
-                const count = resp.uploaded?.length || 0;
-
-                statusEl.textContent = `✅ Uploaded ${count} file(s).`;
-                progressBar.style.width = "100%";
-
-                // ✅ visually mark as completed (optional polish)
-                markPreviewUploaded();
-
-                // Refresh S3 manager list (raw/processed)
-                loadUploadManager();
-
-                // ✅ auto-clear selected uploads list after a short pause
-                clearSelectedUploadsUI({ delayMs: 2200 });
-
-            } else {
-                statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
-            }
-        };
-
-
-        xhr.onerror = () => {
-            statusEl.textContent = "❌ Upload error.";
-        };
-
-        xhr.send(formData);
-    });
-}
-
-
-// ================================
-// Manage uploads already in S3
-// ================================
-async function loadUploadManager() {
-    try {
-        const session = encodeURIComponent(getActiveSession());
-
-        const sessLabel = document.getElementById("uploadManagerSession");
-        if (sessLabel) sessLabel.textContent = getActiveSession();
-
-        const res = await fetch(`/api/uploads?session=${session}`);
-        const data = await res.json();
-
-        const labelsRes = await fetch(`/api/labels?session=${session}`);
-        const labelsData = await labelsRes.json();
-        const labels = labelsData.labels || {};
-
-        renderUploadList("rawUploads", data.raw, "raw", labels);
-        renderUploadList("processedUploads", data.processed, "processed", labels);
-        loadAISetupSummary();
-    } catch (e) {
-        console.error("UploadManager error:", e);
-    }
-}
-
-
-function renderUploadList(elementId, items, kind, labels = {}) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-
-  if (!items || items.length === 0) {
-    el.innerHTML = `<div class="empty">No videos</div>`;
-    return;
   }
 
-  const session = getActiveSession();
-  const rawPrefix = `raw_uploads/${session}/`;
-  const processedPrefix = `processed/${session}/`;
+  function updateHooksReadyUI() {
+    const btn = document.getElementById("continueToHooksBtn");
+    if (!btn) return;
 
-  // --------------------------------
-  // Render HTML
-  // --------------------------------
-  el.innerHTML = items
-    .map(file => {
-      const isRaw = kind === "raw";
-      const srcKey = isRaw ? rawPrefix + file : processedPrefix + file;
-      const destKey = isRaw ? processedPrefix + file : rawPrefix + file;
-      const savedLabel = labels[file] || "";
+    if (window.appState.hook.lastGenerated?.length) {
+      btn.classList.add("ai-ready");
+      btn.dataset.ready = "true";
+    } else {
+      btn.classList.remove("ai-ready");
+      btn.dataset.ready = "false";
+    }
+  }
 
-      return `
-        <div class="upload-item">
-          ${
-            isRaw
-              ? `
-              <div class="clip-card">
-                <img class="clip-preview large" data-file="${file}" />
-                <div class="clip-filename">${file}</div>
+  function updateAIRecommendationBar() {
+    const bar = document.getElementById("aiRecommendationBar");
+    const applyBtn = document.getElementById("applyAiRecommendationBtn");
+    const undoBtn = document.getElementById("undoAiRecommendationBtn");
 
-                <input
-                  class="input clip-label-input"
-                  value="${savedLabel}"
-                  placeholder="e.g. Rooftop cocktails"
-                  data-file="${file}"
-                />
+    if (!bar) return;
 
-                <p class="hint-text small">
-                  Used to guide captions and storytelling.
-                </p>
+    const hasRecommendation =
+      Array.isArray(window.appState.variants.list) &&
+      window.appState.variants.list.some(v => v.recommended === true);
 
-                <div class="clip-actions">
-                  <button class="btn ghost small recreate-label-btn" data-file="${file}">
-                    🔁 Re-create label
-                  </button>
+    // 1️⃣ Show / hide bar
+    bar.classList.toggle("hidden", !hasRecommendation);
 
-                  <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
-                    Move →
-                  </button>
+    // 2️⃣ Apply button state
+    if (applyBtn) {
+      applyBtn.disabled = !hasRecommendation || !!window.aiUndoSnapshot;
+      applyBtn.textContent = window.aiUndoSnapshot
+        ? "Applied ✓"
+        : "Apply AI recommendation";
+    }
 
-                  <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
-                    Delete
-                  </button>
-                </div>
-              </div>
-              `
-              : `
-              <div class="clip-card processed">
-                <img class="clip-preview" data-file="${file}" />
-                <div class="clip-filename">${file}</div>
+    // 3️⃣ Undo button state
+    if (undoBtn) {
+      const canUndo =
+        window.aiUndoSnapshot &&
+        window.aiUndoSnapshot.session === getActiveSession();
 
-                <div class="clip-actions">
-                  <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
-                    ← Move back
-                  </button>
+      undoBtn.classList.toggle("hidden", !canUndo);
+      undoBtn.disabled = false;
+    }
+  }
 
-                  <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
-                    Delete
-                  </button>
-                </div>
-              </div>
-              `
-          }
-        </div>
-      `;
-    })
-    .join("");
+  function hydrateExistingHooksIfAny() {
+    const hooks = window.appState.hook.lastGenerated;
+    if (!hooks?.length) return;
 
-  // --------------------------------
-  // Load previews
-  // --------------------------------
-  el.querySelectorAll(".clip-preview").forEach(img => {
-    const file = img.dataset.file;
-    loadClipPreview(file, img);
+    renderHookLab(hooks);
+  }
 
-    img.addEventListener("click", () => {
-      img.src = "";
-      loadClipPreview(file, img);
-    });
-  });
+  function updateIntentHint(intent) {
+    const hint = document.getElementById("intentHint");
+    if (!hint) return;
 
-  // --------------------------------
-  // Auto-save + AI auto-suggest (once)
-  // --------------------------------
-  el.querySelectorAll(".clip-label-input").forEach(input => {
-    const glowSuccess = () => {
-      input.classList.remove("error");
-      input.classList.add("saved");
-      setTimeout(() => input.classList.remove("saved"), 1200);
+    const copy = {
+      discovery: "Optimized for reach, virality, and scroll-stopping hooks.",
+      personal: "Optimized for emotion, story, and connection.",
+      aesthetic: "Optimized for calm pacing and visual flow.",
+      informational: "Optimized for clarity, structure, and explanation."
     };
 
-    const glowError = () => {
-      input.classList.add("error");
-      setTimeout(() => input.classList.remove("error"), 1500);
-    };
+    hint.textContent = copy[intent] || "";
+  }
 
-    const save = async () => {
-      const file = input.dataset.file;
-      const label = input.value.trim();
+  function setUiBusy(busy) {
+    document.body.classList.toggle("ui-busy", busy);
+  }
 
-      try {
-        // 🧠 AUTO-AI: only once, only if empty
-        if (!label && !input.dataset.aiSuggested) {
-          input.dataset.aiSuggested = "true";
 
-          try {
-            const res = await jsonFetch("/repair_label", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                session: getActiveSession(),
-                file,
-                label: ""
-              })
-            });
+  function syncTtsUIState() {
+    const enabled = document.getElementById("ttsEnabled")?.checked;
+    const voiceSelect = document.getElementById("ttsVoice");
 
-            if (res?.fixed_label) {
-              input.value = res.fixed_label;
-              await saveClipLabel(file, res.fixed_label);
-              glowSuccess();
-              return;
-            }
-          } catch (e) {
-            console.warn("AI auto-suggest failed", e);
-          }
-        }
+    if (!voiceSelect) return;
 
-        // Normal save
-        await saveClipLabel(file, label);
-        glowSuccess();
+    voiceSelect.disabled = !enabled;
+    voiceSelect.style.opacity = enabled ? "1" : "0.5";
+  }
 
-      } catch (e) {
-        console.error("Label save failed", e);
-        glowError();
-      }
-    };
+  const autoSaveStoryboardOrder = debounce(() => {
+    saveStoryboardOrder({ silent: true });
+  }, 600);
 
-    input.addEventListener("blur", save);
+  function updateCaptionBaselineHint() {
+    const hint = document.getElementById("captionBaselineHint");
+    if (!hint) return;
 
-    input.addEventListener("keydown", e => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        input.blur();
-      }
+    const hasVariants =
+    Array.isArray(window.appState.variants.list) &&
+    window.appState.variants.list.length > 0;
+
+
+    hint.style.display = hasVariants ? "none" : "block";
+  }
+
+  function updateLoadYamlVisibility() {
+    const btn = document.getElementById("loadCaptionsFromYamlBtn");
+    if (!btn) return;
+
+    const hasVariants =
+    Array.isArray(window.appState.variants.list) &&
+    window.appState.variants.list.length > 0;
+
+    btn.style.display = hasVariants ? "inline-block" : "none";
+  }
+
+  function syncIntentPills(intent) {
+    document.querySelectorAll(".intent-pills .pill").forEach(pill => {
+      pill.classList.toggle("active", pill.dataset.intent === intent);
     });
-  });
+  }
 
-  // --------------------------------
-  // 🔁 Re-create label (explicit AI)
-  // --------------------------------
-  el.querySelectorAll(".recreate-label-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const file = btn.dataset.file;
-      const input = btn.closest(".clip-card")
-                       ?.querySelector(".clip-label-input");
-      if (!input) return;
 
-      // Explicit action → allow AI again
-      input.dataset.aiSuggested = "true";
+  async function loadIntentFromConfig() {
+    try {
+      const res = await getConfigCached();
 
-      btn.disabled = true;
-      btn.textContent = "Re-thinking…";
+      const intent = res?.intent || "discovery";
 
-      try {
-        const res = await jsonFetch("/repair_label", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            session: getActiveSession(),
-            file,
-            label: input.value || ""
-          })
-        });
+      // 🔑 Core state
+      window.userForcedIntent = false;
 
-        if (res?.fixed_label) {
-          input.value = res.fixed_label;
-          await saveClipLabel(file, res.fixed_label);
-          input.classList.add("saved");
-          setTimeout(() => input.classList.remove("saved"), 1200);
-        }
+      window.appState.hook.intent = intent;
 
-      } catch (e) {
-        console.error("Re-create label failed", e);
-        input.classList.add("error");
-        setTimeout(() => input.classList.remove("error"), 1500);
-        alert("Couldn’t re-create label");
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "🔁 Re-create label";
-      }
-    });
-  });
-}
-  
+      // ✅ SYNC PILL UI (single source of truth)
+      syncIntentPills(intent);
 
-async function saveClipLabel(key, label) {
-  if (!key) return;
+      // 🔔 Update intent hint
+      updateIntentHint(intent);
 
-  try {
-    const res = await jsonFetch("/api/labels", {
+      // Optional legacy select support
+      const select = document.getElementById("intentSelect");
+      if (select) select.value = intent;
+
+      await refreshAfterChange();
+
+
+      setStatus(
+        "captionStatus",
+        `Intent set to “${intent}”`,
+        "info"
+      );
+
+    } catch (e) {
+      console.warn("Failed to load intent, using default");
+    }
+  }
+
+
+  function sendVariantFeedback({ variantId, intent, tone, action, confidence = null, recommended = false }) {
+    return fetch("/api/variant_feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session: getActiveSession(),
-        file: key.split("/").pop(), // 🔥 FIX
-        label
+        variant_id: variantId,          // match backend naming
+        intent,
+        tone,
+        confidence,                     // "clear" | "moderate" | "close" | null
+        recommended: recommended === true,
+        action                          // "viewed" | "chosen"
       })
     });
-
-    const finalLabel = res?.label ?? "";
-    const weak = !!res?.weak;
-
-    const input = document.querySelector(
-      `.clip-label-input[data-file="${key.split("/").pop()}"]`
-    );
-
-    const card = input?.closest(".clip-card");
-
-    if (input && finalLabel !== input.value) {
-      input.value = finalLabel;
-    }
-
-    if (card) {
-      card.classList.toggle("label-weak", weak);
-    }
-
-    if (input) {
-      input.classList.add("saved-flash");
-      setTimeout(() => input.classList.remove("saved-flash"), 600);
-    }
-
-    loadAISetupSummary();
-
-  } catch (err) {
-    console.error("Failed to save label:", err);
-    alert("Failed to save label");
   }
-}
 
 
-async function moveUpload(src, dest) {
-    await fetch("/api/uploads/move", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ src, dest }),
-    });
+  function syncFgScaleUI() {
+      const autoEl = document.getElementById("autoFgScale");
+      const manualContainer = document.getElementById("manualFgScaleContainer");
 
-    loadUploadManager();
-}
+      if (!autoEl || !manualContainer) return;
 
-async function deleteUpload(key) {
-    if (!confirm("Delete this file?")) return;
+      manualContainer.style.display = autoEl.checked ? "none" : "block";
+  }
 
-    await fetch("/api/uploads/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key }),
-    });
+  function animateSessionGlow() {
+    const tags = document.querySelectorAll(".active-session-tag");
 
-    loadUploadManager();
-}
-
-// Clear old analysis results whenever switching sessions
-function clearAnalysisUI() {
-    const list = document.getElementById("analysesList");
-    if (list) list.innerHTML = "";
-
-    const status = document.getElementById("analyzeStatus");
-    if (status) {
-        status.textContent = "Session changed — analyze to see results.";
-        status.className = "hint-text";
+    if (!tags.length) {
+      console.warn("[SESSION] No active-session-tag found");
+      return;
     }
-}
 
-// ================================
-// Step 1: Analysis
-// ================================
-async function analyzeClips() {
-  clearAnalysisUI();
+    tags.forEach(tag => {
+      tag.classList.remove("session-glow");
+      void tag.offsetWidth; // force reflow
+      tag.classList.add("session-glow");
+    });
+  }
 
-  const analyzeBtn = document.getElementById("analyzeBtn");
-  const statusEl = document.getElementById("analyzeStatus");
-  if (!analyzeBtn || !statusEl) return;
+  // ================================
+  // Mobile Session Panel Toggle
+  // ================================
+  function toggleMobileSessionPanel() {
+    const panel = document.getElementById("sidebarSessionCard");
+    const btn = document.getElementById("mobileSessionBtn");
+    if (!panel || !btn) return;
 
-  analyzeBtn.disabled = true;
-  const originalText = analyzeBtn.textContent;
-  analyzeBtn.textContent = "Analyzing…";
+    const isOpen = panel.classList.toggle("open");
+    console.log("[MOBILE] toggle session panel", { isOpen, panel });
 
-  setStatus(
-    "analyzeStatus",
-    "Starting analysis…",
-    "working",
-    false
-  );
+    document.body.classList.toggle("no-scroll", isOpen);
+    btn.textContent = isOpen ? "Close Sessions" : "Sessions";
+  }
 
-  try {
-    const data = await jsonFetch(
-      `/api/analyze?session=${encodeURIComponent(getActiveSession())}`,
-      { method: "POST" }
+
+
+  function syncMusicUIState() {
+    const enabled = document.getElementById("musicEnabled")?.checked;
+    const hint = document.getElementById("musicDisabledHint");
+
+    if (!hint) return;
+
+    hint.style.display = enabled ? "none" : "block";
+  }
+
+
+  function renderCaptionView() {
+
+    const box = document.getElementById("captionsText");
+    if (!box) return;
+
+    if (captionViewMode === "original") {
+      box.value = lastSavedCaptionsText || "";
+      box.readOnly = true;
+    }
+    else if (captionViewMode === "rewritten") {
+      box.value = workingCaptionsText || lastSavedCaptionsText || "";
+      box.readOnly = false;
+    }
+    else {
+      // diff
+      box.value = "";
+      box.readOnly = true;
+    }
+  }
+
+
+
+  function syncCtaUIState() {
+      const enabled = document.getElementById("ctaEnabled")?.checked;
+      const textEl = document.getElementById("ctaText");
+      const voiceEl = document.getElementById("ctaVoiceover");
+      const rowEl = document.getElementById("ctaRow");
+
+      if (!textEl || !voiceEl || !rowEl) return;
+
+      textEl.disabled = !enabled;
+      voiceEl.disabled = !enabled;
+
+      rowEl.style.opacity = enabled ? "1" : "0.5";
+  }
+
+
+  function showAutoSaveStatus(id, message = "Saved ✓", timeout = 1500) {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      el.textContent = message;
+      el.className = "status-text status-success subtle";
+
+      clearTimeout(el._hideTimer);
+      el._hideTimer = setTimeout(() => {
+          el.textContent = "";
+      }, timeout);
+  }
+
+  // ================================
+  // OVERLAY STYLE — Save (SAFE)
+  // ================================
+  async function saveOverlayStyle({ silent = false } = {}) {
+      const selectEl = document.getElementById("overlayStyle");
+      const statusEl = document.getElementById("overlayStyleStatus");
+
+      if (!selectEl || !statusEl) return;
+
+      const style = selectEl.value;
+
+      try {
+          const session = encodeURIComponent(getActiveSession());
+          const data = await getConfigCached();
+          const cfg = data.config || {};
+
+          cfg.render = cfg.render || {};
+          cfg.render.overlay_style = style;
+
+          await jsonFetch("/api/save_config", {
+              method: "POST",
+              body: JSON.stringify({
+                  session: getActiveSession(),
+                  config: cfg
+              })
+          });
+          CONFIG_CACHE = null;
+
+          // 🔑 THIS IS THE FIX
+          await loadConfigAndYaml();
+
+          if (!silent) {
+              setStatus("overlayStyleStatus", "Style saved ✓", "success");
+          } else {
+              showAutoSaveStatus("overlayStyleStatus");
+          }
+          
+
+      } catch (err) {
+          console.error(err);
+          setStatus("overlayStyleStatus", "Failed to save style", "error");
+      }
+  }
+
+
+  function updateVariantRunningBadge(status) {
+    const el = document.getElementById("variantRunningBadge");
+    if (!el) return;
+
+    el.classList.toggle("hidden", status !== "running");
+  }
+
+  function showPendingRewrite() {
+    document.getElementById("pendingRewriteBadge")?.classList.remove("hidden");
+  }
+
+  function clearPendingRewrite() {
+    document.getElementById("pendingRewriteBadge")?.classList.add("hidden");
+  }
+
+  async function generateVariantsAsync(modes, selectedHook) {
+
+  lastVariantStatus = null;
+
+    // 🔒 Lock button
+    const btn = document.getElementById("generateVariantsBtn");
+    if (btn) btn.disabled = true;
+
+    // Inline + badge feedback
+    setStatus(
+      "variantsInlineStatus",
+      "Generating AI variants…",
+      "working",
+      false
     );
 
-    if (data.status === "no_videos") {
-      throw new Error("No raw uploads found in session");
+    updateVariantRunningBadge("running");
+
+    // Optional UX polish: auto-open drawer
+    if (typeof openVariantsPanel === "function") {
+      openVariantsPanel({ silent: true });
     }
 
-    // 🔁 already running OR just started → same behavior
-    if (data.status === "already_running" || data.status === "started") {
+    try {
+      const res = await jsonFetch("/api/variants/start", {
+        method: "POST",
+        body: JSON.stringify({
+          session: getActiveSession(),
+          modes,
+          selected_hook: selectedHook
+        })
+      });
+
+      // 🔁 Already running → just poll
+      VARIANT_POLL_ACTIVE = true;
+      pollVariantStatus();
+
+    } catch (err) {
+      console.error(err);
+
       setStatus(
-        "analyzeStatus",
-        "Analysis running in background…",
-        "working"
+        "variantsInlineStatus",
+        "Failed to start AI variants",
+        "error"
       );
 
-      updateAnalyzingBadge("running");
-      ANALYZE_POLL_ACTIVE = true;
+      updateVariantRunningBadge("idle");
+
+      // 🔓 Unlock button on failure
+      if (btn) btn.disabled = false;
+    }
+  }
+
+
+  function lockRewriteDecision() {
+    const bar = document.getElementById("rewriteDecisionBar");
+    if (!bar) return;
+
+    bar.querySelectorAll("button").forEach(btn => {
+      btn.disabled = true;
+    });
+  }
+
+
+  function proposeRewrite(newText, sourceLabel = "Rewrite ready", source = "step3") {
+
+      rewriteCommitted = false;
+    const original = lastSavedCaptionsText || "";
+    const proposed = (newText || "").trim();
+    if (!proposed) return;
+
+    workingCaptionsText = proposed;
+
+    // Step 3 diff
+    renderStep3Diff(original, proposed);
+
+      // Only auto-scroll if coming from Step 3
+      if (source === "step3") {
+      focusCaptionChanges();
+      }
+
+
+    // Step 4 diff
+    renderStep4Diff(original, proposed);
+
+    // Switch UI into review mode
+    captionViewMode = "diff";
+
+      isInRewriteReview = true;
+    rewritePending = true;
+  
+    enterRewriteReviewMode();
+    showPendingRewrite();
+
+    setStatus("overlayStatus", `${sourceLabel} — review & accept or reject`, "info");
+  }
+
+
+  function enterRewriteReviewMode() {
+    console.log("🔥 ENTERED REWRITE REVIEW MODE");
+
+    if (!rewritePending) return;
+
+    // Decision bar
+    const bar = document.getElementById("rewriteDecisionBar");
+    bar?.classList.remove("hidden");
+    bar?.querySelectorAll("button").forEach(btn => btn.disabled = false);
+
+    // Diff UI
+    document.getElementById("captionDiffHeader")?.classList.remove("hidden");
+    document.getElementById("step4CaptionScroll")?.classList.remove("hidden");
+
+    // Pending badge
+    document.getElementById("pendingRewriteBadge")?.classList.remove("hidden");
+
+    // Force Step-4 diff visible
+    captionViewMode = "diff";
+    renderCaptionView();
+    syncCaptionToggleUI();
+  }
+
+  function hardClearRewriteUI() {
+    // Kill rewrite state
+    rewritePending = false;
+    isInRewriteReview = false;
+    rewriteCommitted = true;
+
+    // Hide rewrite UI
+    clearPendingRewrite();
+    exitRewriteReviewMode();
+
+    // Kill warning overlays that look like rewrite UI
+    clearOverlayWarning();
+    document.getElementById("rewriteWarning")?.classList.add("hidden");
+
+    // Force normal caption mode
+    captionViewMode = "rewritten";
+    renderCaptionView();
+    syncCaptionToggleUI();
+  }
+
+
+  function exitRewriteReviewMode() {
+    rewritePending = false;
+    isInRewriteReview = false;
+    captionViewMode = "rewritten";   // 🔥 force exit diff mode
+
+    document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
+    document.getElementById("captionDiffHeader")?.classList.add("hidden");
+    document.getElementById("step4CaptionScroll")?.classList.add("hidden");
+    document.getElementById("pendingRewriteBadge")?.classList.add("hidden");
+  }
+
+  function toggleVariantWhy(cardId) {
+    const el = document.getElementById(`${cardId}_why`);
+    if (!el) return;
+
+    el.classList.toggle("hidden");
+  }
+
+
+
+  function renderVariantCard(num, variant, cardId) {
+    const text = variant.text || "";
+    const tone = variant.tone || "";
+    const recommended = variant.recommended === true;
+    const reason = variant.recommend_reason || "";
+    const confidence = variant.confidence || "close";
+    const confLabel = confidenceLabel(normalizeConfidence(confidence));
+    const escaped = text.replace(/`/g, "\\`");
+
+    // ----------------------------
+    // AI badge (smarter hierarchy)
+    // ----------------------------
+    const badge = recommended
+      ? `
+        <div class="ai-recommended-badge"
+            data-confidence="${confidence}">
+          <div class="ai-badge-row">
+            <span class="ai-badge-main">⭐ AI Pick</span>
+            <span class="ai-badge-confidence">${confLabel}</span>
+          </div>
+        </div>
+      `
+      : "";
+
+    // ----------------------------
+    // Why this won
+    // ----------------------------
+    const whyToggle =
+      recommended && reason
+        ? `
+          <div class="variantWhyToggle"
+              onclick="toggleVariantWhy('${cardId}')">
+            Why this won ▾
+          </div>
+
+          <div class="variantWhy hidden" id="${cardId}_why">
+            ${reason}
+            ${confidence ? `<div class="variantWhyConfidence">
+              Confidence: ${confLabel}
+            </div>` : ""}
+          </div>
+        `
+        : "";
+
+
+    // ----------------------------
+    // Final render (CORRECT)
+    // ----------------------------
+    return `
+    <div class="variantCard ${recommended ? "recommended" : ""}" id="${cardId}">
+
+      <div class="variantHeader">
+        <h4>Version ${num}</h4>
+        ${badge}
+      </div>
+
+        ${tone ? `<div class="variantTone">${tone}</div>` : ""}
+
+        ${whyToggle}
+
+        <pre style="white-space:pre-wrap">${text}</pre>
+
+        <button onclick="
+          event.stopPropagation();
+          sendVariantFeedback({
+            variantId: '${cardId}',
+            intent: '${window.appState.hook.intent}',
+            tone: '${tone}',
+            confidence: '${confidence}',
+            recommended: ${recommended},
+            action: 'chosen'
+          });
+          applyCaptionVariant(\`${escaped}\`);
+        ">
+          Use This
+        </button>
+      </div>
+    `;
+  }
+
+
+
+  function updateVariantStoryScore(id, flow) {
+    const el = document.querySelector(`#${id} .storyScoreValue`);
+    if (el) el.textContent = flow?.score ?? "—";
+  }
+
+
+  async function generateHooks() {
+    const btn = document.getElementById("generateHooksBtn");
+    const status = document.getElementById("hookLabStatus");
+
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Generating…";
+    }
+
+    if (status) {
+      status.textContent = "Generating hooks…";
+      status.className = "hook-lab-status loading";
+    }
+
+    const out = document.getElementById("hookLabOutput");
+    if (out) {
+      out.innerHTML = `
+        <div class="ai-thinking">
+          🧠 AI is crafting strong openings…
+        </div>
+      `;
+    }
+
+    let res = null;
+
+    try {
+      res = await jsonFetch("/api/hooks", {
+        method: "POST",
+        body: JSON.stringify({
+          session: getActiveSession(),
+          intent: window.appState.hook.intent
+        })
+      });
+
+    } catch (e) {
+      console.warn("Hook fetch warning:", e);
+    }
+
+    const hooks = res?.hooks;
+
+    if (Array.isArray(hooks) && hooks.length > 0) {
+      // 🔑 global state for hydration / refresh
+      window.appState.hook.lastGenerated = hooks;
+
+      // 🔥 mark ready → button glows
+      updateHooksReadyUI();
+
+      // If already in Hook Lab, render immediately
+      const out = document.getElementById("hookLabOutput");
+      if (out) out.classList.remove("show");
+
+      renderHookLab(hooks);
+      updateHookLabGuidance();
+
+      requestAnimationFrame(() => {
+        out?.classList.add("show");
+      });
+
+      if (status) {
+        status.textContent = `✓ ${hooks.length} hooks generated`;
+        status.className = "hook-lab-status success";
+      }
+
+      loadEditStrategy();
+
+
+    } else {
+      if (status) {
+        status.textContent = "⚠ Failed to generate hooks";
+        status.className = "hook-lab-status error";
+      }
+    }
+
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Generate Hooks";
+    }
+
+    // If user is already here → scroll to results
+    requestAnimationFrame(() => {
+      document
+        .getElementById("hookLabOutput")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+
+  // ================================
+  // Hook Lab — Confidence-aware UI helpers
+  // ================================
+  function normalizeConfidence(c) {
+    const v = (c || "").toLowerCase();
+    if (v === "clear" || v === "moderate" || v === "close") return v;
+    return "close";
+  }
+
+  function shouldHighlightRecommended(conf) {
+    // Confidence-aware highlight rules
+    // - clear: strong highlight
+    // - moderate: normal highlight
+    // - close: no green border highlight (reduces “AI yelling”)
+    return conf !== "close";
+  }
+
+  function shouldAutoShowWhy(conf) {
+    // Only auto-show why for CLEAR picks (otherwise too noisy)
+    return conf === "clear";
+  }
+
+  function computeVictoryMargin(hooks, currentScore) {
+    if (!Array.isArray(hooks)) return 0;
+
+    const scores = hooks
+      .map(h => h?.score || 0)
+      .sort((a, b) => b - a);
+
+    if (scores.length < 2) return 0;
+
+    const secondBest = scores[0] === currentScore ? scores[1] : scores[0];
+
+    return Math.max(0, Math.round(currentScore - secondBest));
+  }
+
+  function renderHookLab(hooks) {
+    const out = document.getElementById("hookLabOutput");
+    out.innerHTML = "";
+
+    if (!Array.isArray(hooks) || hooks.length === 0) {
+      out.innerHTML = `<div class="hint-text subtle">No hooks generated. Try again.</div>`;
+      return;
+    }
+
+    hooks
+      .filter(h => h && h.text)
+      .sort((a, b) => {
+        if (a.recommended) return -1;
+        if (b.recommended) return 1;
+        return (b.score || 0) - (a.score || 0);
+      })
+      .forEach(h => {
+        const isRecommended = h.recommended === true;
+        const isSelected = window.appState.hook.selected === h.text;
+        const reason = h.recommend_reason || "";
+        const intentLabel = h.intent_label || "";
+
+
+        const confidence = Number(h.confidence || 0);
+
+        let confLabel = "";
+        if (confidence >= 0.85) confLabel = "Excellent lead";
+        else if (confidence >= 0.7) confLabel = "Strong opener";
+        else if (confidence >= 0.55) confLabel = "Good potential";
+        else confLabel = "Experimental";
+
+
+        const card = document.createElement("div");
+        card.className = "hookCard";
+
+        // 🔒 GLOBAL RULE:
+        // If user selected ANY hook, AI visuals are suppressed
+        const allowAiHighlight = !window.appState.hook.selected;
+
+        if (isSelected) {
+          card.classList.add("selected");
+        }
+
+        // 🤖 AI badge — confidence-aware + never overlays text
+  if (isRecommended && allowAiHighlight) {
+    const header = document.createElement("div");
+    header.className = "hookHeader";
+
+    const margin = computeVictoryMargin(hooks, h.score);
+
+    if (margin >= 20) {
+      card.classList.add("blowout");
+    }
+
+    // ⭐ Badge
+    const badge = document.createElement("div");
+    badge.className = "ai-recommended-badge";
+
+    badge.innerHTML = `
+      <div class="ai-badge-row">
+        <span class="ai-badge-main">⭐ AI Pick</span>
+        <span class="ai-badge-confidence">${confLabel}</span>
+      </div>
+      ${margin > 0 ? `<div class="ai-badge-margin">Wins by +${margin}%</div>` : ""}
+      ${intentLabel ? `<div class="ai-badge-intent">${intentLabel}</div>` : ""}
+    `;
+
+    header.appendChild(badge);
+    card.appendChild(header);
+
+    // WHY SECTION
+    if (reason) {
+      const toggle = document.createElement("div");
+      toggle.className = "variantWhyToggle";
+      toggle.textContent = "Why this won ▾";
+
+      const why = document.createElement("div");
+      why.className = "variantWhy hidden";
+      why.innerHTML = `
+        ${reason}
+        <div class="variantWhyConfidence">
+          Confidence: ${confLabel}
+        </div>
+      `;
+
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        why.classList.toggle("hidden");
+      });
+
+      card.appendChild(toggle);
+      card.appendChild(why);
+    }
+  }
+
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "hookText";
+        textSpan.textContent = h.text;
+
+        const scoreSpan = document.createElement("span");
+        scoreSpan.className = "hookScore";
+        scoreSpan.textContent = `🔥 ${h.score ?? 0}`;
+
+        card.appendChild(textSpan);
+        card.appendChild(scoreSpan);
+
+        card.addEventListener("click", () => selectHook(h.text));
+
+        out.appendChild(card);
+      });
+
+    // Lock visual state when user selects a hook
+    if (window.appState.hook.selected) {
+      document.querySelectorAll(".hookCard").forEach(card => {
+        card.classList.add("locked");
+      });
+    }
+
+    const lab = document.getElementById("hookLab");
+    if (lab) lab.classList.remove("hidden");
+  }
+
+  function prettyArea(area) {
+    return {
+      hook: "🎣 Hook",
+      pacing: "⏱ Pacing",
+      cta: "📢 CTA",
+      overlay: "✨ Overlay",
+      captions: "💬 Captions"
+    }[area] || area;
+  }
+
+  function impactLabel(level) {
+    return {
+      high: "Fix now",
+      medium: "Recommended",
+      low: "Suggestion"
+    }[level] || "";
+  }
+
+  function getHookNextMove(score, delta) {
+    if (!score) return "generate";
+    if (score < 50 && delta === 0) return "generate";
+    if (score < 70) return "improve";
+    if (score < 85) return "auto";
+    return "done";
+  }
+
+  function showPublishBanner() {
+    const messages = [
+      "🚀 This one is ready to post.",
+      "🔥 Strong hook. Clean flow.",
+      "💎 Your audience will watch this.",
+      "🎯 AI approves this edit.",
+      "✨ Send it."
+    ];
+
+    const msg = messages[Math.floor(Math.random() * messages.length)];
+
+    toast?.(msg);
+
+    maybeConfetti?.(); // optional future
+  }
+
+  function pulseExportButton() {
+    const btn = document.getElementById("exportBtn");
+    if (!btn) return;
+
+    btn.classList.add("publish-glow");
+
+    setTimeout(() => {
+      btn.classList.remove("publish-glow");
+    }, 4000);
+  }
+
+  function highlightHookAction(move) {
+    const generate = document.getElementById("generateHooksBtn");
+    const improve = document.getElementById("boostHookBtn");
+    const auto = document.getElementById("autoBoostHookBtn");
+
+    // clear old highlights
+    [generate, improve, auto].forEach(b => b?.classList.remove("pulse"));
+
+    if (move === "generate") generate?.classList.add("pulse");
+    if (move === "improve") improve?.classList.add("pulse");
+    if (move === "auto") auto?.classList.add("pulse");
+  }
+
+
+  async function loadEditStrategy(force=false) {
+
+    if (EDIT_STRATEGY_LOADING && !force) return;
+
+    EDIT_STRATEGY_LOADING = true;
+
+    const panel = document.getElementById("editStrategyPanel");
+    const list = document.getElementById("editStrategyList");
+
+    if (!panel || !list) {
+      EDIT_STRATEGY_LOADING = false;
+      return;
+    }
+
+    const delta = window.lastHookImprovementDelta || 0;
+
+    // ⭐ live hook score
+    const hookScore =
+      Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+    // No captions yet
+    if (!lastSavedCaptionsText?.trim()) {
+      list.innerHTML = `
+        <div class="hint-text subtle">
+          Create captions to unlock AI direction.
+        </div>
+      `;
+      panel.classList.remove("hidden");
+      EDIT_STRATEGY_LOADING = false;
+      return;
+    }
+
+    
+
+    // ================================
+    // 🎥 Footage Intelligence
+    // ================================
+    const contextEl = document.getElementById("editStrategyContext");
+    const setup = document.getElementById("aiSetupSummary");
+
+    if (contextEl && setup?.innerText?.trim()) {
+      contextEl.innerHTML = `
+        <div class="context-title">🎥 Footage Intelligence</div>
+        <div>${setup.innerText}</div>
+      `;
+      contextEl.classList.remove("hidden");
+    }
+
+    try {
+
+      if (LAST_HOOK_SCORE == null || LAST_FLOW_SCORE == null) {
+    console.log("Director waiting for scores");
+
+    list.innerHTML = `
+      <div class="hint-text subtle">
+        Waiting for AI scores…
+      </div>
+    `;
+
+    EDIT_STRATEGY_LOADING = false;
+    return;
+  }
+
+      console.log("Director inputs →", {
+        hook: LAST_HOOK_SCORE,
+        flow: LAST_FLOW_SCORE
+      });
+
+      const data = await jsonFetch(
+        `/api/edit_strategy?session=${getActiveSession()}`
+      );
+
+      const items = data.suggestions || [];
+
+      // ================================
+      // 🧠 Prevent useless redraws
+      // ================================
+      const signature = JSON.stringify({
+        hook: LAST_HOOK_SCORE,
+        flow: LAST_FLOW_SCORE,
+        items: items.map(i => ({
+          area: i.area,
+          impact: i.impact,
+          issue: i.issue
+        }))
+      });
+
+      if (!force && signature === LAST_DIRECTOR_SIGNATURE) {
+    console.log("🧠 Director unchanged — skipping render");
+
+    EDIT_STRATEGY_LOADING = false;   // 🔥 ensure unlock
+    return;
+  }
+
+
+      LAST_DIRECTOR_SIGNATURE = signature;
+
+      list.innerHTML = "Analyzing edit…";
+
+      if (!items.length) {
+        list.innerHTML = `
+          <div class="director-success">
+            🎯 All major issues resolved — you're optimized.
+          </div>
+        `;
+        panel.classList.remove("hidden");
+        return;
+      }
+
+      // Sort high → low
+      items.sort((a, b) => {
+        const weight = { high: 3, medium: 2, low: 1 };
+        return weight[b.impact] - weight[a.impact];
+      });
+
+      // ================================
+      // Smart next action
+      // ================================
+      const nextMove = getHookNextMove(hookScore, delta);
+      highlightHookAction(nextMove);
+
+      // ================================
+      // Render
+      // ================================
+      list.classList.add("fade-refresh");
+
+      setTimeout(() => {
+        list.innerHTML = items.map(s => {
+
+          let toneIssue = s.issue;
+          let toneImpact = s.impact;
+
+          if (s.area === "hook") {
+            if (hookScore >= 80) {
+              toneImpact = "low";
+              toneIssue = "🔥 Excellent hook. Focus on pacing or flow next.";
+            }
+            else if (hookScore >= 60) {
+              toneImpact = "medium";
+              toneIssue = "👍 Strong hook — a small upgrade could make it elite.";
+            }
+            else if (delta > 0) {
+              toneImpact = "medium";
+              toneIssue = "⚠️ Much better — keep pushing toward 70+.";
+            }
+          }
+
+          let guidance = `👉 ${s.action}`;
+
+          if (s.area === "hook") {
+            if (nextMove === "generate") {
+              guidance = "👉 Generate new ideas — this hook may be hard to fix";
+            }
+            if (nextMove === "improve") {
+              guidance = "👉 Improve this hook — AI will strengthen curiosity & clarity";
+            }
+            if (nextMove === "auto") {
+              guidance = "👉 Let AI auto-optimize for the best score";
+            }
+            if (nextMove === "done") {
+              guidance = "✅ Strong hook — move to story flow";
+            }
+          }
+
+          return `
+            <div class="director-item impact-${toneImpact}" data-area="${(s.area || '').toLowerCase()}">
+              <div class="director-header">
+                <div class="director-area">${prettyArea(s.area)}</div>
+                <div class="director-impact">
+                  ${toneImpact.toUpperCase()} · ${impactLabel(toneImpact)}
+                </div>
+              </div>
+
+              ${delta > 0 && s.area === "hook"
+                ? `<div class="director-progress-up">↑ +${delta} points</div>`
+                : ""}
+
+              <div class="director-issue">${toneIssue}</div>
+              <div class="director-action">${guidance}</div>
+            </div>
+          `;
+        }).join("");
+
+        const remaining = items.length;
+
+        const footer = document.createElement("div");
+        footer.className = "director-progress";
+        footer.innerHTML = `
+          ${remaining === 0
+            ? "✅ No major issues detected"
+            : `🎯 ${remaining} improvement${remaining > 1 ? "s" : ""} left`
+          }
+        `;
+
+        list.appendChild(footer);
+
+        list.querySelectorAll(".director-item").forEach(card => {
+          card.addEventListener("click", () => {
+            const area = card.dataset.area;
+            jumpToEditArea(area);
+            showGlobalStatus("Jumped to fix location ✨", "info");
+          });
+        });
+
+        list.classList.remove("fade-refresh");
+
+      }, 120);
+
+      panel.classList.remove("hidden");
+      renderPublishReadyState();
+      renderEditProgress();
+
+      const creativeState = evaluateCreativeState();
+    document.body.classList.toggle("readiness-ready", creativeState.publish_ready);
+    } catch (err) {
+      console.error(err);
+    }
+    finally {
+      EDIT_STRATEGY_LOADING = false;
+    }
+  }
+
+  function updateHookLockUI() {
+
+    
+    const clearBtn = document.getElementById("clearHookBtn");
+    const lockBar = document.getElementById("hookLockedBar");
+
+    if (!clearBtn) return;
+
+    if (window.appState.hook.selected) {
+      // 🔒 Locked state
+      lockBar?.classList.remove("hidden");
+      clearBtn.classList.remove("hidden");
+
+      // Visual lock on hook cards
+      document.querySelectorAll(".hookCard").forEach(card => {
+        card.classList.add("hook-locked");
+      });
+
+    } else {
+      // 🔓 Unlocked state
+      lockBar?.classList.add("hidden");
+      clearBtn.classList.add("hidden");
+
+      document.querySelectorAll(".hookCard").forEach(card => {
+        card.classList.remove("hook-locked");
+      });
+    }
+  }
+
+  function renderEditProgress() {
+    const fill = document.getElementById("editProgressFill");
+    const percentEl = document.getElementById("editProgressPercent");
+    const hint = document.getElementById("editProgressHint");
+
+    if (!fill || !percentEl || !hint) return;
+
+    // ✅ use real scores
+    const hook = Number(LAST_HOOK_SCORE) || 0;
+    const flow = Number(LAST_FLOW_SCORE) || 0;
+
+    console.log("📊 Progress using:", hook, flow);
+
+    if (LAST_HOOK_SCORE == null || LAST_FLOW_SCORE == null) {
+      fill.style.width = "0%";
+      percentEl.textContent = "–";
+      hint.textContent = "Scoring in progress…";
+      return;
+    }
+
+
+    if (hook === 0 && flow === 0)
+  {
+      fill.style.width = "0%";
+      percentEl.textContent = "0%";
+      hint.textContent = "Run AI scoring to start.";
+      return;
+    }
+
+    const progress = Math.min(100, Math.round((hook * 0.6) + (flow * 0.4)));
+
+    fill.style.width = `${progress}%`;
+    percentEl.textContent = `${progress}%`;
+
+    if (progress < 50) {
+      hint.textContent = "Strengthen the hook to gain momentum.";
+    } else if (progress < 75) {
+      hint.textContent = "Looking good — refine pacing & flow.";
+    } else if (progress < 90) {
+      hint.textContent = "Almost publish ready.";
+    } else {
+      hint.textContent = "🔥 Excellent. Your edit is elite.";
+    }
+  }
+
+
+  function clearSelectedHook() {
+    const state = window.appState;
+
+    state.hook.selected = null;
+    state.hook.locked = false;
+
+    updateHookLockUI();
+    refreshAfterChange();
+  }
+
+  function selectHook(text) {
+
+    const state = window.appState;
+
+    if (state.hook.locked && state.hook.selected !== text) {
+      setStatus("hookLabStatus", "🔒 Hook locked — clear to change", "info");
+      return;
+    }
+
+    state.hook.selected = text;
+    state.hook.locked = true;
+
+    updateHookLockUI();
+    refreshAfterChange();
+  }
+
+
+  function highlightHookLab() {
+    const lab = document.getElementById("hookLab");
+    if (!lab) return;
+
+    lab.classList.remove("hook-lab-highlight"); // reset
+    void lab.offsetWidth;                       // force reflow
+    lab.classList.add("hook-lab-highlight");
+
+    // Remove class after animation finishes
+    setTimeout(() => {
+      lab.classList.remove("hook-lab-highlight");
+    }, 2000);
+  }
+
+
+
+  function showLabelWarning(file, badLabel, reason) {
+    if (!confirm(
+      `⚠️ Label is weak: ${reason}\n\nFixing labels improves captions, hooks and story flow.\n\nClick OK to auto-fix it or Cancel to edit yourself.`
+    )) {
+      return;
+    }
+
+    fetch("/repair_label", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        file,
+        label: badLabel,
+        session: getActiveSession()
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.fixed_label) {
+        document.querySelector(`input[data-file="${file}"]`).value = data.fixed_label;
+      }
+    });
+  }
+
+
+
+  function renderStep3Diff(oldText, newText) {
+    const grid = document.getElementById("step3DiffGrid");
+    const wrapper = document.getElementById("captionCompareWrapper");
+    const scroll = document.getElementById("step3CaptionScroll");
+    const toggleBtn = document.getElementById("step3DiffToggle");
+
+    if (!grid || !wrapper || !scroll) return;
+
+    // Split into blocks and REMOVE blank lines
+    const oldLines = (oldText || "")
+      .split("\n")
+      .map(l => l.trim())
+      .filter(l => l !== "");
+
+    const newLines = (newText || "")
+      .split("\n")
+      .map(l => l.trim())
+      .filter(l => l !== "");
+
+    grid.innerHTML = "";
+
+  // Keep wrapper visible (button lives inside), but respect collapsed state
+  wrapper.classList.remove("hidden");
+
+    const max = Math.max(oldLines.length, newLines.length);
+
+    for (let i = 0; i < max; i++) {
+      const o = oldLines[i] || "";
+      const n = newLines[i] || "";
+
+      // OLD
+      const oldCard = document.createElement("div");
+      oldCard.className = "diff-card old";
+      oldCard.textContent = o || "—";
+
+      // NEW
+      const newCard = document.createElement("div");
+      newCard.className = "diff-card new";
+      newCard.textContent = n || "—";
+
+      grid.appendChild(oldCard);
+      grid.appendChild(newCard);
+    }
+  }
+
+
+
+  function renderStep4Diff(original, rewritten) {
+    const grid = document.getElementById("step4DiffGrid");
+    if (!grid) return;
+
+    grid.innerHTML = "";
+
+    const oldLines = (original || "").split("\n").map(l=>l.trim()).filter(Boolean);
+    const newLines = (rewritten || "").split("\n").map(l=>l.trim()).filter(Boolean);
+
+    const max = Math.max(oldLines.length, newLines.length);
+
+    for (let i=0;i<max;i++){
+      const o = oldLines[i] || "—";
+      const n = newLines[i] || "—";
+
+      const oldCard = document.createElement("div");
+      oldCard.className = "diff-card old";
+      oldCard.textContent = o;
+
+      const newCard = document.createElement("div");
+      newCard.className = "diff-card new";
+      newCard.textContent = n;
+
+      grid.appendChild(oldCard);
+      grid.appendChild(newCard);
+    }
+  }
+
+
+
+
+  function setVariantsStatus(message, state = "loading") {
+    const el = document.getElementById("variantsInlineStatus");
+    if (!el) return;
+
+    el.textContent = message;
+    el.className = `inline-status ${state}`;
+    el.classList.remove("hidden");
+  }
+
+  function countBlocks(text) {
+    if (!text) return 0;
+    return text.split(/\n\s*\n/).filter(Boolean).length;
+  }
+
+  function updateHookLabGuidance() {
+    const el = document.getElementById("hookLabGuidance");
+    if (!el) return;
+
+    const score =
+      Number(document.getElementById("hookScoreValue")?.textContent?.split("/")[0]) || 0;
+
+    const hasHooks = Array.isArray(window.appState.hook.lastGenerated) && window.appState.hook.lastGenerated.length > 0;
+    const selected = !!window.appState.hook.selected;
+
+    if (!hasHooks) {
+      el.textContent = "Generate hooks to explore opening ideas.";
+      return;
+    }
+
+    if (hasHooks && !selected) {
+      el.textContent = "Pick a hook you like, then improve or auto-optimize it.";
+      return;
+    }
+
+    if (selected && score < 50) {
+      el.textContent = "Improve the selected hook to raise curiosity.";
+      return;
+    }
+
+    if (selected && score >= 50) {
+      el.textContent = "Auto optimize can test multiple winning strategies.";
+      return;
+    }
+  }
+
+
+  async function loadClipPreview(filename, imgEl) {
+      const session = getActiveSession();
+
+      try {
+          const res = await fetch("/api/clip_preview", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ session, filename })
+          });
+
+          const data = await res.json();
+          if (data.image) {
+              imgEl.src = data.image;
+          }
+      } catch (e) {
+          console.warn("Preview failed for", filename);
+      }
+  }
+
+
+
+  function flashElement(el) {
+    if (!el) return;
+    el.classList.remove("flash");
+    void el.offsetWidth; // force reflow
+    el.classList.add("flash");
+  }
+
+  function setCaptionSource(type, text, noChange = false) {
+    const el = document.getElementById("captionStatus");
+    if (!el) return;
+
+    el.textContent = text;
+
+    el.className = "caption-source"; // reset
+
+    if (type === "yaml") el.classList.add("source-yaml");
+    if (type === "filenames") el.classList.add("source-filenames");
+
+    if (noChange) {
+      el.classList.add("no-change");
+      el.textContent += " · No changes";
+    }
+  }
+
+
+  function setCaptionInlineStatus(text, type = "info") {
+    const el = document.getElementById("captionInlineStatus");
+    if (!el) return;
+
+    el.textContent = text;
+    el.className = `caption-inline-status ${type}`;
+    el.classList.remove("hidden");
+
+      // Auto-hide after short delay
+    setTimeout(() => {
+      el.classList.add("hidden");
+    }, 2200);
+
+  }
+
+
+  // -------------------------
+  // Session helpers
+  // -------------------------
+  function updateSessionLabels() {
+      const labels = document.querySelectorAll(".sessionLabel");
+      labels.forEach((l) => (l.textContent = getActiveSession()));
+  }
+
+  async function autoBoostSelectedHook() {
+    const hook = window.appState.hook.selected;
+  if (!hook) {
+    toast?.("Select a hook first");
+    return;
+  }
+
+    setStatus("hookLabStatus", "AI auto-optimizing…", "working");
+
+    try {
+      const res = await jsonFetch("/api/hook_autoboost", {
+        method: "POST",
+        body: JSON.stringify({
+          hook,
+          intent: window.appState.hook.intent
+        })
+      });
+
+      if (!res?.text) throw new Error("No result");
+
+      const newHook = res.text;
+      const attempts = res.attempts || 0;
+      const bestScore = res.score || 0;
+
+      const before = lastSavedCaptionsText || "";
+
+      const editor = document.getElementById("captionsText");
+      let blocks = editor?.value?.split(/\n\s*\n/) || [];
+
+      if (blocks.length === 0) blocks = [newHook];
+      else blocks[0] = newHook;
+
+      const newCaptions = blocks.join("\n\n");
+
+      if (editor) editor.value = newCaptions;
+      workingCaptionsText = newCaptions;
+
+      renderStep3Diff(before, newCaptions);
+      focusCaptionChanges();
+
+      document.getElementById("saveCaptionsBtn")?.click();
+
+      toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
+
+      setStatus("hookLabStatus", "Auto optimization complete ✓", "success");
+      await refreshAfterChange();
+
+    } catch (e) {
+      console.error(e);
+      setStatus("hookLabStatus", "Auto optimization failed", "error");
+    }
+  }
+
+
+  function updateSessionTags() {
+      document.querySelectorAll("#currentSessionTag").forEach((el) => {
+          el.textContent = getActiveSession();
+      });
+  }
+
+  function sanitizeSessionName(raw) {
+      let s = (raw || "").toLowerCase().trim();
+
+      try {
+          s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+      } catch {
+          // ignore
+      }
+
+      s = s.replace(/[^a-z0-9]+/g, "_");
+      s = s.replace(/^_+|_+$/g, "");
+
+      if (!s) s = "default";
+      return s;
+  }
+
+  function sessionQS() {
+    const s = getActiveSession();
+    console.log("[API] Using session:", s);
+    return "?session=" + encodeURIComponent(s);
+  }
+
+
+  function getActiveSession() {
+    if (!ACTIVE_SESSION) {
+      console.warn("[SESSION] ACTIVE_SESSION unset, forcing default");
+      ACTIVE_SESSION = "default";
+    }
+    return ACTIVE_SESSION;
+  }
+
+  function toast(message, duration = 2500) {
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.textContent = message;
+
+    document.body.appendChild(el);
+
+    requestAnimationFrame(() => el.classList.add("show"));
+
+    setTimeout(() => {
+      el.classList.remove("show");
+      setTimeout(() => el.remove(), 300);
+    }, duration);
+  }
+
+  async function setActiveSession(name) {
+    const safe = sanitizeSessionName(name);
+    ACTIVE_SESSION = safe;
+    CONFIG_CACHE = null; // 🔥 ADD THIS
+
+    // Reset session-dependent state
+    LAST_HOOK_SCORE = null;
+    LAST_FLOW_SCORE = null;
+
+  const hookEl = document.getElementById("hookScoreValue");
+    if (hookEl) hookEl.textContent = "—";
+
+    const flowEl = document.getElementById("storyFlowScoreValue");
+  if (flowEl) flowEl.textContent = "—";
+
+    window.appState.hook.selected = null;
+    window.appState.hook.locked = false;
+    window.appState.hook.lastGenerated = null;
+
+    window.appState.variants.list = [];
+
+    // ----------------------------
+    // Reset AI apply / undo state
+    // ----------------------------
+    window.aiUndoSnapshot = null;
+
+    document
+      .getElementById("undoAiRecommendationBtn")
+      ?.classList.add("hidden");
+
+    // ----------------------------
+    // Reset per-session frontend state
+    // ----------------------------
+    workingClipOrder = [];
+    clipOrderDirty = false;
+
+    // 🔥 VARIANTS RESET (you were missing this)
+    lastVariantStatus = null;
+    VARIANT_POLL_ACTIVE = false;
+    window.appState.variants.list = [];
+    updateVariantRunningBadge("idle");
+
+    // 🔥 ANALYSIS badge reset (safe default)
+    updateAnalyzingBadge?.("idle");
+
+    // ----------------------------
+    // Persist + sync session UI
+    // ----------------------------
+    updateSessionLabels();
+    sidebarSyncActiveLabel();
+    localStorage.setItem("activeSession", ACTIVE_SESSION);
+
+    // ----------------------------
+    // Load core state
+    // ----------------------------
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
+    updateCaptionBaselineHint();
+    updateLoadYamlVisibility();
+    await refreshAfterChange();
+
+    // ----------------------------
+    // Secondary refreshes
+    // ----------------------------
+    loadUploadManager();
+    refreshAnalyses();
+    loadSessionDropdown();
+    loadSessions();
+    sidebarLoadSessions();
+
+    requestAnimationFrame(() =>
+      requestAnimationFrame(animateSessionGlow)
+    );
+
+    // ----------------------------
+    // Resume analysis polling ONLY if needed
+    // ----------------------------
+    pollAnalyzeStatus();
+
+    // ----------------------------
+    // AI readiness summary
+    // ----------------------------
+    loadAISetupSummary();
+  }
+
+
+
+  // =========================================
+  // SIDEBAR SESSION MANAGER v2
+  // =========================================
+  function sidebarToast(msg) {
+      const area = document.getElementById("sidebarSessionToastArea");
+      if (!area) return;
+
+      const div = document.createElement("div");
+      div.className = "sidebar-toast";
+      div.textContent = msg;
+
+      area.appendChild(div);
+      setTimeout(() => div.classList.add("fade-out"), 1300);
+      setTimeout(() => div.remove(), 1600);
+  }
+
+  function activateStep(stepSelector) {
+    document.querySelectorAll(".step").forEach(btn => {
+      btn.classList.toggle(
+        "active",
+        btn.dataset.target === stepSelector
+      );
+    });
+
+    const stepCard = document.querySelector(stepSelector);
+    stepCard?.classList.add("step-active");
+  }
+
+
+  async function sidebarLoadSessions() {
+      try {
+          const res = await fetch("/api/sessions");
+          const data = await res.json();
+
+          const ddl = document.getElementById("sidebarSessionDropdown");
+          if (!ddl) return;
+
+          ddl.innerHTML = "";
+
+          (data.sessions || []).forEach((s) => {
+              const opt = document.createElement("option");
+              opt.value = s;
+              opt.textContent = s;
+              ddl.appendChild(opt);
+          });
+
+          ddl.value = getActiveSession();
+      } catch (err) {
+          console.error("Failed loading sessions:", err);
+      }
+  }
+
+  function sidebarSyncActiveLabel() {
+      const el = document.getElementById("sidebarActiveSession");
+      if (!el) return;
+      el.textContent = getActiveSession();
+  }
+
+
+  function getOverlayStyle() {
+      return (document.getElementById("overlayStyle")?.value || "ai_recommended").toLowerCase();
+  }
+
+  // ===============================
+  // 🔥 Overlay Preview System
+  // ===============================
+  async function previewOverlay(mode = "fast") {
+
+      if (!document.getElementById("overlayPreviewBox")) return;
+
+      const session = getActiveSession();
+      const box = document.getElementById("overlayPreviewBox");
+      if (!box) return;
+
+      box.innerHTML = "⏳ generating preview…";
+
+      try {
+          let res;
+
+          if (mode === "fast") {
+              res = await jsonFetch("/api/overlay_preview", {
+                  method: "POST",
+                  body: JSON.stringify({
+                      session,
+                      style: getOverlayStyle()
+                  }),
+              });
+          } else {
+      // Full preview is STILL READ-ONLY
+      // It just asks for a higher-quality preview image
+
+      res = await jsonFetch("/api/overlay_preview", {
+          method: "POST",
+          body: JSON.stringify({
+              session,
+              style: getOverlayStyle(),
+              quality: "full"   // optional hint to backend
+          }),
+      });
+  }
+
+          if (res?.image) {
+              box.innerHTML = "";
+              const img = document.createElement("img");
+              img.src = res.image;
+              img.style.width = "100%";
+              img.style.height = "100%";
+              img.style.objectFit = "cover";
+              img.style.position = "absolute";
+              img.style.zIndex = "3";
+
+              box.appendChild(img);
+          } else {
+              box.innerHTML = "⚠ No preview returned.";
+          }
+      } catch (e) {
+          console.error(e);
+          box.innerHTML = "❌ Preview failed — check logs.";
+      }
+  }
+
+
+  // ================================
+  // Utility helpers
+  // ================================
+
+  // ================================
+  // Emoji-safe overlay text helper
+  // ================================
+  function stripEmojis(text) {
+    if (!text) return text;
+    return text.replace(/[\p{Extended_Pictographic}]/gu, "").trim();
+  }
+
+
+  function disableDownloadButton() {
+      const btn = document.getElementById("downloadLink");
+      if (!btn) return;
+
+      btn.classList.add("disabled");
+      btn.textContent = "Exporting…";
+      btn.removeAttribute("href");   // remove old link
+  }
+
+
+  function showSessionToast(msg) {
+      const area = document.getElementById("sessionToastArea");
+      if (!area) return;
+
+      const el = document.createElement("div");
+      el.className = "session-toast";
+      el.textContent = msg;
+
+      area.appendChild(el);
+
+      setTimeout(() => {
+          el.classList.add("fade-out");
+          setTimeout(() => el.remove(), 500);
+      }, 1300);
+  }
+
+  // EXPORT URL helper – checks if S3 link is live
+  async function probeUrl(url) {
+      try {
+          const res = await fetch(url, { method: "HEAD" });
+          return res.ok;
+      } catch {
+          return false;
+      }
+  }
+
+
+  function toggleUploadManager() {
+      const content = document.getElementById("uploadManagerContent");
+      const icon = document.getElementById("uploadManagerToggle");
+      if (!content || !icon) return;
+
+      content.classList.toggle("collapsed");
+
+      if (content.classList.contains("collapsed")) {
+          icon.textContent = "▲";
+      } else {
+          icon.textContent = "▼";
+      }
+  }
+
+  // Auto-fading status helper
+  let _statusTimers = {};
+
+  function setStatus(id, msg, type = "info", autoHide = true) {
+    const el = document.getElementById(id);
+    if (!el) return; // ✅ correct place
+
+    el.className = "status-text status-" + type;
+    el.textContent = msg;
+
+    if (_statusTimers[id]) {
+      clearTimeout(_statusTimers[id]);
+      delete _statusTimers[id];
+    }
+
+    if (!autoHide) return;
+
+    _statusTimers[id] = setTimeout(() => {
+      el.textContent = "";
+      el.className = "status-text status-info";
+      delete _statusTimers[id];
+    }, 5000);
+  }
+
+
+  async function jsonFetch(url, opts = {}) {
+    const headers = {
+      "Content-Type": "application/json",
+      ...(opts.headers || {})
+    };
+
+    const res = await fetch(url, {
+      credentials: "same-origin",
+      ...opts,
+      headers
+    });
+
+    if (!res.ok) {
+      throw new Error(`[jsonFetch] ${url} failed (${res.status})`);
+    }
+
+    const text = await res.text();
+    if (!text || text.startsWith("<")) return null;
+    return JSON.parse(text);
+  }
+
+  // Status hint helper (bottom style line)
+  function showStatus(msg, type = "info") {
+      const el = document.getElementById("styleStatus");
+      if (!el) return;
+      el.textContent = msg;
+      el.className = "hint-text " + type;
+  }
+
+  // Simple download helper
+  function safeDownload(url, filename = "export.mp4") {
+      const a = document.createElement("a");
+      a.href = url;
+      a.style.display = "none";
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+  }
+
+  // ================================
+  // Stepper behavior
+  // ================================
+  function initStepper() {
+      const stepButtons = document.querySelectorAll(".stepper .step");
+
+      stepButtons.forEach((btn) => {
+          btn.addEventListener("click", () => {
+              const targetSel = btn.dataset.target;
+              const targetEl = document.querySelector(targetSel);
+              if (targetEl) {
+                  targetEl.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                  });
+              }
+              stepButtons.forEach((b) => b.classList.remove("active"));
+              btn.classList.add("active");
+          });
+      });
+
+      const steps = Array.from(document.querySelectorAll(".step-card"));
+      if (!steps.length) return;
+
+      const observer = new IntersectionObserver(
+      (entries) => {
+          entries.forEach((entry) => {
+              if (!entry.isIntersecting) return;
+
+              const id = "#" + entry.target.id;
+
+              if (id === "#step-4") {
+                refreshAfterChange();
+              }
+
+
+
+
+              stepButtons.forEach((btn) => {
+                  if (btn.dataset.target === id) {
+                      stepButtons.forEach((b) => b.classList.remove("active"));
+                      btn.classList.add("active");
+                  }
+              });
+          });
+      },
+      { threshold: 0.4 }
+  );
+
+
+      steps.forEach((s) => observer.observe(s));
+  }
+
+  // ================================
+  // Status log polling
+  // ================================
+  let statusLogTimer = null;
+
+  async function refreshStatusLog() {
+    try {
+      const data = await jsonFetch("/api/status");
+      const log = data.status_log || [];
+      const el = document.getElementById("statusLog");
+      const autoScroll = document.getElementById("autoScrollLogs")?.checked;
+
+      if (!el) return;
+
+      const wasAtBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+
+      el.textContent = log.join("\n");
+
+      // ✅ Only scroll if:
+      // - Auto-scroll is ON
+      // - User was already near the bottom
+      if (autoScroll && wasAtBottom) {
+        el.scrollTop = el.scrollHeight;
+      }
+    } catch {
+      // silent
+    }
+  }
+
+
+  function startStatusLogPolling() {
+      if (statusLogTimer) clearInterval(statusLogTimer);
+      refreshStatusLog();
+      statusLogTimer = setInterval(refreshStatusLog, 2000);
+  }
+
+  // ================================
+  // Upload: plain + drag & drop UI
+  // ================================
+  async function uploadFiles() {
+      const input = document.getElementById("uploadFiles");
+      const status = document.getElementById("uploadStatus");
+      if (!input || !status) return;
+
+      if (!input.files.length) {
+          status.textContent = "❌ No files selected.";
+          return;
+      }
+
+      const formData = new FormData();
+      for (let f of input.files) {
+          formData.append("files", f);
+      }
+
+      setStatus("uploadStatus", "⬆ Uploading…", "working", false);
+
+      try {
+          const session = encodeURIComponent(getActiveSession());
+          const resp = await fetch(`/api/upload?session=${session}`, {
+              method: "POST",
+              body: formData,
+          });
+          const data = await resp.json();
+          if (data.uploaded?.length) {
+              setStatus(
+                  "uploadStatus",
+                  `✅ Uploaded ${data.uploaded.length} file(s).`,
+                  "success"
+              );
+              loadUploadManager();
+          } else {
+              status.textContent = `⚠ No files uploaded (check logs).`;
+          }
+      } catch (err) {
+          console.error(err);
+          setStatus("uploadStatus", `❌ Upload failed: ${err.message}`, "error");
+      }
+  }
+
+
+  function initUploadUI() {
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("uploadFiles");
+      const preview = document.getElementById("uploadPreview");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const progressWrapper = document.getElementById("uploadProgressWrapper");
+      const progressBar = document.getElementById("uploadProgress");
+      const statusEl = document.getElementById("uploadStatus");
+
+      if (
+          !dropZone ||
+          !fileInput ||
+          !preview ||
+          !uploadBtn ||
+          !progressWrapper ||
+          !progressBar ||
+          !statusEl
+      ) {
+          return;
+      }
+
+      let selectedFiles = [];
+
+      function updatePreview() {
+          preview.innerHTML = "";
+          selectedFiles.forEach((file, idx) => {
+              const wrapper = document.createElement("div");
+              wrapper.className = "preview-item";
+
+              const name = document.createElement("div");
+              name.className = "preview-name";
+              name.textContent = file.name;
+
+              const removeBtn = document.createElement("button");
+              removeBtn.className = "preview-remove";
+              removeBtn.innerHTML = "✖";
+
+              removeBtn.onclick = () => {
+                  selectedFiles.splice(idx, 1);
+                  updatePreview();
+              };
+
+              wrapper.appendChild(name);
+              wrapper.appendChild(removeBtn);
+              preview.appendChild(wrapper);
+          });
+
+          uploadBtn.disabled = selectedFiles.length === 0;
+      }
+
+      dropZone.addEventListener("click", () => fileInput.click());
+
+      fileInput.addEventListener("change", (e) => {
+          selectedFiles = Array.from(e.target.files);
+          updatePreview();
+      });
+
+      dropZone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          dropZone.classList.add("dragover");
+      });
+
+      dropZone.addEventListener("dragleave", () => {
+          dropZone.classList.remove("dragover");
+      });
+
+      dropZone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          dropZone.classList.remove("dragover");
+          selectedFiles = Array.from(e.dataTransfer.files);
+          updatePreview();
+      });
+
+      function markPreviewUploaded() {
+          // Visually mark the preview rows as done before clearing
+          preview.querySelectorAll(".preview-item").forEach((row) => {
+              row.classList.add("uploaded");
+              const x = row.querySelector(".preview-remove");
+              if (x) {
+                  x.disabled = true;
+                  x.style.opacity = "0.4";
+                  x.style.cursor = "not-allowed";
+              }
+          });
+      }
+
+      function clearSelectedUploadsUI({ showToast = true, delayMs = 2200 } = {}) {
+          // Show a short success pause so user sees confirmation
+          setTimeout(() => {
+              selectedFiles = [];
+              preview.innerHTML = "";
+              fileInput.value = ""; // important: allows re-uploading same filename(s)
+              uploadBtn.disabled = true;
+
+              // Optional: collapse progress UI after done
+              progressWrapper.classList.add("hidden");
+              progressBar.style.width = "0%";
+
+              if (showToast) {
+                  // Keep your existing status line
+                  // (no-op if you prefer)
+              }
+          }, delayMs);
+      }
+
+      uploadBtn.addEventListener("click", () => {
+          if (!selectedFiles.length) {
+              setStatus(
+                  "uploadStatus",
+                  "❗ Please select at least one video before uploading.",
+                  "error"
+              );
+
+              uploadBtn.classList.add("error-flash");
+              setTimeout(() => uploadBtn.classList.remove("error-flash"), 400);
+
+              return;
+          }
+
+          statusEl.textContent = "Uploading…";
+          progressWrapper.classList.remove("hidden");
+          progressBar.style.width = "0%";
+
+          const formData = new FormData();
+          selectedFiles.forEach((f) => formData.append("files", f));
+
+          const xhr = new XMLHttpRequest();
+          const session = encodeURIComponent(getActiveSession());
+          xhr.open("POST", `/api/upload?session=${session}`);
+
+          xhr.upload.onprogress = (e) => {
+              if (e.lengthComputable) {
+                  const pct = (e.loaded / e.total) * 100;
+                  progressBar.style.width = pct.toFixed(1) + "%";
+              }
+          };
+
+                  xhr.onload = () => {
+              if (xhr.status === 200) {
+                  const resp = JSON.parse(xhr.responseText);
+                  const count = resp.uploaded?.length || 0;
+
+                  statusEl.textContent = `✅ Uploaded ${count} file(s).`;
+                  progressBar.style.width = "100%";
+
+                  // ✅ visually mark as completed (optional polish)
+                  markPreviewUploaded();
+
+                  // Refresh S3 manager list (raw/processed)
+                  loadUploadManager();
+
+                  // ✅ auto-clear selected uploads list after a short pause
+                  clearSelectedUploadsUI({ delayMs: 2200 });
+
+              } else {
+                  statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
+              }
+          };
+
+
+          xhr.onerror = () => {
+              statusEl.textContent = "❌ Upload error.";
+          };
+
+          xhr.send(formData);
+      });
+  }
+
+
+  // ================================
+  // Manage uploads already in S3
+  // ================================
+  async function loadUploadManager() {
+      try {
+          const session = encodeURIComponent(getActiveSession());
+
+          const sessLabel = document.getElementById("uploadManagerSession");
+          if (sessLabel) sessLabel.textContent = getActiveSession();
+
+          const res = await fetch(`/api/uploads?session=${session}`);
+          const data = await res.json();
+
+          const labelsRes = await fetch(`/api/labels?session=${session}`);
+          const labelsData = await labelsRes.json();
+          const labels = labelsData.labels || {};
+
+          renderUploadList("rawUploads", data.raw, "raw", labels);
+          renderUploadList("processedUploads", data.processed, "processed", labels);
+          loadAISetupSummary();
+      } catch (e) {
+          console.error("UploadManager error:", e);
+      }
+  }
+
+
+  function renderUploadList(elementId, items, kind, labels = {}) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    if (!items || items.length === 0) {
+      el.innerHTML = `<div class="empty">No videos</div>`;
+      return;
+    }
+
+    const session = getActiveSession();
+    const rawPrefix = `raw_uploads/${session}/`;
+    const processedPrefix = `processed/${session}/`;
+
+    // --------------------------------
+    // Render HTML
+    // --------------------------------
+    el.innerHTML = items
+      .map(file => {
+        const isRaw = kind === "raw";
+        const srcKey = isRaw ? rawPrefix + file : processedPrefix + file;
+        const destKey = isRaw ? processedPrefix + file : rawPrefix + file;
+        const savedLabel = labels[file] || "";
+
+        return `
+          <div class="upload-item">
+            ${
+              isRaw
+                ? `
+                <div class="clip-card">
+                  <img class="clip-preview large" data-file="${file}" />
+                  <div class="clip-filename">${file}</div>
+
+                  <input
+                    class="input clip-label-input"
+                    value="${savedLabel}"
+                    placeholder="e.g. Rooftop cocktails"
+                    data-file="${file}"
+                  />
+
+                  <p class="hint-text small">
+                    Used to guide captions and storytelling.
+                  </p>
+
+                  <div class="clip-actions">
+                    <button class="btn ghost small recreate-label-btn" data-file="${file}">
+                      🔁 Re-create label
+                    </button>
+
+                    <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
+                      Move →
+                    </button>
+
+                    <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+                `
+                : `
+                <div class="clip-card processed">
+                  <img class="clip-preview" data-file="${file}" />
+                  <div class="clip-filename">${file}</div>
+
+                  <div class="clip-actions">
+                    <button class="btn-move" onclick="moveUpload('${srcKey}', '${destKey}')">
+                      ← Move back
+                    </button>
+
+                    <button class="btn-delete" onclick="deleteUpload('${srcKey}')">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+                `
+            }
+          </div>
+        `;
+      })
+      .join("");
+
+    // --------------------------------
+    // Load previews
+    // --------------------------------
+    el.querySelectorAll(".clip-preview").forEach(img => {
+      const file = img.dataset.file;
+      loadClipPreview(file, img);
+
+      img.addEventListener("click", () => {
+        img.src = "";
+        loadClipPreview(file, img);
+      });
+    });
+
+    // --------------------------------
+    // Auto-save + AI auto-suggest (once)
+    // --------------------------------
+    el.querySelectorAll(".clip-label-input").forEach(input => {
+      const glowSuccess = () => {
+        input.classList.remove("error");
+        input.classList.add("saved");
+        setTimeout(() => input.classList.remove("saved"), 1200);
+      };
+
+      const glowError = () => {
+        input.classList.add("error");
+        setTimeout(() => input.classList.remove("error"), 1500);
+      };
+
+      const save = async () => {
+        const file = input.dataset.file;
+        const label = input.value.trim();
+
+        try {
+          // 🧠 AUTO-AI: only once, only if empty
+          if (!label && !input.dataset.aiSuggested) {
+            input.dataset.aiSuggested = "true";
+
+            try {
+              const res = await jsonFetch("/repair_label", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  session: getActiveSession(),
+                  file,
+                  label: ""
+                })
+              });
+
+              if (res?.fixed_label) {
+                input.value = res.fixed_label;
+                await saveClipLabel(file, res.fixed_label);
+                glowSuccess();
+                return;
+              }
+            } catch (e) {
+              console.warn("AI auto-suggest failed", e);
+            }
+          }
+
+          // Normal save
+          await saveClipLabel(file, label);
+          glowSuccess();
+
+        } catch (e) {
+          console.error("Label save failed", e);
+          glowError();
+        }
+      };
+
+      input.addEventListener("blur", save);
+
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          input.blur();
+        }
+      });
+    });
+
+    // --------------------------------
+    // 🔁 Re-create label (explicit AI)
+    // --------------------------------
+    el.querySelectorAll(".recreate-label-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const file = btn.dataset.file;
+        const input = btn.closest(".clip-card")
+                        ?.querySelector(".clip-label-input");
+        if (!input) return;
+
+        // Explicit action → allow AI again
+        input.dataset.aiSuggested = "true";
+
+        btn.disabled = true;
+        btn.textContent = "Re-thinking…";
+
+        try {
+          const res = await jsonFetch("/repair_label", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              session: getActiveSession(),
+              file,
+              label: input.value || ""
+            })
+          });
+
+          if (res?.fixed_label) {
+            input.value = res.fixed_label;
+            await saveClipLabel(file, res.fixed_label);
+            input.classList.add("saved");
+            setTimeout(() => input.classList.remove("saved"), 1200);
+          }
+
+        } catch (e) {
+          console.error("Re-create label failed", e);
+          input.classList.add("error");
+          setTimeout(() => input.classList.remove("error"), 1500);
+          alert("Couldn’t re-create label");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "🔁 Re-create label";
+        }
+      });
+    });
+  }
+    
+
+  async function saveClipLabel(key, label) {
+    if (!key) return;
+
+    try {
+      const res = await jsonFetch("/api/labels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session: getActiveSession(),
+          file: key.split("/").pop(), // 🔥 FIX
+          label
+        })
+      });
+
+      const finalLabel = res?.label ?? "";
+      const weak = !!res?.weak;
+
+      const input = document.querySelector(
+        `.clip-label-input[data-file="${key.split("/").pop()}"]`
+      );
+
+      const card = input?.closest(".clip-card");
+
+      if (input && finalLabel !== input.value) {
+        input.value = finalLabel;
+      }
+
+      if (card) {
+        card.classList.toggle("label-weak", weak);
+      }
+
+      if (input) {
+        input.classList.add("saved-flash");
+        setTimeout(() => input.classList.remove("saved-flash"), 600);
+      }
+
+      loadAISetupSummary();
+
+    } catch (err) {
+      console.error("Failed to save label:", err);
+      alert("Failed to save label");
+    }
+  }
+
+
+  async function moveUpload(src, dest) {
+      await fetch("/api/uploads/move", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ src, dest }),
+      });
+
+      loadUploadManager();
+  }
+
+  async function deleteUpload(key) {
+      if (!confirm("Delete this file?")) return;
+
+      await fetch("/api/uploads/delete", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key }),
+      });
+
+      loadUploadManager();
+  }
+
+  // Clear old analysis results whenever switching sessions
+  function clearAnalysisUI() {
+      const list = document.getElementById("analysesList");
+      if (list) list.innerHTML = "";
+
+      const status = document.getElementById("analyzeStatus");
+      if (status) {
+          status.textContent = "Session changed — analyze to see results.";
+          status.className = "hint-text";
+      }
+  }
+
+  // ================================
+  // Step 1: Analysis
+  // ================================
+  async function analyzeClips() {
+    clearAnalysisUI();
+
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const statusEl = document.getElementById("analyzeStatus");
+    if (!analyzeBtn || !statusEl) return;
+
+    analyzeBtn.disabled = true;
+    const originalText = analyzeBtn.textContent;
+    analyzeBtn.textContent = "Analyzing…";
+
+    setStatus(
+      "analyzeStatus",
+      "Starting analysis…",
+      "working",
+      false
+    );
+
+    try {
+      const data = await jsonFetch(
+        `/api/analyze?session=${encodeURIComponent(getActiveSession())}`,
+        { method: "POST" }
+      );
+
+      if (data.status === "no_videos") {
+        throw new Error("No raw uploads found in session");
+      }
+
+      // 🔁 already running OR just started → same behavior
+      if (data.status === "already_running" || data.status === "started") {
+        setStatus(
+          "analyzeStatus",
+          "Analysis running in background…",
+          "working"
+        );
+
+        updateAnalyzingBadge("running");
+        ANALYZE_POLL_ACTIVE = true;
+        pollAnalyzeStatus();
+        return;
+      }
+
+    } catch (err) {
+      console.error(err);
+      setStatus(
+        "analyzeStatus",
+        `Error during analysis: ${err.message}`,
+        "error"
+      );
+    } finally {
+      analyzeBtn.disabled = false;
+      analyzeBtn.textContent = originalText;
+    }
+  }
+
+  function scrollToStep(stepSelector) {
+    const el = document.querySelector(stepSelector);
+    if (!el) return;
+
+    el.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+
+    // Optional: sync stepper UI if you already do this elsewhere
+    document.querySelectorAll(".step").forEach(btn => {
+      btn.classList.toggle(
+        "active",
+        btn.dataset.target === stepSelector
+      );
+    });
+  }
+
+
+  async function refreshAnalyses() {
+      const listEl = document.getElementById("analysesList");
+      if (!listEl) return;
+
+      listEl.innerHTML = "";
+      try {
+          const session = encodeURIComponent(getActiveSession());
+          const data = await jsonFetch(`/api/analyses_cache?session=${session}`);
+          const entries = Object.entries(data || {});
+          if (!entries.length) {
+              listEl.innerHTML =
+                  '<li><span class="analysis-desc">No analyses found yet. Run "Analyze clips" first.</span></li>';
+              return;
+          }
+          entries.forEach(([file, desc]) => {
+              const li = document.createElement("li");
+              const f = document.createElement("div");
+              f.className = "analysis-file";
+              f.textContent = file;
+              const d = document.createElement("div");
+              d.className = "analysis-desc";
+              d.textContent = desc || "(no description)";
+              li.appendChild(f);
+              li.appendChild(d);
+              listEl.appendChild(li);
+          });
+      } catch (err) {
+          listEl.innerHTML = `<li><span class="analysis-desc">Error loading analyses: ${err.message}</span></li>`;
+      }
+  }
+
+  async function autoSelectIntentFromReadiness(summary) {
+    if (!summary?.recommended_goal) return;
+
+    const raw = summary.recommended_goal.toLowerCase();
+
+    // ----------------------------
+    // TRANSLATION LAYER
+    // ----------------------------
+    const map = {
+      "general highlight": "discovery",
+      "viral": "discovery",
+      "attention": "discovery",
+
+      "emotional": "personal",
+      "romantic": "personal",
+      "memory": "personal",
+
+      "cinematic": "aesthetic",
+      "luxury": "aesthetic",
+      "vibes": "aesthetic",
+
+      "explanation": "informational",
+      "educational": "informational",
+      "guide": "informational"
+    };
+
+    const intent = map[raw] || "discovery";
+
+    // If user already changed → respect them
+    if (window.userForcedIntent) {
+      console.log("🧠 Intent locked by user → skipping auto-set");
+      return;
+    }
+
+    console.log("🧠 Auto-selecting intent:", raw, "→", intent);
+
+    window.appState.hook.intent = intent;
+
+    syncIntentPills(intent);
+    updateIntentHint(intent);
+
+    if (typeof saveIntent === "function") {
+      await saveIntent(intent);
+    }
+
+    await refreshAfterChange();
+
+
+    setStatus(
+      "hookLabStatus",
+      `AI set intent → ${intent}`,
+      "info"
+    );
+  }
+
+  function renderSetupSummary(data) {
+    const el = document.getElementById("aiSetupSummary");
+    if (!el) return;
+
+    // You can customize the copy based on your API payload
+    const clips = data?.clip_count ?? data?.clips ?? null;
+    const goal  = data?.recommended_goal ?? "";
+    const note  = data?.summary ?? data?.message ?? "";
+
+    el.innerHTML = `
+      <div class="ai-summary-row">
+        <div class="ai-summary-title">🧠 AI Setup Ready</div>
+        <div class="ai-summary-sub">
+          ${clips != null ? `Clips analyzed: <b>${clips}</b>.` : `Clips analyzed.`}
+          ${goal ? ` Recommended goal: <b>${goal}</b>.` : ``}
+        </div>
+        ${note ? `<div class="ai-summary-note">${note}</div>` : ``}
+      </div>
+
+      <div class="ai-summary-actions">
+        <button id="prepareStoryboardBtn" class="btn primary">
+          ⚡ Prepare storyboard
+        </button>
+        <button id="jumpToStoryboardBtn" class="btn ghost">
+          🎬 Jump to storyboard order
+        </button>
+      </div>
+    `;
+  }
+
+  async function loadAISetupSummary() {
+    const data = await jsonFetch(
+      `/api/ai_setup_summary?session=${getActiveSession()}`
+    );
+
+    // Step 1 summary (near Analyze)
+    renderSetupSummary(data, "aiSetupSummaryStep1");
+
+    return data;
+  }
+
+  async function retryAnalysis() {
+    const status = await jsonFetch(
+      `/api/analyze_status?session=${getActiveSession()}`
+    );
+
+    if (status.status === "running") {
+      setStatus("analyzeStatus", "Analysis already running…", "info");
       pollAnalyzeStatus();
       return;
     }
 
-  } catch (err) {
-    console.error(err);
+    setStatus("analyzeStatus", "Restarting analysis…", "working");
+    await analyzeClips();
+  }
+
+  function updateAnalyzingBadge(status) {
+    const badge = document.getElementById("analyzingBadge");
+    if (!badge) return;
+
+    if (status === "running") {
+      badge.classList.remove("hidden");
+    } else {
+      badge.classList.add("hidden");
+    }
+  }
+
+  async function pollAnalyzeStatus() {
+    if (!ANALYZE_POLL_ACTIVE) return;
+
+    try {
+      const data = await jsonFetch(
+        `/api/analyze_status?session=${getActiveSession()}`
+      );
+
+      const status = data.status;
+      updateAnalyzingBadge(status);
+
+      // -----------------------------
+      // RUNNING
+      // -----------------------------
+      if (status === "running") {
+        setStatus(
+          "analyzeStatus",
+          "Analyzing clips & preparing AI insights…",
+          "working",
+          false
+        );
+
+        lastAnalyzeStatus = "running";
+        setTimeout(pollAnalyzeStatus, 1200);
+        return;
+      }
+  // -----------------------------
+  // DONE (auto-advance to storyboard)
+  // -----------------------------
+  if (status === "done") {
+    console.log("✅ Analysis finished");
+
     setStatus(
       "analyzeStatus",
-      `Error during analysis: ${err.message}`,
-      "error"
+      "AI analysis ready ✓",
+      "success",
+      false
     );
-  } finally {
-    analyzeBtn.disabled = false;
-    analyzeBtn.textContent = originalText;
+
+  await refreshAnalyses();
+
+  await loadConfigAndYaml();
+  await loadCaptionsFromYaml();
+
+  const summary = await loadAISetupSummary();   // ✅ renders the panels
+  await autoSelectIntentFromReadiness(summary);
+
+    // 🔥 AUTO-ADVANCE TO STORYBOARD (safe guard)
+  const yamlStatus = await jsonFetch(
+    `/api/generate_yaml/status?session=${getActiveSession()}`
+  );
+
+  if (
+    !YAML_POLL_ACTIVE &&
+    yamlStatus &&
+    (yamlStatus.status === "idle" || yamlStatus.status === "not_started")
+  ) {
+    console.log("⚡ Auto-generating storyboard");
+    PENDING_SCROLL_TO_STORYBOARD = true;
+    await generateYamlAsync();
+
+  } else if (yamlStatus?.status === "done") {
+    console.log("📦 Storyboard already exists — hydrating");
+    PENDING_SCROLL_TO_STORYBOARD = true;
+    await hydrateStoryboardAndScroll();
   }
-}
 
-function scrollToStep(stepSelector) {
-  const el = document.querySelector(stepSelector);
-  if (!el) return;
-
-  el.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
-
-  // Optional: sync stepper UI if you already do this elsewhere
-  document.querySelectorAll(".step").forEach(btn => {
-    btn.classList.toggle(
-      "active",
-      btn.dataset.target === stepSelector
-    );
-  });
-}
-
-
-async function refreshAnalyses() {
-    const listEl = document.getElementById("analysesList");
-    if (!listEl) return;
-
-    listEl.innerHTML = "";
-    try {
-        const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/analyses_cache?session=${session}`);
-        const entries = Object.entries(data || {});
-        if (!entries.length) {
-            listEl.innerHTML =
-                '<li><span class="analysis-desc">No analyses found yet. Run "Analyze clips" first.</span></li>';
-            return;
-        }
-        entries.forEach(([file, desc]) => {
-            const li = document.createElement("li");
-            const f = document.createElement("div");
-            f.className = "analysis-file";
-            f.textContent = file;
-            const d = document.createElement("div");
-            d.className = "analysis-desc";
-            d.textContent = desc || "(no description)";
-            li.appendChild(f);
-            li.appendChild(d);
-            listEl.appendChild(li);
-        });
-    } catch (err) {
-        listEl.innerHTML = `<li><span class="analysis-desc">Error loading analyses: ${err.message}</span></li>`;
-    }
-}
-
-async function autoSelectIntentFromReadiness(summary) {
-  if (!summary?.recommended_goal) return;
-
-  const raw = summary.recommended_goal.toLowerCase();
-
-  // ----------------------------
-  // TRANSLATION LAYER
-  // ----------------------------
-  const map = {
-    "general highlight": "discovery",
-    "viral": "discovery",
-    "attention": "discovery",
-
-    "emotional": "personal",
-    "romantic": "personal",
-    "memory": "personal",
-
-    "cinematic": "aesthetic",
-    "luxury": "aesthetic",
-    "vibes": "aesthetic",
-
-    "explanation": "informational",
-    "educational": "informational",
-    "guide": "informational"
-  };
-
-  const intent = map[raw] || "discovery";
-
-  // If user already changed → respect them
-  if (window.userForcedIntent) {
-    console.log("🧠 Intent locked by user → skipping auto-set");
+    ANALYZE_POLL_ACTIVE = false;
+    lastAnalyzeStatus = null;
     return;
   }
 
-  console.log("🧠 Auto-selecting intent:", raw, "→", intent);
+      // -----------------------------
+      // UNKNOWN / IDLE → stop polling
+      // -----------------------------
+      ANALYZE_POLL_ACTIVE = false;
+      lastAnalyzeStatus = null;
 
-  window.appState.hook.intent = intent;
+    } catch (err) {
+      console.warn("pollAnalyzeStatus failed", err);
 
-  syncIntentPills(intent);
-  updateIntentHint(intent);
+      // retry only if still active
+      if (ANALYZE_POLL_ACTIVE) {
+        setTimeout(pollAnalyzeStatus, 2000);
+      }
+    }
+  }
 
-  if (typeof saveIntent === "function") {
-    await saveIntent(intent);
+
+  async function applyAIRecommendation() {
+    const session = getActiveSession();
+
+    const applyBtn = document.getElementById("applyAiRecommendationBtn");
+    const undoBtn  = document.getElementById("undoAiRecommendationBtn");
+
+    const variant = window.appState.variants.list
+      ?.find(v => v.recommended === true);
+
+    if (!variant) {
+      alert("No AI recommendation available.");
+      return;
+    }
+
+    const ok = confirm(
+      "Apply AI-recommended captions, timings, and overlay?\n\nYou can undo this."
+    );
+    if (!ok) return;
+
+    try {
+      // 🔒 IMPORTANT: bypass CONFIG_CACHE intentionally.
+  // We need a fresh server snapshot for undo safety.
+  // Using getConfigCached() could return stale or mutated state.
+  const before = await jsonFetch(
+    `/api/config?session=${encodeURIComponent(session)}`
+  );
+
+
+      window.aiUndoSnapshot = {
+    session,
+    yaml: before.yaml,
+    config: before.config   // IMPORTANT for full restore
+  };
+      updateAIRecommendationBar();
+
+      if (applyBtn) {
+        applyBtn.disabled = true;
+        applyBtn.textContent = "Applying…";
+      }
+
+      // 1️⃣ Apply captions
+      await jsonFetch("/api/apply_variant", {
+        method: "POST",
+        body: JSON.stringify({
+          session,
+          text: variant.text
+        })
+      });
+
+      // 2️⃣ Apply smart timings
+      await jsonFetch("/api/timings", {
+        method: "POST",
+        body: JSON.stringify({
+          session,
+          smart: true
+        })
+      });
+
+      // 3️⃣ Apply overlay style
+      await jsonFetch("/api/overlay", {
+        method: "POST",
+        body: JSON.stringify({
+          session,
+          style: "ai_recommended"
+        })
+      });
+
+      CONFIG_CACHE = null; // 🔥 invalidate cache before reload
+
+      await loadConfigAndYaml();
+      await loadCaptionsFromYaml();
+      await refreshAfterChange();
+
+
+      setStatus("captionsStatus", "AI recommendation applied ✓", "success");
+      maybeShowStep4Nudge();
+
+
+      if (applyBtn) {
+        applyBtn.textContent = "Applied ✓";
+        applyBtn.disabled = true;
+      }
+
+      if (undoBtn) {
+        undoBtn.classList.remove("hidden");
+        undoBtn.disabled = false;
+      }
+
+    } catch (err) {
+      console.error(err);
+      toast("Failed to apply AI recommendation");
+
+      if (applyBtn) {
+        applyBtn.disabled = false;
+        applyBtn.textContent = "Apply AI recommendation";
+      }
+    }
+  }
+
+  function renderSetupSummary(summary, targetId = "aiSetupSummary") {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+
+    if (!summary?.has_analysis) {
+      el.classList.add("hidden");
+      return;
+    }
+
+    el.classList.remove("hidden");
+
+    el.innerHTML = `
+      <div class="ai-summary-card premium">
+        <div class="ai-summary-header">
+          <h3>🧠 AI Readiness Summary</h3>
+          <p class="hint-text subtle">Here’s what AI understands about your video.</p>
+        </div>
+
+        <div class="ai-summary-stats">
+          <div class="stat">
+            <div class="stat-value">${summary.clips ?? "-"}</div>
+            <div class="stat-label">Clips</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-value">${summary.hook_confidence || "unknown"}</div>
+            <div class="stat-label">Hook</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-value">${summary.labels?.quality || "none"}</div>
+            <div class="stat-label">Labels</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-value">${summary.estimated_length || "-"}</div>
+            <div class="stat-label">Length</div>
+          </div>
+        </div>
+
+        <div class="ai-summary-recommend">
+          🎯 AI suggests: <strong>${summary.recommended_goal || "General highlight"}</strong>
+        </div>
+      </div>
+    `;
+  }
+
+  async function enterStoryboardStep() {
+    activateStep("#step-3");
+    scrollToStep("#step-3");
+  }
+
+  async function improveHooksAndCaptionsFlow() {
+    if (YAML_POLL_ACTIVE) {
+    console.log("🔁 Restarting YAML generation");
+    YAML_POLL_ACTIVE = false;
+  }
+
+
+    try {
+      setStatus("improveHooksStatus", "Preparing storyboard…", "working");
+
+      const s = await jsonFetch(
+        `/api/generate_yaml/status?session=${getActiveSession()}`
+      );
+
+      PENDING_SCROLL_TO_STORYBOARD = true;
+
+      if (s?.status === "done") {
+        await hydrateStoryboardAndScroll();
+        setStatus("improveHooksStatus", "Storyboard ready ✓", "success");
+        return;
+      }
+
+      await generateYamlAsync(); // poller finishes the rest
+
+    } catch (e) {
+      console.error(e);
+      setStatus("improveHooksStatus", "Failed to prepare storyboard", "error");
+    }
+  }
+
+  async function hydrateStoryboardAndScroll() {
+    CONFIG_CACHE = null;
+    
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml();
+
+    workingCaptionsText = lastSavedCaptionsText;
+    captionViewMode = "rewritten";
+    renderCaptionView();
+
+    updateCaptionBaselineHint();
+    updateLoadYamlVisibility();
+    updateAIRecommendationBar();
+
+    // 🔥 Option A: auto-generate hooks once storyboard is ready
+    if (!window.appState.hook.lastGenerated?.length) {
+      generateHooks(); // runs async, sets hooksReady + renders if lab is open
+    }
+
+    if (PENDING_SCROLL_TO_STORYBOARD) {
+    PENDING_SCROLL_TO_STORYBOARD = false;
+
+    // tiny cinematic pause after AI work
+    await new Promise(r => setTimeout(r, 120));
+
+    activateStep("#step-3");
+
+  document
+    .getElementById("storyboardTimeline")
+    ?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
   }
 
   await refreshAfterChange();
 
-
-  setStatus(
-    "hookLabStatus",
-    `AI set intent → ${intent}`,
-    "info"
-  );
-}
-
-function renderSetupSummary(data) {
-  const el = document.getElementById("aiSetupSummary");
-  if (!el) return;
-
-  // You can customize the copy based on your API payload
-  const clips = data?.clip_count ?? data?.clips ?? null;
-  const goal  = data?.recommended_goal ?? "";
-  const note  = data?.summary ?? data?.message ?? "";
-
-  el.innerHTML = `
-    <div class="ai-summary-row">
-      <div class="ai-summary-title">🧠 AI Setup Ready</div>
-      <div class="ai-summary-sub">
-        ${clips != null ? `Clips analyzed: <b>${clips}</b>.` : `Clips analyzed.`}
-        ${goal ? ` Recommended goal: <b>${goal}</b>.` : ``}
-      </div>
-      ${note ? `<div class="ai-summary-note">${note}</div>` : ``}
-    </div>
-
-    <div class="ai-summary-actions">
-      <button id="prepareStoryboardBtn" class="btn primary">
-        ⚡ Prepare storyboard
-      </button>
-      <button id="jumpToStoryboardBtn" class="btn ghost">
-        🎬 Jump to storyboard order
-      </button>
-    </div>
-  `;
-}
-
-async function loadAISetupSummary() {
-  const data = await jsonFetch(
-    `/api/ai_setup_summary?session=${getActiveSession()}`
-  );
-
-  // Step 1 summary (near Analyze)
-  renderSetupSummary(data, "aiSetupSummaryStep1");
-
-  return data;
-}
-
-async function retryAnalysis() {
-  const status = await jsonFetch(
-    `/api/analyze_status?session=${getActiveSession()}`
-  );
-
-  if (status.status === "running") {
-    setStatus("analyzeStatus", "Analysis already running…", "info");
-    pollAnalyzeStatus();
-    return;
   }
 
-  setStatus("analyzeStatus", "Restarting analysis…", "working");
-  await analyzeClips();
-}
+  async function pollYamlStatus() {
+    if (!YAML_POLL_ACTIVE) return;
 
-function updateAnalyzingBadge(status) {
-  const badge = document.getElementById("analyzingBadge");
-  if (!badge) return;
-
-  if (status === "running") {
-    badge.classList.remove("hidden");
-  } else {
-    badge.classList.add("hidden");
-  }
-}
-
-async function pollAnalyzeStatus() {
-  if (!ANALYZE_POLL_ACTIVE) return;
-
-  try {
-    const data = await jsonFetch(
-      `/api/analyze_status?session=${getActiveSession()}`
-    );
-
-    const status = data.status;
-    updateAnalyzingBadge(status);
-
-    // -----------------------------
-    // RUNNING
-    // -----------------------------
-    if (status === "running") {
-      setStatus(
-        "analyzeStatus",
-        "Analyzing clips & preparing AI insights…",
-        "working",
-        false
+    try {
+      const data = await jsonFetch(
+        `/api/generate_yaml/status?session=${getActiveSession()}`
       );
 
-      lastAnalyzeStatus = "running";
-      setTimeout(pollAnalyzeStatus, 1200);
-      return;
-    }
-// -----------------------------
-// DONE (auto-advance to storyboard)
-// -----------------------------
-if (status === "done") {
-  console.log("✅ Analysis finished");
+      const status = data?.status;
 
-  setStatus(
-    "analyzeStatus",
-    "AI analysis ready ✓",
-    "success",
-    false
-  );
+      if (status === "running") {
+        setTimeout(pollYamlStatus, 1200);
+        return;
+      }
 
- await refreshAnalyses();
-
- await loadConfigAndYaml();
- await loadCaptionsFromYaml();
-
-const summary = await loadAISetupSummary();   // ✅ renders the panels
-await autoSelectIntentFromReadiness(summary);
-
-  // 🔥 AUTO-ADVANCE TO STORYBOARD (safe guard)
-const yamlStatus = await jsonFetch(
-  `/api/generate_yaml/status?session=${getActiveSession()}`
-);
-
-if (
-  !YAML_POLL_ACTIVE &&
-  yamlStatus &&
-  (yamlStatus.status === "idle" || yamlStatus.status === "not_started")
-) {
-  console.log("⚡ Auto-generating storyboard");
-  PENDING_SCROLL_TO_STORYBOARD = true;
-  await generateYamlAsync();
-
-} else if (yamlStatus?.status === "done") {
-  console.log("📦 Storyboard already exists — hydrating");
-  PENDING_SCROLL_TO_STORYBOARD = true;
-  await hydrateStoryboardAndScroll();
-}
-
-  ANALYZE_POLL_ACTIVE = false;
-  lastAnalyzeStatus = null;
-  return;
-}
-
-    // -----------------------------
-    // UNKNOWN / IDLE → stop polling
-    // -----------------------------
-    ANALYZE_POLL_ACTIVE = false;
-    lastAnalyzeStatus = null;
-
-  } catch (err) {
-    console.warn("pollAnalyzeStatus failed", err);
-
-    // retry only if still active
-    if (ANALYZE_POLL_ACTIVE) {
-      setTimeout(pollAnalyzeStatus, 2000);
-    }
-  }
-}
-
-
-async function applyAIRecommendation() {
-  const session = getActiveSession();
-
-  const applyBtn = document.getElementById("applyAiRecommendationBtn");
-  const undoBtn  = document.getElementById("undoAiRecommendationBtn");
-
-  const variant = window.appState.variants.list
-    ?.find(v => v.recommended === true);
-
-  if (!variant) {
-    alert("No AI recommendation available.");
+      if (status === "error") {
+    YAML_POLL_ACTIVE = false;
+    lastYamlStatus = null;
+    setStatus("yamlStatus", data.error || "Storyboard failed", "error");
     return;
   }
 
-  const ok = confirm(
-    "Apply AI-recommended captions, timings, and overlay?\n\nYou can undo this."
-  );
-  if (!ok) return;
-
-  try {
-    // 🔒 IMPORTANT: bypass CONFIG_CACHE intentionally.
-// We need a fresh server snapshot for undo safety.
-// Using getConfigCached() could return stale or mutated state.
-const before = await jsonFetch(
-  `/api/config?session=${encodeURIComponent(session)}`
-);
-
-
-    window.aiUndoSnapshot = {
-  session,
-  yaml: before.yaml,
-  config: before.config   // IMPORTANT for full restore
-};
-    updateAIRecommendationBar();
-
-    if (applyBtn) {
-      applyBtn.disabled = true;
-      applyBtn.textContent = "Applying…";
-    }
-
-    // 1️⃣ Apply captions
-    await jsonFetch("/api/apply_variant", {
-      method: "POST",
-      body: JSON.stringify({
-        session,
-        text: variant.text
-      })
-    });
-
-    // 2️⃣ Apply smart timings
-    await jsonFetch("/api/timings", {
-      method: "POST",
-      body: JSON.stringify({
-        session,
-        smart: true
-      })
-    });
-
-    // 3️⃣ Apply overlay style
-    await jsonFetch("/api/overlay", {
-      method: "POST",
-      body: JSON.stringify({
-        session,
-        style: "ai_recommended"
-      })
-    });
-
-    CONFIG_CACHE = null; // 🔥 invalidate cache before reload
-
-    await loadConfigAndYaml();
-    await loadCaptionsFromYaml();
-    await refreshAfterChange();
-
-
-    setStatus("captionsStatus", "AI recommendation applied ✓", "success");
-    maybeShowStep4Nudge();
-
-
-    if (applyBtn) {
-      applyBtn.textContent = "Applied ✓";
-      applyBtn.disabled = true;
-    }
-
-    if (undoBtn) {
-      undoBtn.classList.remove("hidden");
-      undoBtn.disabled = false;
-    }
-
-  } catch (err) {
-    console.error(err);
-    toast("Failed to apply AI recommendation");
-
-    if (applyBtn) {
-      applyBtn.disabled = false;
-      applyBtn.textContent = "Apply AI recommendation";
-    }
-  }
-}
-
-function renderSetupSummary(summary, targetId = "aiSetupSummary") {
-  const el = document.getElementById(targetId);
-  if (!el) return;
-
-  if (!summary?.has_analysis) {
-    el.classList.add("hidden");
+  if (status === "idle" || status === "not_started") {
+    // stop polling if job isn't running
+    YAML_POLL_ACTIVE = false;
+    lastYamlStatus = null;
+    setStatus("yamlStatus", "Storyboard not running", "info");
     return;
   }
 
-  el.classList.remove("hidden");
 
-  el.innerHTML = `
-    <div class="ai-summary-card premium">
-      <div class="ai-summary-header">
-        <h3>🧠 AI Readiness Summary</h3>
-        <p class="hint-text subtle">Here’s what AI understands about your video.</p>
-      </div>
+      if (status === "done") {
+    YAML_POLL_ACTIVE = false;
+    lastYamlStatus = null;
 
-      <div class="ai-summary-stats">
-        <div class="stat">
-          <div class="stat-value">${summary.clips ?? "-"}</div>
-          <div class="stat-label">Clips</div>
-        </div>
+    setStatus("yamlStatus", "Finalizing storyboard…", "working", false);
 
-        <div class="stat">
-          <div class="stat-value">${summary.hook_confidence || "unknown"}</div>
-          <div class="stat-label">Hook</div>
-        </div>
+    await hydrateStoryboardAndScroll();
 
-        <div class="stat">
-          <div class="stat-value">${summary.labels?.quality || "none"}</div>
-          <div class="stat-label">Labels</div>
-        </div>
-
-        <div class="stat">
-          <div class="stat-value">${summary.estimated_length || "-"}</div>
-          <div class="stat-label">Length</div>
-        </div>
-      </div>
-
-      <div class="ai-summary-recommend">
-        🎯 AI suggests: <strong>${summary.recommended_goal || "General highlight"}</strong>
-      </div>
-    </div>
-  `;
-}
-
-async function enterStoryboardStep() {
-  activateStep("#step-3");
-  scrollToStep("#step-3");
-}
-
-async function improveHooksAndCaptionsFlow() {
-  if (YAML_POLL_ACTIVE) {
-  console.log("🔁 Restarting YAML generation");
-  YAML_POLL_ACTIVE = false;
-}
-
-
-  try {
-    setStatus("improveHooksStatus", "Preparing storyboard…", "working");
-
-    const s = await jsonFetch(
-      `/api/generate_yaml/status?session=${getActiveSession()}`
-    );
-
-    PENDING_SCROLL_TO_STORYBOARD = true;
-
-    if (s?.status === "done") {
-      await hydrateStoryboardAndScroll();
-      setStatus("improveHooksStatus", "Storyboard ready ✓", "success");
-      return;
-    }
-
-    await generateYamlAsync(); // poller finishes the rest
-
-  } catch (e) {
-    console.error(e);
-    setStatus("improveHooksStatus", "Failed to prepare storyboard", "error");
-  }
-}
-
-async function hydrateStoryboardAndScroll() {
-  CONFIG_CACHE = null;
-  
-  await loadConfigAndYaml();
-  await loadCaptionsFromYaml();
-
-  workingCaptionsText = lastSavedCaptionsText;
-  captionViewMode = "rewritten";
-  renderCaptionView();
-
-  updateCaptionBaselineHint();
-  updateLoadYamlVisibility();
-  updateAIRecommendationBar();
-
-  // 🔥 Option A: auto-generate hooks once storyboard is ready
-  if (!window.appState.hook.lastGenerated?.length) {
-    generateHooks(); // runs async, sets hooksReady + renders if lab is open
+    setStatus("yamlStatus", "Storyboard ready ✓", "success");
+    setTimeout(() => setStatus("yamlStatus", ""), 1500);
+    return;
   }
 
-  if (PENDING_SCROLL_TO_STORYBOARD) {
-  PENDING_SCROLL_TO_STORYBOARD = false;
 
-  // tiny cinematic pause after AI work
-  await new Promise(r => setTimeout(r, 120));
-
-  activateStep("#step-3");
-
-document
-  .getElementById("storyboardTimeline")
-  ?.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
-}
-
-await refreshAfterChange();
-
-}
-
-async function pollYamlStatus() {
-  if (!YAML_POLL_ACTIVE) return;
-
-  try {
-    const data = await jsonFetch(
-      `/api/generate_yaml/status?session=${getActiveSession()}`
-    );
-
-    const status = data?.status;
-
-    if (status === "running") {
+      // 🔁 NOT READY YET — KEEP POLLING
       setTimeout(pollYamlStatus, 1200);
-      return;
+
+    } catch (err) {
+      console.warn("pollYamlStatus failed", err);
+
+      // 🔁 RETRY instead of killing state
+      setTimeout(pollYamlStatus, 2000);
     }
-
-    if (status === "error") {
-  YAML_POLL_ACTIVE = false;
-  lastYamlStatus = null;
-  setStatus("yamlStatus", data.error || "Storyboard failed", "error");
-  return;
-}
-
-if (status === "idle" || status === "not_started") {
-  // stop polling if job isn't running
-  YAML_POLL_ACTIVE = false;
-  lastYamlStatus = null;
-  setStatus("yamlStatus", "Storyboard not running", "info");
-  return;
-}
-
-
-    if (status === "done") {
-  YAML_POLL_ACTIVE = false;
-  lastYamlStatus = null;
-
-  setStatus("yamlStatus", "Finalizing storyboard…", "working", false);
-
-  await hydrateStoryboardAndScroll();
-
-  setStatus("yamlStatus", "Storyboard ready ✓", "success");
-  setTimeout(() => setStatus("yamlStatus", ""), 1500);
-  return;
-}
-
-
-    // 🔁 NOT READY YET — KEEP POLLING
-    setTimeout(pollYamlStatus, 1200);
-
-  } catch (err) {
-    console.warn("pollYamlStatus failed", err);
-
-    // 🔁 RETRY instead of killing state
-    setTimeout(pollYamlStatus, 2000);
   }
-}
 
 
-async function generateYamlAsync() {
+  async function generateYamlAsync() {
 
-  setStatus(
-    "yamlStatus",
-    "Building storyboard with AI…",
-    "working",
-    false
-  );
+    setStatus(
+      "yamlStatus",
+      "Building storyboard with AI…",
+      "working",
+      false
+    );
 
-  try {
-    const res = await jsonFetch("/api/generate_yaml", {
-      method: "POST",
-      body: JSON.stringify({
-        session: getActiveSession()
-      }),
-    });
+    try {
+      const res = await jsonFetch("/api/generate_yaml", {
+        method: "POST",
+        body: JSON.stringify({
+          session: getActiveSession()
+        }),
+      });
 
-    // ⭐ IF BACKEND ALREADY RETURNED YAML → DONE
-    if (res?.first_clip || res?.middle_clips || res?.last_clip) {
-      console.log("⚡ YAML returned immediately (sync mode)");
+      // ⭐ IF BACKEND ALREADY RETURNED YAML → DONE
+      if (res?.first_clip || res?.middle_clips || res?.last_clip) {
+        console.log("⚡ YAML returned immediately (sync mode)");
+
+        YAML_POLL_ACTIVE = false;
+        lastYamlStatus = null;
+
+        PENDING_SCROLL_TO_STORYBOARD = true;
+        await hydrateStoryboardAndScroll();
+
+        setStatus("yamlStatus", "Storyboard ready ✓", "success");
+        return;
+      }
+
+      // ⭐ OTHERWISE → async job started
+      console.log("🕒 YAML running async");
+
+      YAML_POLL_ACTIVE = true;
+      lastYamlStatus = "running";
+      pollYamlStatus();
+
+    } catch (err) {
+      console.error("generateYamlAsync failed", err);
 
       YAML_POLL_ACTIVE = false;
       lastYamlStatus = null;
 
-      PENDING_SCROLL_TO_STORYBOARD = true;
-      await hydrateStoryboardAndScroll();
+      setStatus(
+        "yamlStatus",
+        "Failed to start storyboard generation",
+        "error"
+      );
+    }
+  }
 
-      setStatus("yamlStatus", "Storyboard ready ✓", "success");
+  // ================================
+  // Step 2: YAML generation & config
+  // ================================
+  async function generateYaml() {
+      const statusEl = document.getElementById("yamlStatus");
+      if (!statusEl) return;
+      setStatus(
+          "yamlStatus",
+          "Calling LLM to build config.yml storyboard…",
+          "working"
+      );
+      try {
+          await jsonFetch("/api/generate_yaml", {
+              method: "POST",
+              body: JSON.stringify({ session: getActiveSession() }),
+          });
+          setStatus("yamlStatus", "YAML generated!", "success");
+          await loadConfigAndYaml();
+          await refreshAfterChange();
+
+      } catch (err) {
+          console.error(err);
+          setStatus(
+              "yamlStatus",
+              `Error generating YAML: ${err.message}`,
+              "error"
+          );
+      }
+  }
+
+  async function loadConfigAndYaml() {
+    const yamlTextEl = document.getElementById("yamlText");
+    const yamlPreviewEl = document.getElementById("yamlPreview");
+
+    if (!yamlTextEl || !yamlPreviewEl) {
+      console.warn("[CONFIG] YAML elements missing, skipping load");
       return;
     }
 
-    // ⭐ OTHERWISE → async job started
-    console.log("🕒 YAML running async");
+    if (CONFIG_LOADING) return;
+    CONFIG_LOADING = true;
 
-    YAML_POLL_ACTIVE = true;
-    lastYamlStatus = "running";
-    pollYamlStatus();
-
-  } catch (err) {
-    console.error("generateYamlAsync failed", err);
-
-    YAML_POLL_ACTIVE = false;
-    lastYamlStatus = null;
-
-    setStatus(
-      "yamlStatus",
-      "Failed to start storyboard generation",
-      "error"
-    );
-  }
-}
-
-// ================================
-// Step 2: YAML generation & config
-// ================================
-async function generateYaml() {
-    const statusEl = document.getElementById("yamlStatus");
-    if (!statusEl) return;
-    setStatus(
-        "yamlStatus",
-        "Calling LLM to build config.yml storyboard…",
-        "working"
-    );
     try {
-        await jsonFetch("/api/generate_yaml", {
-            method: "POST",
-            body: JSON.stringify({ session: getActiveSession() }),
-        });
-        setStatus("yamlStatus", "YAML generated!", "success");
-        await loadConfigAndYaml();
-        await refreshAfterChange();
+      const session = encodeURIComponent(getActiveSession());
+      const data = await getConfigCached();
+
+
+      yamlTextEl.value = data.yaml || "# No config.yml yet.";
+      yamlPreviewEl.textContent = JSON.stringify(data.config || {}, null, 2);
+
+      renderStoryboardTimeline(data.config);
+    } catch (err) {
+      console.error("loadConfigAndYaml failed", err);
+    } finally {
+      CONFIG_LOADING = false;
+    }
+  }
+
+
+
+  function renderStoryboardTimeline(cfg) {
+    const container = document.getElementById("storyboardTimeline");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    // Initialize working order once
+    if (!workingClipOrder.length) {
+      workingClipOrder = [];
+      if (cfg.first_clip) workingClipOrder.push(cfg.first_clip);
+      (cfg.middle_clips || []).forEach(c => workingClipOrder.push(c));
+      if (cfg.last_clip) workingClipOrder.push(cfg.last_clip);
+    }
+
+    workingClipOrder.forEach((clip, idx) => {
+      const el = document.createElement("div");
+      el.className = "storyboard-clip";
+
+      el.innerHTML = `
+        <div class="clip-content">
+          <div class="clip-name">${clip.file}</div>
+          <div class="clip-caption">${clip.text?.slice(0, 60) || "—"}</div>
+        </div>
+
+        <div class="clip-controls">
+          <button onclick="moveClip(${idx}, -1)">▲</button>
+          <button onclick="moveClip(${idx}, 1)">▼</button>
+        </div>
+      `;
+
+      container.appendChild(el);
+    });
+  }
+
+
+
+
+  function moveClip(index, direction) {
+    const newIndex = index + direction;
+    if (
+      newIndex < 0 ||
+      newIndex >= workingClipOrder.length
+    ) return;
+
+    [workingClipOrder[index], workingClipOrder[newIndex]] =
+      [workingClipOrder[newIndex], workingClipOrder[index]];
+
+    clipOrderDirty = true;
+
+    window.appState.hook.lastGenerated = null;
+    updateHooksReadyUI();
+
+  renderStoryboardTimeline({
+    first_clip: workingClipOrder[0],
+    middle_clips: workingClipOrder.slice(1, -1),
+    last_clip: workingClipOrder[workingClipOrder.length - 1]
+  });
+
+  // ⬇️ ADD THIS
+  saveStoryboardOrder({ silent: true });
+
+  refreshAfterChange();
+
+
+
+  setStatus(
+    "storyboardStatus",
+    "Saving clip order…",
+    "working"
+  );
+  }
+
+  // ================================
+  // Storyboard Order — Save (AUTO)
+  // ================================
+  async function saveStoryboardOrder({ silent = false } = {}) {
+    try {
+      const session = getActiveSession();
+      const sessionQ = encodeURIComponent(session);
+
+      // 1️⃣ Load latest config
+      const data = await getConfigCached(true);
+      const cfg = data.config || {};
+
+      // 2️⃣ Rebuild storyboard from workingClipOrder
+      cfg.first_clip = workingClipOrder[0] || null;
+
+      if (workingClipOrder.length > 2) {
+        cfg.middle_clips = workingClipOrder.slice(1, -1);
+      } else {
+        cfg.middle_clips = [];
+      }
+
+      cfg.last_clip =
+        workingClipOrder.length > 1
+          ? workingClipOrder[workingClipOrder.length - 1]
+          : null;
+
+      // 3️⃣ Save config
+      await jsonFetch("/api/save_config", {
+        method: "POST",
+        body: JSON.stringify({
+          session,
+          config: cfg
+        })
+      });
+
+      CONFIG_CACHE = null;
+
+
+      // 🔑 THIS is what you were missing
+      await loadCaptionsFromYaml();
+
+      if (!silent) {
+        setStatus("storyboardStatus", "Clip order saved ✓", "success");
+      } else {
+        showAutoSaveStatus("storyboardStatus");
+      }
+
+      clipOrderDirty = false;
 
     } catch (err) {
-        console.error(err);
-        setStatus(
-            "yamlStatus",
-            `Error generating YAML: ${err.message}`,
-            "error"
-        );
+      console.error("Failed to save storyboard order:", err);
+      setStatus("storyboardStatus", "Failed to save order", "error");
     }
-}
-
-async function loadConfigAndYaml() {
-  const yamlTextEl = document.getElementById("yamlText");
-  const yamlPreviewEl = document.getElementById("yamlPreview");
-
-  if (!yamlTextEl || !yamlPreviewEl) {
-    console.warn("[CONFIG] YAML elements missing, skipping load");
-    return;
   }
-
-  if (CONFIG_LOADING) return;
-  CONFIG_LOADING = true;
-
-  try {
-    const session = encodeURIComponent(getActiveSession());
-    const data = await getConfigCached();
-
-
-    yamlTextEl.value = data.yaml || "# No config.yml yet.";
-    yamlPreviewEl.textContent = JSON.stringify(data.config || {}, null, 2);
-
-    renderStoryboardTimeline(data.config);
-  } catch (err) {
-    console.error("loadConfigAndYaml failed", err);
-  } finally {
-    CONFIG_LOADING = false;
-  }
-}
-
-
-
-function renderStoryboardTimeline(cfg) {
-  const container = document.getElementById("storyboardTimeline");
-  if (!container) return;
-
-  container.innerHTML = "";
-
-  // Initialize working order once
-  if (!workingClipOrder.length) {
-    workingClipOrder = [];
-    if (cfg.first_clip) workingClipOrder.push(cfg.first_clip);
-    (cfg.middle_clips || []).forEach(c => workingClipOrder.push(c));
-    if (cfg.last_clip) workingClipOrder.push(cfg.last_clip);
-  }
-
-  workingClipOrder.forEach((clip, idx) => {
-    const el = document.createElement("div");
-    el.className = "storyboard-clip";
-
-    el.innerHTML = `
-      <div class="clip-content">
-        <div class="clip-name">${clip.file}</div>
-        <div class="clip-caption">${clip.text?.slice(0, 60) || "—"}</div>
-      </div>
-
-      <div class="clip-controls">
-        <button onclick="moveClip(${idx}, -1)">▲</button>
-        <button onclick="moveClip(${idx}, 1)">▼</button>
-      </div>
-    `;
-
-    container.appendChild(el);
-  });
-}
-
-
-
-
-function moveClip(index, direction) {
-  const newIndex = index + direction;
-  if (
-    newIndex < 0 ||
-    newIndex >= workingClipOrder.length
-  ) return;
-
-  [workingClipOrder[index], workingClipOrder[newIndex]] =
-    [workingClipOrder[newIndex], workingClipOrder[index]];
-
-  clipOrderDirty = true;
-
-  window.appState.hook.lastGenerated = null;
-  updateHooksReadyUI();
-
-renderStoryboardTimeline({
-  first_clip: workingClipOrder[0],
-  middle_clips: workingClipOrder.slice(1, -1),
-  last_clip: workingClipOrder[workingClipOrder.length - 1]
-});
-
-// ⬇️ ADD THIS
-saveStoryboardOrder({ silent: true });
-
-refreshAfterChange();
-
-
-
-setStatus(
-  "storyboardStatus",
-  "Saving clip order…",
-  "working"
-);
-}
-
-// ================================
-// Storyboard Order — Save (AUTO)
-// ================================
-async function saveStoryboardOrder({ silent = false } = {}) {
-  try {
-    const session = getActiveSession();
-    const sessionQ = encodeURIComponent(session);
-
-    // 1️⃣ Load latest config
-    const data = await getConfigCached(true);
-    const cfg = data.config || {};
-
-    // 2️⃣ Rebuild storyboard from workingClipOrder
-    cfg.first_clip = workingClipOrder[0] || null;
-
-    if (workingClipOrder.length > 2) {
-      cfg.middle_clips = workingClipOrder.slice(1, -1);
-    } else {
-      cfg.middle_clips = [];
-    }
-
-    cfg.last_clip =
-      workingClipOrder.length > 1
-        ? workingClipOrder[workingClipOrder.length - 1]
-        : null;
-
-    // 3️⃣ Save config
-    await jsonFetch("/api/save_config", {
-      method: "POST",
-      body: JSON.stringify({
-        session,
-        config: cfg
-      })
-    });
-
-    CONFIG_CACHE = null;
-
-
-    // 🔑 THIS is what you were missing
-    await loadCaptionsFromYaml();
-
-    if (!silent) {
-      setStatus("storyboardStatus", "Clip order saved ✓", "success");
-    } else {
-      showAutoSaveStatus("storyboardStatus");
-    }
-
-    clipOrderDirty = false;
-
-  } catch (err) {
-    console.error("Failed to save storyboard order:", err);
-    setStatus("storyboardStatus", "Failed to save order", "error");
-  }
-}
 
 
 async function saveYaml() {
@@ -4194,12 +4194,14 @@ async function refreshHookScore() {
     hookEl.textContent = "";
 
     LAST_HOOK_SCORE = null;
+    window.appState.scores.hook = null;
     updateRewriteModeAvailability();
     updateImproveButtons(null, LAST_FLOW_SCORE);
     updateSmartStatus();
 
     return;
   }
+  
 
   card.classList.remove("hidden");
 
@@ -4223,8 +4225,9 @@ async function refreshHookScore() {
     }
 
     // ---------------------------------
-    // 🔑 Core State Update
+    // 🔑 Core State Update (SYNC BOTH SYSTEMS)
     // ---------------------------------
+    LAST_HOOK_SCORE = score;
     window.appState.scores.hook = score;
 
     updateRewriteModeAvailability();
@@ -4703,9 +4706,11 @@ async function refreshStoryFlowScore() {
     const text = getCurrentCaptionsText();
 
     if (!text) {
-    card.classList.add("hidden");
-    return;
-    }
+  card.classList.add("hidden");
+  LAST_FLOW_SCORE = null;
+  window.appState.scores.storyFlow = null;
+  return;
+}
 
     const blocks = text
     .split(/\n\s*\n/)
@@ -4716,9 +4721,11 @@ async function refreshStoryFlowScore() {
 
     // Need at least: hook + 2 middle captions
     if (blocks.length < 3) {
-        card.classList.add("hidden");
-        if (improveBtn) improveBtn.disabled = true;
-        return;
+      card.classList.add("hidden");
+      if (improveBtn) improveBtn.disabled = true;
+      LAST_FLOW_SCORE = null;
+      window.appState.scores.storyFlow = null;
+      return;
     }
 
     card.classList.remove("hidden");
@@ -4734,6 +4741,7 @@ async function refreshStoryFlowScore() {
           celebrateImprovement("flow", LAST_FLOW_SCORE, score);
         }
 
+        LAST_FLOW_SCORE = score;
         window.appState.scores.storyFlow = score;
 
         const flowLabel = getFlowRatingLabel(score);
