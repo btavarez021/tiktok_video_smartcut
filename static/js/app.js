@@ -2261,11 +2261,6 @@ async function setActiveSession(name) {
   updateLoadYamlVisibility();
   await refreshAfterChange();
 
-  await refreshHookScore();
-  await refreshStoryFlowScore();
-  updateSmartStatus();
-
-
   // ----------------------------
   // Secondary refreshes
   // ----------------------------
@@ -6324,9 +6319,9 @@ if (captionsBox) {
 
       if (res.updated) {
         if (status) status.textContent = "Story flow improved ✓";
-
-        await loadCaptionsFromYaml();
+        
         await loadConfigAndYaml();
+        await loadCaptionsFromYaml();
         await refreshAfterChange();
 
       } else {
