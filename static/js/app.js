@@ -2212,8 +2212,11 @@ async function setActiveSession(name) {
   LAST_HOOK_SCORE = null;
   LAST_FLOW_SCORE = null;
 
-  document.getElementById("hookScoreValue")?.textContent = "—";
-  document.getElementById("storyFlowScoreValue")?.textContent = "—";
+ const hookEl = document.getElementById("hookScoreValue");
+  if (hookEl) hookEl.textContent = "—";
+
+  const flowEl = document.getElementById("storyFlowScoreValue");
+if (flowEl) flowEl.textContent = "—";
 
   window.appState.hook.selected = null;
   window.appState.hook.locked = false;
@@ -6319,7 +6322,7 @@ if (captionsBox) {
 
       if (res.updated) {
         if (status) status.textContent = "Story flow improved ✓";
-        
+
         await loadConfigAndYaml();
         await loadCaptionsFromYaml();
         await refreshAfterChange();
