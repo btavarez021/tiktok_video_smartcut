@@ -2208,6 +2208,19 @@ async function setActiveSession(name) {
   ACTIVE_SESSION = safe;
   CONFIG_CACHE = null; // 🔥 ADD THIS
 
+  // Reset session-dependent state
+  LAST_HOOK_SCORE = null;
+  LAST_FLOW_SCORE = null;
+
+  document.getElementById("hookScoreValue")?.textContent = "—";
+  document.getElementById("storyFlowScoreValue")?.textContent = "—";
+
+  window.appState.hook.selected = null;
+  window.appState.hook.locked = false;
+  window.appState.hook.lastGenerated = null;
+
+  window.appState.variants.list = [];
+
   // ----------------------------
   // Reset AI apply / undo state
   // ----------------------------
@@ -2222,8 +2235,6 @@ async function setActiveSession(name) {
   // ----------------------------
   workingClipOrder = [];
   clipOrderDirty = false;
-  window.appState.hook.selected = null;
-  window.appState.hook.locked = false;
 
   // 🔥 VARIANTS RESET (you were missing this)
   lastVariantStatus = null;
@@ -2249,6 +2260,10 @@ async function setActiveSession(name) {
   updateCaptionBaselineHint();
   updateLoadYamlVisibility();
   await refreshAfterChange();
+
+  await refreshHookScore();
+  await refreshStoryFlowScore();
+  updateSmartStatus();
 
 
   // ----------------------------
