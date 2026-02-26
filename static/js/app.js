@@ -195,7 +195,13 @@ async function refreshAfterChange({
     autoExpandIfWeak(LAST_HOOK_SCORE, LAST_FLOW_SCORE);
 
     // 2) Publish + progress should key off the same source of truth
-    if (publish) renderPublishReadyState();
+    // 2) Unified Evaluation Engine
+    const creativeState = evaluateCreativeState();
+
+    // Publish readiness now comes from engine
+    if (publish) renderPublishReadyState(creativeState);
+
+    // Progress still updates
     if (progress) setTimeout(renderEditProgress, 50);
 
     // 3) Director (only when scores exist)
@@ -206,7 +212,8 @@ async function refreshAfterChange({
       LAST_HOOK_SCORE != null &&
       LAST_FLOW_SCORE != null
     ) {
-      await loadEditStrategy();
+      const creativeState = evaluateCreativeState();
+      await loadEditStrategy(creativeState);
     }
 
     // 4) Guidance
@@ -236,43 +243,70 @@ function openHookLab() {
   updateHookLabGuidance();
 }
 
-function computeReadinessState(hookScore, flowScore) {
+function evaluateCreativeState() {
+  const hook = LAST_HOOK_SCORE ?? 0;
+  const flow = LAST_FLOW_SCORE ?? 0;
+  const hasCaptions = !!lastSavedCaptionsText?.trim();
 
-  if (!lastSavedCaptionsText?.trim()) {
+  if (!hasCaptions) {
     return {
+      hook_score: hook,
+      flow_score: flow,
+      readiness_score: 0,
+      publish_ready: false,
+      primary_weakness: "No captions",
       status: "empty",
       message: "Create captions to begin.",
       next: "write_captions"
     };
   }
 
-  if (hookScore < 50) {
+  if (hook < 50) {
     return {
+      hook_score: hook,
+      flow_score: flow,
+      readiness_score: hook,
+      publish_ready: false,
+      primary_weakness: "Hook clarity",
       status: "weak_hook",
       message: "Your hook needs stronger curiosity or clarity.",
       next: "improve_hook"
     };
   }
 
-  if (hookScore < 70) {
-    const need = 70 - hookScore;
+  if (hook < 70) {
     return {
+      hook_score: hook,
+      flow_score: flow,
+      readiness_score: hook,
+      publish_ready: false,
+      primary_weakness: "Hook strength",
       status: "almost_hook",
-      message: `Improve hook by ${need} more points.`,
+      message: `Improve hook by ${70 - hook} more points.`,
       next: "improve_hook"
     };
   }
 
-  if (flowScore < 60) {
+  if (flow < 60) {
     return {
+      hook_score: hook,
+      flow_score: flow,
+      readiness_score: Math.min(hook, flow),
+      publish_ready: false,
+      primary_weakness: "Story pacing",
       status: "weak_flow",
       message: "Tighten pacing and transitions.",
       next: "improve_flow"
     };
   }
 
-  if (hookScore >= 75 && flowScore >= 65) {
+  if (hook >= 75 && flow >= 65) {
     return {
+      hook_score: hook,
+      flow_score: flow,
+      readiness_score: Math.round((hook + flow) / 2),
+      publish_ready: true,
+      primary_weakness: null,
       status: "ready",
       message: "Strong edit. Ready to publish.",
       next: "publish"
@@ -280,6 +314,11 @@ function computeReadinessState(hookScore, flowScore) {
   }
 
   return {
+    hook_score: hook,
+    flow_score: flow,
+    readiness_score: Math.round((hook + flow) / 2),
+    publish_ready: false,
+    primary_weakness: null,
     status: "polish",
     message: "Good edit. Minor improvements possible.",
     next: "polish"
@@ -321,19 +360,17 @@ function renderPublishReadyState() {
   const box = document.getElementById("publishReadyBanner");
   if (!box) return;
 
-  // ✅ single source of truth
-  const hookScore = (LAST_HOOK_SCORE == null) ? 0 : Number(LAST_HOOK_SCORE);
-  const flowScore = (LAST_FLOW_SCORE == null) ? 0 : Number(LAST_FLOW_SCORE);
+  const state = evaluateCreativeState();
 
-  const state = computeReadinessState(hookScore, flowScore);
-
-  maybeCelebrateReadiness(state);
+  maybeCelebrateReadiness({ status: state.status });
 
   box.classList.remove("hidden");
 
   let colorClass = "publish-neutral";
+
   if (state.status === "ready") colorClass = "publish-ready";
-  if (state.status === "weak_hook" || state.status === "weak_flow") colorClass = "publish-warning";
+  if (state.status === "weak_hook" || state.status === "weak_flow")
+    colorClass = "publish-warning";
   if (state.status === "empty") colorClass = "publish-empty";
 
   box.className = `publish-ready-state ${colorClass}`;
@@ -342,30 +379,27 @@ function renderPublishReadyState() {
     <div class="readiness-title">🧠 AI Readiness</div>
     <div class="readiness-message">${state.message}</div>
     <div class="readiness-scores">
-      Hook: ${hookScore}/100 &nbsp; | &nbsp; Flow: ${flowScore}/100
+      Hook: ${state.hook_score}/100 &nbsp; | &nbsp; Flow: ${state.flow_score}/100
     </div>
     ${renderNextActionButton(state.next)}
   `;
 }
 
 
-
 function evaluatePublishReadiness() {
-  const hookScore = Number(LAST_HOOK_SCORE) || 0;
-  const flowScore = Number(LAST_FLOW_SCORE) || 0;
-
-  const state = computeReadinessState(hookScore, flowScore);
+  const state = evaluateCreativeState();
 
   const highIssues =
     document.querySelectorAll(".director-item.impact-high").length;
 
   return {
-    ready: state.status === "ready",
-    hookScore,
-    flowScore,
+    ready: state.publish_ready,
+    hookScore: state.hook_score,
+    flowScore: state.flow_score,
     highIssues
   };
 }
+
 
 function celebrateImprovement(type, oldScore, newScore) {
   const delta = newScore - oldScore;
@@ -1749,8 +1783,8 @@ async function loadEditStrategy(force=false) {
     renderPublishReadyState();
     renderEditProgress();
 
-    const readiness = computeReadinessState(LAST_HOOK_SCORE || 0, LAST_FLOW_SCORE || 0);
-    document.body.classList.toggle("readiness-ready", readiness.status === "ready");
+    const creativeState = evaluateCreativeState();
+  document.body.classList.toggle("readiness-ready", creativeState.publish_ready);
   } catch (err) {
     console.error(err);
   }
@@ -4051,6 +4085,92 @@ function handleHookScoreSideEffects(score) {
   } else {
     clearOverlayWarning();
   }
+}
+
+function evaluateCreativeState() {
+  const hook = LAST_HOOK_SCORE ?? null;
+  const flow = LAST_FLOW_SCORE ?? null;
+  const intent = window.appState?.hook?.intent || "default";
+  const captions = getCurrentCaptionsText() || "";
+
+  const blocks = captions
+    .split(/\n\s*\n/)
+    .map(b => b.trim())
+    .filter(Boolean);
+
+  const captionCount = blocks.length;
+
+  const hasCTA = captions.toLowerCase().includes("follow") ||
+                 captions.toLowerCase().includes("subscribe") ||
+                 captions.toLowerCase().includes("book");
+
+  const weaknesses = [];
+  const priority = [];
+
+  // -----------------------------
+  // Hook Analysis
+  // -----------------------------
+  if (hook !== null) {
+    if (hook < 60) {
+      weaknesses.push("Hook clarity");
+      priority.push("Improve hook immediately");
+    } else if (hook < 75) {
+      weaknesses.push("Hook strength");
+      priority.push("Refine hook for stronger impact");
+    }
+  }
+
+  // -----------------------------
+  // Flow Analysis
+  // -----------------------------
+  if (flow !== null) {
+    if (flow < 65) {
+      weaknesses.push("Story pacing");
+      priority.push("Shorten middle captions");
+    } else if (flow < 75) {
+      weaknesses.push("Narrative progression");
+      priority.push("Improve transition between captions");
+    }
+  }
+
+  // -----------------------------
+  // Structural Checks
+  // -----------------------------
+  if (captionCount < 3) {
+    weaknesses.push("Video depth");
+    priority.push("Add more storytelling content");
+  }
+
+  if (!hasCTA) {
+    weaknesses.push("Missing CTA");
+    priority.push("Add a strong closing CTA");
+  }
+
+  // -----------------------------
+  // Readiness Score
+  // -----------------------------
+  let readiness = 0;
+
+  if (hook !== null) readiness += hook * 0.4;
+  if (flow !== null) readiness += flow * 0.4;
+  if (hasCTA) readiness += 10;
+  if (captionCount >= 3) readiness += 10;
+
+  readiness = Math.min(Math.round(readiness), 100);
+
+  const publishReady = readiness >= 80 && weaknesses.length === 0;
+
+  return {
+    hook_score: hook,
+    flow_score: flow,
+    readiness_score: readiness,
+    caption_blocks: captionCount,
+    has_cta: hasCTA,
+    primary_weakness: weaknesses[0] || null,
+    all_weaknesses: weaknesses,
+    priority_actions: priority,
+    publish_ready: publishReady
+  };
 }
 
 async function refreshHookScore() {
