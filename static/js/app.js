@@ -244,8 +244,8 @@ function openHookLab() {
 }
 
 function evaluateCreativeState() {
-  const hook = LAST_HOOK_SCORE ?? 0;
-  const flow = LAST_FLOW_SCORE ?? 0;
+  const hook = window.appState?.scores?.hook ?? LAST_HOOK_SCORE ?? null;
+  const flow = window.appState?.scores?.storyFlow ?? LAST_FLOW_SCORE ?? null;
   const hasCaptions = !!lastSavedCaptionsText?.trim();
 
   if (!hasCaptions) {
@@ -356,11 +356,11 @@ function getFlowRatingLabel(score) {
 }
 
 
-function renderPublishReadyState() {
+function renderPublishReadyState(state) {
+  if (!state) state = evaluateCreativeState();
+
   const box = document.getElementById("publishReadyBanner");
   if (!box) return;
-
-  const state = evaluateCreativeState();
 
   maybeCelebrateReadiness({ status: state.status });
 
@@ -4225,7 +4225,7 @@ async function refreshHookScore() {
     // ---------------------------------
     // 🔑 Core State Update
     // ---------------------------------
-    LAST_HOOK_SCORE = score;
+    window.appState.scores.hook = score;
 
     updateRewriteModeAvailability();
     updateImproveButtons(score, LAST_FLOW_SCORE);
@@ -4622,8 +4622,15 @@ function updateSmartStatus() {
   const el = document.getElementById("editSmartStatus");
   if (!el) return;
 
-  const hook = LAST_HOOK_SCORE ?? null;
-  const flow = LAST_FLOW_SCORE ?? null;
+  const hook =
+  window.appState?.scores?.hook ??
+  LAST_HOOK_SCORE ??
+  null;
+
+  const flow =
+    window.appState?.scores?.storyFlow ??
+    LAST_FLOW_SCORE ??
+    null;
 
   const flowThreshold = {
     discovery: 70,
@@ -4727,7 +4734,7 @@ async function refreshStoryFlowScore() {
           celebrateImprovement("flow", LAST_FLOW_SCORE, score);
         }
 
-        LAST_FLOW_SCORE = score;
+        window.appState.scores.storyFlow = score;
 
         const flowLabel = getFlowRatingLabel(score);
 
@@ -6101,8 +6108,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   document.getElementById("editSmartStatus")?.addEventListener("click", () => {
-  const hook = LAST_HOOK_SCORE ?? 0;
-  const flow = LAST_FLOW_SCORE ?? 0;
+  const hook =
+  window.appState?.scores?.hook ??
+  LAST_HOOK_SCORE ??
+  0;
+
+  const flow =
+    window.appState?.scores?.storyFlow ??
+    LAST_FLOW_SCORE ??
+    0;
 
   if (hook < 60) {
     goToHookLab();
