@@ -49,8 +49,15 @@
 
   let CONFIG_CACHE = null;
   window.appState = window.appState || {};
+
+  window.appState.scores = window.appState.scores || {};
+  window.appState.hook = window.appState.hook || {};
+  window.appState.setup = window.appState.setup || {};
   window.appState.settings = window.appState.settings || {};
-  window.appState.settings.autoAssist = false;
+
+  if (typeof window.appState.settings.autoAssist !== "boolean") {
+    window.appState.settings.autoAssist = false;
+  }
 
   // =======================================
   // GLOBAL APP STATE (Single Source of Truth)
@@ -269,9 +276,11 @@ const CREATIVE_ACTIONS = {
   async function runCreativeEngine(reason = "update") {
   const state = evaluateCreativeState();
 
-  if (window.appState.settings.autoAssist && state.next !== "publish") {
-    CREATIVE_ACTIONS[state.next]?.();
-  }
+  const autoAssist = window.appState?.settings?.autoAssist === true;
+
+  if (autoAssist && state.next !== "publish") {
+      CREATIVE_ACTIONS[state.next]?.();
+    }
 
   // Sync Director
   renderPublishReadyState(state);
