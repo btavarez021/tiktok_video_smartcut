@@ -4160,6 +4160,14 @@ function handleHookScoreSideEffects(score) {
 }
 
 function evaluateCreativeState() {
+
+  window.appState = window.appState || {};
+  window.appState.setup = window.appState.setup || {
+    hookConfidence: "unknown",
+    labelQuality: "unknown",
+    clipCount: 0
+  };
+
   const hook = LAST_HOOK_SCORE ?? null;
   const flow = LAST_FLOW_SCORE ?? null;
   const intent = window.appState?.hook?.intent || "default";
