@@ -65,42 +65,53 @@
   // GLOBAL APP STATE (Single Source of Truth)
   // =======================================
 
-  window.appState = {
-    session: null,
+window.appState = {
+  session: null,
 
-    hook: {
-      selected: null,
-      intent: "discovery",
-      locked: false,
-      lastGenerated: []
-    },
+  hook: {
+    selected: null,
+    intent: "discovery",
+    locked: false,
+    lastGenerated: []
+  },
 
-    variants: {
-      modes: {},
-      list: [],
-      recommendedId: null,
-      generating: false
-    },
+  variants: {
+    modes: {},
+    list: [],
+    recommendedId: null,
+    generating: false
+  },
 
-    captions: {
-      baseline: "",
-      current: "",
-      source: "none"
-    },
+  captions: {
+    baseline: "",
+    current: "",
+    source: "none"
+  },
 
-    storyboard: {
-      order: []
-    },
+  storyboard: {
+    order: []
+  },
 
-    scores: {
-      hook: null,
-      storyFlow: null
-    },
+  scores: {
+    hook: null,
+    storyFlow: null
+  },
 
-    ui: {
-      yamlPolling: false
-    }
-  };
+  ui: {
+    yamlPolling: false
+  },
+
+  setup: {
+    hookConfidence: "unknown",
+    labelQuality: "unknown",
+    clipCount: 0
+  },
+
+  // 🔥 ADD THIS
+  settings: {
+    autoAssist: false
+  }
+};
 
   async function getConfigCached(force = false) {
     if (CONFIG_CACHE && !force) return CONFIG_CACHE;
