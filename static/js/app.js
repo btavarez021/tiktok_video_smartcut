@@ -3452,16 +3452,33 @@ const CREATIVE_ACTIONS = {
     `;
   }
 
-  async function loadAISetupSummary() {
-    const data = await jsonFetch(
-      `/api/ai_setup_summary?session=${getActiveSession()}`
-    );
+async function loadAISetupSummary() {
+  const data = await jsonFetch(
+    `/api/ai_setup_summary?session=${getActiveSession()}`
+  );
 
-    // Step 1 summary (near Analyze)
-    renderSetupSummary(data, "aiSetupSummaryStep1");
+  // -----------------------------
+  // 🔑 Persist Setup Intelligence
+  // -----------------------------
+  window.appState = window.appState || {};
+  window.appState.setup = window.appState.setup || {};
 
-    return data;
-  }
+  window.appState.setup.hookConfidence =
+    data?.hook_confidence || "unknown";
+
+  window.appState.setup.labelQuality =
+    data?.labels?.quality || "none";
+
+  window.appState.setup.clipCount =
+    data?.clips || 0;
+
+  // -----------------------------
+  // Render UI
+  // -----------------------------
+  renderSetupSummary(data, "aiSetupSummaryStep1");
+
+  return data;
+}
 
   async function retryAnalysis() {
     const status = await jsonFetch(
