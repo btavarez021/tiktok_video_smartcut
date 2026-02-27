@@ -167,7 +167,27 @@
     }
   }
 
+const CREATIVE_ACTIONS = {
+  improve_hook: async () => {
+    await improveHookAndCaptions();
+  },
 
+  improve_flow: async () => {
+    await improveStoryFlow();
+  },
+
+  write_captions: async () => {
+    await generateCaptions();
+  },
+
+  publish: async () => {
+    document.getElementById("exportBtn")?.click();
+  },
+
+  polish: async () => {
+    await improveHookAndCaptions();
+  }
+};
 
   async function refreshAfterChange({
     hooks = true,
@@ -242,6 +262,23 @@
     highlightHookLab?.();
     updateHookLabGuidance();
   }
+
+  async function runCreativeEngine(reason = "update") {
+  const state = evaluateCreativeState();
+
+  if (AUTO_ASSIST && state.next !== "publish") {
+    CREATIVE_ACTIONS[state.next]?.();
+  }
+
+  // Sync Director
+  renderPublishReadyState(state);
+  renderNextActionButton(state);
+  updateSmartStatus();
+
+  console.log("🧠 Creative Engine Run:", reason, state.status);
+
+  return state;
+}
 
   function evaluateCreativeState() {
     const hook = window.appState?.scores?.hook ?? LAST_HOOK_SCORE ?? null;
@@ -325,19 +362,26 @@
     };
   }
 
-  function renderNextActionButton(action) {
+  function renderNextActionButton(state) {
+  if (!state?.next) return "";
 
-    const actions = {
-      write_captions: `<button onclick="openStep('#step-3')" class="readiness-btn">Write Captions</button>`,
-      improve_hook: `<button onclick="openStep('#step-4')" class="readiness-btn">Improve Hook</button>`,
-      improve_flow: `<button onclick="openStep('#step-3')" class="readiness-btn">Improve Flow</button>`,
-      polish: `<button onclick="openStep('#step-4')" class="readiness-btn">Polish Edit</button>`,
-      publish: `<button class="readiness-btn publish-ready">Ready to Export</button>`
-    };
+  const labelMap = {
+    improve_hook: "⚡ Improve Hook Automatically",
+    improve_flow: "⚡ Tighten Story Flow",
+    write_captions: "✍️ Generate Captions",
+    publish: "🚀 Export Video",
+    polish: "✨ Polish Video"
+  };
 
-    return actions[action] || "";
-  }
+  const label = labelMap[state.next];
+  if (!label) return "";
 
+  return `
+    <button class="ai-next-action-btn" data-action="${state.next}">
+      ${label}
+    </button>
+  `;
+}
 
   function getHookRatingLabel(score) {
     if (score < 45) return "Needs Work";
@@ -381,7 +425,7 @@
       <div class="readiness-scores">
         Hook: ${state.hook_score}/100 &nbsp; | &nbsp; Flow: ${state.flow_score}/100
       </div>
-      ${renderNextActionButton(state.next)}
+      ${renderNextActionButton(state)}
     `;
   }
 
@@ -3362,6 +3406,19 @@
     const goal  = data?.recommended_goal ?? "";
     const note  = data?.summary ?? data?.message ?? "";
 
+    // Persist setup intelligence into global state
+    window.appState = window.appState || {};
+    window.appState.setup = window.appState.setup || {};
+
+    window.appState.setup.hookConfidence =
+      summary?.hook_confidence || "unknown";
+
+    window.appState.setup.labelQuality =
+      summary?.labels?.quality || "unknown";
+
+    window.appState.setup.clipCount =
+      summary?.clips || 0;
+
     el.innerHTML = `
       <div class="ai-summary-row">
         <div class="ai-summary-title">🧠 AI Setup Ready</div>
@@ -3460,6 +3517,7 @@
     );
 
   await refreshAnalyses();
+  await runCreativeEngine("captions_changed");
 
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
@@ -3581,6 +3639,7 @@
       await loadConfigAndYaml();
       await loadCaptionsFromYaml();
       await refreshAfterChange();
+      await runCreativeEngine("captions_changed");
 
 
       setStatus("captionsStatus", "AI recommendation applied ✓", "success");
@@ -3726,6 +3785,7 @@
   }
 
   await refreshAfterChange();
+  await runCreativeEngine("captions_changed");
 
   }
 
@@ -4156,7 +4216,40 @@ function evaluateCreativeState() {
   if (hasCTA) readiness += 10;
   if (captionCount >= 3) readiness += 10;
 
-  readiness = Math.min(Math.round(readiness), 100);
+  // -----------------------------
+  // Setup Confidence Multiplier
+  // -----------------------------
+  const setup = window.appState?.setup || {};
+
+  let confidenceMultiplier = 1;
+
+  // Hook confidence influence
+  if (setup.hookConfidence === "high") {
+    confidenceMultiplier += 0.05;
+  }
+  else if (setup.hookConfidence === "low") {
+    confidenceMultiplier -= 0.05;
+  }
+
+  // Label quality influence
+  if (setup.labelQuality === "strong") {
+    confidenceMultiplier += 0.03;
+  }
+  else if (setup.labelQuality === "weak") {
+    confidenceMultiplier -= 0.03;
+  }
+
+  // Clip depth influence
+  if (setup.clipCount >= 6) {
+    confidenceMultiplier += 0.02;
+  }
+  else if (setup.clipCount <= 2) {
+    confidenceMultiplier -= 0.02;
+  }
+
+  // Apply multiplier
+  readiness = Math.round(readiness * confidenceMultiplier);
+  readiness = Math.max(0, Math.min(readiness, 100));
 
   const publishReady = readiness >= 80 && weaknesses.length === 0;
 
@@ -4368,7 +4461,7 @@ try {
     }
 
     throw new Error("Unexpected response");
-
+    await runCreativeEngine("captions_changed");
   } catch (err) {
     console.error(err);
     if (statusEl) statusEl.textContent = "Failed to improve hook.";
@@ -4443,6 +4536,7 @@ async function boostSelectedHook() {
     updateHooksReadyUI();
 
     await refreshAfterChange();
+    await runCreativeEngine("captions_changed");
 
 
     const newScore = Number(LAST_HOOK_SCORE ?? 0);
@@ -6142,6 +6236,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         : "🧠 Hide Director";
     });
   }
+
+  document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".ai-next-action-btn");
+  if (!btn) return;
+
+  const action = btn.dataset.action;
+
+  const fn = CREATIVE_ACTIONS[action];
+  if (!fn) return;
+
+  btn.disabled = true;
+  btn.textContent = "AI Working…";
+
+  try {
+    await fn();
+    await refreshAfterChange();
+  } catch (err) {
+    console.error("AI action failed", err);
+  }
+
+  btn.disabled = false;
+});
 
   document.getElementById("editSmartStatus")?.addEventListener("click", () => {
   const hook =
