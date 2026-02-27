@@ -181,15 +181,15 @@ window.appState = {
 
 const CREATIVE_ACTIONS = {
   improve_hook: async () => {
-    await improveHookAndCaptions();
+    await autoBoostSelectedHook();
   },
 
   improve_flow: async () => {
-    await improveStoryFlow();
+    await improveHooksAndCaptionsFlow();
   },
 
   write_captions: async () => {
-    await generateCaptions();
+    await regenerateCaptionsFromClips();
   },
 
   publish: async () => {
@@ -197,7 +197,7 @@ const CREATIVE_ACTIONS = {
   },
 
   polish: async () => {
-    await improveHookAndCaptions();
+    await autoBoostSelectedHook();
   }
 };
 
