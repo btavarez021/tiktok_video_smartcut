@@ -11,7 +11,7 @@
 
   // 🔵 Active session (hotel / batch)
   let ACTIVE_SESSION = "default";
-
+  
   let ACTIVE_EXPORT_TASK = null;
 
   let rewriteCommitted = false;
@@ -48,6 +48,9 @@
   let PENDING_SCROLL_TO_STORYBOARD = false;
 
   let CONFIG_CACHE = null;
+  window.appState = window.appState || {};
+  window.appState.settings = window.appState.settings || {};
+  window.appState.settings.autoAssist = false;
 
   // =======================================
   // GLOBAL APP STATE (Single Source of Truth)
@@ -266,7 +269,7 @@ const CREATIVE_ACTIONS = {
   async function runCreativeEngine(reason = "update") {
   const state = evaluateCreativeState();
 
-  if (AUTO_ASSIST && state.next !== "publish") {
+  if (window.appState.settings.autoAssist && state.next !== "publish") {
     CREATIVE_ACTIONS[state.next]?.();
   }
 
