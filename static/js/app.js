@@ -287,8 +287,15 @@ async function runCreativeEngine(reason = "update") {
   // 🚀 Autonomous improvement loop
   if (autoAssist && state.next !== "publish" && reason !== "auto_cycle") {
 
-    if (AUTO_CYCLE_COUNT > 3) {
+    if (AUTO_CYCLE_COUNT > 4) {
       console.log("🛑 Auto Assist max cycles reached");
+      AUTO_CYCLE_COUNT = 0;
+      return state;
+    }
+
+    // 🎯 High-confidence early stop
+    if (state.hook_score >= 85 && state.flow_score >= 75) {
+      console.log("🎯 High confidence — stopping auto polish");
       AUTO_CYCLE_COUNT = 0;
       return state;
     }
@@ -4314,29 +4321,48 @@ function evaluateCreativeState() {
   const publishReady = readiness >= 80 && weaknesses.length === 0;
 
   let status = "polish";
-  let message = "Good edit. Minor improvements possible.";
-  let next = "polish";
+let message = "Good edit. Minor improvements possible.";
+let next = "polish";
 
-  if (!captions.trim()) {
-    status = "empty";
-    message = "Create captions to begin.";
-    next = "write_captions";
-  }
-  else if (hook !== null && hook < 60) {
-    status = "weak_hook";
-    message = "Your hook needs stronger curiosity or clarity.";
+if (!captions.trim()) {
+  status = "empty";
+  message = "Create captions to begin.";
+  next = "write_captions";
+}
+
+else if (hook !== null && hook < 60) {
+  status = "weak_hook";
+  message = "Your hook needs stronger curiosity or clarity.";
+  next = "improve_hook";
+}
+
+else if (flow !== null && flow < 65) {
+  status = "weak_flow";
+  message = "Tighten pacing and transitions.";
+  next = "improve_flow";
+}
+
+else if (publishReady) {
+  status = "ready";
+  message = "Strong edit. Ready to publish.";
+  next = "publish";
+}
+
+else {
+  // 🧠 Intelligent polish behavior
+  status = "polish";
+  message = "Optimizing final details.";
+
+  if (hook !== null && hook < 75) {
     next = "improve_hook";
   }
-  else if (flow !== null && flow < 65) {
-    status = "weak_flow";
-    message = "Tighten pacing and transitions.";
+  else if (flow !== null && flow < 75) {
     next = "improve_flow";
   }
-  else if (publishReady) {
-    status = "ready";
-    message = "Strong edit. Ready to publish.";
+  else {
     next = "publish";
   }
+}
 
   return {
     hook_score: hook,
