@@ -6551,8 +6551,27 @@ document
     }
     
 
-document.getElementById("continueToHooksBtn")?.addEventListener("click", goToHookLab);
-document.getElementById("confirmStoryboardBtn")?.addEventListener("click", goToHookLab);
+document.getElementById("continueToHooksBtn")?.addEventListener("click", async () => {
+  await handleStoryboardContinue();
+});
+
+document.getElementById("confirmStoryboardBtn")?.addEventListener("click", async () => {
+  await handleStoryboardContinue();
+});
+
+async function handleStoryboardContinue() {
+
+  const autoAssist = window.appState?.settings?.autoAssist === true;
+
+  // 🧠 If Auto Assist is ON, evaluate first
+  if (autoAssist) {
+    console.log("🧠 Auto Assist triggered from storyboard");
+    await runCreativeEngine("storyboard_complete");
+  }
+
+  // Then go to Hook Lab (review stage)
+  goToHookLab();
+}
 
 async function saveIntent(intent) {
   const session = getActiveSession();
