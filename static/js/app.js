@@ -24,7 +24,7 @@
 
   let lastSavedCaptionsText = "";
   let lastHookScoreBeforeEdit = null;
-
+  let AUTO_CYCLE_COUNT = 0;
 
   let workingCaptionsText = "";
 
@@ -279,23 +279,38 @@ const CREATIVE_ACTIONS = {
     updateHookLabGuidance();
   }
 
-  async function runCreativeEngine(reason = "update") {
+async function runCreativeEngine(reason = "update") {
   const state = evaluateCreativeState();
 
   const autoAssist = window.appState?.settings?.autoAssist === true;
 
+  // 🚀 Autonomous improvement loop
+  if (autoAssist && state.next !== "publish" && reason !== "auto_cycle") {
 
-  if (autoAssist && state.next !== "publish") {
-  console.log("⚡ Auto Assist executing:", state.next);
-  await CREATIVE_ACTIONS[state.next]?.();
-}
+    if (AUTO_CYCLE_COUNT > 3) {
+      console.log("🛑 Auto Assist max cycles reached");
+      AUTO_CYCLE_COUNT = 0;
+      return state;
+    }
 
-  // Sync Director
+    AUTO_CYCLE_COUNT++;
+
+    console.log("⚡ Auto Assist executing:", state.next, "Cycle:", AUTO_CYCLE_COUNT);
+
+    await CREATIVE_ACTIONS[state.next]?.();
+
+    return runCreativeEngine("auto_cycle");
+  }
+
+  // UI sync
   renderPublishReadyState(state);
   renderNextActionButton(state);
   updateSmartStatus();
 
   console.log("🧠 Creative Engine Run:", reason, state.status);
+
+  // Reset cycle counter when stable
+  AUTO_CYCLE_COUNT = 0;
 
   return state;
 }
