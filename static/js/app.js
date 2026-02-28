@@ -4503,8 +4503,19 @@ try {
       return;
     }
 
-    throw new Error("Unexpected response");
+    if (data.status === "proposed") {
+    proposeRewrite(data.proposed, "Hook rewrite ready");
+
+    if (statusEl) {
+      statusEl.textContent =
+        "Hook rewrite ready — review & accept or reject";
+    }
+
     await runCreativeEngine("captions_changed");
+    return;
+  }
+
+  throw new Error("Unexpected response");
   } catch (err) {
     console.error(err);
     if (statusEl) statusEl.textContent = "Failed to improve hook.";
