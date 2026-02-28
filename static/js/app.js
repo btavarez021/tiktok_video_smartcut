@@ -6313,10 +6313,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (toggle) {
     toggle.checked = window.appState.settings.autoAssist;
 
-    toggle.addEventListener("change", (e) => {
+    toggle.addEventListener("change", async (e) => {
       const enabled = e.target.checked;
 
       window.appState.settings.autoAssist = enabled;
+
+      if (enabled){
+        await runCreativeEngine("auto_enabled");
+      }
 
       toast?.(
         enabled
