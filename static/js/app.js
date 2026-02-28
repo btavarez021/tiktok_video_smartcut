@@ -285,7 +285,7 @@ const CREATIVE_ACTIONS = {
   const autoAssist = window.appState?.settings?.autoAssist === true;
 
   if (autoAssist && state.next !== "publish") {
-      CREATIVE_ACTIONS[state.next]?.();
+      await CREATIVE_ACTIONS[state.next]?.();
     }
 
   // Sync Director
