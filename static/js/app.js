@@ -50,6 +50,10 @@
 
   let CONFIG_CACHE = null;
 
+  window.appState = window.appState || {};
+  window.appState.settings = window.appState.settings || {};
+  window.appState.settings.autoAssist ??= false;
+
   // =======================================
   // GLOBAL APP STATE (Single Source of Truth)
   // =======================================
@@ -6273,6 +6277,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       toggleDirectorBtn.textContent = directorPanel.classList.contains("collapsed")
         ? "🧠 AI Director"
         : "🧠 Hide Director";
+    });
+  }
+
+  const toggle = document.getElementById("autoAssistToggle");
+
+  if (toggle) {
+    toggle.checked = window.appState.settings.autoAssist;
+
+    toggle.addEventListener("change", (e) => {
+      const enabled = e.target.checked;
+
+      window.appState.settings.autoAssist = enabled;
+
+      toast?.(
+        enabled
+          ? "🧠 Auto Assist Enabled — AI will act automatically"
+          : "🧠 Auto Assist Disabled — AI will suggest only"
+      );
     });
   }
 
