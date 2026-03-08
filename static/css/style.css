@@ -4112,34 +4112,38 @@ body.no-scroll {
 }
 
 .ai-mode-bar {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:10px 18px;
-  background:#0f172a;
-  border-bottom:1px solid rgba(255,255,255,.06);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .ai-mode-left {
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.ai-mode-right {
-  opacity:.7;
-  font-size:13px;
+  flex: 1;
+  min-width: 0;
 }
 
 .ai-toggle {
-  display:flex;
-  align-items:center;
-  gap:6px;
-  font-weight:600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
 }
 
-.ai-toggle input {
-  cursor:pointer;
+.ai-mode-subtitle {
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .ai-mode-bar {
+    display: block;
+  }
+
+  .ai-mode-subtitle {
+    margin-top: 6px;
+    padding-left: 0;
+  }
 }
 
 .variantScores {
