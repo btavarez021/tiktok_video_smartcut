@@ -652,22 +652,25 @@ def is_weak_label(label: str) -> bool:
     label = label.lower().strip()
 
     # Too short
-    if len(label) < 6:
+    if len(label) < 4:
         return True
 
-    # Too generic
     weak_words = {
         "video", "clip", "shot", "scene",
-        "food", "drink", "hotel", "lobby",
-        "cocktail", "view", "room",
         "test", "sample", "file", "upload"
     }
 
+    # Only reject truly useless generic labels
     if label in weak_words:
         return True
 
-    # Single vague noun
-    if " " not in label:
+    # Reject single-word labels only if they are overly generic
+    weak_single_words = {
+        "food", "drink", "hotel", "lobby",
+        "cocktail", "view", "room"
+    }
+
+    if " " not in label and label in weak_single_words:
         return True
 
     return False
@@ -2161,19 +2164,35 @@ def infer_video_goal(labels: dict) -> str:
 
     text = " ".join(labels.values()).lower()
 
-    if any(k in text for k in ["hotel", "resort", "room", "lobby"]):
-        return "Hotel / Travel Highlight"
+    scores = {
+        "Hotel / Travel Highlight": 0,
+        "Food & Lifestyle": 0,
+        "Event Recap": 0,
+        "Relaxation / Vibes": 0,
+    }
 
-    if any(k in text for k in ["food", "dinner", "restaurant", "cocktail"]):
-        return "Food & Lifestyle"
+    for k in ["hotel", "resort", "room", "lobby", "suite", "check-in"]:
+        if k in text:
+            scores["Hotel / Travel Highlight"] += 1
 
-    if any(k in text for k in ["concert", "festival", "dj", "show"]):
-        return "Event Recap"
+    for k in ["food", "dinner", "restaurant", "cocktail", "bar", "drink", "brunch"]:
+        if k in text:
+            scores["Food & Lifestyle"] += 1
 
-    if any(k in text for k in ["beach", "pool", "sunset", "ocean"]):
-        return "Relaxation / Vibes"
+    for k in ["concert", "festival", "dj", "show", "party", "stage"]:
+        if k in text:
+            scores["Event Recap"] += 1
 
-    return "Travel Highlight"
+    for k in ["beach", "pool", "sunset", "ocean", "spa", "rooftop", "vibes"]:
+        if k in text:
+            scores["Relaxation / Vibes"] += 1
+
+    best = max(scores, key=scores.get)
+
+    if scores[best] == 0:
+        return "General highlight"
+
+    return best
 
 
 def api_ai_setup_summary(session: str) -> dict:
