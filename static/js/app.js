@@ -306,7 +306,7 @@ const CREATIVE_ACTIONS = {
 
 async function runCreativeEngine(reason = "update") {
 
-  const state = evaluateCreativeState();
+  let state = evaluateCreativeState();
 
   const autoAssist = window.appState?.settings?.autoAssist === true;
 
@@ -494,6 +494,7 @@ function renderPublishReadyState(state) {
         readiness_score: hook,
         publish_ready: false,
         primary_weakness: "Hook clarity",
+        priority_actions: ["Improve hook to create stronger curiosity"],
         status: "weak_hook",
         message: "Your hook needs stronger curiosity or clarity.",
         next: "improve_hook"
@@ -501,55 +502,58 @@ function renderPublishReadyState(state) {
     }
 
     if (hook < 70) {
-      return {
-        hook_score: hook,
-        flow_score: flow,
-        readiness_score: hook,
-        publish_ready: false,
-        primary_weakness: "Hook strength",
-        status: "almost_hook",
-        message: `Improve hook by ${70 - hook} more points.`,
-        next: "improve_hook"
-      };
-    }
+  return {
+    hook_score: hook,
+    flow_score: flow,
+    readiness_score: hook,
+    publish_ready: false,
+    primary_weakness: "Hook strength",
+    priority_actions: ["Refine hook for stronger impact"],
+    status: "almost_hook",
+    message: `Improve hook by ${70 - hook} more points.`,
+    next: "improve_hook"
+  };
+}
 
     if (flow < 60) {
-      return {
-        hook_score: hook,
-        flow_score: flow,
-        readiness_score: Math.min(hook, flow),
-        publish_ready: false,
-        primary_weakness: "Story pacing",
-        status: "weak_flow",
-        message: "Tighten pacing and transitions.",
-        next: "improve_flow"
-      };
-    }
+  return {
+    hook_score: hook,
+    flow_score: flow,
+    readiness_score: Math.min(hook, flow),
+    publish_ready: false,
+    primary_weakness: "Story pacing",
+    priority_actions: ["Improve pacing and caption transitions"],
+    status: "weak_flow",
+    message: "Tighten pacing and transitions.",
+    next: "improve_flow"
+  };
+}
 
-    if (hook >= 75 && flow >= 65) {
-      return {
-        hook_score: hook,
-        flow_score: flow,
-        readiness_score: Math.round((hook + flow) / 2),
-        publish_ready: true,
-        primary_weakness: null,
-        status: "ready",
-        message: "Strong edit. Ready to publish.",
-        next: "publish"
-      };
-    }
-
+  if (hook >= 75 && flow >= 65) {
     return {
       hook_score: hook,
       flow_score: flow,
       readiness_score: Math.round((hook + flow) / 2),
-      publish_ready: false,
+      publish_ready: true,
       primary_weakness: null,
-      status: "polish",
-      message: "Good edit. Minor improvements possible.",
-      next: "polish"
+      priority_actions: [],
+      status: "ready",
+      message: "Strong edit. Ready to publish.",
+      next: "publish"
     };
   }
+
+    return {
+  hook_score: hook,
+  flow_score: flow,
+  readiness_score: Math.round((hook + flow) / 2),
+  publish_ready: false,
+  primary_weakness: null,
+  priority_actions: ["Polish hook or pacing before export"],
+  status: "polish",
+  message: "Good edit. Minor improvements possible.",
+  next: "polish"
+};
 
   function renderNextActionButton(state) {
   if (!state?.next) return "";
@@ -586,36 +590,6 @@ function renderPublishReadyState(state) {
     if (score < 80) return "Smooth";
     if (score < 90) return "Excellent";
     return "Elite";
-  }
-
-
-  function renderPublishReadyState(state) {
-    if (!state) state = evaluateCreativeState();
-
-    const box = document.getElementById("publishReadyBanner");
-    if (!box) return;
-
-    maybeCelebrateReadiness({ status: state.status });
-
-    box.classList.remove("hidden");
-
-    let colorClass = "publish-neutral";
-
-    if (state.status === "ready") colorClass = "publish-ready";
-    if (state.status === "weak_hook" || state.status === "weak_flow")
-      colorClass = "publish-warning";
-    if (state.status === "empty") colorClass = "publish-empty";
-
-    box.className = `publish-ready-state ${colorClass}`;
-
-    box.innerHTML = `
-      <div class="readiness-title">🧠 AI Readiness</div>
-      <div class="readiness-message">${state.message}</div>
-      <div class="readiness-scores">
-        Hook: ${state.hook_score}/100 &nbsp; | &nbsp; Flow: ${state.flow_score}/100
-      </div>
-      ${renderNextActionButton(state)}
-    `;
   }
 
 
