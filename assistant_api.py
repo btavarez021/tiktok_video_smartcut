@@ -1033,8 +1033,6 @@ def api_generate_hooks(session: str, intent: str | None = None):
         
         hooks = []
         for text in data.get("hooks", []):
-            score_data = score_hook_text(clean, intent)
-            score = max(score_data["score"] - penalty, 0)
             clean = strip_emojis(text).strip()
             lower = clean.lower()
 
@@ -1042,6 +1040,9 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             if any(p in lower for p in WEAK_HOOK_PATTERNS):
                 penalty = 8
+            
+            score_data = score_hook_text(clean, intent)
+            score = max(score_data["score"] - penalty, 0)
 
             if any(w in lower for w in ["wait", "watch", "this", "you", "from"]):
                 tone = "punchy"
