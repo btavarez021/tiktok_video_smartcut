@@ -4432,17 +4432,38 @@ function evaluateCreativeState() {
     message = "Strong edit. Ready to publish.";
     next = "publish";
   } else {
-    status = "polish";
-    message = "Optimizing final details.";
+  status = "polish";
+  message = "Optimizing final details.";
 
-    if (hook !== null && hook < 75) {
-      next = "improve_hook";
-    } else if (flow !== null && flow < 75) {
-      next = "improve_flow";
-    } else {
-      next = "publish";
-    }
+  // 🚨 Broken hook always first
+  if (hook !== null && hook < 60) {
+    next = "improve_hook";
   }
+
+  // 🚨 Broken story flow takes priority over hook polish
+  else if (flow !== null && flow < 60) {
+    next = "improve_flow";
+  }
+
+  // 📉 Fix the weaker element
+  else if (hook !== null && flow !== null && flow < hook) {
+    next = "improve_flow";
+  }
+
+  // ✨ Polish hook
+  else if (hook !== null && hook < 75) {
+    next = "improve_hook";
+  }
+
+  // ✨ Polish flow
+  else if (flow !== null && flow < 75) {
+    next = "improve_flow";
+  }
+
+  else {
+    next = "publish";
+  }
+}
 
   const result = {
     hook_score: hook,
