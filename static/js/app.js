@@ -25,6 +25,7 @@
   let lastSavedCaptionsText = "";
   let lastHookScoreBeforeEdit = null;
   let AUTO_CYCLE_COUNT = 0;
+  let AUTO_ASSIST_RUNNING = false;
 
   let workingCaptionsText = "";
 
@@ -53,6 +54,12 @@
   window.appState = window.appState || {};
   window.appState.settings = window.appState.settings || {};
   window.appState.settings.autoAssist ??= false;
+
+  const AUTO_ASSIST_PIPELINE = [
+  "improve_hook",
+  "improve_flow",
+  "polish"
+];
 
   // =======================================
   // GLOBAL APP STATE (Single Source of Truth)
@@ -214,6 +221,9 @@ const CREATIVE_ACTIONS = {
     guidance = true
   } = {}) {
 
+    const oldHook = LAST_HOOK_SCORE;
+    const oldFlow = LAST_FLOW_SCORE;
+
     if (REFRESH_LOCK){
       console.log("Refreshed skipped(locked)");
       return;
@@ -257,6 +267,21 @@ const CREATIVE_ACTIONS = {
 
       logAppState("After refresh");
 
+      const newHook = LAST_HOOK_SCORE;
+      const newFlow = LAST_FLOW_SCORE;
+
+      if (oldHook && newHook && newHook > oldHook) {
+        showAutoAssistUpdate(
+          `🧠 Auto Assist improved hook ${oldHook} → ${newHook}`
+        );
+      }
+
+      if (oldFlow && newFlow && newFlow > oldFlow) {
+        showAutoAssistUpdate(
+          `🧠 Auto Assist improved story flow ${oldFlow} → ${newFlow}`
+        );
+      }
+
     } catch (e) {
       console.warn("refreshAfterChange failed", e);
     } finally {
@@ -280,44 +305,82 @@ const CREATIVE_ACTIONS = {
   }
 
 async function runCreativeEngine(reason = "update") {
+
   const state = evaluateCreativeState();
 
   const autoAssist = window.appState?.settings?.autoAssist === true;
 
-  // 🚀 Autonomous improvement loop
-  if (autoAssist && state.next !== "publish" && reason !== "auto_cycle") {
-
-    if (AUTO_CYCLE_COUNT > 4) {
-      console.log("🛑 Auto Assist max cycles reached");
-      AUTO_CYCLE_COUNT = 0;
-      return state;
-    }
-
-    // 🎯 High-confidence early stop
-    if (state.hook_score >= 85 && state.flow_score >= 75) {
-      console.log("🎯 High confidence — stopping auto polish");
-      AUTO_CYCLE_COUNT = 0;
-      return state;
-    }
-
-    AUTO_CYCLE_COUNT++;
-
-    console.log("⚡ Auto Assist executing:", state.next, "Cycle:", AUTO_CYCLE_COUNT);
-
-    await CREATIVE_ACTIONS[state.next]?.();
-
-    return runCreativeEngine("auto_cycle");
+  // 🎯 Stop when edit already strong
+  if (
+    autoAssist &&
+    state.hook_score >= 85 &&
+    state.flow_score >= 75
+  ) {
+    console.log("🎯 High confidence — stopping Auto Assist");
+    AUTO_CYCLE_COUNT = 0;
+    return state;
   }
 
-  // UI sync
+  if (
+  autoAssist &&
+  state.next !== "publish" &&
+  reason !== "auto_cycle" &&
+  !AUTO_ASSIST_RUNNING
+  ) {
+
+    AUTO_ASSIST_RUNNING = true;
+
+    console.log("⚡ Auto Assist pipeline starting");
+
+    state = await runAutoAssistPipeline(state);
+
+    AUTO_ASSIST_RUNNING = false;
+
+  }
+
   renderPublishReadyState(state);
   renderNextActionButton(state);
   updateSmartStatus();
 
   console.log("🧠 Creative Engine Run:", reason, state.status);
 
-  // Reset cycle counter when stable
-  AUTO_CYCLE_COUNT = 0;
+  return state;
+}
+
+async function runAutoAssistPipeline(state) {
+
+  for (const action of AUTO_ASSIST_PIPELINE) {
+
+    if (state.next === "publish") break;
+
+    if (state.next === action) {
+
+      console.log("⚡ Auto Assist executing:", action);
+
+      const fn = CREATIVE_ACTIONS[action];
+      if (!fn) continue;
+
+      await fn();
+
+      await refreshAfterChange();
+
+      // Re-evaluate after change
+      state = evaluateCreativeState();
+
+      console.log("🧠 Pipeline state:", state.status);
+
+      // Stop if edit is strong enough
+      if (
+        state.hook_score >= 85 &&
+        state.flow_score >= 75
+      ) {
+        console.log("🎯 Edit strong — stopping pipeline");
+        break;
+      }
+
+    }
+
+  }
 
   return state;
 }
@@ -684,6 +747,10 @@ async function runCreativeEngine(reason = "update") {
       // ✅ Transition: running → done
       if (lastVariantStatus === "running" && status === "done") {
         console.log("✅ Variants ready");
+
+        showAutoAssistUpdate(
+        "🧠 Auto Assist optimized captions for stronger storytelling"
+      );
 
         const variants = data.result?.variants || [];
 
@@ -4514,57 +4581,61 @@ function clearOverlayWarning() {
 
 
 async function improveHook() {
+
   const btn = document.getElementById("improveHookBtn");
   const statusEl = document.getElementById("hookScoreStatus");
+
   if (!btn) return;
 
   btn.disabled = true;
+
   if (statusEl) {
-  statusEl.textContent = "Improving hook…";
-  statusEl.className = "status-text status-working";
-}
-
-
-try {
-  const data = await jsonFetch("/api/hook_improve", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session: getActiveSession() }),
-  });
-
-  if (data.status === "error") {
-    throw new Error(data.error || "failed");
+    statusEl.textContent = "Improving hook…";
+    statusEl.className = "status-text status-working";
   }
 
-    // 🔥 Rewrite proposal
+  try {
+
+    const data = await jsonFetch("/api/hook_improve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session: getActiveSession() }),
+    });
+
+    if (data.status === "error") {
+      throw new Error(data.error || "failed");
+    }
+
     if (data.status === "proposed") {
+
       proposeRewrite(data.proposed, "Hook rewrite ready");
 
       if (statusEl) {
-        statusEl.textContent = "Hook rewrite ready — review & accept or reject";
+        statusEl.textContent =
+          "Hook rewrite ready — review & accept or reject";
       }
+
+      await runCreativeEngine("captions_changed");
+
       return;
     }
 
-    if (data.status === "proposed") {
-    proposeRewrite(data.proposed, "Hook rewrite ready");
+    throw new Error("Unexpected response");
+
+  } catch (err) {
+
+    console.error(err);
 
     if (statusEl) {
-      statusEl.textContent =
-        "Hook rewrite ready — review & accept or reject";
+      statusEl.textContent = "Failed to improve hook.";
     }
 
-    await runCreativeEngine("captions_changed");
-    return;
+  } finally {
+
+    btn.disabled = false;
+
   }
 
-  throw new Error("Unexpected response");
-  } catch (err) {
-    console.error(err);
-    if (statusEl) statusEl.textContent = "Failed to improve hook.";
-  } finally {
-    btn.disabled = false;
-  }
 }
 
 async function boostSelectedHook() {
@@ -4838,6 +4909,14 @@ function addStepEnterHandler(stepNumber, callback) {
     }, { threshold: 0.4 });
 
     observer.observe(stepCard);
+}
+
+function showAutoAssistUpdate(message) {
+  const el = document.getElementById("editSmartStatus");
+  if (!el) return;
+
+  el.classList.remove("hidden");
+  el.textContent = message;
 }
 
 function updateSmartStatus() {
