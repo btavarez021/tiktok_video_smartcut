@@ -1877,8 +1877,16 @@ function rerenderVariantsList() {
       // ================================
       // Smart next action
       // ================================
-      const nextMove = getHookNextMove(hookScore, delta);
-      highlightHookAction(nextMove);
+      let creativeState = evaluateCreativeState();
+      const primaryFocus = creativeState.primary_focus;
+      const nextMove =
+        primaryFocus === "flow"
+          ? "flow"
+          : getHookNextMove(hookScore, delta);
+
+      highlightHookAction(
+        nextMove === "flow" ? "done" : nextMove
+      );
 
       // ================================
       // Render
@@ -1906,6 +1914,12 @@ function rerenderVariantsList() {
             }
           }
 
+          // If flow is the primary issue, suppress hook urgency
+          if (primaryFocus === "flow" && s.area === "hook" && hookScore < 75) {
+            toneImpact = "low";
+            toneIssue = "👍 Hook is good enough for now — fix story flow first.";
+          }
+
           let guidance = `👉 ${s.action}`;
 
           if (s.area === "hook") {
@@ -1921,6 +1935,11 @@ function rerenderVariantsList() {
             if (nextMove === "done") {
               guidance = "✅ Strong hook — move to story flow";
             }
+          }
+
+          // If flow is the real priority, pause hook optimization
+          if (primaryFocus === "flow" && s.area === "hook") {
+            guidance = "⏸ Hold hook changes until story flow is improved";
           }
 
           return `
@@ -1968,7 +1987,7 @@ function rerenderVariantsList() {
       }, 120);
 
       panel.classList.remove("hidden");
-      const creativeState = evaluateCreativeState();
+      creativeState = evaluateCreativeState();
       renderPublishReadyState(creativeState);
       renderEditProgress();
       document.body.classList.toggle("readiness-ready", creativeState.publish_ready);
@@ -2043,14 +2062,18 @@ function rerenderVariantsList() {
     fill.style.width = `${progress}%`;
     percentEl.textContent = `${progress}%`;
 
-    if (progress < 50) {
+    const focus = state.primary_focus;
+
+    if (focus === "hook") {
       hint.textContent = "Strengthen the hook to gain momentum.";
-    } else if (progress < 75) {
+    } else if (focus === "flow") {
       hint.textContent = "Looking good — refine pacing & flow.";
-    } else if (progress < 90) {
-      hint.textContent = "Almost publish ready.";
+    } else if (focus === "publish") {
+      hint.textContent = progress < 90
+        ? "Almost publish ready."
+        : "🔥 Excellent. Your edit is elite.";
     } else {
-      hint.textContent = "🔥 Excellent. Your edit is elite.";
+      hint.textContent = "Scoring in progress…";
     }
   }
 
@@ -4481,8 +4504,28 @@ function evaluateCreativeState() {
     intent
   };
 
+  result.primary_focus = getPrimaryCreativeFocus(result);
+
   window.appState.creative = result;
   return result;
+}
+
+function getPrimaryCreativeFocus(state) {
+  if (!state) return "scoring";
+
+  const hook = state.hook_score;
+  const flow = state.flow_score;
+
+  if (hook == null || flow == null) return "scoring";
+
+  if (hook < 60) return "hook";
+  if (flow < 60) return "flow";
+
+  if (flow < hook && flow < 75) return "flow";
+  if (hook < 75) return "hook";
+  if (flow < 75) return "flow";
+
+  return "publish";
 }
 
 async function refreshHookScore() {
@@ -5004,35 +5047,29 @@ function updateSmartStatus() {
     LAST_FLOW_SCORE ??
     null;
 
-  const flowThreshold = {
-    discovery: 70,
-    luxury: 80,
-    informational: 75,
-    personal: 72
-  }[window.appState.hook.intent] || 70;
-
   if (hook === null || flow === null) {
     el.classList.add("hidden");
     return;
   }
 
+  const state = evaluateCreativeState();
+  const focus = state.primary_focus;
+
   el.classList.remove("hidden");
   el.className = "edit-smart-status";
 
-  if (hook < 60) {
+  if (focus === "hook") {
     el.textContent = "🔴 Fix Hook First";
     el.classList.add("red");
-  } 
-  
-
-  else if (flow < flowThreshold) {
-      el.textContent = "🟡 Improve Story Flow";
-      el.classList.add("yellow");
-    } 
-  else if (hook >= 85 && flow >= 85) {
+  }
+  else if (focus === "flow") {
+    el.textContent = "🟡 Improve Story Flow";
+    el.classList.add("yellow");
+  }
+  else if (focus === "publish") {
     el.textContent = "🚀 Publish Ready";
     el.classList.add("green");
-  } 
+  }
   else {
     el.textContent = "🔵 Polish & Optimize";
     el.classList.add("blue");
