@@ -52,6 +52,8 @@
   let CONFIG_CACHE = null;
 
   window.appState = window.appState || {};
+
+  
   window.appState.settings = window.appState.settings || {};
   window.appState.settings.autoAssist ??= false;
 
@@ -66,50 +68,59 @@
   // =======================================
 
 window.appState = {
-  session: null,
+  ...(window.appState || {}),
+
+  session: window.appState?.session || null,
 
   hook: {
-    selected: null,
-    intent: "discovery",
-    locked: false,
-    lastGenerated: []
+    ...(window.appState?.hook || {}),
+    selected: window.appState?.hook?.selected || null,
+    intent: window.appState?.hook?.intent || "discovery",
+    locked: window.appState?.hook?.locked || false,
+    lastGenerated: window.appState?.hook?.lastGenerated || []
   },
 
   variants: {
-    modes: {},
-    list: [],
-    recommendedId: null,
-    generating: false
+    ...(window.appState?.variants || {}),
+    modes: window.appState?.variants?.modes || {},
+    list: window.appState?.variants?.list || [],
+    recommendedId: window.appState?.variants?.recommendedId || null,
+    generating: window.appState?.variants?.generating || false
   },
 
   captions: {
-    baseline: "",
-    current: "",
-    source: "none"
+    ...(window.appState?.captions || {}),
+    baseline: window.appState?.captions?.baseline || "",
+    current: window.appState?.captions?.current || "",
+    source: window.appState?.captions?.source || "none"
   },
 
   storyboard: {
-    order: []
+    ...(window.appState?.storyboard || {}),
+    order: window.appState?.storyboard?.order || []
   },
 
   scores: {
-    hook: null,
-    storyFlow: null
+    ...(window.appState?.scores || {}),
+    hook: window.appState?.scores?.hook ?? null,
+    storyFlow: window.appState?.scores?.storyFlow ?? null
   },
 
   ui: {
-    yamlPolling: false
+    ...(window.appState?.ui || {}),
+    yamlPolling: window.appState?.ui?.yamlPolling || false
   },
 
   setup: {
-    hookConfidence: "unknown",
-    labelQuality: "unknown",
-    clipCount: 0
+    ...(window.appState?.setup || {}),
+    hookConfidence: window.appState?.setup?.hookConfidence || "unknown",
+    labelQuality: window.appState?.setup?.labelQuality || "unknown",
+    clipCount: window.appState?.setup?.clipCount || 0
   },
 
-  // 🔥 ADD THIS
   settings: {
-    autoAssist: false
+    ...(window.appState?.settings || {}),
+    autoAssist: window.appState?.settings?.autoAssist ?? false
   }
 };
 
@@ -400,27 +411,36 @@ function renderPublishReadyState(state) {
 
   if (!wrap) return;
 
+  const safeState = state || window.appState?.creative || evaluateCreativeState();
+
   wrap.classList.remove("hidden", "ready", "needs-work", "polish");
 
-  const readiness = state?.readiness_score ?? 0;
-  const hook = state?.hook_score;
-  const flow = state?.flow_score;
-  const primaryWeakness = state?.primary_weakness || null;
-  const priorityActions = state?.priority_actions || [];
-  const publishReady = state?.publish_ready === true;
+  const readiness = safeState?.readiness_score ?? null;
+  const hook = safeState?.hook_score ?? null;
+  const flow = safeState?.flow_score ?? null;
+  const primaryWeakness = safeState?.primary_weakness || null;
+  const priorityActions = safeState?.priority_actions || [];
+  const publishReady = safeState?.publish_ready === true;
 
-  if (readinessEl) readinessEl.textContent = `${readiness}%`;
+  if (readinessEl) {
+    readinessEl.textContent =
+      readiness == null ? "Calculating..." : `${readiness}%`;
+  }
+
   if (hookEl) hookEl.textContent = hook == null ? "—" : `${hook}/100`;
   if (flowEl) flowEl.textContent = flow == null ? "—" : `${flow}/100`;
 
   if (message) {
-    message.textContent = state?.message || "Reviewing final edit quality…";
+    message.textContent = safeState?.message || "Reviewing final edit quality…";
   }
 
   if (pill) {
     if (publishReady) {
       pill.textContent = "Ready to Export";
       wrap.classList.add("ready");
+    } else if (readiness == null) {
+      pill.textContent = "Calculating";
+      wrap.classList.add("polish");
     } else if (readiness >= 65) {
       pill.textContent = "Can Be Improved";
       wrap.classList.add("polish");
@@ -456,7 +476,8 @@ function renderPublishReadyState(state) {
   }
 
   if (fixBtn) {
-    fixBtn.classList.toggle("hidden", publishReady || state?.next === "publish");
+    fixBtn.classList.toggle("hidden", publishReady || safeState?.next === "publish");
+    fixBtn.disabled = readiness == null;
   }
 
   if (anywayBtn) {
@@ -467,93 +488,6 @@ function renderPublishReadyState(state) {
     exportBtn.textContent = publishReady ? "🎥 Render & Export" : "🎥 Export Anyway";
     exportBtn.disabled = false;
   }
-}
-
-  function evaluateCreativeState() {
-    const hook = window.appState?.scores?.hook ?? LAST_HOOK_SCORE ?? null;
-    const flow = window.appState?.scores?.storyFlow ?? LAST_FLOW_SCORE ?? null;
-    const hasCaptions = !!lastSavedCaptionsText?.trim();
-
-    if (!hasCaptions) {
-      return {
-        hook_score: hook,
-        flow_score: flow,
-        readiness_score: 0,
-        publish_ready: false,
-        primary_weakness: "No captions",
-        status: "empty",
-        message: "Create captions to begin.",
-        next: "write_captions"
-      };
-    }
-
-    if (hook < 50) {
-      return {
-        hook_score: hook,
-        flow_score: flow,
-        readiness_score: hook,
-        publish_ready: false,
-        primary_weakness: "Hook clarity",
-        priority_actions: ["Improve hook to create stronger curiosity"],
-        status: "weak_hook",
-        message: "Your hook needs stronger curiosity or clarity.",
-        next: "improve_hook"
-      };
-    }
-
-    if (hook < 70) {
-  return {
-    hook_score: hook,
-    flow_score: flow,
-    readiness_score: hook,
-    publish_ready: false,
-    primary_weakness: "Hook strength",
-    priority_actions: ["Refine hook for stronger impact"],
-    status: "almost_hook",
-    message: `Improve hook by ${70 - hook} more points.`,
-    next: "improve_hook"
-  };
-}
-
-    if (flow < 60) {
-  return {
-    hook_score: hook,
-    flow_score: flow,
-    readiness_score: Math.min(hook, flow),
-    publish_ready: false,
-    primary_weakness: "Story pacing",
-    priority_actions: ["Improve pacing and caption transitions"],
-    status: "weak_flow",
-    message: "Tighten pacing and transitions.",
-    next: "improve_flow"
-  };
-}
-
-  if (hook >= 75 && flow >= 65) {
-    return {
-      hook_score: hook,
-      flow_score: flow,
-      readiness_score: Math.round((hook + flow) / 2),
-      publish_ready: true,
-      primary_weakness: null,
-      priority_actions: [],
-      status: "ready",
-      message: "Strong edit. Ready to publish.",
-      next: "publish"
-    };
-  }
-
-    return {
-      hook_score: hook,
-      flow_score: flow,
-      readiness_score: Math.round((hook + flow) / 2),
-      publish_ready: false,
-      primary_weakness: null,
-      priority_actions: ["Polish hook or pacing before export"],
-      status: "polish",
-      message: "Good edit. Minor improvements possible.",
-      next: "polish"
-    };
 }
 
   function renderNextActionButton(state) {
@@ -2004,11 +1938,10 @@ function renderPublishReadyState(state) {
       }, 120);
 
       panel.classList.remove("hidden");
-      renderPublishReadyState();
-      renderEditProgress();
-
       const creativeState = evaluateCreativeState();
-    document.body.classList.toggle("readiness-ready", creativeState.publish_ready);
+      renderPublishReadyState(creativeState);
+      renderEditProgress();
+      document.body.classList.toggle("readiness-ready", creativeState.publish_ready);
     } catch (err) {
       console.error(err);
     }
@@ -4314,7 +4247,6 @@ async function saveYaml() {
 }
 
 function handleHookScoreSideEffects(score) {
-  // Story Flow lock
   const flowCard = document.querySelector(".story-flow-card");
   const lockedHint = document.getElementById("storyFlowLockedHint");
 
@@ -4328,10 +4260,8 @@ function handleHookScoreSideEffects(score) {
     }
   }
 
-  // Improve buttons
   updateImproveButtons(score, null);
 
-  // Rewrite warning
   if (score < 60) {
     setStatus(
       "overlayStatus",
@@ -4342,10 +4272,12 @@ function handleHookScoreSideEffects(score) {
   } else {
     clearOverlayWarning();
   }
+
+  const creativeState = evaluateCreativeState();
+  renderPublishReadyState(creativeState);
 }
 
 function evaluateCreativeState() {
-
   window.appState = window.appState || {};
   window.appState.setup = window.appState.setup || {
     hookConfidence: "unknown",
@@ -4353,10 +4285,13 @@ function evaluateCreativeState() {
     clipCount: 0
   };
 
-  const hook = LAST_HOOK_SCORE ?? null;
-  const flow = LAST_FLOW_SCORE ?? null;
+  const hook = window.appState?.scores?.hook ?? LAST_HOOK_SCORE ?? null;
+  const flow = window.appState?.scores?.storyFlow ?? LAST_FLOW_SCORE ?? null;
   const intent = window.appState?.hook?.intent || "default";
-  const captions = getCurrentCaptionsText() || "";
+  const captions =
+    (typeof getCurrentCaptionsText === "function" ? getCurrentCaptionsText() : "") ||
+    lastSavedCaptionsText ||
+    "";
 
   const blocks = captions
     .split(/\n\s*\n/)
@@ -4365,16 +4300,16 @@ function evaluateCreativeState() {
 
   const captionCount = blocks.length;
 
-  const hasCTA = captions.toLowerCase().includes("follow") ||
-                 captions.toLowerCase().includes("subscribe") ||
-                 captions.toLowerCase().includes("book");
+  const lowerCaptions = captions.toLowerCase();
+  const hasCTA =
+    lowerCaptions.includes("follow") ||
+    lowerCaptions.includes("subscribe") ||
+    lowerCaptions.includes("book");
 
   const weaknesses = [];
   const priority = [];
 
-  // -----------------------------
   // Hook Analysis
-  // -----------------------------
   if (hook !== null) {
     if (hook < 60) {
       weaknesses.push("Hook clarity");
@@ -4385,9 +4320,7 @@ function evaluateCreativeState() {
     }
   }
 
-  // -----------------------------
   // Flow Analysis
-  // -----------------------------
   if (flow !== null) {
     if (flow < 65) {
       weaknesses.push("Story pacing");
@@ -4398,9 +4331,7 @@ function evaluateCreativeState() {
     }
   }
 
-  // -----------------------------
   // Structural Checks
-  // -----------------------------
   if (captionCount < 3) {
     weaknesses.push("Video depth");
     priority.push("Add more storytelling content");
@@ -4411,9 +4342,7 @@ function evaluateCreativeState() {
     priority.push("Add a strong closing CTA");
   }
 
-  // -----------------------------
   // Readiness Score
-  // -----------------------------
   let readiness = 0;
 
   if (hook !== null) readiness += hook * 0.4;
@@ -4421,88 +4350,71 @@ function evaluateCreativeState() {
   if (hasCTA) readiness += 10;
   if (captionCount >= 3) readiness += 10;
 
-  // -----------------------------
   // Setup Confidence Multiplier
-  // -----------------------------
   const setup = window.appState?.setup || {};
 
   let confidenceMultiplier = 1;
 
-  // Hook confidence influence
   if (setup.hookConfidence === "high") {
     confidenceMultiplier += 0.05;
-  }
-  else if (setup.hookConfidence === "low") {
+  } else if (setup.hookConfidence === "low") {
     confidenceMultiplier -= 0.05;
   }
 
-  // Label quality influence
   if (setup.labelQuality === "strong") {
     confidenceMultiplier += 0.03;
-  }
-  else if (setup.labelQuality === "weak") {
+  } else if (setup.labelQuality === "weak") {
     confidenceMultiplier -= 0.03;
   }
 
-  // Clip depth influence
   if (setup.clipCount >= 6) {
     confidenceMultiplier += 0.02;
-  }
-  else if (setup.clipCount <= 2) {
+  } else if (setup.clipCount <= 2) {
     confidenceMultiplier -= 0.02;
   }
 
-  // Apply multiplier
   readiness = Math.round(readiness * confidenceMultiplier);
   readiness = Math.max(0, Math.min(readiness, 100));
 
-  const publishReady = readiness >= 80 && weaknesses.length === 0;
+  const publishReady =
+    readiness >= 80 &&
+    !(hook !== null && hook < 75) &&
+    !(flow !== null && flow < 65);
 
   let status = "polish";
-let message = "Good edit. Minor improvements possible.";
-let next = "polish";
+  let message = "Good edit. Minor improvements possible.";
+  let next = "polish";
 
-if (!captions.trim()) {
-  status = "empty";
-  message = "Create captions to begin.";
-  next = "write_captions";
-}
-
-else if (hook !== null && hook < 60) {
-  status = "weak_hook";
-  message = "Your hook needs stronger curiosity or clarity.";
-  next = "improve_hook";
-}
-
-else if (flow !== null && flow < 65) {
-  status = "weak_flow";
-  message = "Tighten pacing and transitions.";
-  next = "improve_flow";
-}
-
-else if (publishReady) {
-  status = "ready";
-  message = "Strong edit. Ready to publish.";
-  next = "publish";
-}
-
-else {
-  // 🧠 Intelligent polish behavior
-  status = "polish";
-  message = "Optimizing final details.";
-
-  if (hook !== null && hook < 75) {
+  if (!captions.trim()) {
+    status = "empty";
+    message = "Create captions to begin.";
+    next = "write_captions";
+  } else if (hook !== null && hook < 60) {
+    status = "weak_hook";
+    message = "Your hook needs stronger curiosity or clarity.";
     next = "improve_hook";
-  }
-  else if (flow !== null && flow < 75) {
+  } else if (flow !== null && flow < 65) {
+    status = "weak_flow";
+    message = "Tighten pacing and transitions.";
     next = "improve_flow";
-  }
-  else {
+  } else if (publishReady) {
+    status = "ready";
+    message = "Strong edit. Ready to publish.";
     next = "publish";
-  }
-}
+  } else {
+    status = "polish";
+    message = "Optimizing final details.";
 
-  return {
+    if (hook !== null && hook < 75) {
+      next = "improve_hook";
+    } else if (flow !== null && flow < 75) {
+      next = "improve_flow";
+    } else {
+      next = "publish";
+    }
+  }
+
+  const result = {
     hook_score: hook,
     flow_score: flow,
     readiness_score: readiness,
@@ -4514,8 +4426,12 @@ else {
     publish_ready: publishReady,
     status,
     message,
-    next
+    next,
+    intent
   };
+
+  window.appState.creative = result;
+  return result;
 }
 
 async function refreshHookScore() {
@@ -4574,6 +4490,8 @@ async function refreshHookScore() {
     // ---------------------------------
     LAST_HOOK_SCORE = score;
     window.appState.scores.hook = score;
+
+    handleHookScoreSideEffects(score);
 
     updateRewriteModeAvailability();
     updateImproveButtons(score, LAST_FLOW_SCORE);
@@ -5118,6 +5036,9 @@ async function refreshStoryFlowScore() {
 
         LAST_FLOW_SCORE = score;
         window.appState.scores.storyFlow = score;
+
+        const creativeState = evaluateCreativeState();
+        renderPublishReadyState(creativeState);
 
         const flowLabel = getFlowRatingLabel(score);
 
@@ -6612,7 +6533,7 @@ if (pillContainer) {
     state.hook.intent = intent;
 
     // 🎨 Sync UI from state
-    syncIntentPills();
+    syncIntentPills(intent);
 
     // 🔔 Update hint
     updateIntentHint(intent);
