@@ -544,16 +544,17 @@ function renderPublishReadyState(state) {
   }
 
     return {
-  hook_score: hook,
-  flow_score: flow,
-  readiness_score: Math.round((hook + flow) / 2),
-  publish_ready: false,
-  primary_weakness: null,
-  priority_actions: ["Polish hook or pacing before export"],
-  status: "polish",
-  message: "Good edit. Minor improvements possible.",
-  next: "polish"
-};
+      hook_score: hook,
+      flow_score: flow,
+      readiness_score: Math.round((hook + flow) / 2),
+      publish_ready: false,
+      primary_weakness: null,
+      priority_actions: ["Polish hook or pacing before export"],
+      status: "polish",
+      message: "Good edit. Minor improvements possible.",
+      next: "polish"
+    };
+}
 
   function renderNextActionButton(state) {
   if (!state?.next) return "";
