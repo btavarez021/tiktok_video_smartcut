@@ -766,6 +766,7 @@ function renderPublishReadyState(state) {
 
         variants.forEach((variant, i) => {
           const cardId = `variant_${i}`;
+          variant._cardId = cardId;
 
           box.innerHTML += renderVariantCard(
             i + 1,
@@ -1314,7 +1315,27 @@ function renderPublishReadyState(state) {
     el.classList.toggle("hidden");
   }
 
+function rerenderVariantsList() {
+  const box = document.getElementById("variantsOutput");
+  if (!box) return;
 
+  let variants = window.appState?.variants?.list || [];
+
+  variants = [...variants].sort((a, b) => {
+    if (a.applied && !b.applied) return -1;
+    if (!a.applied && b.applied) return 1;
+    return 0;
+  });
+
+  box.innerHTML = "";
+
+  variants.forEach((variant, i) => {
+    const cardId = variant._cardId || `variant_${i}`;
+    box.innerHTML += renderVariantCard(i + 1, variant, cardId);
+  });
+
+  updateAIRecommendationBar();
+}
 
   function renderVariantCard(num, variant, cardId) {
     const text = variant.text || "";
@@ -1327,10 +1348,14 @@ function renderPublishReadyState(state) {
 
     const hookScore = variant.hook_score ?? "—";
     const flowScore = variant.flow_score ?? "—";
+    const appliedBadge = variant.applied
+  ? `<div class="variantAppliedBadge">Applied ✓</div>`
+  : "";
 
     const strength =
-      (variant.hook_score || 0) +
-      (variant.flow_score || 0);
+      variant.flow_score != null
+        ? Math.round(((variant.hook_score || 0) + (variant.flow_score || 0)) / 2)
+        : (variant.hook_score || 0);
 
     // ----------------------------
     // AI badge (smarter hierarchy)
@@ -1372,11 +1397,12 @@ function renderPublishReadyState(state) {
     // Final render (CORRECT)
     // ----------------------------
     return `
-    <div class="variantCard ${recommended ? "recommended" : ""}" id="${cardId}">
+    <div class="variantCard ${recommended ? "recommended" : ""} ${variant.applied ? "applied" : ""}" id="${cardId}">
 
       <div class="variantHeader">
         <h4>Version ${num}</h4>
         ${badge}
+        ${appliedBadge}
       </div>
 
       <div class="variantScores">
@@ -1400,7 +1426,11 @@ function renderPublishReadyState(state) {
             recommended: ${recommended},
             action: 'chosen'
           });
-          applyCaptionVariant(\`${escaped}\`);
+          applyCaptionVariant(\`${escaped}\`, {
+          id: '${cardId}',
+          tone: '${tone}',
+          intent: '${window.appState.hook.intent}'
+        });
         ">
           Use This
         </button>
@@ -4875,6 +4905,37 @@ async function applyCaptionVariant(text, meta = {}) {
     document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
     await refreshAfterChange();
 
+    const appliedId = meta?.id;
+
+    if (appliedId && Array.isArray(window.appState?.variants?.list)) {
+      const hookScore =
+        window.appState?.scores?.hook ??
+        LAST_HOOK_SCORE ??
+        null;
+
+      const flowScore =
+        window.appState?.scores?.storyFlow ??
+        LAST_FLOW_SCORE ??
+        null;
+
+      window.appState.variants.list = window.appState.variants.list.map(v => {
+        if (v._cardId !== appliedId) {
+          return {
+            ...v,
+            applied: false
+          };
+        }
+
+        return {
+          ...v,
+          hook_score: hookScore,
+          flow_score: flowScore,
+          applied: true
+        };
+      });
+
+      rerenderVariantsList();
+    }
 
   } catch (err) {
     console.error(err);
