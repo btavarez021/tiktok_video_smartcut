@@ -6517,7 +6517,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
  window.appState.settings = window.appState.settings || {};
 
- document.getElementById("exportFixBtn")?.addEventListener("click", async () => {
+document.getElementById("exportFixBtn")?.addEventListener("click", async () => {
   await runCreativeEngine("export_fix");
   await refreshAfterChange();
 });
