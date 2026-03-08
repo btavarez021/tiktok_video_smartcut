@@ -1084,24 +1084,25 @@ def api_generate_body_from_hook(session, hook, style):
 # Story Flow Score
 # -----------------------------------------
 
-def api_story_flow_score(session: str) -> Dict[str, Any]:
+def api_story_flow_score(session: str, captions_text: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    # If captions provided directly from editor use them
+    if captions_text:
+        captions = [c.strip() for c in captions_text.split("\n\n") if c.strip()]
+    else:
+        cfg = _load_config(session)
 
-    captions: List[str] = []
+        captions = []
 
-    # Hook
-    if cfg.get("first_clip", {}).get("text"):
-        captions.append(cfg["first_clip"]["text"])
+        if cfg.get("first_clip", {}).get("text"):
+            captions.append(cfg["first_clip"]["text"])
 
-    # Middle clips
-    for clip in cfg.get("middle_clips", []):
-        if clip.get("text"):
-            captions.append(clip["text"])
+        for clip in cfg.get("middle_clips", []):
+            if clip.get("text"):
+                captions.append(clip["text"])
 
-    # CTA / last clip (ignored for scoring, but included for structure)
-    if cfg.get("last_clip", {}).get("text"):
-        captions.append(cfg["last_clip"]["text"])
+        if cfg.get("last_clip", {}).get("text"):
+            captions.append(cfg["last_clip"]["text"])
 
     middle = captions[1:]
 
@@ -1225,7 +1226,7 @@ def api_story_flow_improve(session: str, intent: str = "discovery"):
         Improve the narrative flow of these captions based on selected intent.
 
         Intent: {intent}
-        
+
         Intent focus:
         {intent_guidance}
 

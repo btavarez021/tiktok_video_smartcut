@@ -5030,8 +5030,14 @@ async function refreshStoryFlowScore() {
     if (improveBtn) improveBtn.disabled = false;
 
     try {
-        const session = encodeURIComponent(getActiveSession());
-        const data = await jsonFetch(`/api/story_flow_score?session=${session}`);
+        const data = await jsonFetch("/api/story_flow_score", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session: getActiveSession(),
+            captions: text
+          })
+        });
 
         const score = Number(data.score ?? 0);
 

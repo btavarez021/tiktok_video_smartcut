@@ -335,10 +335,19 @@ def api_hook_boost():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@app.route("/api/story_flow_score", methods=["GET"])
+@app.route("/api/story_flow_score", methods=["GET", "POST"])
 def route_story_flow_score():
-    session = sanitize_session(request.args.get("session", "default"))
-    return jsonify(api_story_flow_score(session))
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        session = sanitize_session(data.get("session", "default"))
+        captions = data.get("captions")
+
+        return jsonify(api_story_flow_score(session, captions))
+
+    else:
+        session = sanitize_session(request.args.get("session", "default"))
+        return jsonify(api_story_flow_score(session))
 
 @app.route("/api/story_flow_improve", methods=["POST"])
 def route_story_flow_improve():
