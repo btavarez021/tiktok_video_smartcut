@@ -4141,3 +4141,14 @@ body.no-scroll {
 .ai-toggle input {
   cursor:pointer;
 }
+
+.variantScores {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-bottom: 6px;
+}
+
+.variantStrength {
+  margin-left: 8px;
+  font-weight: 600;
+}

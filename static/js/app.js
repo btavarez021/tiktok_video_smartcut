@@ -1332,6 +1332,13 @@ async function runAutoAssistPipeline(state) {
     const confLabel = confidenceLabel(normalizeConfidence(confidence));
     const escaped = text.replace(/`/g, "\\`");
 
+    const hookScore = variant.hook_score ?? "—";
+    const flowScore = variant.flow_score ?? "—";
+
+    const strength =
+      (variant.hook_score || 0) +
+      (variant.flow_score || 0);
+
     // ----------------------------
     // AI badge (smarter hierarchy)
     // ----------------------------
@@ -1377,6 +1384,11 @@ async function runAutoAssistPipeline(state) {
       <div class="variantHeader">
         <h4>Version ${num}</h4>
         ${badge}
+      </div>
+
+      <div class="variantScores">
+        Hook: ${hookScore} · Flow: ${flowScore}
+        <span class="variantStrength">Strength: ${strength}</span>
       </div>
 
         ${tone ? `<div class="variantTone">${tone}</div>` : ""}
