@@ -174,7 +174,8 @@ def score_hook_text(text: str, intent: str = "discovery") -> dict:
     if any(t in lower for t in strong_curiosity):
         score += 30
     elif any(t in lower for t in soft_curiosity):
-        score += 20
+        score += 14
+        reasons.append("Curiosity is present, but the phrasing is somewhat generic.")
     else:
         reasons.append("Opening lacks curiosity/tension (no open loop).")
 
@@ -217,11 +218,11 @@ def score_hook_text(text: str, intent: str = "discovery") -> dict:
     # ----------------------------
     # 🔥 Light intent weighting
     # ----------------------------
-    if intent == "luxury":
+    if intent == "aesthetic":
         if wc <= 10:
             score += 5
-        luxury_terms = ["exclusive", "private", "refined", "elevated"]
-        if any(t in lower for t in luxury_terms):
+        aesthetic_terms = ["rooftop", "glow", "sunset", "vibes", "city lights", "view", "lounge", "skyline"]
+        if any(t in lower for t in aesthetic_terms):
             score += 5
 
     elif intent == "discovery":
@@ -230,11 +231,25 @@ def score_hook_text(text: str, intent: str = "discovery") -> dict:
         elif any(t in lower for t in soft_curiosity):
             score += 3
 
-    elif intent == "authority":
+    elif intent == "informational":
         if wc <= 14:
             score += 3
+        if any(t in lower for t in ["inside", "how", "why", "what", "tour"]):
+            score += 3
 
-    score = max(min(score, 100), 0)
+    elif intent == "personal":
+        if any(t in lower for t in ["i", "my", "me", "we", "our"]):
+            score += 4
+        if any(t in lower for t in ["favorite", "love", "felt", "didn’t expect", "didn't expect"]):
+            score += 4
+
+    specific_nouns = [
+    "rooftop", "cocktail", "gym", "suite", "pool",
+    "lounge", "view", "skyline", "bar", "spa"
+    ]
+
+    if any(n in lower for n in specific_nouns):
+        score += 6
 
     return {
         "score": score,

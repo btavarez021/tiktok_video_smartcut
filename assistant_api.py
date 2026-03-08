@@ -148,23 +148,21 @@ def score_hook_from_text(text: str, intent: str = "discovery") -> Dict[str, Any]
     lower = hook.lower()
 
     if intent == "discovery":
-        # Boost curiosity-based hooks
-        if any(t in lower for t in ["surprised", "unexpected", "didn't expect", "but", "however", "until"]):
+        if any(t in lower for t in ["surprised", "unexpected", "didn't expect", "did not expect", "but", "however", "until"]):
             base_score += 5
 
-    elif intent == "authority":
-        # Boost clarity and specificity
-        if any(k in lower for k in ["hotel", "room", "resort", "stay"]):
+    elif intent == "informational":
+        if any(k in lower for k in ["hotel", "room", "resort", "stay", "tour", "inside"]):
             base_score += 5
 
-    elif intent == "luxury":
-        # Slightly reward clean, short phrasing
+    elif intent == "aesthetic":
         if len(hook.split()) <= 10:
             base_score += 3
+        if any(t in lower for t in ["rooftop", "sunset", "glow", "lounge", "view", "skyline"]):
+            base_score += 4
 
-    elif intent == "engagement":
-        # Boost direct address hooks
-        if any(w in lower for w in ["you", "your"]):
+    elif intent == "personal":
+        if any(w in lower for w in ["i", "my", "me", "we", "our"]):
             base_score += 5
 
     final_score = min(base_score, 100)
@@ -356,6 +354,12 @@ RULES:
 - No corporate phrasing
 - Do NOT repeat the original
 - Avoid generic filler
+- Avoid weak phrasing like:
+  "wait until you see"
+  "you won't believe"
+  "this place"
+  unless made highly specific
+- Reward specificity, contrast, exclusivity, or transformation
 
 Return JSON:
 {{
@@ -930,24 +934,25 @@ def api_generate_hooks(session: str, intent: str | None = None):
         intent_guidance = """
         Focus on curiosity gaps, surprise, and open loops.
         Create tension or withheld information.
+        Prioritize scroll-stopping energy.
         """
 
-    elif intent == "authority":
+    elif intent == "personal":
         intent_guidance = """
-        Focus on confidence, credibility, and strong positioning.
-        Avoid sounding uncertain or vague.
+        Focus on emotional pull, intimacy, and personal reaction.
+        Make the hook feel human, relatable, and experience-driven.
         """
 
-    elif intent == "luxury":
+    elif intent == "aesthetic":
         intent_guidance = """
-        Focus on exclusivity, refinement, and understated power.
-        Avoid hype or loud energy.
+        Focus on mood, elegance, atmosphere, and sensory intrigue.
+        Avoid loud hype. Make it feel refined and visually elevated.
         """
 
-    elif intent == "engagement":
+    elif intent == "informational":
         intent_guidance = """
-        Focus on emotional pull and viewer inclusion.
-        Use phrases like "would you", "imagine", or subtle invitation.
+        Focus on clarity, structure, and a clean promise.
+        Make the viewer understand what is interesting and why it matters.
         """
 
     if not client:
@@ -957,28 +962,51 @@ def api_generate_hooks(session: str, intent: str | None = None):
         }
 
     prompt = f"""
-            Generate 8 scroll-stopping TikTok hooks.
+            Generate 8 high-performing TikTok hooks for a hotel / travel / lifestyle reel.
 
             Intent: {intent}
 
             Intent Guidance:
             {intent_guidance}
 
-            CRITICAL REQUIREMENTS:
-            - Each hook must create curiosity, tension, or emotional pull.
-            - Use contrast, surprise, or withheld information.
-            - Avoid generic influencer phrasing.
-            - Do NOT summarize all scenes.
-            - Tease the experience instead of explaining it.
-            - 8–12 words maximum.
-            - No emojis.
-            - Refer to the SAME experience.
+            CRITICAL GOAL:
+            These hooks should score highly for:
+            - curiosity
+            - clarity
+            - specificity
+            - scroll-stopping power
+
+            STRICT RULES:
+            - 6 to 12 words maximum
+            - No emojis
+            - No hashtags
+            - No filler intros
+            - Do NOT summarize the whole reel
+            - Do NOT sound corporate
+            - Do NOT use weak generic phrases unless made highly specific:
+            "wait until you see"
+            "you won’t believe"
+            "hidden gem"
+            "this place"
+            - The subject should feel clear immediately
+            - Each hook must represent the SAME experience from a different angle
+
+            REQUIRED ANGLES:
+            Generate exactly 8 hooks using these 8 angles:
+            1. curiosity gap
+            2. exclusivity / luxury
+            3. surprising reveal
+            4. transformation
+            5. hidden detail
+            6. sensory / vibe
+            7. status / aspiration
+            8. emotional / personal reaction
 
             Scenes:
             {json.dumps(scenes, indent=2)}
 
             Return JSON only:
-            {{ "hooks": ["hook1", "hook2", ...] }}
+            {{ "hooks": ["hook1", "hook2", "hook3", "hook4", "hook5", "hook6", "hook7", "hook8"] }}
             """
 
     try:
@@ -991,11 +1019,29 @@ def api_generate_hooks(session: str, intent: str | None = None):
         content = resp.choices[0].message.content.strip()
         data = safe_json_extract(content)
 
+
+        WEAK_HOOK_PATTERNS = [
+                "wait until you see",
+                "you won't believe",
+                "you won’t believe",
+                "hidden gem",
+                "this place",
+                "this spot",
+                "you won't guess",
+                "you won’t guess",
+            ]
+        
         hooks = []
         for text in data.get("hooks", []):
-            score = score_hook_text(text, intent)["score"]
+            score_data = score_hook_text(clean, intent)
+            score = max(score_data["score"] - penalty, 0)
             clean = strip_emojis(text).strip()
             lower = clean.lower()
+
+            penalty = 0
+
+            if any(p in lower for p in WEAK_HOOK_PATTERNS):
+                penalty = 8
 
             if any(w in lower for w in ["wait", "watch", "this", "you", "from"]):
                 tone = "punchy"
@@ -2258,18 +2304,18 @@ def score_story_flow_from_text(text: str, intent: str = "discovery") -> dict:
 
     if intent == "discovery":
         intent_guidance = """
-    Reward:
-    - Escalating energy
-    - Curiosity progression
-    - Momentum between captions
+            Reward:
+            - Escalating energy
+            - Curiosity progression
+            - Momentum between captions
 
-    Penalize:
-    - Flat pacing
-    - Repetition
-    - Slow exposition
-    """
+            Penalize:
+            - Flat pacing
+            - Repetition
+            - Slow exposition
+            """
 
-    elif intent == "authority":
+    elif intent == "informational":
         intent_guidance = """
     Reward:
     - Logical sequencing
@@ -2281,28 +2327,30 @@ def score_story_flow_from_text(text: str, intent: str = "discovery") -> dict:
     - Jumping between ideas
     """
 
-    elif intent == "luxury":
+    elif intent == "aesthetic":
         intent_guidance = """
     Reward:
     - Tone consistency
     - Smooth emotional transitions
     - Polished rhythm
+    - Atmospheric progression
 
     Penalize:
     - Abrupt tonal shifts
     - Jarring progression
     """
 
-    elif intent == "engagement":
+    elif intent == "personal":
         intent_guidance = """
     Reward:
     - Emotional pull
-    - Strong pacing variation
-    - Clear escalation
+    - Human continuity
+    - Experience that feels personal and lived-in
 
     Penalize:
     - Monotony
-    - Low emotional movement
+    - Emotional flatness
+    - Captions that feel detached
     """
 
     prompt = f"""
