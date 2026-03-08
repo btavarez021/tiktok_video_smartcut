@@ -4110,3 +4110,34 @@ body.no-scroll {
   50% { transform: scale(1.06); }
   100% { transform: scale(1); }
 }
+
+.ai-mode-bar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 18px;
+  background:#0f172a;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+
+.ai-mode-left {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.ai-mode-right {
+  opacity:.7;
+  font-size:13px;
+}
+
+.ai-toggle {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-weight:600;
+}
+
+.ai-toggle input {
+  cursor:pointer;
+}

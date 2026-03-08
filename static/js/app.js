@@ -6334,27 +6334,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  const toggle = document.getElementById("autoAssistToggle");
-
-  if (toggle) {
-    toggle.checked = window.appState.settings.autoAssist;
-
-    toggle.addEventListener("change", async (e) => {
-      const enabled = e.target.checked;
-
-      window.appState.settings.autoAssist = enabled;
-
-      if (enabled){
-        await runCreativeEngine("auto_enabled");
-      }
-
-      toast?.(
-        enabled
-          ? "🧠 Auto Assist Enabled — AI will act automatically"
-          : "🧠 Auto Assist Disabled — AI will suggest only"
-      );
-    });
-  }
+ window.appState.settings = window.appState.settings || {};
 
   document.addEventListener("click", async (e) => {
   const btn = e.target.closest(".ai-next-action-btn");
