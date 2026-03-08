@@ -1187,7 +1187,46 @@ STEP 5
 </div>
 
 <div class="card-body">
-<div id="publishReadyBanner" class="hidden"></div>
+<div id="publishReadyBanner" class="publish-ready-card hidden">
+  <div class="publish-ready-top">
+    <div class="publish-ready-title">🧠 AI Director Final Check</div>
+    <div id="publishReadyPill" class="publish-ready-pill">Checking…</div>
+  </div>
+
+  <div id="publishReadyMessage" class="publish-ready-message">
+    Reviewing final edit quality…
+  </div>
+
+  <div class="publish-ready-stats">
+    <div class="publish-stat">
+      <span class="publish-stat-label">Readiness</span>
+      <span id="publishReadinessScore" class="publish-stat-value">—</span>
+    </div>
+
+    <div class="publish-stat">
+      <span class="publish-stat-label">Hook</span>
+      <span id="publishHookScore" class="publish-stat-value">—</span>
+    </div>
+
+    <div class="publish-stat">
+      <span class="publish-stat-label">Flow</span>
+      <span id="publishFlowScore" class="publish-stat-value">—</span>
+    </div>
+  </div>
+
+  <div id="publishPrimaryWeakness" class="publish-primary-weakness hidden"></div>
+
+  <div id="publishPriorityActions" class="publish-priority-actions hidden"></div>
+
+  <div class="publish-ready-actions">
+    <button id="exportFixBtn" class="btn secondary hidden">
+      ⚡ Fix with AI
+    </button>
+    <button id="exportAnywayBtn" class="btn ghost hidden">
+      Export Anyway
+    </button>
+  </div>
+</div>
 
     <h3>
         Render Mode

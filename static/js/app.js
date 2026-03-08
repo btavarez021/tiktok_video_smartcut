@@ -385,6 +385,90 @@ async function runAutoAssistPipeline(state) {
   return state;
 }
 
+function renderPublishReadyState(state) {
+  const wrap = document.getElementById("publishReadyBanner");
+  const pill = document.getElementById("publishReadyPill");
+  const message = document.getElementById("publishReadyMessage");
+  const readinessEl = document.getElementById("publishReadinessScore");
+  const hookEl = document.getElementById("publishHookScore");
+  const flowEl = document.getElementById("publishFlowScore");
+  const weaknessEl = document.getElementById("publishPrimaryWeakness");
+  const actionsEl = document.getElementById("publishPriorityActions");
+  const fixBtn = document.getElementById("exportFixBtn");
+  const anywayBtn = document.getElementById("exportAnywayBtn");
+  const exportBtn = document.getElementById("exportBtn");
+
+  if (!wrap) return;
+
+  wrap.classList.remove("hidden", "ready", "needs-work", "polish");
+
+  const readiness = state?.readiness_score ?? 0;
+  const hook = state?.hook_score;
+  const flow = state?.flow_score;
+  const primaryWeakness = state?.primary_weakness || null;
+  const priorityActions = state?.priority_actions || [];
+  const publishReady = state?.publish_ready === true;
+
+  if (readinessEl) readinessEl.textContent = `${readiness}%`;
+  if (hookEl) hookEl.textContent = hook == null ? "—" : `${hook}/100`;
+  if (flowEl) flowEl.textContent = flow == null ? "—" : `${flow}/100`;
+
+  if (message) {
+    message.textContent = state?.message || "Reviewing final edit quality…";
+  }
+
+  if (pill) {
+    if (publishReady) {
+      pill.textContent = "Ready to Export";
+      wrap.classList.add("ready");
+    } else if (readiness >= 65) {
+      pill.textContent = "Can Be Improved";
+      wrap.classList.add("polish");
+    } else {
+      pill.textContent = "Needs Work";
+      wrap.classList.add("needs-work");
+    }
+  }
+
+  if (weaknessEl) {
+    if (primaryWeakness) {
+      weaknessEl.classList.remove("hidden");
+      weaknessEl.textContent = `Primary weakness: ${primaryWeakness}`;
+    } else {
+      weaknessEl.classList.add("hidden");
+      weaknessEl.textContent = "";
+    }
+  }
+
+  if (actionsEl) {
+    if (priorityActions.length) {
+      actionsEl.classList.remove("hidden");
+      actionsEl.innerHTML = `
+        <div class="publish-actions-title">Suggested next steps</div>
+        <ul>
+          ${priorityActions.slice(0, 2).map(a => `<li>${a}</li>`).join("")}
+        </ul>
+      `;
+    } else {
+      actionsEl.classList.add("hidden");
+      actionsEl.innerHTML = "";
+    }
+  }
+
+  if (fixBtn) {
+    fixBtn.classList.toggle("hidden", publishReady || state?.next === "publish");
+  }
+
+  if (anywayBtn) {
+    anywayBtn.classList.toggle("hidden", publishReady);
+  }
+
+  if (exportBtn) {
+    exportBtn.textContent = publishReady ? "🎥 Render & Export" : "🎥 Export Anyway";
+    exportBtn.disabled = false;
+  }
+}
+
   function evaluateCreativeState() {
     const hook = window.appState?.scores?.hook ?? LAST_HOOK_SCORE ?? null;
     const flow = window.appState?.scores?.storyFlow ?? LAST_FLOW_SCORE ?? null;
@@ -6432,6 +6516,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
  window.appState.settings = window.appState.settings || {};
+
+ document.getElementById("exportFixBtn")?.addEventListener("click", async () => {
+  await runCreativeEngine("export_fix");
+  await refreshAfterChange();
+});
+
+document.getElementById("exportAnywayBtn")?.addEventListener("click", () => {
+  document.getElementById("exportBtn")?.scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+});
 
   document.addEventListener("click", async (e) => {
   const btn = e.target.closest(".ai-next-action-btn");
