@@ -2088,7 +2088,7 @@ function rerenderVariantsList() {
 
     console.log("📊 Progress using:", hook, flow);
 
-    if (LAST_HOOK_SCORE == null || LAST_FLOW_SCORE == null) {
+    if (LAST_HOOK_SCORE == null) {
       fill.style.width = "0%";
       percentEl.textContent = "–";
       hint.textContent = "Scoring in progress…";
@@ -2104,7 +2104,14 @@ function rerenderVariantsList() {
       return;
     }
 
-    const progress = Math.min(100, Math.round((hook * 0.6) + (flow * 0.4)));
+    const progress = Math.min(
+      100,
+      Math.round(
+        flow > 0
+          ? (hook * 0.6) + (flow * 0.4)
+          : hook
+      )
+    );
 
     fill.style.width = `${progress}%`;
     percentEl.textContent = `${progress}%`;
@@ -4387,6 +4394,10 @@ function evaluateCreativeState() {
 
   const hook = window.appState?.scores?.hook ?? LAST_HOOK_SCORE ?? null;
   const flow = window.appState?.scores?.storyFlow ?? LAST_FLOW_SCORE ?? null;
+  const effectiveFlow =
+    hook !== null && hook < 60
+      ? null
+      : flow;
   const intent = window.appState?.hook?.intent || "default";
   const captions =
     (typeof getCurrentCaptionsText === "function" ? getCurrentCaptionsText() : "") ||
@@ -4421,15 +4432,15 @@ function evaluateCreativeState() {
   }
 
   // Flow Analysis
-  if (flow !== null) {
-    if (flow < 65) {
-      weaknesses.push("Story pacing");
-      priority.push("Shorten middle captions");
-    } else if (flow < 75) {
-      weaknesses.push("Narrative progression");
-      priority.push("Improve transition between captions");
-    }
+if (effectiveFlow !== null) {
+  if (effectiveFlow < 65) {
+    weaknesses.push("Story pacing");
+    priority.push("Shorten middle captions");
+  } else if (effectiveFlow < 75) {
+    weaknesses.push("Narrative progression");
+    priority.push("Improve transition between captions");
   }
+}
 
   // Structural Checks
   if (captionCount < 3) {
@@ -4446,7 +4457,7 @@ function evaluateCreativeState() {
   let readiness = 0;
 
   if (hook !== null) readiness += hook * 0.4;
-  if (flow !== null) readiness += flow * 0.4;
+  if (effectiveFlow !== null) readiness += effectiveFlow * 0.4;
   if (hasCTA) readiness += 10;
   if (captionCount >= 3) readiness += 10;
 
@@ -4479,7 +4490,7 @@ function evaluateCreativeState() {
   const publishReady =
     readiness >= 80 &&
     !(hook !== null && hook < 75) &&
-    !(flow !== null && flow < 65);
+    !(effectiveFlow !== null && effectiveFlow < 65);
 
   let status = "polish";
   let message = "Good edit. Minor improvements possible.";
@@ -4493,7 +4504,7 @@ function evaluateCreativeState() {
     status = "weak_hook";
     message = "Your hook needs stronger curiosity or clarity.";
     next = "improve_hook";
-  } else if (flow !== null && flow < 65) {
+  } else if (effectiveFlow !== null && effectiveFlow < 65) {
     status = "weak_flow";
     message = "Tighten pacing and transitions.";
     next = "improve_flow";
@@ -4511,12 +4522,12 @@ function evaluateCreativeState() {
   }
 
   // 🚨 Broken story flow takes priority over hook polish
-  else if (flow !== null && flow < 60) {
+  else if (effectiveFlow !== null && effectiveFlow < 60) {
     next = "improve_flow";
   }
 
   // 📉 Fix the weaker element
-  else if (hook !== null && flow !== null && flow < hook) {
+  else if (hook !== null && effectiveFlow !== null && effectiveFlow < hook) {
     next = "improve_flow";
   }
 
@@ -4526,7 +4537,7 @@ function evaluateCreativeState() {
   }
 
   // ✨ Polish flow
-  else if (flow !== null && flow < 75) {
+  else if (effectiveFlow !== null && effectiveFlow < 75) {
     next = "improve_flow";
   }
 
@@ -4537,7 +4548,7 @@ function evaluateCreativeState() {
 
   const result = {
     hook_score: hook,
-    flow_score: flow,
+    flow_score: effectiveFlow,
     readiness_score: readiness,
     caption_blocks: captionCount,
     has_cta: hasCTA,
@@ -5157,13 +5168,44 @@ async function refreshStoryFlowScore() {
     if (!captionsEl || !card || !scoreEl || !reasonsEl) return;
 
     const text = getCurrentCaptionsText();
+    const hookScore =
+      window.appState?.scores?.hook ??
+      LAST_HOOK_SCORE ??
+      null;
 
     if (!text) {
-  card.classList.add("hidden");
-  LAST_FLOW_SCORE = null;
-  window.appState.scores.storyFlow = null;
-  return;
-}
+      card.classList.add("hidden");
+      LAST_FLOW_SCORE = null;
+      window.appState.scores.storyFlow = null;
+      return;
+    }
+
+    // 🔒 Weak hook locks flow scoring
+    if (hookScore != null && hookScore < 60) {
+      card.classList.remove("hidden");
+
+      LAST_FLOW_SCORE = null;
+      window.appState.scores.storyFlow = null;
+
+      scoreEl.textContent = "—";
+
+      const labelEl = document.getElementById("storyFlowScoreLabel");
+      if (labelEl) labelEl.textContent = "Locked";
+
+      reasonsEl.innerHTML = `<li>Improve the opening hook to unlock story flow scoring.</li>`;
+
+      if (improveBtn) improveBtn.disabled = true;
+
+      card.classList.remove("good", "ok", "bad");
+      scoreEl.classList.remove("good", "ok", "bad");
+
+      const creativeState = evaluateCreativeState();
+      renderPublishReadyState(creativeState);
+      renderEditProgress();
+      updateSmartStatus();
+
+      return;
+    }
 
     const blocks = text
     .split(/\n\s*\n/)
