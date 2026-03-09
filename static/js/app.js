@@ -1758,6 +1758,34 @@ function rerenderVariantsList() {
     if (move === "auto") auto?.classList.add("pulse");
   }
 
+  function getDirectorPriorityScore(item, creativeState, hookScore) {
+  const area = (item?.area || "").toLowerCase();
+  const focus = creativeState?.primary_focus;
+  const impactWeight = { high: 30, medium: 20, low: 10 };
+
+  let score = impactWeight[item?.impact] || 0;
+
+  if (focus === "flow") {
+    if (area === "pacing" || area === "captions" || area === "flow") score += 40;
+    if (area === "hook") score -= 15;
+  }
+
+  if (focus === "hook") {
+    if (area === "hook") score += 40;
+    if (area === "pacing" || area === "captions" || area === "flow") score -= 10;
+  }
+
+  if (creativeState?.publish_ready) {
+    score -= 20;
+  }
+
+  if (area === "hook" && hookScore >= 80) {
+    score -= 20;
+  }
+
+  return score;
+}
+
 
   async function loadEditStrategy(force=false) {
 
@@ -1868,12 +1896,6 @@ function rerenderVariantsList() {
         return;
       }
 
-      // Sort high → low
-      items.sort((a, b) => {
-        const weight = { high: 3, medium: 2, low: 1 };
-        return weight[b.impact] - weight[a.impact];
-      });
-
       // ================================
       // Smart next action
       // ================================
@@ -1888,18 +1910,30 @@ function rerenderVariantsList() {
         nextMove === "flow" ? "done" : nextMove
       );
 
+      // Sort high → low
+      items.sort((a, b) => {
+        return (
+          getDirectorPriorityScore(b, creativeState, hookScore) -
+          getDirectorPriorityScore(a, creativeState, hookScore)
+        );
+      });
+
+      
+
       // ================================
       // Render
       // ================================
+      const renderState = creativeState;
       list.classList.add("fade-refresh");
 
       setTimeout(() => {
         list.innerHTML = items.map(s => {
 
+          const area = (s.area || "").toLowerCase();
           let toneIssue = s.issue;
           let toneImpact = s.impact;
 
-          if (s.area === "hook") {
+          if (area === "hook") {
             if (hookScore >= 80) {
               toneImpact = "low";
               toneIssue = "🔥 Excellent hook. Focus on pacing or flow next.";
@@ -1915,14 +1949,24 @@ function rerenderVariantsList() {
           }
 
           // If flow is the primary issue, suppress hook urgency
-          if (primaryFocus === "flow" && s.area === "hook" && hookScore < 75) {
+          if (primaryFocus === "flow" && area === "hook" && hookScore < 75) {
             toneImpact = "low";
             toneIssue = "👍 Hook is good enough for now — fix story flow first.";
           }
 
+          if (primaryFocus === "flow" && (area === "flow" || area === "pacing" || area === "captions")) {
+            if (toneImpact !== "high") {
+              toneImpact = "high";
+            }
+
+            if (!toneIssue || toneIssue.trim() === "") {
+              toneIssue = "Story flow needs clearer pacing and stronger transitions.";
+            }
+          }
+
           let guidance = `👉 ${s.action}`;
 
-          if (s.area === "hook") {
+          if (area === "hook") {
             if (nextMove === "generate") {
               guidance = "👉 Generate new ideas — this hook may be hard to fix";
             }
@@ -1938,20 +1982,20 @@ function rerenderVariantsList() {
           }
 
           // If flow is the real priority, pause hook optimization
-          if (primaryFocus === "flow" && s.area === "hook") {
+          if (primaryFocus === "flow" && area === "hook") {
             guidance = "⏸ Hold hook changes until story flow is improved";
           }
 
           return `
-            <div class="director-item impact-${toneImpact}" data-area="${(s.area || '').toLowerCase()}">
+            <div class="director-item impact-${toneImpact}" data-area="${area}">
               <div class="director-header">
-                <div class="director-area">${prettyArea(s.area)}</div>
+                <div class="director-area">${prettyArea(area)}</div>
                 <div class="director-impact">
                   ${toneImpact.toUpperCase()} · ${impactLabel(toneImpact)}
                 </div>
               </div>
 
-              ${delta > 0 && s.area === "hook"
+              ${delta > 0 && area === "hook"
                 ? `<div class="director-progress-up">↑ +${delta} points</div>`
                 : ""}
 
@@ -1961,7 +2005,10 @@ function rerenderVariantsList() {
           `;
         }).join("");
 
-        const remaining = items.length;
+        const remaining = items.filter(item => {
+        const score = getDirectorPriorityScore(item, renderState, hookScore);
+        return score >= 20;
+      }).length;
 
         const footer = document.createElement("div");
         footer.className = "director-progress";
