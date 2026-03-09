@@ -5164,6 +5164,7 @@ async function refreshStoryFlowScore() {
     const scoreEl = document.getElementById("storyFlowScoreValue");
     const reasonsEl = document.getElementById("storyFlowReasons");
     const improveBtn = document.getElementById("improveStoryFlowBtn");
+    const labelEl = document.getElementById("storyFlowScoreLabel");
 
     if (!captionsEl || !card || !scoreEl || !reasonsEl) return;
 
@@ -5179,7 +5180,7 @@ async function refreshStoryFlowScore() {
       window.appState.scores.storyFlow = null;
       return;
     }
-
+    
     // 🔒 Weak hook locks flow scoring
     if (hookScore != null && hookScore < 60) {
       card.classList.remove("hidden");
@@ -5189,7 +5190,6 @@ async function refreshStoryFlowScore() {
 
       scoreEl.textContent = "—";
 
-      const labelEl = document.getElementById("storyFlowScoreLabel");
       if (labelEl) labelEl.textContent = "Locked";
 
       reasonsEl.innerHTML = `<li>Improve the opening hook to unlock story flow scoring.</li>`;
@@ -5198,6 +5198,13 @@ async function refreshStoryFlowScore() {
 
       card.classList.remove("good", "ok", "bad");
       scoreEl.classList.remove("good", "ok", "bad");
+
+      updateCollapsibleHeaders(
+        LAST_HOOK_SCORE,
+        LAST_HOOK_SCORE != null ? getHookRatingLabel(LAST_HOOK_SCORE) : null,
+        null,
+        "Locked"
+      );
 
       const creativeState = evaluateCreativeState();
       renderPublishReadyState(creativeState);
@@ -5208,18 +5215,27 @@ async function refreshStoryFlowScore() {
     }
 
     const blocks = text
-    .split(/\n\s*\n/)
-    .map(b => b.trim())
-    .filter(Boolean)
-    .map(b => b.trim())
-    .filter(Boolean);
+        .split(/\n\s*\n/)
+        .map(b => b.trim())
+        .filter(Boolean);
 
     // Need at least: hook + 2 middle captions
     if (blocks.length < 3) {
+      if (labelEl) labelEl.textContent = "—";
       card.classList.add("hidden");
       if (improveBtn) improveBtn.disabled = true;
       LAST_FLOW_SCORE = null;
       window.appState.scores.storyFlow = null;
+      scoreEl.textContent = "—";
+      reasonsEl.innerHTML = "";
+      card.classList.remove("good", "ok", "bad");
+      scoreEl.classList.remove("good", "ok", "bad");
+      updateCollapsibleHeaders(
+        LAST_HOOK_SCORE,
+        LAST_HOOK_SCORE != null ? getHookRatingLabel(LAST_HOOK_SCORE) : null,
+        null,
+        null
+      );
       return;
     }
 
@@ -5263,8 +5279,7 @@ async function refreshStoryFlowScore() {
         updateImproveButtons(LAST_HOOK_SCORE, score);
         scoreEl.textContent = `${score}/100`;
 
-        document.getElementById("storyFlowScoreLabel").textContent =
-          getFlowRatingLabel(score);
+        if (labelEl) labelEl.textContent = getFlowRatingLabel(score);
 
 
         card.classList.remove("good", "ok", "bad");
@@ -5285,7 +5300,6 @@ async function refreshStoryFlowScore() {
         reasonsEl.innerHTML = reasons.length
             ? reasons.map(r => `<li>${r}</li>`).join("")
             : `<li>Flow looks solid ✅</li>`;
-      setTimeout(renderEditProgress, 50);
       updateSmartStatus();
     } catch (err) {
         console.error("Story flow score error:", err);
