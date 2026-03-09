@@ -5011,6 +5011,10 @@ async function applyCaptionVariant(text, meta = {}) {
     lastSavedCaptionsText = text;
     workingCaptionsText = text;
 
+    window.appState.hook = window.appState.hook || {};
+    window.appState.hook.selected = text.split(/\n\s*\n/)[0]?.trim() || null;
+    window.appState.hook.locked = true;
+
     window.appState.hook.lastGenerated = null;
     updateHooksReadyUI();
 
@@ -5192,8 +5196,11 @@ async function refreshStoryFlowScore() {
       return;
     }
     
+    
     // 🔒 Weak hook locks flow scoring
-    if (hookScore != null && hookScore < 60) {
+    const hookChosen = !!window.appState?.hook?.selected;
+
+    if (hookScore != null && hookScore < 60 && !hookChosen) {
       card.classList.remove("hidden");
 
       LAST_FLOW_SCORE = null;
@@ -5253,6 +5260,13 @@ async function refreshStoryFlowScore() {
     card.classList.remove("hidden");
     if (improveBtn) improveBtn.disabled = false;
 
+    // ⚠ Weak hook but user accepted it
+    if (hookScore != null && hookScore < 60 && hookChosen) {
+      reasonsEl.innerHTML = `
+        <li>⚠ Hook is weak but accepted — scoring story flow anyway.</li>
+      `;
+    }
+
     try {
         const data = await jsonFetch("/api/story_flow_score", {
           method: "POST",
@@ -5308,9 +5322,16 @@ async function refreshStoryFlowScore() {
         }
 
         const reasons = data.reasons || [];
-        reasonsEl.innerHTML = reasons.length
+        const acceptedWeakHookNote =
+          hookScore != null && hookScore < 60 && hookChosen
+            ? `<li>⚠ Hook is weak but accepted — scoring story flow anyway.</li>`
+            : "";
+
+        reasonsEl.innerHTML =
+          acceptedWeakHookNote +
+          (reasons.length
             ? reasons.map(r => `<li>${r}</li>`).join("")
-            : `<li>Flow looks solid ✅</li>`;
+            : `<li>Flow looks solid ✅</li>`);
       updateSmartStatus();
     } catch (err) {
         console.error("Story flow score error:", err);
