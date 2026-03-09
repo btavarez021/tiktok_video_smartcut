@@ -4574,9 +4574,20 @@ function getPrimaryCreativeFocus(state) {
   const hook = state.hook_score;
   const flow = state.flow_score;
 
-  if (hook == null || flow == null) return "scoring";
+  // Nothing scored yet
+  if (hook == null && flow == null) return "scoring";
 
-  if (hook < 60) return "hook";
+  // Weak hook takes priority, even if flow is locked/null
+  if (hook != null && hook < 60) return "hook";
+
+  // If hook exists but flow is locked/unavailable, keep focusing on hook polish
+  if (hook != null && flow == null) {
+    return hook < 75 ? "hook" : "publish";
+  }
+
+  // If somehow hook is missing but flow exists
+  if (hook == null && flow != null) return "flow";
+
   if (flow < 60) return "flow";
 
   if (flow < hook && flow < 75) return "flow";
