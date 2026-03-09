@@ -2119,7 +2119,10 @@ function rerenderVariantsList() {
     const focus = state.primary_focus;
 
     if (focus === "hook") {
-      hint.textContent = "Strengthen the hook to gain momentum.";
+      hint.textContent =
+        hook < 60
+          ? "Strengthen the hook to gain momentum."
+          : "Strong hook — refine it for more impact.";
     } else if (focus === "flow") {
       hint.textContent = "Looking good — refine pacing & flow.";
     } else if (focus === "publish") {
@@ -5132,8 +5135,15 @@ function updateSmartStatus() {
   el.className = "edit-smart-status";
 
   if (focus === "hook") {
-    el.textContent = "🔴 Fix Hook First";
-    el.classList.add("red");
+    const hook = state.hook_score ?? 0;
+
+    if (hook < 60) {
+      el.textContent = "🔴 Fix Hook First";
+      el.classList.add("red");
+    } else {
+      el.textContent = "🟡 Improve Hook";
+      el.classList.add("yellow");
+    }
   }
   else if (focus === "flow") {
     el.textContent = "🟡 Improve Story Flow";
