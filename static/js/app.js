@@ -1337,7 +1337,7 @@ function rerenderVariantsList() {
   updateAIRecommendationBar();
 }
 
-  function renderVariantCard(num, variant, cardId) {
+function renderVariantCard(num, variant, cardId) {
     const text = variant.text || "";
     const tone = variant.tone || "";
     const recommended = variant.recommended === true;
@@ -1352,10 +1352,13 @@ function rerenderVariantsList() {
   ? `<div class="variantAppliedBadge">Applied ✓</div>`
   : "";
 
+    const hook = variant.hook_score ?? 0;
+    const flow = variant.flow_score ?? null;
+
     const strength =
-      variant.flow_score != null
-        ? Math.round(((variant.hook_score || 0) + (variant.flow_score || 0)) / 2)
-        : (variant.hook_score || 0);
+      flow != null
+        ? Math.round((hook * 0.6) + (flow * 0.4))
+        : hook;
 
     // ----------------------------
     // AI badge (smarter hierarchy)
