@@ -859,7 +859,7 @@ function computeVariantStrength(variant, intent = "discovery") {
       const intent = window.appState?.hook?.intent || "discovery";
 
       const variants = rawVariants.map(v => {
-        const flowScore = v.flow_score ?? v.story_flow ?? null;
+      const flowScore = v.flow_score ?? v.story_flow ?? null;
 
         return {
           ...v,
@@ -2226,10 +2226,7 @@ function computeVariantStrength(variant) {
           `;
         }).join("");
 
-        const remaining = items.filter(item => {
-        const score = getDirectorPriorityScore(item, renderState, hookScore);
-        return score >= 20;
-      }).length;
+        const remaining = items.length;
 
         const footer = document.createElement("div");
         footer.className = "director-progress";

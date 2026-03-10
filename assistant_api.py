@@ -1695,7 +1695,7 @@ def reorder_storyboard(session, new_order):
 
 def build_variant_reason(best: dict, variants: list, intent: str) -> str:
     hook = best.get("hook_score", 0)
-    flow = best.get("story_flow", 0)
+    flow = best.get("flow_score", best.get("story_flow", 0))
     tone = (best.get("tone") or "").lower()
 
     reasons = []
@@ -1748,8 +1748,8 @@ def build_variant_reason(best: dict, variants: list, intent: str) -> str:
     # ----------------------------------
     # 3) Comparative Strength
     # ----------------------------------
-    max_hook = max(v.get("hook_score", 0) for v in variants) if variants else 0
-    max_flow = max(v.get("story_flow", 0) for v in variants) if variants else 0
+    max_hook = max((v.get("hook_score", 0) for v in variants), default=0)
+    max_flow = max((v.get("flow_score", v.get("story_flow", 0)) for v in variants), default=0)
 
     if hook == max_hook and hook > 0:
         reasons.append("Highest hook strength among options.")
@@ -2693,14 +2693,23 @@ Captions:
 
         if best:
             for v in variants:
-                if v.get("id") == best["id"]:
-                    v["recommended"] = True
+                v["recommended"] = (v.get("id") == best["id"])
+                v["confidence"] = best["confidence"]
+
+                if v["recommended"]:
                     v["recommend_reason"] = best["reason"]
-                    v["confidence"] = best["confidence"]
                     save_session_pref(session, "last_best_tone", v.get("tone"))
                     save_session_pref(session, "last_intent", intent)
-                else:
-                    v["confidence"] = best["confidence"]
+
+        # Sort recommended first, then by hook, then by flow
+        variants.sort(
+            key=lambda v: (
+                1 if v.get("recommended") else 0,
+                v.get("hook_score", 0),
+                v.get("flow_score", v.get("story_flow", 0))
+            ),
+            reverse=True
+        )
 
         return {"variants": variants[:7]}
 
