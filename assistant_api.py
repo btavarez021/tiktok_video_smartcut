@@ -821,6 +821,7 @@ def choose_best_hook(hooks, intent="discovery"):
         "text": best["text"],
         "reason": reason
     }
+
 def _update_aggregate(aggs, event):
     intent = event.get("intent") or "unknown"
     tone = event.get("tone") or "unknown"
@@ -1697,57 +1698,58 @@ def build_variant_reason(best: dict, variants: list, intent: str) -> str:
     flow = best.get("story_flow", 0)
     tone = (best.get("tone") or "").lower()
 
-    intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
-
     reasons = []
 
     # ----------------------------------
-    # 1️⃣ Hook / Flow Trade-Off Analysis
+    # 1) Hook / Flow Trade-Off Analysis
     # ----------------------------------
-
     if hook >= 75 and flow >= 70:
         reasons.append("Strong hook with smooth pacing.")
-
     elif hook >= 75 and flow < 60:
         reasons.append("Scroll-stopping hook, but pacing could improve.")
-
     elif hook < 55 and flow >= 70:
         reasons.append("Great flow and structure, but opening lacks impact.")
-
     elif hook >= 65 and flow >= 65:
         reasons.append("Balanced hook and flow.")
-
     elif hook >= 65:
         reasons.append("Strong opening hook.")
-
     elif flow >= 70:
         reasons.append("Strong pacing and progression.")
-
     else:
         reasons.append("Solid overall structure.")
 
     # ----------------------------------
-    # 2️⃣ Intent Alignment
+    # 2) Intent Alignment
     # ----------------------------------
+    if intent == "discovery":
+        if hook >= 70:
+            reasons.append("Well suited for discovery-focused content.")
+        if "punchy" in tone or "influencer" in tone:
+            reasons.append("Tone supports scroll-stopping discovery content.")
 
-    if intent == "discovery" and hook >= 70:
-        reasons.append("Well suited for discovery-focused content.")
+    elif intent == "personal":
+        if flow >= 70:
+            reasons.append("Supports a more personal storytelling flow.")
+        if "story" in tone or "creator" in tone or "influencer" in tone:
+            reasons.append("Tone feels more human and personal.")
 
-    elif intent == "authority" and flow >= 70:
-        reasons.append("Supports authority through clear progression.")
+    elif intent == "aesthetic":
+        if flow >= 70:
+            reasons.append("Smooth progression fits an aesthetic reel.")
+        if "minimal" in tone or "cinematic" in tone or "luxury" in tone:
+            reasons.append("Tone aligns well with an elevated aesthetic style.")
 
-    elif intent == "engagement" and "punchy" in tone:
-        reasons.append("Energetic tone supports engagement intent.")
-
-    elif intent == "luxury" and "minimal" in tone:
-        reasons.append("Minimal tone aligns with luxury positioning.")
+    elif intent == "informational":
+        if flow >= 70:
+            reasons.append("Clear progression supports informational storytelling.")
+        if "rewrite" in tone or "descriptive" in tone:
+            reasons.append("Tone matches a clearer, more informative format.")
 
     # ----------------------------------
-    # 3️⃣ Comparative Strength (Optional polish)
+    # 3) Comparative Strength
     # ----------------------------------
-
-    max_hook = max(v.get("hook_score", 0) for v in variants)
-    max_flow = max(v.get("story_flow", 0) for v in variants)
+    max_hook = max(v.get("hook_score", 0) for v in variants) if variants else 0
+    max_flow = max(v.get("story_flow", 0) for v in variants) if variants else 0
 
     if hook == max_hook and hook > 0:
         reasons.append("Highest hook strength among options.")
@@ -1756,10 +1758,17 @@ def build_variant_reason(best: dict, variants: list, intent: str) -> str:
         reasons.append("Best pacing among options.")
 
     # ----------------------------------
-    # 4️⃣ Return Clean Sentence
+    # 4) Deduplicate + return
     # ----------------------------------
+    cleaned = []
+    seen = set()
 
-    return " ".join(reasons)
+    for r in reasons:
+        if r not in seen:
+            cleaned.append(r)
+            seen.add(r)
+
+    return " ".join(cleaned)
 
 SESSION_PREFS_DIR = "session_prefs"
 os.makedirs(SESSION_PREFS_DIR, exist_ok=True)
@@ -1787,9 +1796,14 @@ def choose_best_variant(variants: list, intent: str):
         flow = v.get("story_flow", 0)
         tone = (v.get("tone") or "").lower()
 
+        rhythm = v.get("rhythm_score", 0)
+        cta = v.get("cta_score", 0)
+
         base = (
             hook * intent_cfg["hook_weight"] +
-            flow * intent_cfg["flow_weight"]
+            flow * intent_cfg["flow_weight"] +
+            rhythm * 0.15 +
+            cta * 0.05
         )
 
         # soft tone bias
@@ -2422,6 +2436,51 @@ def score_story_flow_from_text(text: str, intent: str = "discovery") -> dict:
         FLOW_SCORE_CACHE[cache_key] = result
         return result
 
+def score_caption_rhythm(text: str) -> int:
+    if not text:
+        return 0
+
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
+    if not blocks:
+        return 0
+
+    lengths = [len(b.split()) for b in blocks]
+    avg = sum(lengths) / len(lengths)
+
+    variance_penalty = sum(abs(x - avg) for x in lengths) / len(lengths)
+
+    score = 100
+
+    if avg < 3:
+        score -= 20
+    if avg > 14:
+        score -= 20
+
+    score -= min(35, round(variance_penalty * 4))
+
+    return max(0, min(100, round(score)))
+
+
+def score_cta_presence(text: str) -> int:
+    if not text:
+        return 0
+
+    blocks = [b.strip().lower() for b in re.split(r"\n\s*\n", text) if b.strip()]
+    if not blocks:
+        return 0
+
+    last_block = blocks[-1]
+
+    has_cta = any(
+        phrase in last_block
+        for phrase in [
+            "follow", "book", "save", "visit",
+            "check it out", "dont miss", "don’t miss"
+        ]
+    )
+
+    return 100 if has_cta else 0
+
 def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
     cfg = _load_config(session)
@@ -2620,9 +2679,14 @@ Captions:
             hook_score = score_hook_text(first_block, intent).get("score", 0)
             flow_result = score_story_flow_from_text(text)
             flow_score = flow_result.get("score", 0)
+            rhythm_score = score_caption_rhythm(text)
+            cta_score = score_cta_presence(text)
 
             v["hook_score"] = hook_score
             v["story_flow"] = flow_score
+            v["flow_score"] = flow_score
+            v["rhythm_score"] = rhythm_score
+            v["cta_score"] = cta_score
             v["uses_selected_hook"] = hook_locked
 
         best = choose_best_variant(variants, intent)

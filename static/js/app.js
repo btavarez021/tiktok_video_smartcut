@@ -706,6 +706,116 @@ function renderPublishReadyState(state) {
     }, 2500);
   }
 
+  function scoreCaptionRhythm(text) {
+  if (!text) return 0;
+
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map(b => b.trim())
+    .filter(Boolean);
+
+  if (!blocks.length) return 0;
+
+  const lengths = blocks.map(b => b.split(/\s+/).filter(Boolean).length);
+  const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+
+  let variancePenalty = 0;
+  lengths.forEach(len => {
+    variancePenalty += Math.abs(len - avg);
+  });
+  variancePenalty = variancePenalty / lengths.length;
+
+  let score = 100;
+
+  if (avg < 3) score -= 20;
+  if (avg > 14) score -= 20;
+
+  score -= Math.min(35, Math.round(variancePenalty * 4));
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function scoreCtaPresence(text) {
+  if (!text) return 0;
+
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map(b => b.trim())
+    .filter(Boolean);
+
+  if (!blocks.length) return 0;
+
+  const lastBlock = blocks[blocks.length - 1].toLowerCase();
+
+  const hasCTA =
+    lastBlock.includes("follow") ||
+    lastBlock.includes("book") ||
+    lastBlock.includes("save") ||
+    lastBlock.includes("visit") ||
+    lastBlock.includes("check it out") ||
+    lastBlock.includes("don’t miss") ||
+    lastBlock.includes("dont miss");
+
+  return hasCTA ? 100 : 0;
+}
+
+function scoreIntentMatch(variant, intent) {
+  const tone = (variant?.tone || "").toLowerCase();
+  const text = (variant?.text || "").toLowerCase();
+
+  let score = 70;
+
+  if (intent === "discovery") {
+    if (tone.includes("punchy")) score += 15;
+    if (tone.includes("tiktok")) score += 10;
+    if (text.includes("secret") || text.includes("hidden") || text.includes("why")) score += 5;
+  }
+
+  if (intent === "personal") {
+    if (tone.includes("story")) score += 15;
+    if (tone.includes("creator")) score += 10;
+    if (text.includes("i ") || text.includes("my ")) score += 5;
+  }
+
+  if (intent === "aesthetic") {
+    if (tone.includes("luxury")) score += 15;
+    if (tone.includes("minimal")) score += 10;
+    if (text.includes("views") || text.includes("breeze") || text.includes("rooftop")) score += 5;
+  }
+
+  if (intent === "informational") {
+    if (tone.includes("info")) score += 15;
+    if (text.includes("what") || text.includes("how")) score += 5;
+  }
+
+  return Math.max(0, Math.min(100, score));
+}
+
+function computeVariantStrength(variant, intent = "discovery") {
+  const hook = variant.hook_score ?? 0;
+  const flow = variant.flow_score ?? null;
+  const rhythm = scoreCaptionRhythm(variant.text);
+  const cta = scoreCtaPresence(variant.text);
+  const intentMatch = scoreIntentMatch(variant, intent);
+
+  if (flow == null) {
+    return Math.round(
+      (hook * 0.45) +
+      (rhythm * 0.25) +
+      (intentMatch * 0.20) +
+      (cta * 0.10)
+    );
+  }
+
+  return Math.round(
+    (hook * 0.35) +
+    (flow * 0.25) +
+    (rhythm * 0.20) +
+    (intentMatch * 0.10) +
+    (cta * 0.10)
+  );
+}
+
   async function pollVariantStatus() {
     if (!VARIANT_POLL_ACTIVE) return;
 
@@ -745,19 +855,48 @@ function renderPublishReadyState(state) {
         "🧠 Auto Assist optimized captions for stronger storytelling"
       );
 
-        const variants = data.result?.variants || [];
+      const rawVariants = data.result?.variants || [];
+      const intent = window.appState?.hook?.intent || "discovery";
+
+      const variants = rawVariants.map(v => {
+        const flowScore = v.flow_score ?? v.story_flow ?? null;
+
+        return {
+          ...v,
+          flow_score: flowScore,
+          smart_score: computeVariantStrength(
+            {
+              ...v,
+              flow_score: flowScore
+            },
+            intent
+          )
+        };
+      });
 
         // 🔑 Global state
         window.appState.variants.list = variants;
 
         // Sort: AI recommended first
+        variants.forEach(v => {
+          v.recommended = false;
+        });
+
+        const bestIndex = variants.reduce((bestIdx, current, idx, arr) => {
+          if (idx === 0) return 0;
+          return (current.smart_score || 0) > (arr[bestIdx].smart_score || 0)
+            ? idx
+            : bestIdx;
+        }, 0);
+
+        if (variants[bestIndex]) {
+          variants[bestIndex].recommended = true;
+        }
+
         variants.sort((a, b) => {
           if (a.recommended) return -1;
           if (b.recommended) return 1;
-          return (
-            (b.hook_score || 0) + (b.story_flow || 0) -
-            ((a.hook_score || 0) + (a.story_flow || 0))
-          );
+          return (b.smart_score || 0) - (a.smart_score || 0);
         });
 
         const box = document.getElementById("variantsOutput");
@@ -1342,6 +1481,9 @@ function renderVariantCard(num, variant, cardId) {
     const tone = variant.tone || "";
     const recommended = variant.recommended === true;
     const reason = variant.recommend_reason || "";
+    const fallbackReason = variant.recommended
+      ? `Smart score ${variant.smart_score ?? strength}. Best match for ${window.appState?.hook?.intent || "your current"} goal.`
+      : "";
     const confidence = variant.confidence || "close";
     const confLabel = confidenceLabel(normalizeConfidence(confidence));
     const escaped = text.replace(/`/g, "\\`");
@@ -1352,7 +1494,9 @@ function renderVariantCard(num, variant, cardId) {
   ? `<div class="variantAppliedBadge">Applied ✓</div>`
   : "";
 
-    const strength = computeVariantStrength(variant);
+    const strength =
+    variant.smart_score ??
+    computeVariantStrength(variant, window.appState?.hook?.intent || "discovery");
 
     // ----------------------------
     // AI badge (smarter hierarchy)
@@ -1373,7 +1517,7 @@ function renderVariantCard(num, variant, cardId) {
     // Why this won
     // ----------------------------
     const whyToggle =
-      recommended && reason
+      recommended && (reason || fallbackReason)
         ? `
           <div class="variantWhyToggle"
               onclick="toggleVariantWhy('${cardId}')">
@@ -1381,7 +1525,7 @@ function renderVariantCard(num, variant, cardId) {
           </div>
 
           <div class="variantWhy hidden" id="${cardId}_why">
-            ${reason}
+            ${reason || fallbackReason}
             ${confidence ? `<div class="variantWhyConfidence">
               Confidence: ${confLabel}
             </div>` : ""}
