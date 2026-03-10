@@ -1643,20 +1643,19 @@ function computeVariantStrength(variant) {
   const rhythm = scoreCaptionRhythm(variant.text);
   const cta = scoreCtaPresence(variant.text);
 
-  // If flow isn't available yet, fall back gracefully
   if (flow == null) {
     return Math.round(
-      (hook * 0.6) +
-      (rhythm * 0.3) +
+      (hook * 0.7) +
+      (rhythm * 0.2) +
       (cta * 0.1)
     );
   }
 
   return Math.round(
-    (hook * 0.4) +
-    (flow * 0.3) +
-    (rhythm * 0.2) +
-    (cta * 0.1)
+    (hook * 0.45) +
+    (flow * 0.30) +
+    (rhythm * 0.15) +
+    (cta * 0.10)
   );
 }
 
