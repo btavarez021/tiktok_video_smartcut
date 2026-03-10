@@ -1352,13 +1352,7 @@ function renderVariantCard(num, variant, cardId) {
   ? `<div class="variantAppliedBadge">Applied ✓</div>`
   : "";
 
-    const hook = variant.hook_score ?? 0;
-    const flow = variant.flow_score ?? null;
-
-    const strength =
-      flow != null
-        ? Math.round((hook * 0.6) + (flow * 0.4))
-        : hook;
+    const strength = computeVariantStrength(variant);
 
     // ----------------------------
     // AI badge (smarter hierarchy)
@@ -1441,6 +1435,86 @@ function renderVariantCard(num, variant, cardId) {
     `;
   }
 
+  function scoreCaptionRhythm(text) {
+  if (!text) return 0;
+
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map(b => b.trim())
+    .filter(Boolean);
+
+  if (blocks.length === 0) return 0;
+
+  const lengths = blocks.map(b => b.split(/\s+/).filter(Boolean).length);
+
+  const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+
+  let variancePenalty = 0;
+  lengths.forEach(len => {
+    variancePenalty += Math.abs(len - avg);
+  });
+
+  variancePenalty = variancePenalty / lengths.length;
+
+  let score = 100;
+
+  // Too short or too long overall
+  if (avg < 3) score -= 20;
+  if (avg > 14) score -= 20;
+
+  // Uneven caption rhythm
+  score -= Math.min(35, Math.round(variancePenalty * 4));
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function scoreCtaPresence(text) {
+  if (!text) return 0;
+
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map(b => b.trim())
+    .filter(Boolean);
+
+  if (!blocks.length) return 0;
+
+  const lastBlock = blocks[blocks.length - 1].toLowerCase();
+
+  const hasCTA =
+    lastBlock.includes("follow") ||
+    lastBlock.includes("book") ||
+    lastBlock.includes("save") ||
+    lastBlock.includes("visit") ||
+    lastBlock.includes("come back") ||
+    lastBlock.includes("don’t miss") ||
+    lastBlock.includes("dont miss") ||
+    lastBlock.includes("check it out");
+
+  return hasCTA ? 100 : 0;
+}
+
+function computeVariantStrength(variant) {
+  const hook = variant.hook_score ?? 0;
+  const flow = variant.flow_score ?? null;
+  const rhythm = scoreCaptionRhythm(variant.text);
+  const cta = scoreCtaPresence(variant.text);
+
+  // If flow isn't available yet, fall back gracefully
+  if (flow == null) {
+    return Math.round(
+      (hook * 0.6) +
+      (rhythm * 0.3) +
+      (cta * 0.1)
+    );
+  }
+
+  return Math.round(
+    (hook * 0.4) +
+    (flow * 0.3) +
+    (rhythm * 0.2) +
+    (cta * 0.1)
+  );
+}
 
 
   function updateVariantStoryScore(id, flow) {
