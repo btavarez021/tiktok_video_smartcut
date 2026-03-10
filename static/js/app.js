@@ -1494,9 +1494,7 @@ function renderVariantCard(num, variant, cardId) {
   ? `<div class="variantAppliedBadge">Applied ✓</div>`
   : "";
 
-    const strength =
-    variant.smart_score ??
-    computeVariantStrength(variant, window.appState?.hook?.intent || "discovery");
+    const strength = computeVariantDisplayStrength(variant);
 
     // ----------------------------
     // AI badge (smarter hierarchy)
@@ -1657,6 +1655,15 @@ function computeVariantStrength(variant) {
     (rhythm * 0.15) +
     (cta * 0.10)
   );
+}
+
+function computeVariantDisplayStrength(variant) {
+  const hook = variant.hook_score ?? 0;
+  const flow = variant.flow_score ?? null;
+
+  return flow != null
+    ? Math.round((hook * 0.6) + (flow * 0.4))
+    : hook;
 }
 
 
