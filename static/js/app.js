@@ -223,6 +223,38 @@ const CREATIVE_ACTIONS = {
   }
 };
 
+function showStoryboardHandoffMessage() {
+  return new Promise(resolve => {
+    const el = document.getElementById("analyzeStatus");
+    if (!el) {
+      resolve();
+      return;
+    }
+
+    el.textContent = `🧠 AI setup complete
+
+✓ Clips analyzed
+✓ Storyboard prepared
+✓ Captions drafted
+
+Opening clip order review…`;
+
+    el.className = "status-text status-success aiSetupStatus";
+    el.classList.remove("fade-out");
+
+    setTimeout(() => {
+      el.classList.add("fade-out");
+
+      setTimeout(() => {
+        el.textContent = "";
+        el.className = "status-text status-info";
+        el.classList.remove("fade-out");
+        resolve();
+      }, 600); // match CSS fade duration
+    }, 1400);
+  });
+}
+
   async function refreshAfterChange({
     hooks = true,
     flow = true,
@@ -298,6 +330,14 @@ const CREATIVE_ACTIONS = {
     } finally {
       REFRESH_LOCK = false;
     }
+  }
+
+  function highlightStoryboardTimeline() {
+    const el = document.getElementById("storyboardTimeline");
+    if (!el) return;
+
+    el.classList.add("clip-highlight");
+    setTimeout(() => el.classList.remove("clip-highlight"), 1200);
   }
 
   function openHookLab() {
@@ -4214,44 +4254,47 @@ async function loadAISetupSummary() {
   }
 
   async function hydrateStoryboardAndScroll() {
-    CONFIG_CACHE = null;
-    
-    await loadConfigAndYaml();
-    await loadCaptionsFromYaml();
+  CONFIG_CACHE = null;
+ 
+  await loadConfigAndYaml();
+  await loadCaptionsFromYaml();
 
-    workingCaptionsText = lastSavedCaptionsText;
-    captionViewMode = "rewritten";
-    renderCaptionView();
+  workingCaptionsText = lastSavedCaptionsText;
+  captionViewMode = "rewritten";
+  renderCaptionView();
 
-    updateCaptionBaselineHint();
-    updateLoadYamlVisibility();
-    updateAIRecommendationBar();
+  updateCaptionBaselineHint();
+  updateLoadYamlVisibility();
+  updateAIRecommendationBar();
 
-    // 🔥 Option A: auto-generate hooks once storyboard is ready
-    if (!window.appState.hook.lastGenerated?.length) {
-      generateHooks(); // runs async, sets hooksReady + renders if lab is open
-    }
+  // 🔥 Option A: auto-generate hooks once storyboard is ready
+  if (!window.appState.hook.lastGenerated?.length) {
+    generateHooks(); // runs async, sets hooksReady + renders if lab is open
+  }
 
-    if (PENDING_SCROLL_TO_STORYBOARD) {
+  if (PENDING_SCROLL_TO_STORYBOARD) {
     PENDING_SCROLL_TO_STORYBOARD = false;
 
-    // tiny cinematic pause after AI work
-    await new Promise(r => setTimeout(r, 120));
+    await showStoryboardHandoffMessage();
 
     activateStep("#step-3");
 
-  document
-    .getElementById("storyboardTimeline")
-    ?.scrollIntoView({
+    const el = document.getElementById("storyboardTimeline");
+
+    el?.scrollIntoView({
       behavior: "smooth",
       block: "start"
     });
+
+    // wait for smooth scroll to settle slightly
+    setTimeout(() => {
+      highlightStoryboardTimeline();
+    }, 400);
   }
 
   await refreshAfterChange();
   await runCreativeEngine("captions_changed");
-
-  }
+}
 
   async function pollYamlStatus() {
     if (!YAML_POLL_ACTIVE) return;
