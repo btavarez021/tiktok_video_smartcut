@@ -1930,6 +1930,15 @@ def build_variant_reason(best: dict, variants: list, intent: str) -> str:
     else:
         reasons.append("Solid overall structure.")
 
+    rhythm = score_caption_rhythm(best.get("text", ""))
+    ending = score_variant_ending(best.get("text", ""))
+
+    if rhythm >= 80:
+        reasons.append("Captions have strong short-form rhythm.")
+
+    if ending >= 75:
+        reasons.append("Ending lands cleanly for a strong finish.")
+
     # ----------------------------------
     # 2) Intent Alignment
     # ----------------------------------
@@ -1993,6 +2002,105 @@ def save_session_pref(session, key, value):
     data[key] = value
     json.dump(data, open(path, "w"), indent=2)
 
+def score_caption_rhythm(text: str) -> int:
+    """
+    Measures how punchy / readable the caption blocks feel.
+    Higher score = better short-form rhythm.
+    """
+    if not text:
+        return 0
+
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
+    if not blocks:
+        return 0
+
+    scores = []
+
+    for block in blocks:
+        words = block.split()
+        wc = len(words)
+
+        # sweet spot for short-form captions
+        if 3 <= wc <= 8:
+            scores.append(90)
+        elif 2 <= wc <= 10:
+            scores.append(75)
+        elif 1 <= wc <= 12:
+            scores.append(60)
+        else:
+            scores.append(40)
+
+    return int(sum(scores) / len(scores))
+
+
+def score_variant_ending(text: str) -> int:
+    """
+    Rewards stronger last-caption endings.
+    Doesn't require a literal CTA, just a satisfying close.
+    """
+    if not text:
+        return 0
+
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
+    if not blocks:
+        return 0
+
+    last = blocks[-1].lower()
+    score = 50
+
+    strong_words = [
+        "view", "views", "night", "tonight", "sunset", "skyline",
+        "unwind", "relax", "escape", "vibes", "rooftop", "city"
+    ]
+
+    cta_words = [
+        "book", "follow", "save", "visit", "come back", "come here"
+    ]
+
+    if any(w in last for w in strong_words):
+        score += 20
+
+    if any(w in last for w in cta_words):
+        score += 15
+
+    # reward concise endings
+    wc = len(last.split())
+    if 3 <= wc <= 9:
+        score += 10
+
+    return min(score, 100)
+
+
+def compute_variant_smart_score(variant: dict, intent: str) -> int:
+    """
+    Smart ranking score for choosing the best caption variant.
+    """
+    hook = variant.get("hook_score", 0)
+    flow = variant.get("story_flow", 0)
+    tone = (variant.get("tone") or "").lower()
+    text = variant.get("text") or ""
+
+    rhythm = score_caption_rhythm(text)
+    ending = score_variant_ending(text)
+
+    intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
+
+    # start with intent-aware hook/flow weighting
+    base = (
+        hook * intent_cfg["hook_weight"] +
+        flow * intent_cfg["flow_weight"]
+    )
+
+    # rhythm + ending polish
+    base += rhythm * 0.15
+    base += ending * 0.10
+
+    # tone bias bonus
+    for t in intent_cfg["tone_bias"]:
+        if t in tone:
+            base += 3
+
+    return round(min(base, 100), 2)
 
 def choose_best_variant(variants: list, intent: str):
     if not variants:
@@ -2004,26 +2112,7 @@ def choose_best_variant(variants: list, intent: str):
     # 1️⃣ BASE SCORE
     # ----------------------------------
     def base_score(v):
-        hook = v.get("hook_score", 0)
-        flow = v.get("story_flow", 0)
-        tone = (v.get("tone") or "").lower()
-
-        rhythm = v.get("rhythm_score", 0)
-        cta = v.get("cta_score", 0)
-
-        base = (
-            hook * intent_cfg["hook_weight"] +
-            flow * intent_cfg["flow_weight"] +
-            rhythm * 0.15 +
-            cta * 0.05
-        )
-
-        # soft tone bias
-        for t in intent_cfg["tone_bias"]:
-            if t in tone:
-                base += 3
-
-        return base
+        return compute_variant_smart_score(v, intent)
 
     scored = [{**v, "_base": base_score(v)} for v in variants]
     scored.sort(key=lambda v: v["_base"], reverse=True)
@@ -2900,6 +2989,7 @@ Captions:
             v["rhythm_score"] = rhythm_score
             v["cta_score"] = cta_score
             v["uses_selected_hook"] = hook_locked
+            v["smart_score"] = compute_variant_smart_score(v, intent)
 
         best = choose_best_variant(variants, intent)
 
