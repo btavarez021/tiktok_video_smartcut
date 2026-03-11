@@ -1117,6 +1117,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
         """
 
     video_subjects = get_video_subjects(session)
+    print("[HOOK_LAB] Subjects:", video_subjects)
+
 
     if not client:
         # fallback
