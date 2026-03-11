@@ -118,6 +118,65 @@ def _run_variant_job(session: str, modes: dict, selected_hook: str | None):
             "error": str(e),
         }
 
+BASE_SUBJECTS = {
+    "rooftop", "lounge", "cocktail", "bar",
+    "hotel", "gym", "pool", "suite", "view",
+    "spa", "restaurant", "skyline", "terrace"
+}
+
+SUBJECT_STOPWORDS = {
+    "this", "that", "with", "from", "into", "your", "their",
+    "video", "clip", "scene", "stay", "night", "day",
+    "good", "great", "best", "amazing", "beautiful",
+    "feel", "vibe", "vibes", "place", "spot", "thing",
+    "here", "there", "just", "made", "every", "after",
+    "before", "while", "when", "where"
+}
+
+def _tokenize_subject_text(text: str) -> list[str]:
+    if not text:
+        return []
+
+    words = re.findall(r"[a-zA-Z][a-zA-Z\-]{2,}", text.lower())
+    return [w for w in words if w not in SUBJECT_STOPWORDS]
+
+
+def get_video_subjects(session: str) -> list[str]:
+    """
+    Hybrid subject extraction:
+    - stable base anchors
+    - dynamic anchors from labels, analyses, and filenames
+    """
+    session = sanitize_session(session)
+
+    subjects = set(BASE_SUBJECTS)
+
+    # Labels
+    labels = load_labels(session) or {}
+    for label in labels.values():
+        for word in _tokenize_subject_text(label):
+            subjects.add(word)
+
+    # Analysis descriptions
+    analyses = load_analysis_results_session(session) or {}
+    for desc in analyses.values():
+        for word in _tokenize_subject_text(desc):
+            subjects.add(word)
+
+    # Filenames
+    for fname in labels.keys():
+        cleaned = fname.replace("_", " ").replace("-", " ")
+        cleaned = re.sub(r"\.[a-zA-Z0-9]+$", "", cleaned)
+        for word in _tokenize_subject_text(cleaned):
+            subjects.add(word)
+
+    # keep only useful-looking anchors
+    filtered = {
+        s for s in subjects
+        if len(s) >= 4 and not s.isdigit()
+    }
+
+    return sorted(filtered)
 
 def score_hook_from_text(text: str, intent: str = "discovery") -> Dict[str, Any]:
     """
@@ -909,30 +968,17 @@ def record_variant_feedback(payload: dict):
         "aggregate_key": f"{event['intent']}||{event['tone']}"
     }
 
-def score_hook_subject_bonus(hook: str) -> int:
+def score_hook_subject_bonus(hook: str, subjects: list[str] | None = None) -> int:
     """
-    Rewards hooks referencing key experience anchors
-    (rooftop, cocktails, hotel, gym, etc.)
+    Rewards hooks referencing key experience anchors from the actual video context.
     """
-
     if not hook:
         return 0
 
     text = hook.lower()
+    subject_list = subjects or list(BASE_SUBJECTS)
 
-    important_subjects = [
-        "rooftop",
-        "lounge",
-        "cocktail",
-        "bar",
-        "hotel",
-        "gym",
-        "view",
-        "suite",
-        "pool"
-    ]
-
-    matches = sum(1 for word in important_subjects if word in text)
+    matches = sum(1 for word in subject_list if word in text)
 
     if matches >= 2:
         return 4
@@ -1070,6 +1116,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
         Make the viewer understand what is interesting and why it matters.
         """
 
+    video_subjects = get_video_subjects(session)
+
     if not client:
         # fallback
         return {
@@ -1177,7 +1225,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
             base_score = max(score_data["score"] - penalty - vague_penalty, 0)
 
             curiosity_bonus = score_hook_curiosity_bonus(clean, intent)
-            subject_bonus = score_hook_subject_bonus(clean)
+            subject_bonus = score_hook_subject_bonus(clean, video_subjects)
 
             score = min(base_score + curiosity_bonus + subject_bonus, 100)
 
