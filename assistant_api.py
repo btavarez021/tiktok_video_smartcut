@@ -909,6 +909,38 @@ def record_variant_feedback(payload: dict):
         "aggregate_key": f"{event['intent']}||{event['tone']}"
     }
 
+def score_hook_subject_bonus(hook: str) -> int:
+    """
+    Rewards hooks referencing key experience anchors
+    (rooftop, cocktails, hotel, gym, etc.)
+    """
+
+    if not hook:
+        return 0
+
+    text = hook.lower()
+
+    important_subjects = [
+        "rooftop",
+        "lounge",
+        "cocktail",
+        "bar",
+        "hotel",
+        "gym",
+        "view",
+        "suite",
+        "pool"
+    ]
+
+    matches = sum(1 for word in important_subjects if word in text)
+
+    if matches >= 2:
+        return 4
+    elif matches == 1:
+        return 2
+
+    return 0
+
 def score_hook_curiosity_bonus(hook: str, intent: str = "discovery") -> int:
     """
     Small heuristic bonus for stronger curiosity / tension patterns.
@@ -1145,7 +1177,9 @@ def api_generate_hooks(session: str, intent: str | None = None):
             base_score = max(score_data["score"] - penalty - vague_penalty, 0)
 
             curiosity_bonus = score_hook_curiosity_bonus(clean, intent)
-            score = min(base_score + curiosity_bonus, 100)
+            subject_bonus = score_hook_subject_bonus(clean)
+
+            score = min(base_score + curiosity_bonus + subject_bonus, 100)
 
             if any(w in lower for w in ["wait", "watch", "this", "you", "from"]):
                 tone = "punchy"
@@ -1163,6 +1197,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 "type": hook_type,
                 "base_score": base_score,
                 "curiosity_bonus": curiosity_bonus,
+                "subject_bonus": subject_bonus,
                 "vague_penalty": vague_penalty
             })
 
