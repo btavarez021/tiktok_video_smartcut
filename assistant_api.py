@@ -987,6 +987,59 @@ def score_hook_subject_bonus(hook: str, subjects: list[str] | None = None) -> in
 
     return 0
 
+def build_hook_reason(best: dict, hooks: list[dict], intent: str) -> str:
+    reasons = []
+
+    text = (best.get("text") or "").lower()
+    score = best.get("score", 0)
+    curiosity_bonus = best.get("curiosity_bonus", 0)
+    subject_bonus = best.get("subject_bonus", 0)
+    tone = (best.get("tone") or "").lower()
+
+    max_score = max((h.get("score", 0) for h in hooks), default=0)
+
+    if score == max_score and score > 0:
+        reasons.append("Highest scoring hook in this set.")
+
+    if curiosity_bonus >= 8:
+        reasons.append("Strong curiosity gap.")
+
+    elif curiosity_bonus >= 4:
+        reasons.append("Good curiosity and intrigue.")
+
+    if subject_bonus >= 6:
+        reasons.append("Anchored to key video subjects.")
+
+    elif subject_bonus >= 3:
+        reasons.append("References important scene elements.")
+
+    if "secret" in text or "hidden" in text:
+        reasons.append("Uses a strong secret-reveal angle.")
+
+    if "?" in best.get("text", ""):
+        reasons.append("Question format helps invite curiosity.")
+
+    if "vip" in text or "exclusive" in text:
+        reasons.append("Exclusivity angle fits short-form travel content.")
+
+    if "didn't expect" in text or "did not expect" in text or "never expected" in text:
+        reasons.append("Unexpected contrast makes the hook stronger.")
+
+    if intent == "discovery" and ("punchy" in tone or "neutral" in tone):
+        reasons.append("Well suited for discovery-focused content.")
+
+    # dedupe + keep concise
+    cleaned = []
+    seen = set()
+
+    for r in reasons:
+        if r not in seen:
+            cleaned.append(r)
+            seen.add(r)
+
+    return " ".join(cleaned[:3])
+
+
 def score_hook_curiosity_bonus(hook: str, intent: str = "discovery") -> int:
     """
     Small heuristic bonus for stronger curiosity / tension patterns.
@@ -1287,6 +1340,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 if h["text"] == best["text"]:
                     h["recommended"] = True
                     h["reason"] = best["reason"]
+                    h["why"] = build_hook_reason(h, hooks, intent)
+
 
 
         print("[HOOK_LAB] Hooks generated with intent:", intent)

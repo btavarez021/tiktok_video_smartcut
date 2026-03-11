@@ -1855,7 +1855,7 @@ function computeVariantDisplayStrength(variant) {
       .forEach(h => {
         const isRecommended = h.recommended === true;
         const isSelected = window.appState.hook.selected === h.text;
-        const reason = h.recommend_reason || "";
+        const reason = h.why || h.recommend_reason || "";
         const intentLabel = h.intent_label || "";
 
 
