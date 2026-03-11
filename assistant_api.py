@@ -1105,7 +1105,7 @@ def build_hook_reason(best: dict, hooks: list[dict], intent: str, subjects: list
 
     matches = get_hook_subject_matches(text, subjects)
     if matches:
-        reasons.append(f"Matches detected video subjects ({', '.join(matches)}).")
+        reasons.append(f"Matches key video subjects ({', '.join(matches)}).")
     elif subject_bonus >= 3:
         reasons.append("Relevant to detected video subjects.")
 
@@ -1434,7 +1434,6 @@ def api_generate_hooks(session: str, intent: str | None = None):
         hooks = unique_hooks[:8]
 
         # 🎯 Intent-based recommendation
-        intent = cfg.get("intent", "discovery")
         print("choose_best_hook exists:", "choose_best_hook" in globals())
         best = choose_best_hook(hooks, intent)
 
