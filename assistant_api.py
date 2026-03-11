@@ -1211,25 +1211,17 @@ def api_generate_hooks(session: str, intent: str | None = None):
         
         hooks = []
         for text in data.get("hooks", []):
+
             clean = strip_emojis(text).strip()
             lower = clean.lower()
 
-            penalty = 0
-            vague_penalty = 0
+            scored = score_generated_hook(clean, intent, video_subjects)
 
-            if any(p in lower for p in WEAK_HOOK_PATTERNS):
-                penalty = 8
-
-            if any(p in lower for p in VAGUE_HOOK_PATTERNS):
-                vague_penalty = 4
-
-            score_data = score_hook_text(clean, intent)
-            base_score = max(score_data["score"] - penalty - vague_penalty, 0)
-
-            curiosity_bonus = score_hook_curiosity_bonus(clean, intent)
-            subject_bonus = score_hook_subject_bonus(clean, video_subjects)
-
-            score = min(base_score + curiosity_bonus + subject_bonus, 100)
+            score = scored["score"]
+            base_score = scored["base_score"]
+            curiosity_bonus = scored["curiosity_bonus"]
+            subject_bonus = scored["subject_bonus"]
+            vague_penalty = scored["vague_penalty"]
 
             if any(w in lower for w in ["wait", "watch", "this", "you", "from"]):
                 tone = "punchy"
@@ -2782,6 +2774,58 @@ def score_cta_presence(text: str) -> int:
 
     return 100 if has_cta else 0
 
+def score_generated_hook(clean: str, intent: str, video_subjects: list[str] | None = None) -> dict:
+    lower = clean.lower()
+
+    WEAK_HOOK_PATTERNS = [
+        "wait until you see",
+        "you won't believe",
+        "you won’t believe",
+        "hidden gem",
+        "this place",
+        "this spot",
+        "you won't guess",
+        "you won’t guess",
+    ]
+
+    VAGUE_HOOK_PATTERNS = [
+        "this drink",
+        "this view",
+        "this place",
+        "this spot",
+        "this is how",
+        "feel the",
+        "while sipping",
+        "while drinking",
+        "taste this",
+        "watch this",
+    ]
+
+    penalty = 0
+    vague_penalty = 0
+
+    if any(p in lower for p in WEAK_HOOK_PATTERNS):
+        penalty = 8
+
+    if any(p in lower for p in VAGUE_HOOK_PATTERNS):
+        vague_penalty = 4
+
+    score_data = score_hook_text(clean, intent)
+    base_score = max(score_data["score"] - penalty - vague_penalty, 0)
+
+    curiosity_bonus = score_hook_curiosity_bonus(clean, intent)
+    subject_bonus = score_hook_subject_bonus(clean, video_subjects)
+
+    score = min(base_score + curiosity_bonus + subject_bonus, 100)
+
+    return {
+        "score": score,
+        "base_score": base_score,
+        "curiosity_bonus": curiosity_bonus,
+        "subject_bonus": subject_bonus,
+        "vague_penalty": vague_penalty,
+    }
+
 def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
     cfg = _load_config(session)
@@ -2977,7 +3021,8 @@ Captions:
             blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
             first_block = blocks[0] if blocks else ""
 
-            hook_score = score_hook_text(first_block, intent).get("score", 0)
+            video_subjects = get_video_subjects(session)
+            hook_score = score_generated_hook(first_block, intent, video_subjects).get("score", 0)
             flow_result = score_story_flow_from_text(text)
             flow_score = flow_result.get("score", 0)
             rhythm_score = score_caption_rhythm(text)
