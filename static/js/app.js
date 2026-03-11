@@ -251,7 +251,7 @@ Opening clip order review…`;
         el.classList.remove("fade-out");
         resolve();
       }, 600); // match CSS fade duration
-    }, 1400);
+    }, 2200);
   });
 }
 
@@ -4289,7 +4289,7 @@ async function loadAISetupSummary() {
     // wait for smooth scroll to settle slightly
     setTimeout(() => {
       highlightStoryboardTimeline();
-    }, 400);
+    }, 500);
   }
 
   await refreshAfterChange();
