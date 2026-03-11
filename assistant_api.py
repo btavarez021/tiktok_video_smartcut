@@ -987,48 +987,142 @@ def score_hook_subject_bonus(hook: str, subjects: list[str] | None = None) -> in
 
     return 0
 
-def build_hook_reason(best: dict, hooks: list[dict], intent: str) -> str:
+def detect_hook_pattern(text: str) -> str:
+    if not text:
+        return "generic"
+
+    lower = text.lower().strip()
+
+    if "?" in text or lower.startswith(("what", "why", "how")):
+        return "question"
+
+    if any(p in lower for p in ["secret", "hidden", "look closer", "notice"]):
+        return "curiosity"
+
+    if any(p in lower for p in ["only vip", "exclusive", "elite", "private"]):
+        return "exclusivity"
+
+    if any(p in lower for p in ["i didn’t expect", "i didn't expect", "never expected", "changed my"]):
+        return "transformation"
+
+    if any(p in lower for p in ["feel", "taste", "breeze", "view", "pulse"]):
+        return "sensory"
+
+    return "statement"
+
+
+def get_hook_subject_matches(text: str, subjects: list[str] | None = None) -> list[str]:
+    if not text:
+        return []
+
+    lower = text.lower()
+    subject_list = subjects or list(BASE_SUBJECTS)
+
+    matches = [word for word in subject_list if word in lower]
+
+    seen = set()
+    cleaned = []
+    for m in matches:
+        if m not in seen:
+            cleaned.append(m)
+            seen.add(m)
+
+    return cleaned[:3]
+
+
+def score_hook_visual_anchor_bonus(hook: str) -> int:
+    """
+    Rewards hooks that mention a concrete, visually filmable object/place.
+    """
+    if not hook:
+        return 0
+
+    text = hook.lower()
+
+    strong_visual_anchors = [
+        "cocktail", "drink", "garnish", "bartender",
+        "rooftop", "bar", "lounge", "gym",
+        "view", "skyline", "pool", "suite", "cherry"
+    ]
+
+    strong_matches = sum(1 for w in strong_visual_anchors if w in text)
+
+    if strong_matches >= 2:
+        return 4
+    elif strong_matches == 1:
+        return 2
+
+    return 0
+
+
+def get_hook_subject_matches(text: str, subjects: list[str] | None = None) -> list[str]:
+    if not text:
+        return []
+
+    lower = text.lower()
+    subject_list = subjects or list(BASE_SUBJECTS)
+
+    matches = [word for word in subject_list if word in lower]
+
+    # de-dupe, stable order
+    seen = set()
+    cleaned = []
+    for m in matches:
+        if m not in seen:
+            cleaned.append(m)
+            seen.add(m)
+
+    return cleaned[:3]
+
+def build_hook_reason(best: dict, hooks: list[dict], intent: str, subjects: list[str] | None = None) -> str:
     reasons = []
 
-    text = (best.get("text") or "").lower()
+    text = best.get("text", "") or ""
     score = best.get("score", 0)
     curiosity_bonus = best.get("curiosity_bonus", 0)
     subject_bonus = best.get("subject_bonus", 0)
-    tone = (best.get("tone") or "").lower()
+    visual_anchor_bonus = best.get("visual_anchor_bonus", 0)
 
-    max_score = max((h.get("score", 0) for h in hooks), default=0)
+    sorted_scores = sorted((h.get("score", 0) for h in hooks), reverse=True)
+    second_score = sorted_scores[1] if len(sorted_scores) > 1 else 0
+    margin = max(score - second_score, 0)
 
-    if score == max_score and score > 0:
-        reasons.append("Highest scoring hook in this set.")
+    if margin >= 10:
+        reasons.append("Clear top score in this set.")
+    elif margin >= 4:
+        reasons.append("Top score in this set.")
+    else:
+        reasons.append("Narrow edge over other strong options.")
+
+    pattern = detect_hook_pattern(text)
 
     if curiosity_bonus >= 8:
-        reasons.append("Strong curiosity gap.")
-
+        reasons.append("Uses strong curiosity-driven phrasing.")
     elif curiosity_bonus >= 4:
-        reasons.append("Good curiosity and intrigue.")
+        reasons.append("Uses a curiosity-style hook pattern.")
+    elif pattern == "question":
+        reasons.append("Question format helps create interest.")
 
-    if subject_bonus >= 6:
-        reasons.append("Anchored to key video subjects.")
-
+    matches = get_hook_subject_matches(text, subjects)
+    if matches:
+        reasons.append(f"Matches detected video subjects ({', '.join(matches)}).")
     elif subject_bonus >= 3:
-        reasons.append("References important scene elements.")
+        reasons.append("Relevant to detected video subjects.")
 
-    if "secret" in text or "hidden" in text:
-        reasons.append("Uses a strong secret-reveal angle.")
+    if visual_anchor_bonus >= 4:
+        reasons.append("Uses a clear visual anchor from the reel.")
+    elif visual_anchor_bonus >= 2:
+        reasons.append("References a concrete scene element.")
 
-    if "?" in best.get("text", ""):
-        reasons.append("Question format helps invite curiosity.")
+    if intent == "discovery":
+        reasons.append("Fits discovery-focused hook selection.")
+    elif intent == "personal":
+        reasons.append("Fits a more personal storytelling angle.")
+    elif intent == "aesthetic":
+        reasons.append("Fits a more visual, aesthetic hook style.")
+    elif intent == "informational":
+        reasons.append("Fits a clearer, information-led hook style.")
 
-    if "vip" in text or "exclusive" in text:
-        reasons.append("Exclusivity angle fits short-form travel content.")
-
-    if "didn't expect" in text or "did not expect" in text or "never expected" in text:
-        reasons.append("Unexpected contrast makes the hook stronger.")
-
-    if intent == "discovery" and ("punchy" in tone or "neutral" in tone):
-        reasons.append("Well suited for discovery-focused content.")
-
-    # dedupe + keep concise
     cleaned = []
     seen = set()
 
@@ -1037,7 +1131,7 @@ def build_hook_reason(best: dict, hooks: list[dict], intent: str) -> str:
             cleaned.append(r)
             seen.add(r)
 
-    return " ".join(cleaned[:3])
+    return " ".join(cleaned[:4])
 
 
 def score_hook_curiosity_bonus(hook: str, intent: str = "discovery") -> int:
@@ -1119,6 +1213,38 @@ def classify_hook_type(text: str) -> str:
             return hook_type
 
     return "generic"
+
+def score_hook_visual_anchor_bonus(hook: str) -> int:
+    """
+    Rewards hooks that mention a concrete, visually filmable object/place.
+    This improves short-form clarity.
+    """
+    if not hook:
+        return 0
+
+    text = hook.lower()
+
+    strong_visual_anchors = [
+        "cocktail", "drink", "garnish", "bartender",
+        "rooftop", "bar", "lounge", "gym",
+        "view", "skyline", "pool", "suite", "cherry"
+    ]
+
+    weak_abstract_terms = [
+        "experience", "moment", "vibe", "feeling", "night", "place"
+    ]
+
+    strong_matches = sum(1 for w in strong_visual_anchors if w in text)
+    weak_matches = sum(1 for w in weak_abstract_terms if w in text)
+
+    if strong_matches >= 2:
+        return 4
+    elif strong_matches == 1:
+        return 2
+    elif weak_matches >= 1:
+        return 0
+
+    return 0
 
 def api_generate_hooks(session: str, intent: str | None = None):
 
@@ -1244,31 +1370,6 @@ def api_generate_hooks(session: str, intent: str | None = None):
         content = resp.choices[0].message.content.strip()
         data = safe_json_extract(content)
 
-
-        WEAK_HOOK_PATTERNS = [
-                "wait until you see",
-                "you won't believe",
-                "you won’t believe",
-                "hidden gem",
-                "this place",
-                "this spot",
-                "you won't guess",
-                "you won’t guess",
-            ]
-        
-        VAGUE_HOOK_PATTERNS = [
-            "this drink",
-            "this view",
-            "this place",
-            "this spot",
-            "this is how",
-            "feel the",
-            "while sipping",
-            "while drinking",
-            "taste this",
-            "watch this",
-        ]
-        
         hooks = []
         for text in data.get("hooks", []):
 
@@ -1281,6 +1382,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
             base_score = scored["base_score"]
             curiosity_bonus = scored["curiosity_bonus"]
             subject_bonus = scored["subject_bonus"]
+            visual_anchor_bonus = scored["visual_anchor_bonus"]
             vague_penalty = scored["vague_penalty"]
 
             if any(w in lower for w in ["wait", "watch", "this", "you", "from"]):
@@ -1293,15 +1395,16 @@ def api_generate_hooks(session: str, intent: str | None = None):
             hook_type = classify_hook_type(clean)
 
             hooks.append({
-                "text": clean,
-                "score": score,
-                "tone": tone,
-                "type": hook_type,
-                "base_score": base_score,
-                "curiosity_bonus": curiosity_bonus,
-                "subject_bonus": subject_bonus,
-                "vague_penalty": vague_penalty
-            })
+            "text": clean,
+            "score": score,
+            "tone": tone,
+            "type": hook_type,
+            "base_score": base_score,
+            "curiosity_bonus": curiosity_bonus,
+            "subject_bonus": subject_bonus,
+            "visual_anchor_bonus": visual_anchor_bonus,
+            "vague_penalty": vague_penalty
+        })
 
 
 
@@ -1340,7 +1443,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 if h["text"] == best["text"]:
                     h["recommended"] = True
                     h["reason"] = best["reason"]
-                    h["why"] = build_hook_reason(h, hooks, intent)
+                    h["why"] = build_hook_reason(h, hooks, intent, video_subjects)
 
 
 
@@ -2877,14 +2980,22 @@ def score_generated_hook(clean: str, intent: str, video_subjects: list[str] | No
 
     curiosity_bonus = score_hook_curiosity_bonus(clean, intent)
     subject_bonus = score_hook_subject_bonus(clean, video_subjects)
+    visual_anchor_bonus = score_hook_visual_anchor_bonus(clean)
 
-    score = min(base_score + curiosity_bonus + subject_bonus, 100)
+    score = min(
+        base_score +
+        curiosity_bonus +
+        subject_bonus +
+        visual_anchor_bonus,
+        100
+    )
 
     return {
         "score": score,
         "base_score": base_score,
         "curiosity_bonus": curiosity_bonus,
         "subject_bonus": subject_bonus,
+        "visual_anchor_bonus": visual_anchor_bonus,
         "vague_penalty": vague_penalty,
     }
 
