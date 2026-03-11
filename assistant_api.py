@@ -1989,7 +1989,7 @@ def build_variant_reason(best: dict, variants: list, intent: str) -> str:
             cleaned.append(r)
             seen.add(r)
 
-    return " ".join(cleaned)
+    return " ".join(cleaned[:4])
 
 SESSION_PREFS_DIR = "session_prefs"
 os.makedirs(SESSION_PREFS_DIR, exist_ok=True)
