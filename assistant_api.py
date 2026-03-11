@@ -967,6 +967,27 @@ def score_hook_curiosity_bonus(hook: str, intent: str = "discovery") -> int:
     # Keep it a light modifier
     return min(bonus, 12)
 
+HOOK_TYPE_RULES = {
+    "curiosity": ["secret", "hidden", "look closer", "why", "what", "?"],
+    "luxury": ["luxury", "exclusive", "vip", "elite", "private"],
+    "transformation": ["from", "turns", "changed", "transformed"],
+    "detail": ["detail", "tiny", "ingredient", "inside"],
+    "sensory": ["taste", "breeze", "view", "sound", "feel"],
+    "status": ["only", "members", "guests", "elite"],
+    "emotion": ["i didn't expect", "never expected", "surprised"]
+}
+
+def classify_hook_type(text: str) -> str:
+    if not text:
+        return "generic"
+
+    lower = text.lower()
+
+    for hook_type, keywords in HOOK_TYPE_RULES.items():
+        if any(k in lower for k in keywords):
+            return hook_type
+
+    return "generic"
 
 def api_generate_hooks(session: str, intent: str | None = None):
 
@@ -1116,10 +1137,13 @@ def api_generate_hooks(session: str, intent: str | None = None):
             else:
                 tone = "neutral"
 
+            hook_type = classify_hook_type(clean)
+
             hooks.append({
                 "text": clean,
                 "score": score,
                 "tone": tone,
+                "type": hook_type,
                 "base_score": base_score,
                 "curiosity_bonus": curiosity_bonus
             })
@@ -1128,6 +1152,28 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
         # Sort best first
         hooks.sort(key=lambda x: x["score"], reverse=True)
+
+        # -----------------------------------------
+        # Hook Diversity Enforcement
+        # -----------------------------------------
+
+        unique_hooks = []
+        seen_types = set()
+
+        for hook in hooks:
+            hook_type = hook.get("type", "generic")
+
+            # prioritize unique hook types first
+            if hook_type not in seen_types:
+                unique_hooks.append(hook)
+                seen_types.add(hook_type)
+
+        # fill remaining slots with best remaining hooks
+        for hook in hooks:
+            if hook not in unique_hooks:
+                unique_hooks.append(hook)
+
+        hooks = unique_hooks[:8]
 
         # 🎯 Intent-based recommendation
         intent = cfg.get("intent", "discovery")
