@@ -1158,14 +1158,21 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             REQUIRED ANGLES:
             Generate exactly 8 hooks using these 8 angles:
-            1. curiosity gap
-            2. exclusivity / luxury
-            3. surprising reveal
-            4. transformation
-            5. hidden detail
-            6. sensory / vibe
-            7. status / aspiration
-            8. emotional / personal reaction
+            STRUCTURE DIVERSITY RULE:
+            Each hook must use a DIFFERENT structure pattern.
+
+            Use these structures across the hooks:
+
+            1. Question hook
+            2. Curiosity reveal
+            3. Status / exclusivity
+            4. Transformation
+            5. Hidden detail
+            6. Sensory / vibe
+            7. Emotional reaction
+            8. Bold statement
+
+            Avoid repeating the same pattern like multiple "What makes..." or "How this..." hooks.
 
             Scenes:
             {json.dumps(scenes, indent=2)}
