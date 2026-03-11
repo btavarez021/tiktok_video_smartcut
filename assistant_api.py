@@ -1114,18 +1114,35 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 "you won’t guess",
             ]
         
+        VAGUE_HOOK_PATTERNS = [
+            "this drink",
+            "this view",
+            "this place",
+            "this spot",
+            "this is how",
+            "feel the",
+            "while sipping",
+            "while drinking",
+            "taste this",
+            "watch this",
+        ]
+        
         hooks = []
         for text in data.get("hooks", []):
             clean = strip_emojis(text).strip()
             lower = clean.lower()
 
             penalty = 0
+            vague_penalty = 0
 
             if any(p in lower for p in WEAK_HOOK_PATTERNS):
                 penalty = 8
-            
+
+            if any(p in lower for p in VAGUE_HOOK_PATTERNS):
+                vague_penalty = 4
+
             score_data = score_hook_text(clean, intent)
-            base_score = max(score_data["score"] - penalty, 0)
+            base_score = max(score_data["score"] - penalty - vague_penalty, 0)
 
             curiosity_bonus = score_hook_curiosity_bonus(clean, intent)
             score = min(base_score + curiosity_bonus, 100)
@@ -1145,7 +1162,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 "tone": tone,
                 "type": hook_type,
                 "base_score": base_score,
-                "curiosity_bonus": curiosity_bonus
+                "curiosity_bonus": curiosity_bonus,
+                "vague_penalty": vague_penalty
             })
 
 
