@@ -981,9 +981,9 @@ def score_hook_subject_bonus(hook: str, subjects: list[str] | None = None) -> in
     matches = sum(1 for word in subject_list if word in text)
 
     if matches >= 2:
-        return 4
+        return 6   # stronger bonus for multiple anchors
     elif matches == 1:
-        return 2
+        return 3   # still reward specific references
 
     return 0
 
