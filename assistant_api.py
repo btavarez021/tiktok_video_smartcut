@@ -45,6 +45,7 @@ from tiktok_assistant import (
 from tiktok_assistant import apply_overlay
 import time
 import threading
+from collections import Counter
 
 logger = logging.getLogger(__name__)
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -96,6 +97,47 @@ def load_analysis_status(session: str) -> dict | None:
         return json.load(open(path))
     except Exception:
         return None
+
+
+def get_weighted_video_subjects(session: str) -> dict[str, int]:
+    """
+    Returns subject frequency weights from labels, analyses, and filenames.
+    Higher count = more central subject in this reel.
+    """
+    session = sanitize_session(session)
+    counts = Counter()
+
+    # Start with a small base prior
+    for s in BASE_SUBJECTS:
+        counts[s] += 1
+
+    # Labels = strongest signal
+    labels = load_labels(session) or {}
+    for label in labels.values():
+        for word in _tokenize_subject_text(label):
+            counts[word] += 3
+
+    # Analysis descriptions = medium signal
+    analyses = load_analysis_results_session(session) or {}
+    for desc in analyses.values():
+        for word in _tokenize_subject_text(desc):
+            counts[word] += 2
+
+    # Filenames = weak signal
+    for fname in labels.keys():
+        cleaned = fname.replace("_", " ").replace("-", " ")
+        cleaned = re.sub(r"\.[a-zA-Z0-9]+$", "", cleaned)
+        for word in _tokenize_subject_text(cleaned):
+            counts[word] += 1
+
+    # keep only meaningful anchors
+    filtered = {
+        word: count
+        for word, count in counts.items()
+        if len(word) >= 4 and not word.isdigit()
+    }
+
+    return dict(sorted(filtered.items(), key=lambda x: x[1], reverse=True))
 
 def _run_variant_job(session: str, modes: dict, selected_hook: str | None):
     try:
@@ -968,24 +1010,36 @@ def record_variant_feedback(payload: dict):
         "aggregate_key": f"{event['intent']}||{event['tone']}"
     }
 
-def score_hook_subject_bonus(hook: str, subjects: list[str] | None = None) -> int:
+def score_hook_subject_bonus(hook: str, subject_weights: dict[str, int] | None = None) -> int:
     """
-    Rewards hooks referencing key experience anchors from the actual video context.
+    Rewards hooks more when they match the primary subjects of the reel.
     """
     if not hook:
         return 0
 
     text = hook.lower()
-    subject_list = subjects or list(BASE_SUBJECTS)
+    weights = subject_weights or {s: 1 for s in BASE_SUBJECTS}
 
-    matches = sum(1 for word in subject_list if word in text)
+    matched = [
+        (word, weight)
+        for word, weight in weights.items()
+        if word in text
+    ]
 
-    if matches >= 2:
-        return 6   # stronger bonus for multiple anchors
-    elif matches == 1:
-        return 3   # still reward specific references
+    if not matched:
+        return 0
 
-    return 0
+    total_weight = sum(weight for _, weight in matched)
+
+    # Strong reward for matching dominant subjects
+    if total_weight >= 8:
+        return 8
+    elif total_weight >= 5:
+        return 6
+    elif total_weight >= 3:
+        return 4
+    else:
+        return 2
 
 def detect_hook_pattern(text: str) -> str:
     if not text:
@@ -1011,14 +1065,18 @@ def detect_hook_pattern(text: str) -> str:
     return "statement"
 
 
-def get_hook_subject_matches(text: str, subjects: list[str] | None = None) -> list[str]:
+def get_hook_subject_matches(text: str, subjects: dict[str, int] | list[str] | None = None) -> list[str]:
     if not text:
         return []
 
     lower = text.lower()
-    subject_list = subjects or list(BASE_SUBJECTS)
 
-    matches = [word for word in subject_list if word in lower]
+    if isinstance(subjects, dict):
+        subject_items = subjects.items()
+    else:
+        subject_items = [(s, 1) for s in (subjects or list(BASE_SUBJECTS))]
+
+    matches = [word for word, _ in subject_items if word in lower]
 
     seen = set()
     cleaned = []
@@ -1295,8 +1353,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
         Make the viewer understand what is interesting and why it matters.
         """
 
-    video_subjects = get_video_subjects(session)
-    print("[HOOK_LAB] Subjects:", video_subjects)
+    video_subjects = get_weighted_video_subjects(session)
+    print("[HOOK_LAB] Weighted subjects:", video_subjects)
 
 
     if not client:
