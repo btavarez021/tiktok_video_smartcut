@@ -909,6 +909,64 @@ def record_variant_feedback(payload: dict):
         "aggregate_key": f"{event['intent']}||{event['tone']}"
     }
 
+def score_hook_curiosity_bonus(hook: str, intent: str = "discovery") -> int:
+    """
+    Small heuristic bonus for stronger curiosity / tension patterns.
+    Keeps bonuses modest so base hook scoring still dominates.
+    """
+    if not hook:
+        return 0
+
+    text = hook.lower().strip()
+    bonus = 0
+
+    # Curiosity / mystery
+    if "secret" in text:
+        bonus += 8
+    if "hidden" in text:
+        bonus += 7
+    if "look closer" in text:
+        bonus += 6
+    if "what’s" in text or "what's" in text or "what is" in text:
+        bonus += 5
+    if text.startswith("why "):
+        bonus += 4
+    if text.startswith("how "):
+        bonus += 4
+    if "inside" in text:
+        bonus += 4
+    if "behind" in text:
+        bonus += 4
+    if "locals" in text:
+        bonus += 6
+    if "vip" in text or "exclusive" in text:
+        bonus += 5
+
+    # Surprise / contrast
+    if "didn't expect" in text or "did not expect" in text:
+        bonus += 8
+    if "never expected" in text:
+        bonus += 8
+    if "twist" in text:
+        bonus += 5
+    if "changes everything" in text:
+        bonus += 5
+
+    # Question format helps slightly
+    if "?" in hook:
+        bonus += 4
+
+    # Intent tuning
+    if intent == "discovery":
+        bonus = round(bonus * 1.1)
+    elif intent == "aesthetic":
+        bonus = round(bonus * 0.8)
+    elif intent == "informational":
+        bonus = round(bonus * 0.9)
+
+    # Keep it a light modifier
+    return min(bonus, 12)
+
 
 def api_generate_hooks(session: str, intent: str | None = None):
 
@@ -1046,7 +1104,10 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 penalty = 8
             
             score_data = score_hook_text(clean, intent)
-            score = max(score_data["score"] - penalty, 0)
+            base_score = max(score_data["score"] - penalty, 0)
+
+            curiosity_bonus = score_hook_curiosity_bonus(clean, intent)
+            score = min(base_score + curiosity_bonus, 100)
 
             if any(w in lower for w in ["wait", "watch", "this", "you", "from"]):
                 tone = "punchy"
@@ -1058,7 +1119,9 @@ def api_generate_hooks(session: str, intent: str | None = None):
             hooks.append({
                 "text": clean,
                 "score": score,
-                "tone": tone
+                "tone": tone,
+                "base_score": base_score,
+                "curiosity_bonus": curiosity_bonus
             })
 
 
