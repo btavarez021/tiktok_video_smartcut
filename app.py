@@ -52,7 +52,8 @@ from assistant_api import (
     api_generate_yaml_start,
     api_generate_yaml_status,
     boost_hook,
-    auto_optimize_hook
+    auto_optimize_hook,
+    api_suggest_storyboard_order
     )
 from tiktok_assistant import apply_filename_captions
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -214,6 +215,11 @@ def route_edit_strategy():
     from assistant_api import api_edit_strategy
     return jsonify(api_edit_strategy(session))
 
+@app.route("/api/storyboard/suggest_order", methods=["POST"])
+def suggest_storyboard_order_route():
+    data = request.get_json(silent=True) or {}
+    session = data.get("session", "default")
+    return jsonify(api_suggest_storyboard_order(session))
 
 # =====================================================================
 # CLIP LABELS (GET + POST)

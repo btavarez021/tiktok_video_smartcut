@@ -3064,6 +3064,143 @@ def score_generated_hook(clean: str, intent: str, video_subjects: list[str] | No
         "vague_penalty": vague_penalty,
     }
 
+def infer_clip_role_v2(text: str) -> str:
+    """
+    Generic clip role inference that scales better across video types.
+    Returns one of:
+    intro, activity, social, highlight, payoff, outro
+    """
+    if not text:
+        return "highlight"
+
+    lower = text.lower()
+
+    role_signals = {
+        "intro": [
+            "arrival", "arrive", "enter", "entrance", "outside", "exterior",
+            "lobby", "check-in", "opening", "welcome", "front", "street", "walk-up"
+        ],
+        "activity": [
+            "gym", "workout", "exercise", "training", "run", "swim", "cook", "cooking",
+            "mixing", "bartender", "driving", "tour", "exploring", "shopping",
+            "working", "making", "preparing", "using", "demo", "testing"
+        ],
+        "social": [
+            "cocktail", "drink", "bar", "wine", "dinner", "brunch", "restaurant",
+            "friends", "party", "celebration", "cheers", "meal", "table"
+        ],
+        "highlight": [
+            "room", "suite", "dish", "product", "feature", "interior", "details",
+            "close-up", "plating", "showcase", "reveal", "design", "setup"
+        ],
+        "payoff": [
+            "view", "skyline", "sunset", "rooftop", "ocean", "beach", "mountain",
+            "panorama", "result", "final look", "finished", "completed", "transformation"
+        ],
+        "outro": [
+            "goodnight", "last look", "final shot", "ending", "end", "night view",
+            "wrap-up", "goodbye", "closing"
+        ],
+    }
+
+    scores = {role: 0 for role in role_signals}
+
+    for role, keywords in role_signals.items():
+        for kw in keywords:
+            if kw in lower:
+                scores[role] += 1
+
+    # light phrase-based boosts
+    if any(p in lower for p in ["start", "begin", "first stop", "first up"]):
+        scores["intro"] += 2
+
+    if any(p in lower for p in ["then", "after that", "next", "later"]):
+        scores["activity"] += 1
+        scores["social"] += 1
+
+    if any(p in lower for p in ["end the night", "finish the day", "wind down", "unwind"]):
+        scores["payoff"] += 2
+        scores["outro"] += 1
+
+    # choose strongest role
+    best_role = max(scores, key=scores.get)
+
+    # if no strong signal, default to highlight
+    if scores[best_role] == 0:
+        return "highlight"
+
+    return best_role
+
+def get_role_priority(role: str) -> int:
+    priorities = {
+        "intro": 0,
+        "activity": 1,
+        "social": 2,
+        "highlight": 3,
+        "payoff": 4,
+        "outro": 5,
+    }
+    return priorities.get(role, 3)
+
+def suggest_storyboard_order(cfg: dict) -> list[dict]:
+    """
+    Returns clips in a more natural narrative order.
+    Does not modify cfg.
+    """
+    clips = []
+
+    if cfg.get("first_clip"):
+        clips.append(cfg["first_clip"])
+
+    clips.extend(cfg.get("middle_clips", []))
+
+    if cfg.get("last_clip"):
+        clips.append(cfg["last_clip"])
+
+    enriched = []
+    for idx, clip in enumerate(clips):
+        source_text = (
+            clip.get("text")
+            or clip.get("label")
+            or clip.get("file")
+            or ""
+        ).strip()
+
+        role = infer_clip_role_v2(source_text)
+
+        enriched.append({
+            **clip,
+            "_role": role,
+            "_priority": get_role_priority(role),
+            "_original_index": idx,
+        })
+
+    enriched.sort(key=lambda c: (c["_priority"], c["_original_index"]))
+
+    cleaned = []
+    for clip in enriched:
+        clip = dict(clip)
+        clip.pop("_role", None)
+        clip.pop("_priority", None)
+        clip.pop("_original_index", None)
+        cleaned.append(clip)
+
+    return cleaned
+
+
+def api_suggest_storyboard_order(session: str) -> dict:
+    session = sanitize_session(session)
+    cfg = _load_config(session)
+
+    if not cfg:
+        return {"suggested_order": []}
+
+    suggested = suggest_storyboard_order(cfg)
+
+    return {
+        "suggested_order": suggested
+    }
+
 def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
     cfg = _load_config(session)

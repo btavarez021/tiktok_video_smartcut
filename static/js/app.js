@@ -1836,6 +1836,43 @@ function computeVariantDisplayStrength(variant) {
     return Math.max(0, Math.round(currentScore - secondBest));
   }
 
+  async function suggestStoryboardOrder() {
+  try {
+    setStatus("storyboardStatus", "AI suggesting better clip order…", "working", false);
+
+    const res = await jsonFetch("/api/storyboard/suggest_order", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession()
+      })
+    });
+
+    const suggested = res?.suggested_order || [];
+
+    if (!suggested.length) {
+      setStatus("storyboardStatus", "No order suggestion available", "info");
+      return;
+    }
+
+    workingClipOrder = suggested;
+    clipOrderDirty = true;
+
+    renderStoryboardTimeline({
+      first_clip: workingClipOrder[0],
+      middle_clips: workingClipOrder.slice(1, -1),
+      last_clip: workingClipOrder[workingClipOrder.length - 1]
+    });
+
+    await saveStoryboardOrder({ silent: true });
+    await refreshAfterChange();
+
+    setStatus("storyboardStatus", "AI suggested a smoother story order ✓", "success");
+  } catch (err) {
+    console.error(err);
+    setStatus("storyboardStatus", "Failed to suggest clip order", "error");
+  }
+}
+
   function renderHookLab(hooks) {
     const out = document.getElementById("hookLabOutput");
     out.innerHTML = "";
@@ -7038,7 +7075,9 @@ if (clearHookBtn) {
   });
 }
 
-
+document
+  .getElementById("suggestStoryboardOrderBtn")
+  ?.addEventListener("click", suggestStoryboardOrder);
 
 
   // -------------------------------
