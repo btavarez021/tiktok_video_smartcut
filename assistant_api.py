@@ -1010,15 +1010,24 @@ def record_variant_feedback(payload: dict):
         "aggregate_key": f"{event['intent']}||{event['tone']}"
     }
 
-def score_hook_subject_bonus(hook: str, subject_weights: dict[str, int] | None = None) -> int:
+def score_hook_subject_bonus(hook: str, subject_weights: dict[str, int] | list[str] | None = None) -> int:
     """
     Rewards hooks more when they match the primary subjects of the reel.
+    Supports both:
+    - dict[str, int]  -> weighted subjects
+    - list[str]       -> plain subjects
     """
     if not hook:
         return 0
 
     text = hook.lower()
-    weights = subject_weights or {s: 1 for s in BASE_SUBJECTS}
+
+    if isinstance(subject_weights, dict):
+        weights = subject_weights
+    elif isinstance(subject_weights, list):
+        weights = {s: 1 for s in subject_weights}
+    else:
+        weights = {s: 1 for s in BASE_SUBJECTS}
 
     matched = [
         (word, weight)
@@ -1031,7 +1040,6 @@ def score_hook_subject_bonus(hook: str, subject_weights: dict[str, int] | None =
 
     total_weight = sum(weight for _, weight in matched)
 
-    # Strong reward for matching dominant subjects
     if total_weight >= 8:
         return 8
     elif total_weight >= 5:
