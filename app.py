@@ -154,13 +154,10 @@ def api_set_content_context():
 
     session = sanitize_session(data.get("session"))
     context = data.get("context", "auto")
-    
 
     cfg = load_config(session) or {}
 
     cfg["content_context"] = context
-
-    save_config(session, cfg)
 
     save_config(session, cfg)
 
