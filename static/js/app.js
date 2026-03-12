@@ -6818,6 +6818,24 @@ function initFgScaleUI() {
     updateFgScaleUI();
 }
 
+async function loadContentContext() {
+  try {
+    const data = await getConfigCached();
+    const context = data?.config?.content_context || "auto";
+
+    const select = document.getElementById("contentContext");
+    if (select) {
+      select.value = context;
+    }
+
+    return context;
+  } catch (err) {
+    console.warn("Failed to load content context", err);
+    return "auto";
+  }
+}
+ 
+
 async function pollExportStatus(taskId) {
     return new Promise((resolve, reject) => {
         const interval = setInterval(async () => {
@@ -7077,6 +7095,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
  window.appState.settings = window.appState.settings || {};
 
+
 document.getElementById("contentContext")?.addEventListener("change", async (e) => {
   const context = e.target.value;
   const session = getActiveSession();
@@ -7122,18 +7141,6 @@ document.getElementById("contentContext")?.addEventListener("change", async (e) 
   }
 });
 
-async function loadContentContext() {
-  try {
-    const data = await getConfigCached();
-    const context = data?.config?.content_context || "auto";
-
-    const select = document.getElementById("contentContext");
-    if (select) select.value = context;
-  } catch (err) {
-    console.warn("Failed to load content context", err);
-  }
-}
- 
 document.getElementById("exportFixBtn")?.addEventListener("click", async () => {
   await runCreativeEngine("export_fix");
   await refreshAfterChange();

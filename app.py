@@ -147,6 +147,11 @@ def api_create_session_route(session):
 
     return jsonify({"success": True, "session": session})
 
+@app.route("/api/session_context", methods=["GET"])
+def session_context_route():
+    session = request.args.get("session", "default")
+    return jsonify(api_session_context(session))
+
 @app.route("/api/session/context", methods=["POST"])
 def api_set_content_context():
 
