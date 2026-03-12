@@ -3188,10 +3188,26 @@ RULES:
                 "Do NOT change it."
             )
 
+        progression_guidance = """
+            STORY FLOW RULES:
+            - When captions cover multiple experiences in one venue or trip, make them feel like one cohesive progression.
+            - Prefer a natural sequence such as:
+            arrival / setup -> activity -> social moment -> wind-down / view
+            - For hotel / travel reels, common strong progressions include:
+            workout -> cocktail -> rooftop
+            day -> evening -> night
+            energy -> celebration -> relaxation
+            - Avoid making captions feel like random disconnected highlights.
+            - Avoid jumping back and forth between unrelated moments unless the transition feels intentional.
+            - Keep each caption tied to the same overall experience.
+            """
+
         user_prompt = f"""
 Generate caption variants using the style definitions below.
 
 {style_sections}
+
+{progression_guidance}
 
 Return STRICT JSON:
 
@@ -3259,7 +3275,7 @@ Captions:
             blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
             first_block = blocks[0] if blocks else ""
 
-            video_subjects = get_video_subjects(session)
+            video_subjects = get_weighted_video_subjects(session)
             hook_score = score_generated_hook(first_block, intent, video_subjects).get("score", 0)
             flow_result = score_story_flow_from_text(text)
             flow_score = flow_result.get("score", 0)
