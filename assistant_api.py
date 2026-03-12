@@ -3191,38 +3191,42 @@ RULES:
         progression_guidance = """
             STORY FLOW RULES:
             - When captions cover multiple experiences in one venue or trip, make them feel like one cohesive progression.
-            - Prefer a natural sequence such as:
+            - Arrange moments in the most natural experiential order instead of treating them like unrelated highlights.
+            - Prefer a sequence such as:
             arrival / setup -> activity -> social moment -> wind-down / view
             - For hotel / travel reels, common strong progressions include:
             workout -> cocktail -> rooftop
             day -> evening -> night
             energy -> celebration -> relaxation
-            - Avoid making captions feel like random disconnected highlights.
-            - Avoid jumping back and forth between unrelated moments unless the transition feels intentional.
+            - Prefer captions that feel like a single hotel stay or one continuous outing.
+            - If the reel includes multiple experiences (for example bar, gym, rooftop), arrange them in the most natural order.
+            - Avoid jumping back and forth between topics unless the transition feels intentional.
+            - Avoid repeating the same subject twice in a row unless it clearly escalates the experience.
             - Keep each caption tied to the same overall experience.
+            - Captions should feel connected, not like random standalone highlights.
             """
 
         user_prompt = f"""
-Generate caption variants using the style definitions below.
+                Generate caption variants using the style definitions below.
 
-{style_sections}
+                {style_sections}
 
-{progression_guidance}
+                {progression_guidance}
 
-Return STRICT JSON:
+                Return STRICT JSON:
 
-{{
-  "variants": [
-    {{
-      "style": "style_name",
-      "text": "caption blocks separated by blank lines"
-    }}
-  ]
-}}
+                {{
+                "variants": [
+                    {{
+                    "style": "style_name",
+                    "text": "caption blocks separated by blank lines"
+                    }}
+                ]
+                }}
 
-Captions:
-{base}
-"""
+                Captions:
+                {base}
+                """
 
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
