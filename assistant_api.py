@@ -3340,7 +3340,7 @@ def score_generated_hook(clean: str, intent: str, video_subjects=None, context="
         base_score +
         curiosity_bonus +
         subject_bonus +
-        visual_anchor_bonus,
+        visual_anchor_bonus +
         context_bonus,
         100
     )
@@ -3351,6 +3351,7 @@ def score_generated_hook(clean: str, intent: str, video_subjects=None, context="
         "curiosity_bonus": curiosity_bonus,
         "subject_bonus": subject_bonus,
         "visual_anchor_bonus": visual_anchor_bonus,
+        "context_bonus": context_bonus,
         "vague_penalty": vague_penalty,
     }
 
