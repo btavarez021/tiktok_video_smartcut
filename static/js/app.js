@@ -4107,19 +4107,6 @@ async function loadAISetupSummary() {
     }
   }
 
-  async function loadSessionContext() {
-  try {
-    const data = await jsonFetch(
-      `/api/session_context?session=${encodeURIComponent(getActiveSession())}`
-    );
-
-    renderSessionContext(data);
-    return data;
-  } catch (err) {
-    console.warn("Failed to load session context", err);
-    return null;
-  }
-}
 
 function renderSessionContext(data) {
   const el = document.getElementById("sessionContextSummary");
@@ -4330,6 +4317,32 @@ function renderSessionContext(data) {
     } catch (e) {
       console.error(e);
       setStatus("improveHooksStatus", "Failed to prepare storyboard", "error");
+    }
+  }
+
+  async function loadContentContext() {
+  try {
+    const data = await getConfigCached();
+    const context = data?.config?.content_context || "auto";
+
+    const select = document.getElementById("contentContext");
+    if (select) select.value = context;
+  } catch (err) {
+    console.warn("Failed to load content context", err);
+  }
+}
+
+  async function loadSessionContext() {
+    try {
+      const data = await jsonFetch(
+        `/api/session_context?session=${encodeURIComponent(getActiveSession())}`
+      );
+
+      renderSessionContext(data);
+      return data;
+    } catch (err) {
+      console.warn("Failed to load session context", err);
+      return null;
     }
   }
 
@@ -6817,24 +6830,6 @@ function initFgScaleUI() {
 
     updateFgScaleUI();
 }
-
-async function loadContentContext() {
-  try {
-    const data = await getConfigCached();
-    const context = data?.config?.content_context || "auto";
-
-    const select = document.getElementById("contentContext");
-    if (select) {
-      select.value = context;
-    }
-
-    return context;
-  } catch (err) {
-    console.warn("Failed to load content context", err);
-    return "auto";
-  }
-}
- 
 
 async function pollExportStatus(taskId) {
     return new Promise((resolve, reject) => {
