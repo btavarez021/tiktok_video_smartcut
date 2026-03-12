@@ -341,64 +341,129 @@ def analyze_video(path: str, session: str, label: str = "") -> str:
     if client is None:
         return f"Hotel clip showing {label or basename}"
 
-    # 1️⃣ Extract a frame from the clip
-    frame = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg").name
+    def get_duration_seconds(video_path: str) -> float:
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    video_path,
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return max(float(result.stdout.strip()), 0.0)
+        except Exception:
+            return 0.0
 
-    subprocess.run(
-        ["ffmpeg", "-y", "-ss", "00:00:01.5", "-i", path, "-vframes", "1", frame],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    duration = get_duration_seconds(path)
 
-    with open(frame, "rb") as f:
-        img_b64 = base64.b64encode(f.read()).decode()
+    # Pick 3 timestamps: early, middle, late
+    if duration and duration > 4:
+        timestamps = [
+            max(0.5, duration * 0.15),
+            max(1.0, duration * 0.50),
+            max(1.5, duration * 0.85),
+        ]
+    else:
+        # fallback for short/unknown clips
+        timestamps = [0.8, 1.5, 2.2]
 
-    # 2️⃣ Vision-based prompt
-    prompt = [
-        {
-            "role": "system",
-            "content": "You are a visual hotel & travel scene describer. Be factual. No guessing."
-        },
-        {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": f"""
-Project:
-{session}
+    frame_paths = []
 
-User label (primary intent):
-{label or "(none)"}
+    try:
+        for i, ts in enumerate(timestamps, start=1):
+            frame_path = tempfile.NamedTemporaryFile(delete=False, suffix=f"_{i}.jpg").name
 
-Describe ONLY what you see in this frame.
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-ss",
+                    str(ts),
+                    "-i",
+                    path,
+                    "-vframes",
+                    "1",
+                    frame_path,
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
 
-Rules:
-- Do not invent oceans, beaches, or resorts
-- Do not invent interiors if outdoors
-- Do not contradict the label
-- Use neutral factual language
-- If unsure, say what is visible (e.g. rooftop, bar, skyline)
-"""
-                },
+            if os.path.exists(frame_path) and os.path.getsize(frame_path) > 0:
+                frame_paths.append(frame_path)
+
+        if not frame_paths:
+            return label or f"Video clip: {basename}"
+
+        content_blocks = [
+            {
+                "type": "text",
+                "text": f"""
+                Project:
+                {session}
+
+                User label (primary intent):
+                {label or "(none)"}
+
+                Describe the OVERALL clip based on these multiple frames.
+
+                Rules:
+                - Focus on the main visible subject, activity, food, setting, and vibe across the clip
+                - If one frame is a close-up, do not assume it represents the whole clip
+                - Prefer the broader scene if multiple frames reveal more context
+                - Do not invent oceans, beaches, resorts, ships, or interiors unless visible
+                - Do not contradict the user label
+                - Use neutral factual language
+                - If unsure, describe only what is consistently visible across the frames
+                - Return 1 concise sentence
+                """
+                }
+                    ]
+
+        for frame_path in frame_paths:
+            with open(frame_path, "rb") as f:
+                img_b64 = base64.b64encode(f.read()).decode()
+
+            content_blocks.append(
                 {
                     "type": "image_url",
                     "image_url": {
                         "url": f"data:image/jpeg;base64,{img_b64}"
                     }
                 }
-            ]
-        }
-    ]
+            )
 
-    resp = client.chat.completions.create(
-        model="gpt-4o",
-        messages=prompt,
-        max_tokens=60,
-        temperature=0.2
-    )
+        prompt = [
+            {
+                "role": "system",
+                "content": "You are a visual travel, lifestyle, and scene describer. Be factual. No guessing."
+            },
+            {
+                "role": "user",
+                "content": content_blocks
+            }
+        ]
 
-    return resp.choices[0].message.content.strip()
+        resp = client.chat.completions.create(
+            model="gpt-4o",
+            messages=prompt,
+            max_tokens=80,
+            temperature=0.2
+        )
+
+        return resp.choices[0].message.content.strip()
+
+    finally:
+        for fp in frame_paths:
+            try:
+                os.remove(fp)
+            except Exception:
+                pass
 
 
 
