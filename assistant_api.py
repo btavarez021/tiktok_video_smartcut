@@ -20,7 +20,6 @@ from s3_config import (
     S3_BUCKET_NAME,
     RAW_PREFIX,
     EXPORT_PREFIX,
-    S3_REGION,
     clean_s3_key,
     PROCESSED_PREFIX,
 )
@@ -2032,15 +2031,6 @@ def rename_session(old_session: str, new_session: str) -> dict:
     old_session = sanitize_session(old_session)
     new_session = sanitize_session(new_session)
 
-    if ANALYSIS_JOBS.get(old_session, {}).get("status") == "running":
-        return {"ok": False, "error": "Cannot rename while analysis is running"}
-
-    if VARIANT_JOBS.get(old_session, {}).get("status") == "running":
-        return {"ok": False, "error": "Cannot rename while variants are running"}
-
-    if YAML_JOBS.get(old_session, {}).get("status") == "running":
-        return {"ok": False, "error": "Cannot rename while YAML generation is running"}
-
     if not old_session or old_session == "default":
         return {"ok": False, "error": "Cannot rename default session"}
 
@@ -2054,35 +2044,85 @@ def rename_session(old_session: str, new_session: str) -> dict:
     if new_session in existing:
         return {"ok": False, "error": "Target session already exists"}
 
-    def move_s3_prefix(old_prefix: str, new_prefix: str):
+    # -------------------------
+    # Block rename during active jobs
+    # -------------------------
+    if ANALYSIS_JOBS.get(old_session, {}).get("status") == "running":
+        return {"ok": False, "error": "Cannot rename while analysis is running"}
+
+    if VARIANT_JOBS.get(old_session, {}).get("status") == "running":
+        return {"ok": False, "error": "Cannot rename while variants are running"}
+
+    if YAML_JOBS.get(old_session, {}).get("status") == "running":
+        return {"ok": False, "error": "Cannot rename while storyboard generation is running"}
+
+    def list_keys(prefix: str) -> List[str]:
+        keys = []
         continuation_token = None
 
         while True:
             kwargs = {
                 "Bucket": S3_BUCKET_NAME,
-                "Prefix": old_prefix,
+                "Prefix": clean_s3_key(prefix),
             }
             if continuation_token:
                 kwargs["ContinuationToken"] = continuation_token
 
             resp = s3.list_objects_v2(**kwargs)
-            contents = resp.get("Contents", [])
 
-            for obj in contents:
-                old_key = obj["Key"]
-                new_key = old_key.replace(old_prefix, new_prefix, 1)
-
-                s3.copy_object(
-                    Bucket=S3_BUCKET_NAME,
-                    CopySource={"Bucket": S3_BUCKET_NAME, "Key": old_key},
-                    Key=new_key,
-                )
-                s3.delete_object(Bucket=S3_BUCKET_NAME, Key=old_key)
+            for obj in resp.get("Contents", []):
+                key = obj.get("Key")
+                if key:
+                    keys.append(key)
 
             if resp.get("IsTruncated"):
                 continuation_token = resp.get("NextContinuationToken")
             else:
                 break
+
+        return keys
+
+    def build_move_plan(old_prefix: str, new_prefix: str) -> List[dict]:
+        source_keys = list_keys(old_prefix)
+        plan = []
+
+        for old_key in source_keys:
+            new_key = clean_s3_key(old_key.replace(old_prefix, new_prefix, 1))
+            plan.append({
+                "old_key": old_key,
+                "new_key": new_key,
+            })
+
+        return plan
+
+    def ensure_no_destination_collisions(plan: List[dict]) -> str | None:
+        for item in plan:
+            try:
+                s3.head_object(Bucket=S3_BUCKET_NAME, Key=item["new_key"])
+                return item["new_key"]
+            except Exception:
+                pass
+        return None
+
+    def copy_plan(plan: List[dict]):
+        for item in plan:
+            s3.copy_object(
+                Bucket=S3_BUCKET_NAME,
+                CopySource={"Bucket": S3_BUCKET_NAME, "Key": item["old_key"]},
+                Key=item["new_key"],
+            )
+
+    def verify_plan(plan: List[dict]) -> str | None:
+        for item in plan:
+            try:
+                s3.head_object(Bucket=S3_BUCKET_NAME, Key=item["new_key"])
+            except Exception:
+                return item["new_key"]
+        return None
+
+    def delete_plan(plan: List[dict]):
+        for item in plan:
+            s3.delete_object(Bucket=S3_BUCKET_NAME, Key=item["old_key"])
 
     def move_dir(old_path: str, new_path: str):
         if os.path.exists(old_path):
@@ -2096,20 +2136,80 @@ def rename_session(old_session: str, new_session: str) -> dict:
 
     try:
         # -------------------------
-        # Move S3 prefixes
+        # Build S3 move plans
         # -------------------------
-        move_s3_prefix(f"{RAW_PREFIX}{old_session}/", f"{RAW_PREFIX}{new_session}/")
-        move_s3_prefix(f"{PROCESSED_PREFIX}{old_session}/", f"{PROCESSED_PREFIX}{new_session}/")
-        move_s3_prefix(f"{EXPORT_PREFIX}{old_session}/", f"{EXPORT_PREFIX}{new_session}/")
+        raw_old = clean_s3_key(f"{RAW_PREFIX}{old_session}/")
+        raw_new = clean_s3_key(f"{RAW_PREFIX}{new_session}/")
+
+        processed_old = clean_s3_key(f"{PROCESSED_PREFIX}{old_session}/")
+        processed_new = clean_s3_key(f"{PROCESSED_PREFIX}{new_session}/")
+
+        export_old = clean_s3_key(f"{EXPORT_PREFIX}{old_session}/")
+        export_new = clean_s3_key(f"{EXPORT_PREFIX}{new_session}/")
+
+        raw_plan = build_move_plan(raw_old, raw_new)
+        processed_plan = build_move_plan(processed_old, processed_new)
+        export_plan = build_move_plan(export_old, export_new)
+
+        full_plan = raw_plan + processed_plan + export_plan
+
+        # -------------------------
+        # Collision check
+        # -------------------------
+        collision_key = ensure_no_destination_collisions(full_plan)
+        if collision_key:
+            return {
+                "ok": False,
+                "error": f"Rename blocked because destination key already exists: {collision_key}"
+            }
+
+        # -------------------------
+        # Phase 1: copy all S3 objects
+        # -------------------------
+        copy_plan(full_plan)
+
+        # -------------------------
+        # Phase 2: verify all copies exist
+        # -------------------------
+        missing_key = verify_plan(full_plan)
+        if missing_key:
+            return {
+                "ok": False,
+                "error": f"Rename verification failed. Missing copied object: {missing_key}"
+            }
+
+        # -------------------------
+        # Phase 3: delete old S3 objects
+        # -------------------------
+        delete_plan(full_plan)
 
         # -------------------------
         # Move local/session state
         # -------------------------
-        move_dir(os.path.join("session_configs", old_session), os.path.join("session_configs", new_session))
-        move_dir(os.path.join(ANALYSIS_BASE_DIR, old_session), os.path.join(ANALYSIS_BASE_DIR, new_session))
-        move_dir(os.path.join(LABELS_DIR, old_session), os.path.join(LABELS_DIR, new_session))
-        move_dir(os.path.join("preview_frames", old_session), os.path.join("preview_frames", new_session))
-        move_dir(os.path.join(video_folder, old_session), os.path.join(video_folder, new_session))
+        move_dir(
+            os.path.join("session_configs", old_session),
+            os.path.join("session_configs", new_session),
+        )
+
+        move_dir(
+            os.path.join(ANALYSIS_BASE_DIR, old_session),
+            os.path.join(ANALYSIS_BASE_DIR, new_session),
+        )
+
+        move_dir(
+            os.path.join(LABELS_DIR, old_session),
+            os.path.join(LABELS_DIR, new_session),
+        )
+
+        move_dir(
+            os.path.join("preview_frames", old_session),
+            os.path.join("preview_frames", new_session),
+        )
+
+        move_dir(
+            os.path.join(video_folder, old_session),
+            os.path.join(video_folder, new_session),
+        )
 
         move_file(
             os.path.join(SESSION_PREFS_DIR, f"{old_session}.json"),
@@ -2137,6 +2237,10 @@ def rename_session(old_session: str, new_session: str) -> dict:
             "ok": True,
             "old_session": old_session,
             "new_session": new_session,
+            "moved_s3_objects": len(full_plan),
+            "moved_raw_objects": len(raw_plan),
+            "moved_processed_objects": len(processed_plan),
+            "moved_export_objects": len(export_plan),
         }
 
     except Exception as e:

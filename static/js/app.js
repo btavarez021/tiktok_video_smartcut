@@ -5935,7 +5935,7 @@ async function renameSession(oldSession) {
         showSessionToast?.(`Renamed "${oldSession}" → "${newSession}"`);
     } catch (err) {
         console.error("[SESSION] renameSession failed:", err);
-        alert("Failed to rename session");
+        alert(err?.message || "Failed to rename session");
     }
 }
 
