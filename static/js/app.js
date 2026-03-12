@@ -4107,6 +4107,49 @@ async function loadAISetupSummary() {
     }
   }
 
+  async function loadSessionContext() {
+  try {
+    const data = await jsonFetch(
+      `/api/session_context?session=${encodeURIComponent(getActiveSession())}`
+    );
+
+    renderSessionContext(data);
+    return data;
+  } catch (err) {
+    console.warn("Failed to load session context", err);
+    return null;
+  }
+}
+
+function renderSessionContext(data) {
+  const el = document.getElementById("sessionContextSummary");
+  if (!el) return;
+
+  if (!data?.label) {
+    el.classList.add("hidden");
+    return;
+  }
+
+  const label = (data.label || "general_lifestyle").replace(/_/g, " ");
+  const confidence = data.confidence || "low";
+  const signals = Array.isArray(data.signals) ? data.signals : [];
+
+  el.classList.remove("hidden");
+  el.innerHTML = `
+    <div class="ai-summary-card">
+      <div class="ai-summary-title">🧭 AI Reel Context</div>
+      <div class="ai-summary-sub">
+        AI sees this reel as: <strong>${label}</strong>
+      </div>
+      <div class="ai-summary-sub">
+        Confidence: <strong>${confidence}</strong>
+      </div>
+      <div class="ai-summary-note">
+        Signals: ${signals.length ? signals.join(", ") : "none"}
+      </div>
+    </div>
+  `;
+}
 
   async function applyAIRecommendation() {
     const session = getActiveSession();
@@ -4295,6 +4338,7 @@ async function loadAISetupSummary() {
  
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
+  await loadSessionContext();
 
   workingCaptionsText = lastSavedCaptionsText;
   captionViewMode = "rewritten";

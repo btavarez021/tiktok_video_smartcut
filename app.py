@@ -53,7 +53,8 @@ from assistant_api import (
     api_generate_yaml_status,
     boost_hook,
     auto_optimize_hook,
-    api_suggest_storyboard_order
+    api_suggest_storyboard_order,
+    infer_session_context
     )
 from tiktok_assistant import apply_filename_captions
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -146,6 +147,9 @@ def generate_yaml_status():
     session = sanitize_session(request.args.get("session", "default"))
     return jsonify(api_generate_yaml_status(session))
 
+def api_session_context(session: str) -> dict:
+    session = sanitize_session(session)
+    return infer_session_context(session)
 
 # ============================================================================
 # UPLOAD TO S3 (SESSION-AWARE)

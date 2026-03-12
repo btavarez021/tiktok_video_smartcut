@@ -1364,6 +1364,9 @@ def api_generate_hooks(session: str, intent: str | None = None):
     video_subjects = get_weighted_video_subjects(session)
     print("[HOOK_LAB] Weighted subjects:", video_subjects)
 
+    session_context = infer_session_context(session)
+    print("[HOOK_LAB] Session context:", session_context)
+
 
     if not client:
         # fallback
@@ -1378,6 +1381,11 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             Intent Guidance:
             {intent_guidance}
+
+            Session Context:
+            {format_session_context_label(session_context.get("label"))}
+            Confidence: {session_context.get("confidence")}
+            Signals: {", ".join(session_context.get("signals", [])) or "none"}
 
             CRITICAL GOAL:
             These hooks should score highly for:
@@ -3201,9 +3209,102 @@ def api_suggest_storyboard_order(session: str) -> dict:
         "suggested_order": suggested
     }
 
+def format_session_context_label(label: str) -> str:
+    return (label or "general_lifestyle").replace("_", " ")
+
+def infer_session_context(session: str) -> dict:
+    """
+    Infer a lightweight overall context for the reel.
+    Returns:
+    {
+        "label": "travel_outing",
+        "confidence": "high" | "medium" | "low",
+        "signals": ["ocean", "beach", "dance floor"]
+    }
+    """
+    session = sanitize_session(session)
+
+    labels = load_labels(session) or {}
+    analyses = load_analysis_results_session(session) or {}
+
+    text_parts = []
+
+    # session name itself can carry strong context
+    text_parts.append(session.replace("_", " "))
+
+    for fname in labels.keys():
+        text_parts.append(fname.replace("_", " ").replace("-", " "))
+
+    for label in labels.values():
+        text_parts.append(label)
+
+    for desc in analyses.values():
+        text_parts.append(desc)
+
+    blob = " ".join(text_parts).lower()
+
+    context_rules = {
+        "cruise_trip": [
+            "cruise", "ship", "deck", "port", "cabin", "sea day", "ocean view from ship"
+        ],
+        "hotel_stay": [
+            "hotel", "lobby", "suite", "room", "check-in", "rooftop lounge", "hotel gym"
+        ],
+        "beach_day": [
+            "beach", "sand", "ocean", "shore", "waves", "cigar on the beach"
+        ],
+        "nightlife_outing": [
+            "dance floor", "club", "dj", "bar", "party", "crowd", "nightlife"
+        ],
+        "dining_experience": [
+            "restaurant", "dish", "plate", "chef", "dinner", "cocktail", "bartender", "brunch"
+        ],
+        "travel_outing": [
+            "travel", "vacation", "getaway", "trip", "city view", "rooftop", "ocean", "exploring"
+        ],
+    }
+
+    scores = {ctx: 0 for ctx in context_rules}
+    matched_signals = {ctx: [] for ctx in context_rules}
+
+    for ctx, keywords in context_rules.items():
+        for kw in keywords:
+            if kw in blob:
+                scores[ctx] += 1
+                matched_signals[ctx].append(kw)
+
+    best_label = max(scores, key=scores.get)
+    best_score = scores[best_label]
+
+    if best_score >= 4:
+        confidence = "high"
+    elif best_score >= 2:
+        confidence = "medium"
+    else:
+        confidence = "low"
+
+    # Fallback
+    if best_score == 0:
+        return {
+            "label": "general_lifestyle",
+            "confidence": "low",
+            "signals": []
+        }
+
+    return {
+        "label": best_label,
+        "confidence": confidence,
+        "signals": matched_signals[best_label][:5]
+    }
+
+def api_session_context(session: str) -> dict:
+    session = sanitize_session(session)
+    return infer_session_context(session)
+
 def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
     cfg = _load_config(session)
+    session_context = infer_session_context(session)
 
     # --------------------------------------------------
     # Collect captions
@@ -3345,6 +3446,16 @@ RULES:
 
             Goal: captions should feel like one continuous outing or hotel stay.
             """
+        
+        context_guidance = f"""
+            SESSION CONTEXT:
+            - Overall reel context: {format_session_context_label(session_context.get("label"))}
+            - Confidence: {session_context.get("confidence")}
+            - Signals: {", ".join(session_context.get("signals", [])) or "none"}
+
+            Use this context to make the captions feel like one connected outing or experience.
+            Do not force context that is not supported by the clips.
+            """
 
         user_prompt = f"""
                 Generate caption variants using the style definitions below.
@@ -3352,6 +3463,8 @@ RULES:
                 {style_sections}
 
                 {progression_guidance}
+
+                {context_guidance}
 
                 Return STRICT JSON:
 
