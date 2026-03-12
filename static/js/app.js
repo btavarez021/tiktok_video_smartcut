@@ -5892,6 +5892,12 @@ async function loadSessionDropdown() {
 }
 
 async function renameSession(oldSession) {
+
+    if (getActiveSession() === "default") {
+      alert("Default session cannot be renamed.");
+      return;
+    }
+    
     const raw = prompt(`Rename session "${oldSession}" to:`);
 
     if (!raw) return;
@@ -7545,6 +7551,12 @@ if (captionsBox) {
     // UI update happens inside pollExportStatus()
     ACTIVE_EXPORT_TASK = null;
 });
+
+  document.getElementById("sidebarRenameBtn")
+  ?.addEventListener("click", () => {
+      renameSession(getActiveSession());
+  });
+
 
 
     document.getElementById("sidebarDeleteBtn")?.addEventListener("click", async () => {
