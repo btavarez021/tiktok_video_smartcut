@@ -1959,6 +1959,8 @@ def get_clip_preview_base64(session: str, filename: str) -> str:
 
 
 def repair_label(filename: str, label: str, session: str) -> str:
+    existing_desc = load_analysis_results_session(session).get(filename, "")
+
     try:
         image_b64 = get_clip_preview_base64(session, filename)
     except Exception as e:
@@ -1968,7 +1970,7 @@ def repair_label(filename: str, label: str, session: str) -> str:
     messages = [
         {
             "role": "system",
-            "content": "You generate short, visual labels for video clips."
+            "content": "You generate short, broad visual labels for video clips."
         },
         {
             "role": "user",
@@ -1979,14 +1981,18 @@ def repair_label(filename: str, label: str, session: str) -> str:
 Fix or create a short label for this video.
 
 Current label: "{label or '(empty)'}"
+Existing clip analysis: "{existing_desc or '(none)'}"
 
 Rules:
 - Max 8 words
 - No emojis
 - No hashtags
 - Do not use hotel name unless visible
-- Describe what is on screen
-- Useful for captions
+- Describe the MAIN scene, not a tiny detail
+- Prefer the broader subject if multiple food items or objects are visible
+- For food clips, label the overall meal or dining scene, not one garnish or side item
+- Use the existing clip analysis if it gives broader context
+- Useful for captions and storytelling
 
 Return ONLY the label text.
 """
@@ -2003,7 +2009,7 @@ Return ONLY the label text.
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o",  
+            model="gpt-4o",
             messages=messages,
             max_tokens=20,
             temperature=0.2
