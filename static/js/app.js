@@ -7076,6 +7076,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
  window.appState.settings = window.appState.settings || {};
 
+document.getElementById("contentContext")?.addEventListener("change", async (e) => {
+
+    const context = e.target.value
+
+    const session = getActiveSession()
+
+    await fetch("/api/session/context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            session,
+            context
+        })
+    })
+
+})
+ 
 document.getElementById("exportFixBtn")?.addEventListener("click", async () => {
   await runCreativeEngine("export_fix");
   await refreshAfterChange();

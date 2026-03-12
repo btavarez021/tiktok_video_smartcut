@@ -146,6 +146,21 @@ def api_create_session_route(session):
 
     return jsonify({"success": True, "session": session})
 
+@app.route("/api/session/context", methods=["POST"])
+def api_set_content_context():
+
+    data = request.json or {}
+
+    session = sanitize_session(data.get("session"))
+    context = data.get("context", "auto")
+
+    cfg = _load_config(session)
+    cfg["content_context"] = context
+
+    save_config(session, cfg)
+
+    return {"ok": True}
+
 @app.route("/api/generate_yaml/start", methods=["POST"])
 def generate_yaml_start():
     data = request.get_json()

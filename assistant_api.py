@@ -138,6 +138,10 @@ def get_weighted_video_subjects(session: str) -> dict[str, int]:
 
     return dict(sorted(filtered.items(), key=lambda x: x[1], reverse=True))
 
+def get_content_context(session: str) -> str:
+    cfg = _load_config(session)
+    return cfg.get("content_context", "auto")
+
 def _run_variant_job(session: str, modes: dict, selected_hook: str | None):
     try:
         status = {
@@ -1366,6 +1370,24 @@ def api_generate_hooks(session: str, intent: str | None = None):
     session_context = infer_session_context(session)
     print("[HOOK_LAB] Session context:", session_context)
 
+    content_context = get_content_context(session)
+
+    context_guidance = ""
+
+    if content_context != "auto":
+
+        context_guidance = f"""
+        CONTENT CONTEXT: {content_context}
+
+        Hooks should reflect experiences typical to this context.
+
+        Examples:
+        cruise → ship life, ocean views, port stops, onboard nightlife
+        fitness → workouts, energy, training, strength
+        disney → magic moments, rides, theme park atmosphere
+        restaurant → dining experience, flavors, chef craft
+        nightlife → party energy, music, crowd
+        """
 
     if not client:
         # fallback
@@ -1377,6 +1399,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
             Generate 8 high-performing TikTok hooks for a hotel / travel / lifestyle reel.
 
             Intent: {intent}
+
+            {context_guidance}
 
             Intent Guidance:
             {intent_guidance}
@@ -3523,6 +3547,7 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
     session = sanitize_session(session)
     cfg = _load_config(session)
     session_context = infer_session_context(session)
+    content_context = cfg.get("content_context", "auto")
 
     # --------------------------------------------------
     # Collect captions
@@ -3626,10 +3651,10 @@ CRITICAL RULES:
         style_sections = ""
         for style in enabled_styles:
             style_sections += f"""
-STYLE: {style}
-RULES:
-{STYLE_RULES[style]}
-"""
+                STYLE: {style}
+                RULES:
+                {STYLE_RULES[style]}
+                """
 
         system_prompt = (
             CAPTION_ONLY_GUARDRAIL +
@@ -3664,7 +3689,25 @@ RULES:
 
             Goal: captions should feel like one continuous outing or hotel stay.
             """
-        
+        content_context_guidance = ""
+
+        if content_context != "auto":
+            content_context_guidance = f"""
+            CONTENT CONTEXT:
+            - User-selected content context: {content_context}
+
+            Use this as a strong creative anchor for the captions.
+            Match the tone, sequencing, and storytelling to this context when supported by the clips.
+
+            Examples:
+            - cruise -> trip moments, ocean views, port stops, onboard dining, nightlife
+            - hotel -> stay experience, room/lobby/amenities, rooftop, relaxation
+            - fitness -> workout progression, effort, energy, recovery
+            - disney -> park atmosphere, rides, wonder, magic, nighttime finale
+            - nightlife -> energy, lights, crowd, drinks, celebration
+            - restaurant -> dining experience, chef craft, plating, ambiance
+            """
+
         context_guidance = f"""
             SESSION CONTEXT:
             - Overall reel context: {format_session_context_label(session_context.get("label"))}
@@ -3676,28 +3719,30 @@ RULES:
             """
 
         user_prompt = f"""
-                Generate caption variants using the style definitions below.
+            Generate caption variants using the style definitions below.
 
-                {style_sections}
+            {style_sections}
 
-                {progression_guidance}
+            {progression_guidance}
 
-                {context_guidance}
+            {content_context_guidance}
 
-                Return STRICT JSON:
+            {context_guidance}
 
+            Return STRICT JSON:
+
+            {{
+            "variants": [
                 {{
-                "variants": [
-                    {{
-                    "style": "style_name",
-                    "text": "caption blocks separated by blank lines"
-                    }}
-                ]
+                "style": "style_name",
+                "text": "caption blocks separated by blank lines"
                 }}
+            ]
+            }}
 
-                Captions:
-                {base}
-                """
+            Captions:
+            {base}
+            """
 
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
