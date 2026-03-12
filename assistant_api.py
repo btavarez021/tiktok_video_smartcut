@@ -1473,7 +1473,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
             clean = strip_emojis(text).strip()
             lower = clean.lower()
 
-            scored = score_generated_hook(clean, intent, video_subjects)
+            scored = score_generated_hook(clean, intent, video_subjects, content_context)
 
             score = scored["score"]
             base_score = scored["base_score"]
@@ -3254,7 +3254,45 @@ def score_cta_presence(text: str) -> int:
 
     return 100 if has_cta else 0
 
-def score_generated_hook(clean: str, intent: str, video_subjects: list[str] | None = None) -> dict:
+def score_context_relevance_bonus(hook: str, context: str) -> int:
+    """
+    Rewards hooks that align with the selected content context.
+    """
+
+    if not hook or not context or context == "auto":
+        return 0
+
+    text = hook.lower()
+
+    CONTEXT_KEYWORDS = {
+
+        "cruise": ["cruise", "deck", "ocean", "sailing", "port", "ship"],
+
+        "hotel": ["hotel", "stay", "suite", "lobby", "rooftop"],
+
+        "restaurant": ["chef", "dish", "restaurant", "plate", "dining"],
+
+        "nightlife": ["party", "dance", "club", "night", "dj"],
+
+        "fitness": ["gym", "workout", "training", "lift", "fitness"],
+
+        "disney": ["magic", "park", "ride", "castle", "disney"],
+
+        "luxury": ["luxury", "exclusive", "elite", "vip"]
+    }
+
+    words = CONTEXT_KEYWORDS.get(context, [])
+
+    matches = sum(1 for w in words if w in text)
+
+    if matches >= 2:
+        return 6
+    elif matches == 1:
+        return 3
+
+    return 0
+
+def score_generated_hook(clean: str, intent: str, video_subjects=None, context="auto") -> dict:
     lower = clean.lower()
 
     WEAK_HOOK_PATTERNS = [
@@ -3296,12 +3334,14 @@ def score_generated_hook(clean: str, intent: str, video_subjects: list[str] | No
     curiosity_bonus = score_hook_curiosity_bonus(clean, intent)
     subject_bonus = score_hook_subject_bonus(clean, video_subjects)
     visual_anchor_bonus = score_hook_visual_anchor_bonus(clean)
+    context_bonus = score_context_relevance_bonus(clean, context)
 
     score = min(
         base_score +
         curiosity_bonus +
         subject_bonus +
         visual_anchor_bonus,
+        context_bonus,
         100
     )
 
@@ -3796,7 +3836,13 @@ CRITICAL RULES:
             first_block = blocks[0] if blocks else ""
 
             video_subjects = get_weighted_video_subjects(session)
-            hook_score = score_generated_hook(first_block, intent, video_subjects).get("score", 0)
+            content_context = cfg.get("content_context", "auto")
+            hook_score = score_generated_hook(
+                first_block,
+                intent,
+                video_subjects,
+                content_context
+            ).get("score", 0)
             flow_result = score_story_flow_from_text(text)
             flow_score = flow_result.get("score", 0)
             rhythm_score = score_caption_rhythm(text)
