@@ -3190,20 +3190,23 @@ RULES:
 
         progression_guidance = """
             STORY FLOW RULES:
-            - When captions cover multiple experiences in one venue or trip, make them feel like one cohesive progression.
-            - Arrange moments in the most natural experiential order instead of treating them like unrelated highlights.
-            - Prefer a sequence such as:
+
+            - Captions should feel like one cohesive experience rather than unrelated highlights.
+            - Arrange moments in the most natural experiential order.
+
+            Preferred progression patterns include:
             arrival / setup -> activity -> social moment -> wind-down / view
-            - For hotel / travel reels, common strong progressions include:
-            workout -> cocktail -> rooftop
+            activity -> celebration -> relaxation
             day -> evening -> night
-            energy -> celebration -> relaxation
-            - Prefer captions that feel like a single hotel stay or one continuous outing.
-            - If the reel includes multiple experiences (for example bar, gym, rooftop), arrange them in the most natural order.
+            energy -> highlight -> unwind
+
+            - When multiple experiences appear (for example gym, cocktails, rooftop), arrange them in the most natural order.
+            - Preserve the implied chronological flow when possible.
             - Avoid jumping back and forth between topics unless the transition feels intentional.
-            - Avoid repeating the same subject twice in a row unless it clearly escalates the experience.
-            - Keep each caption tied to the same overall experience.
-            - Captions should feel connected, not like random standalone highlights.
+            - Avoid repeating the same subject twice unless the experience escalates.
+            - Use the subjects mentioned in the captions to determine the most natural sequence.
+
+            Goal: captions should feel like one continuous outing or hotel stay.
             """
 
         user_prompt = f"""
