@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 import time
 # Import backend API helpers
 from assistant_log import status_log
+from config_store import load_config, save_config
 from assistant_api import (
     load_analysis_results_session,
     delete_session,
@@ -154,7 +155,7 @@ def api_set_content_context():
     session = sanitize_session(data.get("session"))
     context = data.get("context", "auto")
 
-    cfg = _load_config(session)
+    cfg = load_config(session)
     cfg["content_context"] = context
 
     save_config(session, cfg)
@@ -666,8 +667,6 @@ def api_music():
     enabled = bool(data.get("enabled"))
     file = data.get("file") or ""
     volume = float(data.get("volume", 0.25))
-
-    from config_store import load_config, save_config
 
     cfg = load_config(session) or {}
     r = cfg.setdefault("render", {})

@@ -4339,6 +4339,7 @@ function renderSessionContext(data) {
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
   await loadSessionContext();
+  await loadContentContext();
 
   workingCaptionsText = lastSavedCaptionsText;
   captionViewMode = "rewritten";
@@ -7077,21 +7078,61 @@ document.addEventListener("DOMContentLoaded", async () => {
  window.appState.settings = window.appState.settings || {};
 
 document.getElementById("contentContext")?.addEventListener("change", async (e) => {
+  const context = e.target.value;
+  const session = getActiveSession();
 
-    const context = e.target.value
+  try {
+    await jsonFetch("/api/session/context", {
+      method: "POST",
+      body: JSON.stringify({
+        session,
+        context
+      })
+    });
 
-    const session = getActiveSession()
+    CONFIG_CACHE = null;
 
-    await fetch("/api/session/context", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            session,
-            context
-        })
-    })
+    // Clear old AI outputs that were generated under previous context
+    window.appState.hook.lastGenerated = [];
+    window.appState.variants.list = [];
+    window.appState.variants.recommendedId = null;
 
-})
+    updateHooksReadyUI();
+    updateAIRecommendationBar();
+
+    const hookLabOutput = document.getElementById("hookLabOutput");
+    if (hookLabOutput) hookLabOutput.innerHTML = "";
+
+    const variantsOutput = document.getElementById("variantsOutput");
+    if (variantsOutput) variantsOutput.innerHTML = "";
+
+    setStatus(
+      "hookLabStatus",
+      `Content context set to "${context}"`,
+      "info"
+    );
+
+    // Optional but recommended: auto-regenerate hooks immediately
+    await generateHooks();
+    await refreshAfterChange();
+
+  } catch (err) {
+    console.error("Failed to save content context", err);
+    setStatus("hookLabStatus", "Failed to update content context", "error");
+  }
+});
+
+async function loadContentContext() {
+  try {
+    const data = await getConfigCached();
+    const context = data?.config?.content_context || "auto";
+
+    const select = document.getElementById("contentContext");
+    if (select) select.value = context;
+  } catch (err) {
+    console.warn("Failed to load content context", err);
+  }
+}
  
 document.getElementById("exportFixBtn")?.addEventListener("click", async () => {
   await runCreativeEngine("export_fix");
