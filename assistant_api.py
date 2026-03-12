@@ -2028,6 +2028,120 @@ def list_sessions():
 
     return folders
 
+def rename_session(old_session: str, new_session: str) -> dict:
+    old_session = sanitize_session(old_session)
+    new_session = sanitize_session(new_session)
+
+    if ANALYSIS_JOBS.get(old_session, {}).get("status") == "running":
+        return {"ok": False, "error": "Cannot rename while analysis is running"}
+
+    if VARIANT_JOBS.get(old_session, {}).get("status") == "running":
+        return {"ok": False, "error": "Cannot rename while variants are running"}
+
+    if YAML_JOBS.get(old_session, {}).get("status") == "running":
+        return {"ok": False, "error": "Cannot rename while YAML generation is running"}
+
+    if not old_session or old_session == "default":
+        return {"ok": False, "error": "Cannot rename default session"}
+
+    if not new_session:
+        return {"ok": False, "error": "New session name is invalid"}
+
+    if old_session == new_session:
+        return {"ok": False, "error": "New session name must be different"}
+
+    existing = set(list_sessions())
+    if new_session in existing:
+        return {"ok": False, "error": "Target session already exists"}
+
+    def move_s3_prefix(old_prefix: str, new_prefix: str):
+        continuation_token = None
+
+        while True:
+            kwargs = {
+                "Bucket": S3_BUCKET_NAME,
+                "Prefix": old_prefix,
+            }
+            if continuation_token:
+                kwargs["ContinuationToken"] = continuation_token
+
+            resp = s3.list_objects_v2(**kwargs)
+            contents = resp.get("Contents", [])
+
+            for obj in contents:
+                old_key = obj["Key"]
+                new_key = old_key.replace(old_prefix, new_prefix, 1)
+
+                s3.copy_object(
+                    Bucket=S3_BUCKET_NAME,
+                    CopySource={"Bucket": S3_BUCKET_NAME, "Key": old_key},
+                    Key=new_key,
+                )
+                s3.delete_object(Bucket=S3_BUCKET_NAME, Key=old_key)
+
+            if resp.get("IsTruncated"):
+                continuation_token = resp.get("NextContinuationToken")
+            else:
+                break
+
+    def move_dir(old_path: str, new_path: str):
+        if os.path.exists(old_path):
+            os.makedirs(os.path.dirname(new_path), exist_ok=True)
+            shutil.move(old_path, new_path)
+
+    def move_file(old_path: str, new_path: str):
+        if os.path.exists(old_path):
+            os.makedirs(os.path.dirname(new_path), exist_ok=True)
+            shutil.move(old_path, new_path)
+
+    try:
+        # -------------------------
+        # Move S3 prefixes
+        # -------------------------
+        move_s3_prefix(f"{RAW_PREFIX}{old_session}/", f"{RAW_PREFIX}{new_session}/")
+        move_s3_prefix(f"{PROCESSED_PREFIX}{old_session}/", f"{PROCESSED_PREFIX}{new_session}/")
+        move_s3_prefix(f"{EXPORT_PREFIX}{old_session}/", f"{EXPORT_PREFIX}{new_session}/")
+
+        # -------------------------
+        # Move local/session state
+        # -------------------------
+        move_dir(os.path.join("session_configs", old_session), os.path.join("session_configs", new_session))
+        move_dir(os.path.join(ANALYSIS_BASE_DIR, old_session), os.path.join(ANALYSIS_BASE_DIR, new_session))
+        move_dir(os.path.join(LABELS_DIR, old_session), os.path.join(LABELS_DIR, new_session))
+        move_dir(os.path.join("preview_frames", old_session), os.path.join("preview_frames", new_session))
+        move_dir(os.path.join(video_folder, old_session), os.path.join(video_folder, new_session))
+
+        move_file(
+            os.path.join(SESSION_PREFS_DIR, f"{old_session}.json"),
+            os.path.join(SESSION_PREFS_DIR, f"{new_session}.json"),
+        )
+
+        move_file(
+            _analysis_status_path(old_session),
+            _analysis_status_path(new_session),
+        )
+
+        # -------------------------
+        # Move in-memory job state
+        # -------------------------
+        if old_session in ANALYSIS_JOBS:
+            ANALYSIS_JOBS[new_session] = ANALYSIS_JOBS.pop(old_session)
+
+        if old_session in VARIANT_JOBS:
+            VARIANT_JOBS[new_session] = VARIANT_JOBS.pop(old_session)
+
+        if old_session in YAML_JOBS:
+            YAML_JOBS[new_session] = YAML_JOBS.pop(old_session)
+
+        return {
+            "ok": True,
+            "old_session": old_session,
+            "new_session": new_session,
+        }
+
+    except Exception as e:
+        logger.exception("[SESSION_RENAME] failed")
+        return {"ok": False, "error": str(e)}
 
 def delete_session(session):
     """Delete ENTIRE session: S3 files + session config + analysis cache."""

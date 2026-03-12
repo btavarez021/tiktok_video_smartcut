@@ -54,7 +54,8 @@ from assistant_api import (
     boost_hook,
     auto_optimize_hook,
     api_suggest_storyboard_order,
-    infer_session_context
+    infer_session_context,
+    rename_session
     )
 from tiktok_assistant import apply_filename_captions
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -105,6 +106,17 @@ def api_status():
 @app.route("/api/sessions", methods=["GET"])
 def api_list_sessions_route():
     return jsonify({"sessions": list_sessions()})
+
+@app.route("/api/session/rename", methods=["POST"])
+def rename_session_route():
+    data = request.get_json(silent=True) or {}
+    old_session = data.get("old_session", "")
+    new_session = data.get("new_session", "")
+
+    result = rename_session(old_session, new_session)
+
+    status_code = 200 if result.get("ok") else 400
+    return jsonify(result), status_code
 
 
 @app.route("/api/session/<session>", methods=["DELETE"])

@@ -5843,6 +5843,9 @@ async function loadSessions() {
             li.className = "analysis-item";
             li.innerHTML = `
                 <span class="analysis-file">${session}</span>
+                <button class="btn renameSessionBtn" data-session="${session}">
+                    ✏️ Rename
+                </button>
                 <button class="btn btn-delete deleteSessionBtn" data-session="${session}">
                     🗑 Delete
                 </button>
@@ -5885,6 +5888,48 @@ async function loadSessionDropdown() {
         setTimeout(() => ddl.classList.remove("force-restyle"), 0);
     } catch (err) {
         console.error("[SESSION] dropdown load failed:", err);
+    }
+}
+
+async function renameSession(oldSession) {
+    const raw = prompt(`Rename session "${oldSession}" to:`);
+
+    if (!raw) return;
+
+    const newSession = sanitizeSessionName(raw);
+
+    if (!newSession) {
+        alert("Invalid session name");
+        return;
+    }
+
+    if (newSession === oldSession) {
+        alert("New session name must be different");
+        return;
+    }
+
+    try {
+        const res = await jsonFetch("/api/session/rename", {
+            method: "POST",
+            body: JSON.stringify({
+                old_session: oldSession,
+                new_session: newSession
+            })
+        });
+
+        if (getActiveSession() === oldSession) {
+            await setActiveSession(newSession);
+        }
+
+        await loadSessions();
+        await loadSessionDropdown();
+        await sidebarLoadSessions();
+        sidebarSyncActiveLabel();
+
+        showSessionToast?.(`Renamed "${oldSession}" → "${newSession}"`);
+    } catch (err) {
+        console.error("[SESSION] renameSession failed:", err);
+        alert("Failed to rename session");
     }
 }
 
@@ -7526,6 +7571,14 @@ if (captionsBox) {
 
         sidebarToast(`Deleted session “${session}”`);
     });
+
+    document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".renameSessionBtn");
+    if (!btn) return;
+
+    const session = btn.dataset.session;
+    if (session) renameSession(session);
+});
 
     // Legacy delete buttons in other card (if present)
     document.addEventListener("click", (e) => {
