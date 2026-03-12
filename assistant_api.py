@@ -1889,6 +1889,80 @@ def api_get_labels(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
     return {"labels": load_labels(session)}
 
+def get_clip_preview_frames_base64(session: str, filename: str) -> list[str]:
+    session = sanitize_session(session)
+
+    video_path = os.path.join(video_folder, session, filename)
+
+    if not os.path.exists(video_path):
+        from tiktok_assistant import download_s3_video
+        key = f"{RAW_PREFIX}{session}/{filename}"
+        tmp = download_s3_video(key)
+        if not tmp:
+            raise RuntimeError("video not found")
+        os.makedirs(os.path.dirname(video_path), exist_ok=True)
+        shutil.copy2(tmp, video_path)
+
+    preview_dir = os.path.join("preview_frames", session)
+    os.makedirs(preview_dir, exist_ok=True)
+
+    def get_duration_seconds(path: str) -> float:
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    path,
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return max(float(result.stdout.strip()), 0.0)
+        except Exception:
+            return 0.0
+
+    duration = get_duration_seconds(video_path)
+
+    if duration and duration > 4:
+        timestamps = [
+            max(0.5, duration * 0.15),
+            max(1.0, duration * 0.50),
+            max(1.5, duration * 0.85),
+        ]
+    else:
+        timestamps = [0.8, 1.5, 2.2]
+
+    images = []
+
+    for i, ts in enumerate(timestamps, start=1):
+        frame_path = os.path.join(preview_dir, f"{filename}_{i}.jpg")
+
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-ss", str(ts),
+                "-i", video_path,
+                "-vframes", "1",
+                frame_path
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+
+        if os.path.exists(frame_path) and os.path.getsize(frame_path) > 0:
+            with open(frame_path, "rb") as f:
+                encoded = base64.b64encode(f.read()).decode()
+                images.append(f"data:image/jpeg;base64,{encoded}")
+
+    if not images:
+        raise RuntimeError("No preview frames")
+
+    return images
+
 def api_set_label(session: str, filename: str, label: str | None) -> Dict[str, Any]:
     
     session = sanitize_session(session)
@@ -1962,9 +2036,9 @@ def repair_label(filename: str, label: str, session: str) -> str:
     existing_desc = load_analysis_results_session(session).get(filename, "")
 
     try:
-        image_b64 = get_clip_preview_base64(session, filename)
+        images_b64 = get_clip_preview_frames_base64(session, filename)
     except Exception as e:
-        logger.error(f"[REPAIR_LABEL] No preview frame: {e}")
+        logger.error(f"[REPAIR_LABEL] No preview frames: {e}")
         return normalize_label(label)
 
     messages = [
@@ -1988,7 +2062,7 @@ Rules:
 - No emojis
 - No hashtags
 - Do not use hotel name unless visible
-- Describe the MAIN scene, not a tiny detail
+- Describe the MAIN scene across these frames, not a tiny detail
 - Prefer the broader subject if multiple food items or objects are visible
 - For food clips, label the overall meal or dining scene, not one garnish or side item
 - Use the existing clip analysis if it gives broader context
@@ -1997,12 +2071,15 @@ Rules:
 Return ONLY the label text.
 """
                 },
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": image_b64
+                *[
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": img
+                        }
                     }
-                }
+                    for img in images_b64
+                ]
             ]
         }
     ]
