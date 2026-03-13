@@ -2217,15 +2217,19 @@ Rules:
 - No hashtags
 - Do not use hotel name unless visible
 - Describe the MAIN scene across these frames, not a tiny detail
-- Prefer the broader subject if multiple food items or objects are visible
-- For food clips, label the overall meal or dining scene, not one garnish or side item
-- Keep one distinctive visible detail when it helps identify the scene
-- Avoid labels that become so generic they lose what is visually memorable
-- Prefer "Elegant dining with plated meal" over "Gourmet dishes" if the plate is clearly visible
-- Use the existing clip analysis if it gives broader context
-- Useful for captions and storytelling
+- Prefer the broader scene or experience rather than listing specific objects
 
-Return ONLY the label text.
+FOOD SCENE RULE:
+If a meal is visible, describe the dining experience rather than listing ingredients.
+Example: "elegant cruise dinner" instead of "asparagus and potatoes".
+
+SCENE PRIORITY RULE:
+If multiple objects are visible, choose the main activity or environment rather than a small item.
+
+- Use the existing clip analysis if it provides useful context
+- Label should help captions and storytelling
+
+
 """
                 },
                 *[
@@ -4010,6 +4014,10 @@ CRITICAL RULES:
             Use this context to make the captions feel like one connected outing or experience.
             Do not force context that is not supported by the clips.
             """
+        
+        caption_scene = """CAPTION SCENE RULE:
+            When describing food clips, prioritize the dining experience over specific ingredients unless the dish itself is the focus of the reel.
+        """
 
         user_prompt = f"""
             Generate caption variants using the style definitions below.
@@ -4021,6 +4029,8 @@ CRITICAL RULES:
             {content_context_guidance}
 
             {context_guidance}
+
+            {caption_scene}
 
             Return STRICT JSON:
 
