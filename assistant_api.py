@@ -70,6 +70,31 @@ def save_analysis_status(session: str, data: dict):
     with open(_analysis_status_path(session), "w", encoding="utf-8") as f:
         json.dump(data, f)
 
+def score_first_clip_alignment_bonus(hook: str, first_clip_text: str) -> int:
+    """
+    Rewards hooks that align with the first clip, since the first clip is the visual hook anchor.
+    """
+    if not hook or not first_clip_text:
+        return 0
+
+    hook_lower = hook.lower()
+    first_lower = first_clip_text.lower()
+
+    first_tokens = _tokenize_subject_text(first_lower)
+    if not first_tokens:
+        return 0
+
+    matches = sum(1 for token in first_tokens if token in hook_lower)
+
+    if matches >= 3:
+        return 8
+    elif matches == 2:
+        return 5
+    elif matches == 1:
+        return 2
+
+    return 0
+
 def safe_json_extract(text: str) -> dict:
     if not text:
         return {}
@@ -854,11 +879,14 @@ def api_hook_score(session: str) -> Dict[str, Any]:
     video_subjects = get_weighted_video_subjects(session)
 
     base_result = score_hook_text(hook, intent)
+    first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
+
     scored = score_generated_hook(
         hook,
         intent,
         video_subjects=video_subjects,
-        context=content_context
+        context=content_context,
+        first_clip_text=first_clip_text
     )
 
     reasons = list(base_result.get("reasons", []))
@@ -1405,6 +1433,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
     session = sanitize_session(session)
     cfg = _load_config(session)
 
+    first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
+
     scenes = []
     if cfg.get("first_clip", {}).get("text"):
         scenes.append(cfg["first_clip"]["text"])
@@ -1515,7 +1545,33 @@ def api_generate_hooks(session: str, intent: str | None = None):
             "hidden gem"
             "this place"
             - The subject should feel clear immediately
-            - Each hook must represent the SAME experience from a different angle
+            - Each hook must represent the SAME CORE EXPERIENCE introduced by the FIRST CLIP. Later scenes can support that experience, but the hook must clearly match the opening visual.
+
+            FIRST CLIP ANCHOR RULE:
+            - The first clip is the opening visual hook.
+            - Hooks should strongly fit the first clip, while still making sense for the overall reel.
+            - Do not make dining, nightlife, or other later scenes the main hook if the first clip is clearly about beach relaxation, a cigar, or an ocean moment.
+
+            SCENE PRIORITY RULE:
+            - The first clip defines the main experience.
+            - Later scenes are supporting moments.
+            - Hooks should feel correct if the viewer only saw the first clip.
+
+            First clip:
+            {cfg.get("first_clip", {}).get("text", "")}
+
+            Example:
+                If the first clip shows beach relaxation with a cigar,
+                good hooks might reference:
+                - beach calm
+                - ocean breeze
+                - cruise relaxation
+                - slow luxury moments
+
+                Bad hooks would focus primarily on:
+                - dining
+                - pool party
+                - nightlife
 
             REQUIRED ANGLES:
             Generate exactly 8 hooks using these 8 angles:
@@ -1535,8 +1591,11 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             Avoid repeating the same pattern like multiple "What makes..." or "How this..." hooks.
 
-            Scenes:
-            {json.dumps(scenes, indent=2)}
+            Scene sequence:
+            1. {cfg.get("first_clip", {}).get("text", "")}
+            2. {scenes[1] if len(scenes) > 1 else ""}
+            3. {scenes[2] if len(scenes) > 2 else ""}
+            4. {scenes[3] if len(scenes) > 3 else ""}
 
             Return JSON only:
             {{ "hooks": ["hook1", "hook2", "hook3", "hook4", "hook5", "hook6", "hook7", "hook8"] }}
@@ -1558,7 +1617,13 @@ def api_generate_hooks(session: str, intent: str | None = None):
             clean = strip_emojis(text).strip()
             lower = clean.lower()
 
-            scored = score_generated_hook(clean, intent, video_subjects, content_context)
+            scored = score_generated_hook(
+                clean,
+                intent,
+                video_subjects=video_subjects,
+                context=content_context,
+                first_clip_text=first_clip_text
+            )
 
             score = scored["score"]
             base_score = scored["base_score"]
@@ -3467,7 +3532,13 @@ def score_context_relevance_bonus(hook: str, context: str) -> int:
 
     return 0
 
-def score_generated_hook(clean: str, intent: str, video_subjects=None, context="auto") -> dict:
+def score_generated_hook(
+    clean: str,
+    intent: str,
+    video_subjects=None,
+    context="auto",
+    first_clip_text: str = ""
+) -> dict:
     lower = clean.lower()
 
     WEAK_HOOK_PATTERNS = [
@@ -3494,6 +3565,8 @@ def score_generated_hook(clean: str, intent: str, video_subjects=None, context="
         "watch this",
     ]
 
+    first_clip_bonus = score_first_clip_alignment_bonus(clean, first_clip_text)
+
     penalty = 0
     vague_penalty = 0
 
@@ -3516,7 +3589,8 @@ def score_generated_hook(clean: str, intent: str, video_subjects=None, context="
         curiosity_bonus +
         subject_bonus +
         visual_anchor_bonus +
-        context_bonus,
+        context_bonus +
+        first_clip_bonus,
         100
     )
 
@@ -3527,6 +3601,7 @@ def score_generated_hook(clean: str, intent: str, video_subjects=None, context="
         "subject_bonus": subject_bonus,
         "visual_anchor_bonus": visual_anchor_bonus,
         "context_bonus": context_bonus,
+        "first_clip_bonus": first_clip_bonus,
         "vague_penalty": vague_penalty,
     }
 
@@ -3764,6 +3839,8 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
     cfg = _load_config(session) or {}
     session_context = infer_session_context(session)
     content_context = cfg.get("content_context", "auto")
+
+    first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
 
     # --------------------------------------------------
     # Collect captions
@@ -4017,7 +4094,8 @@ CRITICAL RULES:
                 first_block,
                 intent,
                 video_subjects=video_subjects,
-                context=content_context
+                context=content_context,
+                first_clip_text=first_clip_text
             ).get("score", 0)
 
             flow_result = score_story_flow_from_text(text)
