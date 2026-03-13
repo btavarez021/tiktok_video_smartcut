@@ -3749,15 +3749,9 @@ def api_suggest_storyboard_order(session: str) -> dict:
 def format_session_context_label(label: str) -> str:
     return (label or "general_lifestyle").replace("_", " ")
 
-def infer_session_context(session: str) -> dict:
+def infer_session_context_rules(session: str) -> dict:
     """
-    Infer a lightweight overall context for the reel.
-    Returns:
-    {
-        "label": "travel_outing",
-        "confidence": "high" | "medium" | "low",
-        "signals": ["ocean", "beach", "dance floor"]
-    }
+    Rule-based fallback context inference.
     """
     session = sanitize_session(session)
 
@@ -3820,7 +3814,6 @@ def infer_session_context(session: str) -> dict:
     else:
         confidence = "low"
 
-    # Fallback
     if best_score == 0:
         return {
             "label": "general_lifestyle",
@@ -3833,6 +3826,159 @@ def infer_session_context(session: str) -> dict:
         "confidence": confidence,
         "signals": matched_signals[best_label][:5]
     }
+
+def build_session_context_evidence(session: str) -> dict:
+    session = sanitize_session(session)
+
+    labels = load_labels(session) or {}
+    analyses = load_analysis_results_session(session) or {}
+    cfg = _load_config(session) or {}
+
+    clip_texts = []
+
+    if cfg.get("first_clip", {}).get("text"):
+        clip_texts.append(cfg["first_clip"]["text"])
+
+    for clip in cfg.get("middle_clips", []):
+        if clip.get("text"):
+            clip_texts.append(clip["text"])
+
+    if cfg.get("last_clip", {}).get("text"):
+        clip_texts.append(cfg["last_clip"]["text"])
+
+    return {
+        "session_name": session.replace("_", " "),
+        "labels": list(labels.values()),
+        "analyses": list(analyses.values()),
+        "clip_texts": clip_texts,
+        "filenames": list(labels.keys()),
+    }
+
+def infer_session_context(session: str) -> dict:
+    """
+    Hybrid session context inference:
+    - LLM decides macro context when enough evidence exists
+    - rules-based fallback if AI fails or evidence is sparse
+    """
+    session = sanitize_session(session)
+
+    evidence = build_session_context_evidence(session)
+
+    label_count = len(evidence["labels"])
+    analysis_count = len(evidence["analyses"])
+    clip_count = len(evidence["clip_texts"])
+
+    # cheap fallback when there is very little evidence
+    if label_count + analysis_count + clip_count < 2:
+        return infer_session_context_rules(session)
+
+    # fallback if AI unavailable
+    if not client:
+        return infer_session_context_rules(session)
+
+    prompt = f"""
+Classify the OVERALL reel context.
+
+Session name:
+{evidence["session_name"]}
+
+Clip labels:
+{json.dumps(evidence["labels"], indent=2)}
+
+Clip analyses:
+{json.dumps(evidence["analyses"], indent=2)}
+
+Storyboard clip texts:
+{json.dumps(evidence["clip_texts"], indent=2)}
+
+Filenames:
+{json.dumps(evidence["filenames"], indent=2)}
+
+Rules:
+- Identify the MAIN macro context of the reel, not just one isolated scene
+- Prefer the broader experience when clips show multiple parts of the same outing or trip
+- Example: a cruise reel with dining, beach, and party clips is still a cruise_trip
+- Also identify up to 3 supporting subcontexts
+- Be conservative and only use evidence that is present
+- If uncertain, choose the most likely broad lifestyle/travel context
+
+Allowed labels:
+- cruise_trip
+- hotel_stay
+- beach_day
+- nightlife_outing
+- dining_experience
+- travel_outing
+- fitness_workout
+- city_trip
+- resort_day
+- theme_park_trip
+- concert_event
+- day_in_the_life
+- luxury_experience
+- general_lifestyle
+
+Return JSON only:
+{{
+  "label": "one_allowed_label",
+  "confidence": "low|medium|high",
+  "signals": ["signal1", "signal2", "signal3"],
+  "subcontexts": ["sub1", "sub2", "sub3"]
+}}
+"""
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": "Return ONLY valid JSON. No markdown. No commentary."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+        )
+
+        content = (resp.choices[0].message.content or "").strip()
+        data = safe_json_extract(content)
+
+        allowed = {
+            "cruise_trip",
+            "hotel_stay",
+            "beach_day",
+            "nightlife_outing",
+            "dining_experience",
+            "travel_outing",
+            "fitness_workout",
+            "city_trip",
+            "resort_day",
+            "theme_park_trip",
+            "concert_event",
+            "day_in_the_life",
+            "luxury_experience",
+            "general_lifestyle",
+        }
+
+        label = data.get("label", "")
+        confidence = data.get("confidence", "low")
+        signals = data.get("signals", []) or []
+        subcontexts = data.get("subcontexts", []) or []
+
+        if label not in allowed:
+            return infer_session_context_rules(session)
+
+        if confidence not in {"low", "medium", "high"}:
+            confidence = "low"
+
+        return {
+            "label": label,
+            "confidence": confidence,
+            "signals": signals[:5],
+            "subcontexts": subcontexts[:3],
+        }
+
+    except Exception as e:
+        logger.warning(f"[SESSION_CONTEXT] LLM inference failed: {e}")
+        return infer_session_context_rules(session)
+
 
 def api_session_context(session: str) -> dict:
     session = sanitize_session(session)
