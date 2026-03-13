@@ -3130,7 +3130,7 @@ def api_clip_preview(session: str, filename: str) -> dict:
         [
             "ffmpeg",
             "-y",
-            "-ss", "00:00:01.5",
+            "-ss", "00:00:02.2",
             "-i", video_path,
             "-vframes", "1",
             frame_path

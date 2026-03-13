@@ -416,6 +416,11 @@ def analyze_video(path: str, session: str, label: str = "") -> str:
                 - Focus on the main visible subject, activity, food, setting, and vibe across the clip
                 - If one frame is a close-up, do not assume it represents the whole clip
                 - Prefer the broader scene if multiple frames reveal more context
+
+                FOOD SCENE RULE:
+                - If food is present, describe the main dish or dining scene rather than listing small ingredients or garnishes
+                - If multiple food items are visible, describe the overall meal rather than individual sides
+
                 - Do not invent oceans, beaches, resorts, ships, or interiors unless visible
                 - Do not contradict the user label
                 - Use neutral factual language
