@@ -309,10 +309,8 @@ def api_generate_yaml_start(session: str):
     return {"status": "started"}
 
 def api_edit_strategy(session: str):
-    from config_store import load_config
-    from tiktok_assistant import extract_hook_text, score_hook_text
-
-    cfg = load_config(session)
+    session = sanitize_session(session)
+    cfg = _load_config(session) or {}
 
     suggestions = []
 
@@ -320,7 +318,7 @@ def api_edit_strategy(session: str):
     # Hook
     # -----------------------------
     hook = extract_hook_text(cfg)
-    hook_score = score_hook_text(hook).get("score", 0)
+    hook_score = score_hook_unified(session, hook).get("score", 0)
 
     if hook_score < 60:
         suggestions.append({
@@ -848,15 +846,50 @@ def api_set_captions_mode(session: str, mode: str) -> Dict[str, Any]:
 
 def api_hook_score(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = _load_config(session) or {}
 
     hook = extract_hook_text(cfg)
-    result = score_hook_text(hook)
+    intent = cfg.get("intent", "discovery")
+    content_context = cfg.get("content_context", "auto")
+    video_subjects = get_weighted_video_subjects(session)
+
+    base_result = score_hook_text(hook, intent)
+    scored = score_generated_hook(
+        hook,
+        intent,
+        video_subjects=video_subjects,
+        context=content_context
+    )
+
+    reasons = list(base_result.get("reasons", []))
+
+    if scored.get("subject_bonus", 0) >= 4:
+        reasons.append("Hook aligns well with the detected video subjects.")
+    elif scored.get("subject_bonus", 0) >= 2:
+        reasons.append("Hook has some alignment with the detected video subjects.")
+
+    if scored.get("visual_anchor_bonus", 0) >= 4:
+        reasons.append("Hook references a strong visual element from the reel.")
+    elif scored.get("visual_anchor_bonus", 0) >= 2:
+        reasons.append("Hook connects to a visible scene element.")
+
+    if scored.get("context_bonus", 0) >= 4:
+        reasons.append("Hook strongly matches the selected content context.")
+    elif scored.get("context_bonus", 0) >= 2:
+        reasons.append("Hook fits the selected content context.")
+
+    # dedupe and keep top few
+    cleaned = []
+    seen = set()
+    for r in reasons:
+        if r not in seen:
+            cleaned.append(r)
+            seen.add(r)
 
     return {
         "hook": hook,
-        "score": result["score"],
-        "reasons": result["reasons"],
+        "score": scored["score"],
+        "reasons": cleaned[:4],
     }
 
 
@@ -885,7 +918,7 @@ def api_improve_hook(session: str) -> Dict[str, Any]:
 
     proposed = "\n\n".join(captions)
 
-    score = score_hook_text(new_hook)
+    score = score_hook_unified(session, new_hook)
 
     return {
         "status": "proposed",
@@ -1143,6 +1176,56 @@ def get_hook_subject_matches(text: str, subjects: list[str] | None = None) -> li
 
     return cleaned[:3]
 
+def score_hook_unified(session: str, hook: str, intent: str | None = None) -> dict:
+    session = sanitize_session(session)
+    cfg = _load_config(session) or {}
+
+    intent = intent or cfg.get("intent", "discovery")
+    content_context = cfg.get("content_context", "auto")
+    video_subjects = get_weighted_video_subjects(session)
+
+    base_result = score_hook_text(hook, intent)
+    scored = score_generated_hook(
+        hook,
+        intent,
+        video_subjects=video_subjects,
+        context=content_context
+    )
+
+    reasons = list(base_result.get("reasons", []))
+
+    if scored.get("subject_bonus", 0) >= 4:
+        reasons.append("Hook aligns well with the detected video subjects.")
+    elif scored.get("subject_bonus", 0) >= 2:
+        reasons.append("Hook has some alignment with the detected video subjects.")
+
+    if scored.get("visual_anchor_bonus", 0) >= 4:
+        reasons.append("Hook references a strong visual element from the reel.")
+    elif scored.get("visual_anchor_bonus", 0) >= 2:
+        reasons.append("Hook connects to a visible scene element.")
+
+    if scored.get("context_bonus", 0) >= 4:
+        reasons.append("Hook strongly matches the selected content context.")
+    elif scored.get("context_bonus", 0) >= 2:
+        reasons.append("Hook fits the selected content context.")
+
+    cleaned = []
+    seen = set()
+    for r in reasons:
+        if r not in seen:
+            cleaned.append(r)
+            seen.add(r)
+
+    return {
+        "score": scored["score"],
+        "reasons": cleaned[:4],
+        "base_score": scored.get("base_score", 0),
+        "curiosity_bonus": scored.get("curiosity_bonus", 0),
+        "subject_bonus": scored.get("subject_bonus", 0),
+        "visual_anchor_bonus": scored.get("visual_anchor_bonus", 0),
+        "context_bonus": scored.get("context_bonus", 0),
+    }
+
 def build_hook_reason(best: dict, hooks: list[dict], intent: str, subjects: list[str] | None = None) -> str:
     reasons = []
 
@@ -1328,6 +1411,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
     for c in cfg.get("middle_clips", []):
         if c.get("text"):
             scenes.append(c["text"])
+    if cfg.get("last_clip", {}).get("text"):
+        scenes.append(cfg["last_clip"]["text"])
 
     if not scenes:
         return {"hooks": []}
@@ -1844,28 +1929,32 @@ def save_labels(session: str, labels: Dict[str, str]) -> None:
 # -------------------------------
 # Upload order (S3 JSON index)
 # -------------------------------
-UPLOAD_ORDER_KEY = RAW_PREFIX + "order.json"
+def _upload_order_key(session: str) -> str:
+    session = sanitize_session(session)
+    return clean_s3_key(f"{RAW_PREFIX}{session}/order.json")
 
-def load_upload_order() -> List[str]:
+def load_upload_order(session: str) -> List[str]:
+    key = _upload_order_key(session)
     try:
-        obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key=UPLOAD_ORDER_KEY)
+        obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key=key)
         data = json.loads(obj["Body"].read().decode("utf-8"))
         return data.get("order", [])
     except Exception:
         return []
 
 
-def save_upload_order(order: List[str]) -> None:
+def save_upload_order(session: str, order: List[str]) -> None:
+    key = _upload_order_key(session)
     try:
         payload = json.dumps({"order": order}, indent=2).encode("utf-8")
         s3.put_object(
             Bucket=S3_BUCKET_NAME,
-            Key=UPLOAD_ORDER_KEY,
+            Key=key,
             Body=payload,
             ContentType="application/json",
         )
     except Exception as e:
-        logger.error(f"[UPLOAD_ORDER] Failed to save order.json: {e}")
+        logger.error(f"[UPLOAD_ORDER] Failed to save order for {session}: {e}")
 
 # ================================
 # UPLOAD MANAGER HELPERS (SESSION)
@@ -2410,7 +2499,7 @@ def _sync_s3_videos_to_local(session: str) -> List[str]:
     log_step(f"[SYNC] Found {len(keys)} video(s) in S3 under session '{session}'")
 
     # Maintain custom upload order if present
-    order = load_upload_order()
+    order = load_upload_order(session)
     if order:
         keys = sorted(
             keys,
@@ -3672,7 +3761,7 @@ def api_session_context(session: str) -> dict:
 
 def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = _load_config(session) or {}
     session_context = infer_session_context(session)
     content_context = cfg.get("content_context", "auto")
 
@@ -3927,9 +4016,10 @@ CRITICAL RULES:
             hook_score = score_generated_hook(
                 first_block,
                 intent,
-                video_subjects,
-                content_context
+                video_subjects=video_subjects,
+                context=content_context
             ).get("score", 0)
+
             flow_result = score_story_flow_from_text(text)
             flow_score = flow_result.get("score", 0)
             rhythm_score = score_caption_rhythm(text)
