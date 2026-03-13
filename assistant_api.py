@@ -2065,6 +2065,9 @@ Rules:
 - Describe the MAIN scene across these frames, not a tiny detail
 - Prefer the broader subject if multiple food items or objects are visible
 - For food clips, label the overall meal or dining scene, not one garnish or side item
+- Keep one distinctive visible detail when it helps identify the scene
+- Avoid labels that become so generic they lose what is visually memorable
+- Prefer "Elegant dining with plated meal" over "Gourmet dishes" if the plate is clearly visible
 - Use the existing clip analysis if it gives broader context
 - Useful for captions and storytelling
 
