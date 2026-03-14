@@ -1545,17 +1545,22 @@ def api_generate_hooks(session: str, intent: str | None = None):
             "hidden gem"
             "this place"
             - The subject should feel clear immediately
-            - Each hook must represent the SAME CORE EXPERIENCE introduced by the FIRST CLIP. Later scenes can support that experience, but the hook must clearly match the opening visual.
 
             FIRST CLIP ANCHOR RULE:
             - The first clip is the opening visual hook.
-            - Hooks should strongly fit the first clip, while still making sense for the overall reel.
-            - Do not make dining, nightlife, or other later scenes the main hook if the first clip is clearly about beach relaxation, a cigar, or an ocean moment.
+            - Hooks must strongly match the visual experience of the FIRST CLIP.
+            - Later scenes may support the hook, but should not replace the main opening experience.
+            - Hooks should still feel correct if the viewer only saw the first clip.
 
-            SCENE PRIORITY RULE:
-            - The first clip defines the main experience.
-            - Later scenes are supporting moments.
-            - Hooks should feel correct if the viewer only saw the first clip.
+            HOOK PRIORITY:
+            1. First clip visual moment
+            2. Emotional curiosity or tension
+            3. Supporting trip context if it improves clarity
+
+            - Session context may be used as supporting framing when it strengthens the hook.
+            - Avoid generic hooks that could apply to any beach, hotel, or vacation.
+            - If possible, anchor the hook to a distinctive detail from the first scene.
+
 
             First clip:
             {cfg.get("first_clip", {}).get("text", "")}
@@ -1596,6 +1601,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
             2. {scenes[1] if len(scenes) > 1 else ""}
             3. {scenes[2] if len(scenes) > 2 else ""}
             4. {scenes[3] if len(scenes) > 3 else ""}
+
+            The first scene should carry the hook. Later scenes should feel like supporting payoff or progression.
 
             Return JSON only:
             {{ "hooks": ["hook1", "hook2", "hook3", "hook4", "hook5", "hook6", "hook7", "hook8"] }}
