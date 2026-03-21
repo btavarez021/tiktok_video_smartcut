@@ -752,6 +752,11 @@ def normalize_label(label: str) -> str:
     label = strip_emojis(label)
     label = label.strip()
 
+    bad_prefixes = ("e.g", "example", "ex:")
+
+    if label.lower().startswith(bad_prefixes):
+        return ""
+
     # Collapse spaces
     label = re.sub(r"\s+", " ", label)
 
