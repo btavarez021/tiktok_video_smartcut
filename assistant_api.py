@@ -1096,6 +1096,8 @@ def score_hook_unified(session: str, hook: str, intent: str | None = None) -> di
     first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
 
     base_result = score_hook_text(hook, intent)
+    first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
+
     scored = score_generated_hook(
         hook,
         intent,

@@ -2436,32 +2436,46 @@ function computeVariantDisplayStrength(variant) {
   }
 
 
-  function clearSelectedHook() {
-    const state = window.appState;
+function clearSelectedHook() {
+  const state = window.appState;
 
-    state.hook.selected = null;
-    state.hook.locked = false;
+  state.hook.selected = null;
+  state.hook.locked = false;
 
-    updateHookLockUI();
-    refreshAfterChange();
+  workingCaptionsText = lastSavedCaptionsText || workingCaptionsText || "";
+
+  updateHookLockUI();
+  renderStep3Diff(lastSavedCaptionsText || "", workingCaptionsText || "");
+  refreshAfterChange();
+}
+
+function selectHook(text) {
+  const state = window.appState;
+
+  if (state.hook.locked && state.hook.selected !== text) {
+    setStatus("hookLabStatus", "🔒 Hook locked — clear to change", "info");
+    return;
   }
 
-  function selectHook(text) {
+  state.hook.selected = text;
+  state.hook.locked = true;
 
-    const state = window.appState;
+  const current = getCurrentCaptionsText();
+  const blocks = current
+    ? current.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean)
+    : [];
 
-    if (state.hook.locked && state.hook.selected !== text) {
-      setStatus("hookLabStatus", "🔒 Hook locked — clear to change", "info");
-      return;
-    }
-
-    state.hook.selected = text;
-    state.hook.locked = true;
-
-    updateHookLockUI();
-    refreshAfterChange();
+  if (blocks.length === 0) {
+    workingCaptionsText = text;
+  } else {
+    blocks[0] = text;
+    workingCaptionsText = blocks.join("\n\n");
   }
 
+  updateHookLockUI();
+  renderStep3Diff(lastSavedCaptionsText || "", workingCaptionsText || "");
+  refreshAfterChange();
+}
 
   function highlightHookLab() {
     const lab = document.getElementById("hookLab");
@@ -3921,49 +3935,6 @@ function computeVariantDisplayStrength(variant) {
     );
   }
 
-  function renderSetupSummary(data) {
-    const el = document.getElementById("aiSetupSummary");
-    if (!el) return;
-
-    // You can customize the copy based on your API payload
-    const clips = data?.clip_count ?? data?.clips ?? null;
-    const goal  = data?.recommended_goal ?? "";
-    const note  = data?.summary ?? data?.message ?? "";
-
-    // Persist setup intelligence into global state
-    window.appState = window.appState || {};
-    window.appState.setup = window.appState.setup || {};
-
-    window.appState.setup.hookConfidence =
-      summary?.hook_confidence || "unknown";
-
-    window.appState.setup.labelQuality =
-      summary?.labels?.quality || "unknown";
-
-    window.appState.setup.clipCount =
-      summary?.clips || 0;
-
-    el.innerHTML = `
-      <div class="ai-summary-row">
-        <div class="ai-summary-title">🧠 AI Setup Ready</div>
-        <div class="ai-summary-sub">
-          ${clips != null ? `Clips analyzed: <b>${clips}</b>.` : `Clips analyzed.`}
-          ${goal ? ` Recommended goal: <b>${goal}</b>.` : ``}
-        </div>
-        ${note ? `<div class="ai-summary-note">${note}</div>` : ``}
-      </div>
-
-      <div class="ai-summary-actions">
-        <button id="prepareStoryboardBtn" class="btn primary">
-          ⚡ Prepare storyboard
-        </button>
-        <button id="jumpToStoryboardBtn" class="btn ghost">
-          🎬 Jump to storyboard order
-        </button>
-      </div>
-    `;
-  }
-
 async function loadAISetupSummary() {
   const data = await jsonFetch(
     `/api/ai_setup_summary?session=${getActiveSession()}`
@@ -4971,7 +4942,12 @@ async function refreshHookScore() {
 
   if (!card || !scoreEl || !reasonsEl || !hookEl) return;
 
-  const text = getCurrentCaptionsText();
+  const selectedHook = window.appState?.hook?.selected?.trim();
+  const currentText = getCurrentCaptionsText();
+
+  const text = selectedHook
+    ? [selectedHook, ...currentText.split(/\n\s*\n/).slice(1)].join("\n\n")
+    : currentText;
 
   // ----------------------------
   // No captions yet
