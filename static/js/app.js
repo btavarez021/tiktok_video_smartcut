@@ -7516,12 +7516,25 @@ if (captionsBox) {
         body: JSON.stringify({ session: getActiveSession() }),
       });
 
-      if (res.updated) {
+      if (res.updated && res.text) {
+        await jsonFetch("/api/save_captions", {
+          method: "POST",
+          body: JSON.stringify({
+            session: getActiveSession(),
+            text: res.text
+          }),
+        });
+
+        CONFIG_CACHE = null;
+        lastSavedCaptionsText = res.text;
+        workingCaptionsText = res.text;
+
         if (status) status.textContent = "Story flow improved ✓";
 
         await loadConfigAndYaml();
         await loadCaptionsFromYaml();
         await refreshAfterChange();
+        await runCreativeEngine("captions_changed");
 
       } else {
         if (status) status.textContent = res.reason || "No changes made.";

@@ -324,6 +324,27 @@ def api_edit_strategy(session: str):
             "impact": "medium",
             "action": "Shorten the sentence and sharpen the promise."
         })
+    
+    # -----------------------------
+    # Story Flow
+    # -----------------------------
+    flow_result = api_story_flow_score(session)
+    flow_score = flow_result.get("score", 0)
+
+    if flow_score < 60:
+        suggestions.append({
+            "area": "flow",
+            "issue": "Story flow feels disconnected.",
+            "impact": "high",
+            "action": "Rewrite middle captions to create smoother progression."
+        })
+    elif flow_score < 75:
+        suggestions.append({
+            "area": "flow",
+            "issue": "Story flow is decent but transitions could feel smoother.",
+            "impact": "medium",
+            "action": "Polish caption order and transitions for a more natural sequence."
+        })
 
     # -----------------------------
     # Pacing
@@ -1823,17 +1844,26 @@ def api_story_flow_improve(session: str, intent: str = "discovery"):
         rewrites = result.get("rewrites", [])
 
         if len(rewrites) != len(middle):
-            return {"error": "Rewrite count mismatch"}
+            return {
+                "status": "ok",
+                "updated": False,
+                "reason": "No stronger flow rewrite was generated."
+            }
 
         full = [hook] + rewrites
 
         return {
-            "proposed": "\n\n".join(full)
+            "status": "ok",
+            "updated": True,
+            "text": "\n\n".join(full)
         }
 
     except Exception as e:
         log_error("[STORY_FLOW_IMPROVE]", e)
-        return {"error": "Failed to improve story flow"}
+        return {
+            "status": "error",
+            "error": "Failed to improve story flow"
+        }
 
 
 # -------------------------------
