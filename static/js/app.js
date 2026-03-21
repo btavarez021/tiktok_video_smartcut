@@ -4977,9 +4977,11 @@ async function refreshHookScore() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        session: getActiveSession(),
-        text: text,
-      }),
+      session: getActiveSession(),
+      text: text,
+      intent: window.appState?.hook?.intent || "discovery"
+    }),
+
     });
 
     const score = Number(data.score ?? 0);

@@ -329,17 +329,18 @@ def route_hook_score():
     # -----------------------------
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
+        session = sanitize_session(data.get("session", "default"))
         text = (data.get("text") or "").strip()
+        intent = data.get("intent", "discovery")
 
         from assistant_api import score_hook_from_text
-        return jsonify(score_hook_from_text(text))
+        return jsonify(score_hook_from_text(text, session, intent))
 
     # -----------------------------
-    # GET → score from YAML (existing behavior)
+    # GET → score from YAML
     # -----------------------------
     session = sanitize_session(request.args.get("session", "default"))
     return jsonify(api_hook_score(session))
-
 
 @app.route("/api/hook_improve", methods=["POST"])
 def route_hook_improve():
