@@ -248,11 +248,7 @@ def get_video_subjects(session: str) -> list[str]:
 
     return sorted(filtered)
 
-def score_hook_from_text(text: str, intent: str = "discovery") -> Dict[str, Any]:
-    """
-    Stateless hook scoring with light intent weighting.
-    """
-
+def score_hook_from_text(text: str, session: str, intent: str = "discovery") -> Dict[str, Any]:
     if not text:
         return {
             "hook": "",
@@ -260,46 +256,15 @@ def score_hook_from_text(text: str, intent: str = "discovery") -> Dict[str, Any]
             "reasons": ["No hook found."]
         }
 
-    blocks = [
-        b.strip()
-        for b in re.split(r"\n\s*\n", text)
-        if b.strip()
-    ]
-
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
     hook = blocks[0] if blocks else ""
 
-    result = score_hook_text(hook)
-
-    base_score = result.get("score", 0)
-    reasons = result.get("reasons", [])
-
-    # --- Intent emphasis (light adjustment only) ---
-    lower = hook.lower()
-
-    if intent == "discovery":
-        if any(t in lower for t in ["surprised", "unexpected", "didn't expect", "did not expect", "but", "however", "until"]):
-            base_score += 5
-
-    elif intent == "informational":
-        if any(k in lower for k in ["hotel", "room", "resort", "stay", "tour", "inside"]):
-            base_score += 5
-
-    elif intent == "aesthetic":
-        if len(hook.split()) <= 10:
-            base_score += 3
-        if any(t in lower for t in ["rooftop", "sunset", "glow", "lounge", "view", "skyline"]):
-            base_score += 4
-
-    elif intent == "personal":
-        if any(w in lower for w in ["i", "my", "me", "we", "our"]):
-            base_score += 5
-
-    final_score = min(base_score, 100)
+    scored = score_hook_unified(session, hook, intent)
 
     return {
         "hook": hook,
-        "score": final_score,
-        "reasons": reasons
+        "score": scored["score"],
+        "reasons": scored["reasons"]
     }
 
 def _run_yaml_job(session: str):
@@ -389,9 +354,8 @@ def api_edit_strategy(session: str):
         "suggestions": suggestions
     }
 
-def auto_optimize_hook(hook: str, intent: str = "discovery",
-                       max_rounds: int = 6,
-                       target_score: int = 80):
+def auto_optimize_hook(session: str, hook: str, intent: str = "discovery",
+                       max_rounds: int = 6, target_score: int = 80):
     """
     Repeatedly boost a hook and keep the best result.
     """
@@ -400,15 +364,15 @@ def auto_optimize_hook(hook: str, intent: str = "discovery",
         return {"text": hook, "score": 0, "attempts": 0}
 
     best_text = hook
-    best_score = score_hook_text(hook)["score"]
+    best_score = score_hook_unified(session, hook, intent)["score"]
 
     history = []
     stall_count = 0
 
     for i in range(max_rounds):
 
-        candidate = boost_hook(best_text, intent)
-        score = score_hook_text(candidate)["score"]
+        candidate = boost_hook(session, best_text, intent)
+        score = score_hook_unified(session, candidate, intent)["score"]
 
         history.append({
             "text": candidate,
@@ -437,7 +401,7 @@ def auto_optimize_hook(hook: str, intent: str = "discovery",
     }
 
 
-def boost_hook(hook: str, intent: str = "discovery") -> str:
+def boost_hook(session: str, hook: str, intent: str = "discovery") -> str:
     """
     Upgrade a hook by generating multiple rewrites
     and returning the highest scoring one.
@@ -544,7 +508,7 @@ Return JSON:
                 continue
 
             try:
-                s = score_hook_text(clean)["score"]
+                s = score_hook_unified(session, clean, intent)["score"]
             except Exception:
                 s = 0
 
@@ -879,56 +843,18 @@ def api_hook_score(session: str) -> Dict[str, Any]:
     cfg = _load_config(session) or {}
 
     hook = extract_hook_text(cfg)
-    intent = cfg.get("intent", "discovery")
-    content_context = cfg.get("content_context", "auto")
-    video_subjects = get_weighted_video_subjects(session)
-
-    base_result = score_hook_text(hook, intent)
-    first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
-
-    scored = score_generated_hook(
-        hook,
-        intent,
-        video_subjects=video_subjects,
-        context=content_context,
-        first_clip_text=first_clip_text
-    )
-
-    reasons = list(base_result.get("reasons", []))
-
-    if scored.get("subject_bonus", 0) >= 4:
-        reasons.append("Hook aligns well with the detected video subjects.")
-    elif scored.get("subject_bonus", 0) >= 2:
-        reasons.append("Hook has some alignment with the detected video subjects.")
-
-    if scored.get("visual_anchor_bonus", 0) >= 4:
-        reasons.append("Hook references a strong visual element from the reel.")
-    elif scored.get("visual_anchor_bonus", 0) >= 2:
-        reasons.append("Hook connects to a visible scene element.")
-
-    if scored.get("context_bonus", 0) >= 4:
-        reasons.append("Hook strongly matches the selected content context.")
-    elif scored.get("context_bonus", 0) >= 2:
-        reasons.append("Hook fits the selected content context.")
-
-    # dedupe and keep top few
-    cleaned = []
-    seen = set()
-    for r in reasons:
-        if r not in seen:
-            cleaned.append(r)
-            seen.add(r)
+    scored = score_hook_unified(session, hook)
 
     return {
         "hook": hook,
         "score": scored["score"],
-        "reasons": cleaned[:4],
+        "reasons": scored["reasons"],
     }
 
 
 def api_improve_hook(session: str) -> Dict[str, Any]:
     session = sanitize_session(session)
-    cfg = _load_config(session)
+    cfg = _load_config(session) or {}
 
     if not cfg.get("first_clip", {}).get("text"):
         return {"status": "error", "error": "No hook found"}
@@ -1141,55 +1067,6 @@ def detect_hook_pattern(text: str) -> str:
 
     return "statement"
 
-
-def get_hook_subject_matches(text: str, subjects: dict[str, int] | list[str] | None = None) -> list[str]:
-    if not text:
-        return []
-
-    lower = text.lower()
-
-    if isinstance(subjects, dict):
-        subject_items = subjects.items()
-    else:
-        subject_items = [(s, 1) for s in (subjects or list(BASE_SUBJECTS))]
-
-    matches = [word for word, _ in subject_items if word in lower]
-
-    seen = set()
-    cleaned = []
-    for m in matches:
-        if m not in seen:
-            cleaned.append(m)
-            seen.add(m)
-
-    return cleaned[:3]
-
-
-def score_hook_visual_anchor_bonus(hook: str) -> int:
-    """
-    Rewards hooks that mention a concrete, visually filmable object/place.
-    """
-    if not hook:
-        return 0
-
-    text = hook.lower()
-
-    strong_visual_anchors = [
-        "cocktail", "drink", "garnish", "bartender",
-        "rooftop", "bar", "lounge", "gym",
-        "view", "skyline", "pool", "suite", "cherry"
-    ]
-
-    strong_matches = sum(1 for w in strong_visual_anchors if w in text)
-
-    if strong_matches >= 2:
-        return 4
-    elif strong_matches == 1:
-        return 2
-
-    return 0
-
-
 def get_hook_subject_matches(text: str, subjects: list[str] | None = None) -> list[str]:
     if not text:
         return []
@@ -1216,13 +1093,15 @@ def score_hook_unified(session: str, hook: str, intent: str | None = None) -> di
     intent = intent or cfg.get("intent", "discovery")
     content_context = cfg.get("content_context", "auto")
     video_subjects = get_weighted_video_subjects(session)
+    first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
 
     base_result = score_hook_text(hook, intent)
     scored = score_generated_hook(
         hook,
         intent,
         video_subjects=video_subjects,
-        context=content_context
+        context=content_context,
+        first_clip_text=first_clip_text
     )
 
     reasons = list(base_result.get("reasons", []))
@@ -1242,6 +1121,11 @@ def score_hook_unified(session: str, hook: str, intent: str | None = None) -> di
     elif scored.get("context_bonus", 0) >= 2:
         reasons.append("Hook fits the selected content context.")
 
+    if scored.get("first_clip_bonus", 0) >= 5:
+        reasons.append("Hook strongly matches the opening clip.")
+    elif scored.get("first_clip_bonus", 0) >= 2:
+        reasons.append("Hook has some alignment with the opening clip.")
+
     cleaned = []
     seen = set()
     for r in reasons:
@@ -1257,6 +1141,7 @@ def score_hook_unified(session: str, hook: str, intent: str | None = None) -> di
         "subject_bonus": scored.get("subject_bonus", 0),
         "visual_anchor_bonus": scored.get("visual_anchor_bonus", 0),
         "context_bonus": scored.get("context_bonus", 0),
+        "first_clip_bonus": scored.get("first_clip_bonus", 0),
     }
 
 def build_hook_reason(best: dict, hooks: list[dict], intent: str, subjects: list[str] | None = None) -> str:
@@ -2729,37 +2614,6 @@ def save_session_pref(session, key, value):
         data = json.load(open(path))
     data[key] = value
     json.dump(data, open(path, "w"), indent=2)
-
-def score_caption_rhythm(text: str) -> int:
-    """
-    Measures how punchy / readable the caption blocks feel.
-    Higher score = better short-form rhythm.
-    """
-    if not text:
-        return 0
-
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
-    if not blocks:
-        return 0
-
-    scores = []
-
-    for block in blocks:
-        words = block.split()
-        wc = len(words)
-
-        # sweet spot for short-form captions
-        if 3 <= wc <= 8:
-            scores.append(90)
-        elif 2 <= wc <= 10:
-            scores.append(75)
-        elif 1 <= wc <= 12:
-            scores.append(60)
-        else:
-            scores.append(40)
-
-    return int(sum(scores) / len(scores))
-
 
 def score_variant_ending(text: str) -> int:
     """
