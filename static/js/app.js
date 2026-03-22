@@ -203,6 +203,11 @@ function renderPendingUploadGhosts(filesMeta = []) {
   const preview = document.getElementById("uploadPreview");
   const uploadBtn = document.getElementById("uploadBtn");
   const statusEl = document.getElementById("uploadStatus");
+  const reselectBtn = document.getElementById("reselectPendingUploadsBtn");
+
+  if (reselectBtn) {
+    reselectBtn.classList.remove("hidden");
+  }
 
   if (!preview) return;
 
@@ -3384,6 +3389,7 @@ function selectHook(text) {
   const progressBar = document.getElementById("uploadProgress");
   const statusEl = document.getElementById("uploadStatus");
   const cancelUploadBtn = document.getElementById("cancelUploadBtn");
+  const reselectPendingUploadsBtn = document.getElementById("reselectPendingUploadsBtn");
 
   if (
     !dropZone ||
@@ -3419,6 +3425,10 @@ function selectHook(text) {
 
   function updatePreview() {
     preview.innerHTML = "";
+
+    if (reselectPendingUploadsBtn) {
+      reselectPendingUploadsBtn.classList.add("hidden");
+    }
 
     selectedFiles.forEach((file, idx) => {
       const wrapper = document.createElement("div");
@@ -3512,6 +3522,16 @@ function selectHook(text) {
     addFiles(e.dataTransfer.files);
   });
 
+  reselectPendingUploadsBtn?.addEventListener("click", () => {
+    fileInput.click();
+  });
+
+  cancelUploadBtn?.addEventListener("click", () => {
+    if (CURRENT_UPLOAD_XHR) {
+      CURRENT_UPLOAD_XHR.abort();
+    }
+  });
+
   uploadBtn.addEventListener("click", () => {
     if (!selectedFiles.length) {
       setStatus(
@@ -3528,6 +3548,7 @@ function selectHook(text) {
     statusEl.textContent = "Uploading…";
     progressWrapper.classList.remove("hidden");
     progressBar.style.width = "0%";
+    cancelUploadBtn?.classList.remove("hidden");
 
     const formData = new FormData();
     selectedFiles.forEach((f) => formData.append("files", f));
@@ -3549,6 +3570,7 @@ function selectHook(text) {
     xhr.onload = () => {
       UPLOAD_IN_PROGRESS = false;
       CURRENT_UPLOAD_XHR = null;
+      cancelUploadBtn?.classList.add("hidden");
 
       if (xhr.status === 200) {
         const resp = JSON.parse(xhr.responseText);
@@ -3561,6 +3583,7 @@ function selectHook(text) {
         loadUploadManager();
 
         clearSelectedUploadsUI({ delayMs: 2200 });
+        reselectPendingUploadsBtn?.classList.add("hidden");
       } else {
         statusEl.textContent = `❌ Upload failed: ${xhr.statusText || "server error"}`;
         savePendingUploadState(selectedFiles);
@@ -3570,6 +3593,7 @@ function selectHook(text) {
     xhr.onerror = () => {
       UPLOAD_IN_PROGRESS = false;
       CURRENT_UPLOAD_XHR = null;
+      cancelUploadBtn?.classList.add("hidden");
       statusEl.textContent = "❌ Upload error. Files are still queued for retry.";
       savePendingUploadState(selectedFiles);
     };
@@ -3577,17 +3601,10 @@ function selectHook(text) {
     xhr.onabort = () => {
       UPLOAD_IN_PROGRESS = false;
       CURRENT_UPLOAD_XHR = null;
+      cancelUploadBtn?.classList.add("hidden");
       statusEl.textContent = "⚠ Upload cancelled. Files remain queued.";
       savePendingUploadState(selectedFiles);
     };
-
-    cancelUploadBtn?.classList.remove("hidden");
-
-    cancelUploadBtn?.addEventListener("click", () => {
-    if (CURRENT_UPLOAD_XHR) {
-      CURRENT_UPLOAD_XHR.abort();
-    }
-  });
 
     xhr.send(formData);
   });
