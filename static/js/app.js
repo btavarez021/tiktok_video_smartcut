@@ -7172,6 +7172,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   console.log("[SESSION INIT]", ACTIVE_SESSION);
 
+  document.getElementById("reselectPendingUploadsBtn")?.addEventListener("click", () => {
+    document.getElementById("uploadFiles")?.click();
+  });
+
   document
   .getElementById("autoBoostHookBtn")
   ?.addEventListener("click", autoBoostSelectedHook);
