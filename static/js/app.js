@@ -50,6 +50,9 @@
   let PENDING_SCROLL_TO_STORYBOARD = false;
 
   let CONFIG_CACHE = null;
+  let UPLOAD_IN_PROGRESS = false;
+  let CURRENT_UPLOAD_XHR = null;
+  let pendingUploadFiles = [];
 
   window.appState = window.appState || {};
 
@@ -154,6 +157,81 @@ window.appState = {
     const btn = document.getElementById("variantsToggleBtn");
     if (btn) btn.textContent = "Collapse";
   }
+
+  function getPendingUploadStorageKey() {
+  return `pendingUploads:${getActiveSession()}`;
+}
+
+function savePendingUploadState(files = []) {
+  try {
+    const payload = files.map(f => ({
+      name: f.name,
+      size: f.size,
+      type: f.type,
+      lastModified: f.lastModified
+    }));
+
+    sessionStorage.setItem(
+      getPendingUploadStorageKey(),
+      JSON.stringify(payload)
+    );
+  } catch (err) {
+    console.warn("Failed to save pending upload state", err);
+  }
+}
+
+function loadPendingUploadState() {
+  try {
+    const raw = sessionStorage.getItem(getPendingUploadStorageKey());
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn("Failed to load pending upload state", err);
+    return [];
+  }
+}
+
+function clearPendingUploadState() {
+  try {
+    sessionStorage.removeItem(getPendingUploadStorageKey());
+  } catch (err) {
+    console.warn("Failed to clear pending upload state", err);
+  }
+}
+
+function renderPendingUploadGhosts(filesMeta = []) {
+  const preview = document.getElementById("uploadPreview");
+  const uploadBtn = document.getElementById("uploadBtn");
+  const statusEl = document.getElementById("uploadStatus");
+
+  if (!preview) return;
+
+  preview.innerHTML = "";
+
+  if (!filesMeta.length) {
+    if (uploadBtn) uploadBtn.disabled = true;
+    return;
+  }
+
+  filesMeta.forEach(file => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "preview-item pending-ghost";
+
+    const name = document.createElement("div");
+    name.className = "preview-name";
+    name.textContent = `${file.name} (reselect to retry)`;
+
+    wrapper.appendChild(name);
+    preview.appendChild(wrapper);
+  });
+
+  if (uploadBtn) uploadBtn.disabled = false;
+
+  if (statusEl) {
+    statusEl.textContent =
+      "⚠ Pending upload restored. Re-select the same file(s) and click Upload to retry.";
+  }
+}
 
     function maybeCelebrateReadiness(state) {
       if (LAST_READINESS_STATUS !== "ready" && state.status === "ready") {
@@ -2821,8 +2899,14 @@ function selectHook(text) {
 
   async function setActiveSession(name) {
     const safe = sanitizeSessionName(name);
+    
     ACTIVE_SESSION = safe;
     CONFIG_CACHE = null; // 🔥 ADD THIS
+
+    if (UPLOAD_IN_PROGRESS) {
+      toast("Finish or cancel the current upload before switching sessions.");
+      return;
+    }
 
     // Reset session-dependent state
     LAST_HOOK_SCORE = null;
@@ -3292,188 +3376,222 @@ function selectHook(text) {
 
 
   function initUploadUI() {
-      const dropZone = document.getElementById("dropZone");
-      const fileInput = document.getElementById("uploadFiles");
-      const preview = document.getElementById("uploadPreview");
-      const uploadBtn = document.getElementById("uploadBtn");
-      const progressWrapper = document.getElementById("uploadProgressWrapper");
-      const progressBar = document.getElementById("uploadProgress");
-      const statusEl = document.getElementById("uploadStatus");
+  const dropZone = document.getElementById("dropZone");
+  const fileInput = document.getElementById("uploadFiles");
+  const preview = document.getElementById("uploadPreview");
+  const uploadBtn = document.getElementById("uploadBtn");
+  const progressWrapper = document.getElementById("uploadProgressWrapper");
+  const progressBar = document.getElementById("uploadProgress");
+  const statusEl = document.getElementById("uploadStatus");
+  const cancelUploadBtn = document.getElementById("cancelUploadBtn");
 
-      if (
-          !dropZone ||
-          !fileInput ||
-          !preview ||
-          !uploadBtn ||
-          !progressWrapper ||
-          !progressBar ||
-          !statusEl
-      ) {
-          return;
-      }
-
-      let selectedFiles = [];
-
-      function addFiles(newFiles) {
-        const existingKeys = new Set(
-            selectedFiles.map(f => `${f.name}__${f.size}__${f.lastModified}`)
-        );
-
-        Array.from(newFiles).forEach(file => {
-            const key = `${file.name}__${file.size}__${file.lastModified}`;
-            if (!existingKeys.has(key)) {
-                selectedFiles.push(file);
-                existingKeys.add(key);
-            }
-        });
-
-        updatePreview();
-    }
-
-      function updatePreview() {
-          preview.innerHTML = "";
-          selectedFiles.forEach((file, idx) => {
-              const wrapper = document.createElement("div");
-              wrapper.className = "preview-item";
-
-              const name = document.createElement("div");
-              name.className = "preview-name";
-              name.textContent = file.name;
-
-              const removeBtn = document.createElement("button");
-              removeBtn.className = "preview-remove";
-              removeBtn.innerHTML = "✖";
-
-              removeBtn.onclick = () => {
-                  selectedFiles.splice(idx, 1);
-                  updatePreview();
-              };
-
-              wrapper.appendChild(name);
-              wrapper.appendChild(removeBtn);
-              preview.appendChild(wrapper);
-          });
-
-          uploadBtn.disabled = selectedFiles.length === 0;
-      }
-
-      dropZone.addEventListener("click", () => fileInput.click());
-
-      fileInput.addEventListener("change", (e) => {
-          addFiles(e.target.files);
-          fileInput.value = "";
-      });
-
-      dropZone.addEventListener("dragover", (e) => {
-          e.preventDefault();
-          dropZone.classList.add("dragover");
-      });
-
-      dropZone.addEventListener("dragleave", () => {
-          dropZone.classList.remove("dragover");
-      });
-
-      dropZone.addEventListener("drop", (e) => {
-          e.preventDefault();
-          dropZone.classList.remove("dragover");
-          addFiles(e.dataTransfer.files);
-      });
-
-      function markPreviewUploaded() {
-          // Visually mark the preview rows as done before clearing
-          preview.querySelectorAll(".preview-item").forEach((row) => {
-              row.classList.add("uploaded");
-              const x = row.querySelector(".preview-remove");
-              if (x) {
-                  x.disabled = true;
-                  x.style.opacity = "0.4";
-                  x.style.cursor = "not-allowed";
-              }
-          });
-      }
-
-      function clearSelectedUploadsUI({ showToast = true, delayMs = 2200 } = {}) {
-          // Show a short success pause so user sees confirmation
-          setTimeout(() => {
-              selectedFiles = [];
-              preview.innerHTML = "";
-              fileInput.value = ""; // important: allows re-uploading same filename(s)
-              uploadBtn.disabled = true;
-
-              // Optional: collapse progress UI after done
-              progressWrapper.classList.add("hidden");
-              progressBar.style.width = "0%";
-
-              if (showToast) {
-                  // Keep your existing status line
-                  // (no-op if you prefer)
-              }
-          }, delayMs);
-      }
-
-      uploadBtn.addEventListener("click", () => {
-          if (!selectedFiles.length) {
-              setStatus(
-                  "uploadStatus",
-                  "❗ Please select at least one video before uploading.",
-                  "error"
-              );
-
-              uploadBtn.classList.add("error-flash");
-              setTimeout(() => uploadBtn.classList.remove("error-flash"), 400);
-
-              return;
-          }
-
-          statusEl.textContent = "Uploading…";
-          progressWrapper.classList.remove("hidden");
-          progressBar.style.width = "0%";
-
-          const formData = new FormData();
-          selectedFiles.forEach((f) => formData.append("files", f));
-
-          const xhr = new XMLHttpRequest();
-          const session = encodeURIComponent(getActiveSession());
-          xhr.open("POST", `/api/upload?session=${session}`);
-
-          xhr.upload.onprogress = (e) => {
-              if (e.lengthComputable) {
-                  const pct = (e.loaded / e.total) * 100;
-                  progressBar.style.width = pct.toFixed(1) + "%";
-              }
-          };
-
-                  xhr.onload = () => {
-              if (xhr.status === 200) {
-                  const resp = JSON.parse(xhr.responseText);
-                  const count = resp.uploaded?.length || 0;
-
-                  statusEl.textContent = `✅ Uploaded ${count} file(s).`;
-                  progressBar.style.width = "100%";
-
-                  // ✅ visually mark as completed (optional polish)
-                  markPreviewUploaded();
-
-                  // Refresh S3 manager list (raw/processed)
-                  loadUploadManager();
-
-                  // ✅ auto-clear selected uploads list after a short pause
-                  clearSelectedUploadsUI({ delayMs: 2200 });
-
-              } else {
-                  statusEl.textContent = `❌ Upload failed: ${xhr.statusText}`;
-              }
-          };
-
-
-          xhr.onerror = () => {
-              statusEl.textContent = "❌ Upload error.";
-          };
-
-          xhr.send(formData);
-      });
+  if (
+    !dropZone ||
+    !fileInput ||
+    !preview ||
+    !uploadBtn ||
+    !progressWrapper ||
+    !progressBar ||
+    !statusEl
+  ) {
+    return;
   }
 
+  let selectedFiles = [];
+
+  function fileFingerprint(file) {
+    return `${file.name}__${file.size}__${file.lastModified}`;
+  }
+
+  function mergeFiles(existing, incoming) {
+    const map = new Map();
+
+    existing.forEach(file => {
+      map.set(fileFingerprint(file), file);
+    });
+
+    incoming.forEach(file => {
+      map.set(fileFingerprint(file), file);
+    });
+
+    return Array.from(map.values());
+  }
+
+  function updatePreview() {
+    preview.innerHTML = "";
+
+    selectedFiles.forEach((file, idx) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "preview-item";
+
+      const name = document.createElement("div");
+      name.className = "preview-name";
+      name.textContent = file.name;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "preview-remove";
+      removeBtn.innerHTML = "✖";
+
+      removeBtn.onclick = () => {
+        selectedFiles.splice(idx, 1);
+        savePendingUploadState(selectedFiles);
+        updatePreview();
+      };
+
+      wrapper.appendChild(name);
+      wrapper.appendChild(removeBtn);
+      preview.appendChild(wrapper);
+    });
+
+    uploadBtn.disabled = selectedFiles.length === 0;
+
+    if (!selectedFiles.length) {
+      clearPendingUploadState();
+    }
+  }
+
+  function addFiles(newFiles) {
+    if (!newFiles?.length) return;
+
+    selectedFiles = mergeFiles(selectedFiles, Array.from(newFiles));
+    savePendingUploadState(selectedFiles);
+    updatePreview();
+
+    statusEl.textContent = `${selectedFiles.length} file(s) ready to upload.`;
+  }
+
+  function markPreviewUploaded() {
+    preview.querySelectorAll(".preview-item").forEach((row) => {
+      row.classList.add("uploaded");
+      const x = row.querySelector(".preview-remove");
+      if (x) {
+        x.disabled = true;
+        x.style.opacity = "0.4";
+        x.style.cursor = "not-allowed";
+      }
+    });
+  }
+
+  function clearSelectedUploadsUI({ delayMs = 2200 } = {}) {
+    setTimeout(() => {
+      selectedFiles = [];
+      preview.innerHTML = "";
+      fileInput.value = "";
+      uploadBtn.disabled = true;
+      progressWrapper.classList.add("hidden");
+      progressBar.style.width = "0%";
+      clearPendingUploadState();
+    }, delayMs);
+  }
+
+  // Restore pending UI after refresh
+  const restoredPending = loadPendingUploadState();
+  if (restoredPending.length) {
+    renderPendingUploadGhosts(restoredPending);
+  }
+
+  dropZone.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", (e) => {
+    addFiles(e.target.files);
+    fileInput.value = "";
+  });
+
+  dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.classList.add("dragover");
+  });
+
+  dropZone.addEventListener("dragleave", () => {
+    dropZone.classList.remove("dragover");
+  });
+
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("dragover");
+    addFiles(e.dataTransfer.files);
+  });
+
+  uploadBtn.addEventListener("click", () => {
+    if (!selectedFiles.length) {
+      setStatus(
+        "uploadStatus",
+        "❗ Please select at least one video before uploading.",
+        "error"
+      );
+
+      uploadBtn.classList.add("error-flash");
+      setTimeout(() => uploadBtn.classList.remove("error-flash"), 400);
+      return;
+    }
+
+    statusEl.textContent = "Uploading…";
+    progressWrapper.classList.remove("hidden");
+    progressBar.style.width = "0%";
+
+    const formData = new FormData();
+    selectedFiles.forEach((f) => formData.append("files", f));
+
+    const xhr = new XMLHttpRequest();
+    CURRENT_UPLOAD_XHR = xhr;
+    UPLOAD_IN_PROGRESS = true;
+
+    const session = encodeURIComponent(getActiveSession());
+    xhr.open("POST", `/api/upload?session=${session}`);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = (e.loaded / e.total) * 100;
+        progressBar.style.width = pct.toFixed(1) + "%";
+      }
+    };
+
+    xhr.onload = () => {
+      UPLOAD_IN_PROGRESS = false;
+      CURRENT_UPLOAD_XHR = null;
+
+      if (xhr.status === 200) {
+        const resp = JSON.parse(xhr.responseText);
+        const count = resp.uploaded?.length || 0;
+
+        statusEl.textContent = `✅ Uploaded ${count} file(s).`;
+        progressBar.style.width = "100%";
+
+        markPreviewUploaded();
+        loadUploadManager();
+
+        clearSelectedUploadsUI({ delayMs: 2200 });
+      } else {
+        statusEl.textContent = `❌ Upload failed: ${xhr.statusText || "server error"}`;
+        savePendingUploadState(selectedFiles);
+      }
+    };
+
+    xhr.onerror = () => {
+      UPLOAD_IN_PROGRESS = false;
+      CURRENT_UPLOAD_XHR = null;
+      statusEl.textContent = "❌ Upload error. Files are still queued for retry.";
+      savePendingUploadState(selectedFiles);
+    };
+
+    xhr.onabort = () => {
+      UPLOAD_IN_PROGRESS = false;
+      CURRENT_UPLOAD_XHR = null;
+      statusEl.textContent = "⚠ Upload cancelled. Files remain queued.";
+      savePendingUploadState(selectedFiles);
+    };
+
+    cancelUploadBtn?.classList.remove("hidden");
+
+    cancelUploadBtn?.addEventListener("click", () => {
+    if (CURRENT_UPLOAD_XHR) {
+      CURRENT_UPLOAD_XHR.abort();
+    }
+  });
+
+    xhr.send(formData);
+  });
+}
 
   // ================================
   // Manage uploads already in S3
@@ -7057,6 +7175,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   document
   .getElementById("autoBoostHookBtn")
   ?.addEventListener("click", autoBoostSelectedHook);
+
+  window.addEventListener("beforeunload", (e) => {
+  if (!UPLOAD_IN_PROGRESS) return;
+
+  e.preventDefault();
+  e.returnValue = "";
+});
 
   // ================================
   // AI Director Toggle (3.1)
