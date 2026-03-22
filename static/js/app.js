@@ -3314,6 +3314,22 @@ function selectHook(text) {
 
       let selectedFiles = [];
 
+      function addFiles(newFiles) {
+        const existingKeys = new Set(
+            selectedFiles.map(f => `${f.name}__${f.size}__${f.lastModified}`)
+        );
+
+        Array.from(newFiles).forEach(file => {
+            const key = `${file.name}__${file.size}__${file.lastModified}`;
+            if (!existingKeys.has(key)) {
+                selectedFiles.push(file);
+                existingKeys.add(key);
+            }
+        });
+
+        updatePreview();
+    }
+
       function updatePreview() {
           preview.innerHTML = "";
           selectedFiles.forEach((file, idx) => {
@@ -3344,8 +3360,8 @@ function selectHook(text) {
       dropZone.addEventListener("click", () => fileInput.click());
 
       fileInput.addEventListener("change", (e) => {
-          selectedFiles = Array.from(e.target.files);
-          updatePreview();
+          addFiles(e.target.files);
+          fileInput.value = "";
       });
 
       dropZone.addEventListener("dragover", (e) => {
@@ -3360,8 +3376,7 @@ function selectHook(text) {
       dropZone.addEventListener("drop", (e) => {
           e.preventDefault();
           dropZone.classList.remove("dragover");
-          selectedFiles = Array.from(e.dataTransfer.files);
-          updatePreview();
+          addFiles(e.dataTransfer.files);
       });
 
       function markPreviewUploaded() {
