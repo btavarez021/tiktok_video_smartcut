@@ -45,6 +45,7 @@ from tiktok_assistant import apply_overlay
 import time
 import threading
 from collections import Counter
+from werkzeug.utils import secure_filename
 
 logger = logging.getLogger(__name__)
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -1927,6 +1928,31 @@ def _upload_order_key(session: str) -> str:
     session = sanitize_session(session)
     return clean_s3_key(f"{RAW_PREFIX}{session}/order.json")
 
+def upload_files_to_session(session: str, files) -> dict:
+    session = sanitize_session(session)
+    uploaded_files = []
+
+    order = load_upload_order(session)
+
+    for file in files:
+        if not file or not getattr(file, "filename", ""):
+            continue
+
+        filename = secure_filename(file.filename)
+        if not filename:
+            continue
+
+        key = f"{RAW_PREFIX}{session}/{filename}"
+        s3.upload_fileobj(file, S3_BUCKET_NAME, key)
+        uploaded_files.append(filename)
+
+        if filename not in order:
+            order.append(filename)
+
+    save_upload_order(session, order)
+
+    return {"uploaded": uploaded_files}
+
 def load_upload_order(session: str) -> List[str]:
     key = _upload_order_key(session)
     try:
@@ -1935,8 +1961,79 @@ def load_upload_order(session: str) -> List[str]:
         return data.get("order", [])
     except Exception:
         return []
+    
+def move_upload_for_session(src: str, dest: str) -> dict:
+    """
+    Move a file in S3 and keep upload order accurate when moving in/out of raw_uploads.
+    """
+    if not src or not dest:
+        return {"ok": False, "error": "missing_src_or_dest"}
+
+    s3.copy_object(
+        Bucket=S3_BUCKET_NAME,
+        CopySource=f"{S3_BUCKET_NAME}/{src}",
+        Key=dest,
+    )
+    s3.delete_object(Bucket=S3_BUCKET_NAME, Key=src)
+
+    src_session = None
+    src_file = None
+    if src.startswith(RAW_PREFIX):
+        rel = src[len(RAW_PREFIX):].strip("/")
+        parts = rel.split("/", 1)
+        if len(parts) == 2:
+            src_session = sanitize_session(parts[0])
+            src_file = parts[1]
+
+    dest_session = None
+    dest_file = None
+    if dest.startswith(RAW_PREFIX):
+        rel = dest[len(RAW_PREFIX):].strip("/")
+        parts = rel.split("/", 1)
+        if len(parts) == 2:
+            dest_session = sanitize_session(parts[0])
+            dest_file = parts[1]
+
+    if src_session and src_file:
+        order = load_upload_order(src_session)
+        if src_file in order:
+            order = [f for f in order if f != src_file]
+            save_upload_order(src_session, order)
+
+    if dest_session and dest_file:
+        order = load_upload_order(dest_session)
+        if dest_file not in order:
+            order.append(dest_file)
+            save_upload_order(dest_session, order)
+
+    return {"ok": True}
 
 
+def delete_upload_for_session(key: str) -> dict:
+    """
+    Delete a file from S3 and remove it from that session's upload order if needed.
+    """
+    if not key:
+        return {"ok": False, "error": "missing_key"}
+
+    s3.delete_object(Bucket=S3_BUCKET_NAME, Key=key)
+
+    if key.startswith(RAW_PREFIX):
+        rel = key[len(RAW_PREFIX):].strip("/")
+        parts = rel.split("/", 1)
+
+        if len(parts) == 2:
+            session, filename = parts
+            session = sanitize_session(session)
+
+            order = load_upload_order(session)
+            if filename in order:
+                order = [f for f in order if f != filename]
+                save_upload_order(session, order)
+
+    return {"ok": True}
+
+ 
 def save_upload_order(session: str, order: List[str]) -> None:
     key = _upload_order_key(session)
     try:
@@ -2188,24 +2285,6 @@ If multiple objects are visible, choose the main activity or environment rather 
     except Exception as e:
         logger.error(f"[REPAIR_LABEL] Vision failed: {e}")
         return normalize_label(label)
-
-
-
-def move_upload_s3(src: str, dest: str) -> Dict[str, Any]:
-    """Move a file in S3 by copying then deleting."""
-    s3.copy_object(
-        Bucket=S3_BUCKET_NAME,
-        CopySource=f"{S3_BUCKET_NAME}/{src}",
-        Key=dest,
-    )
-    s3.delete_object(Bucket=S3_BUCKET_NAME, Key=src)
-    return {"ok": True}
-
-
-def delete_upload_s3(key: str) -> Dict[str, Any]:
-    """Delete a file from S3."""
-    s3.delete_object(Bucket=S3_BUCKET_NAME, Key=key)
-    return {"ok": True}
 
 def list_sessions():
     response = s3.list_objects_v2(

@@ -14,8 +14,9 @@ from assistant_api import (
     delete_session,
     list_sessions,
     list_uploads,
-    move_upload_s3,
-    delete_upload_s3,
+    move_upload_for_session,
+    delete_upload_for_session,
+    upload_files_to_session,
     api_set_layout,
     api_analyze,
     api_generate_yaml,
@@ -31,16 +32,16 @@ from assistant_api import (
     get_export_mode,
     set_export_mode,
     sanitize_session as backend_sanitize_session,
-    run_export_task,   
+    run_export_task,
     export_tasks,
     api_hook_score,
-    api_improve_hook,   
+    api_improve_hook,
     api_story_flow_score,
     api_story_flow_improve,
     generate_overlay_preview,
     load_labels,
     api_set_label,
-    api_clip_preview, 
+    api_clip_preview,
     repair_label,
     api_generate_variants,
     reorder_storyboard,
@@ -57,7 +58,7 @@ from assistant_api import (
     api_suggest_storyboard_order,
     infer_session_context,
     rename_session
-    )
+)
 from tiktok_assistant import apply_filename_captions
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 import threading
@@ -191,16 +192,8 @@ def api_session_context(session: str) -> dict:
 @app.route("/api/upload", methods=["POST"])
 def upload():
     session = sanitize_session(request.args.get("session", "default"))
-    uploaded_files = []
-
-    for file in request.files.getlist("files"):
-        filename = secure_filename(file.filename)
-        key = f"{RAW_PREFIX}{session}/{filename}"
-        s3.upload_fileobj(file, S3_BUCKET_NAME, key)
-        uploaded_files.append(filename)
-
-    return jsonify({"uploaded": uploaded_files})
-
+    files = request.files.getlist("files")
+    return jsonify(upload_files_to_session(session, files))
 
 # ============================================================================
 # UPLOAD MANAGER
@@ -216,18 +209,32 @@ def api_move_upload_route():
     data = request.get_json(silent=True) or {}
     src = data.get("src")
     dest = data.get("dest")
+
     if not src or not dest:
         return jsonify({"success": False, "error": "Missing src or dest"}), 400
-    return jsonify(move_upload_s3(src=src, dest=dest))
+
+    result = move_upload_for_session(src=src, dest=dest)
+
+    if not result.get("ok"):
+        return jsonify(result), 400
+
+    return jsonify(result)
 
 
 @app.route("/api/uploads/delete", methods=["DELETE"])
 def api_delete_upload_route():
     data = request.get_json(silent=True) or {}
     key = data.get("key")
+
     if not key:
         return jsonify({"success": False, "error": "Missing key"}), 400
-    return jsonify(delete_upload_s3(key=key))
+
+    result = delete_upload_for_session(key=key)
+
+    if not result.get("ok"):
+        return jsonify(result), 400
+
+    return jsonify(result)
 
 
 @app.route("/api/variant_feedback", methods=["POST"])
