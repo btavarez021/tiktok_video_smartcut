@@ -219,17 +219,17 @@ function renderPendingUploadGhosts(filesMeta = []) {
 
     const name = document.createElement("div");
     name.className = "preview-name";
-    name.textContent = `${file.name} (reselect to retry)`;
+    name.textContent = `${file.name} — pending only, not attached`;
 
     wrapper.appendChild(name);
     preview.appendChild(wrapper);
   });
 
-  if (uploadBtn) uploadBtn.disabled = false;
+  if (uploadBtn) uploadBtn.disabled = true;
 
   if (statusEl) {
     statusEl.textContent =
-      "⚠ Pending upload restored. Re-select the same file(s) and click Upload to retry.";
+    "⚠ These files were uploading before refresh. Re-select them from your device to continue.";
   }
 }
 
