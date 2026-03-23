@@ -137,6 +137,38 @@ window.appState = {
     return data;
   }
 
+  function pendingUploadStorageKey(session = getActiveSession()) {
+  return `pendingUploads:${session}`;
+}
+
+function savePendingUploadState(files, session = getActiveSession()) {
+  const payload = Array.from(files || []).map(file => ({
+    name: file.name,
+    size: file.size,
+    lastModified: file.lastModified,
+    type: file.type || ""
+  }));
+
+  localStorage.setItem(
+    pendingUploadStorageKey(session),
+    JSON.stringify(payload)
+  );
+}
+
+function loadPendingUploadState(session = getActiveSession()) {
+  try {
+    const raw = localStorage.getItem(pendingUploadStorageKey(session));
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+function clearPendingUploadState(session = getActiveSession()) {
+  localStorage.removeItem(pendingUploadStorageKey(session));
+}
+
 
   function setCurrentVideoIntent(intent) {
     window.appState.hook.intent = intent;
@@ -2905,6 +2937,19 @@ function selectHook(text) {
     ACTIVE_SESSION = safe;
     CONFIG_CACHE = null; // 🔥 ADD THIS
 
+    const uploadStatusEl = document.getElementById("uploadStatus");
+    if (uploadStatusEl) {
+      uploadStatusEl.textContent = "";
+      uploadStatusEl.className = "status-text status-info";
+    }
+
+    const uploadPreviewEl = document.getElementById("uploadPreview");
+    if (uploadPreviewEl) {
+      uploadPreviewEl.innerHTML = "";
+    }
+
+document.getElementById("reselectPendingUploadsBtn")?.classList.add("hidden");
+
     if (UPLOAD_IN_PROGRESS) {
       toast("Finish or cancel the current upload before switching sessions.");
       return;
@@ -2988,6 +3033,19 @@ function selectHook(text) {
     // AI readiness summary
     // ----------------------------
     loadAISetupSummary();
+
+    const restoredPending = loadPendingUploadState(getActiveSession());
+    if (restoredPending.length) {
+      renderPendingUploadGhosts(restoredPending);
+      setStatus(
+        "uploadStatus",
+        "⚠ Pending upload restored. Re-select the same file(s) and click Upload to retry.",
+        "warning",
+        false
+      );
+    } else {
+      setStatus("uploadStatus", "", "info", false);
+}
   }
 
 
@@ -3506,9 +3564,18 @@ function selectHook(text) {
   }
 
   // Restore pending UI after refresh
-  const restoredPending = loadPendingUploadState();
+  const restoredPending = loadPendingUploadState(getActiveSession());
+
   if (restoredPending.length) {
     renderPendingUploadGhosts(restoredPending);
+    setStatus(
+      "uploadStatus",
+      "⚠ Pending upload restored. Re-select the same file(s) and click Upload to retry.",
+      "warning",
+      false
+    );
+  } else {
+    setStatus("uploadStatus", "", "info", false);
   }
 
   updateReselectButtonVisibility();
