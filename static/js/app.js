@@ -203,11 +203,8 @@ function renderPendingUploadGhosts(filesMeta = []) {
   const preview = document.getElementById("uploadPreview");
   const uploadBtn = document.getElementById("uploadBtn");
   const statusEl = document.getElementById("uploadStatus");
-  const reselectBtn = document.getElementById("reselectPendingUploadsBtn");
 
-  if (reselectBtn) {
-    reselectBtn.classList.remove("hidden");
-  }
+  updateReselectButtonVisibility();
 
   if (!preview) return;
 
@@ -3423,12 +3420,23 @@ function selectHook(text) {
     return Array.from(map.values());
   }
 
+  function updateReselectButtonVisibility() {
+  const reselectBtn = document.getElementById("reselectPendingUploadsBtn");
+
+  if (!reselectBtn) return;
+
+  const hasRealFiles = selectedFiles.length > 0;
+  const hasGhosts = loadPendingUploadState().length > 0;
+
+  if (hasGhosts && !hasRealFiles) {
+    reselectBtn.classList.remove("hidden");
+  } else {
+    reselectBtn.classList.add("hidden");
+  }
+}
+
   function updatePreview() {
     preview.innerHTML = "";
-
-    if (reselectPendingUploadsBtn) {
-      reselectPendingUploadsBtn.classList.add("hidden");
-    }
 
     selectedFiles.forEach((file, idx) => {
       const wrapper = document.createElement("div");
@@ -3458,6 +3466,8 @@ function selectHook(text) {
     if (!selectedFiles.length) {
       clearPendingUploadState();
     }
+
+    updateReselectButtonVisibility();
   }
 
   function addFiles(newFiles) {
@@ -3491,6 +3501,7 @@ function selectHook(text) {
       progressWrapper.classList.add("hidden");
       progressBar.style.width = "0%";
       clearPendingUploadState();
+      updateReselectButtonVisibility();
     }, delayMs);
   }
 
@@ -3499,6 +3510,8 @@ function selectHook(text) {
   if (restoredPending.length) {
     renderPendingUploadGhosts(restoredPending);
   }
+
+  updateReselectButtonVisibility();
 
   dropZone.addEventListener("click", () => fileInput.click());
 
