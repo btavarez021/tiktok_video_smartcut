@@ -236,14 +236,13 @@ function renderPendingUploadGhosts(filesMeta = []) {
   const uploadBtn = document.getElementById("uploadBtn");
   const statusEl = document.getElementById("uploadStatus");
 
-  updateReselectButtonVisibility();
-
   if (!preview) return;
 
   preview.innerHTML = "";
 
   if (!filesMeta.length) {
     if (uploadBtn) uploadBtn.disabled = true;
+    updateReselectButtonVisibility();
     return;
   }
 
@@ -263,8 +262,10 @@ function renderPendingUploadGhosts(filesMeta = []) {
 
   if (statusEl) {
     statusEl.textContent =
-    "⚠ These files were uploading before refresh. Re-select them from your device to continue.";
+      "⚠ These files were uploading before refresh. Re-select them from your device to continue.";
   }
+
+  updateReselectButtonVisibility();
 }
 
     function maybeCelebrateReadiness(state) {
@@ -7269,6 +7270,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   console.log("[SESSION INIT]", ACTIVE_SESSION);
 
+  // 🔥 LOAD SESSIONS EARLY (before any async work can block it)
+  await loadSessions();
+  await loadSessionDropdown();
+  await sidebarLoadSessions();
+  sidebarSyncActiveLabel();
+
   document.getElementById("reselectPendingUploadsBtn")?.addEventListener("click", () => {
     document.getElementById("uploadFiles")?.click();
   });
@@ -7950,11 +7957,6 @@ if (captionsBox) {
         "info"
         );
 
-
-    // Session lists
-    loadSessions();
-    loadSessionDropdown();
-    sidebarLoadSessions();
 
     // Music list + settings
     loadMusicTracks();
