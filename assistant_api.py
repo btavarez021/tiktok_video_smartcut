@@ -3872,6 +3872,11 @@ def infer_primary_experience_from_evidence(evidence: dict) -> str:
 
     return best if scores[best] > 0 else "mixed"
 
+def with_primary_experience(result: dict, primary_experience: str) -> dict:
+    result = result or {}
+    result.setdefault("primary_experience", primary_experience)
+    result.setdefault("subcontexts", [])
+    return result
 
 def infer_session_context(session: str) -> dict:
     """
@@ -3945,12 +3950,13 @@ Allowed labels:
 - general_lifestyle
 
 Return JSON only:
-{{
+{
   "label": "one_allowed_label",
   "confidence": "low|medium|high",
   "signals": ["signal1", "signal2", "signal3"],
-  "subcontexts": ["sub1", "sub2", "sub3"]
-}}
+  "subcontexts": ["sub1", "sub2", "sub3"],
+  "primary_experience": "short phrase for the dominant experience"
+}
 """
 
     try:
@@ -3988,11 +3994,12 @@ Return JSON only:
         signals = data.get("signals", []) or []
         subcontexts = data.get("subcontexts", []) or []
 
+        llm_primary_experience = data.get("primary_experience", "").strip()
+        if not llm_primary_experience:
+            llm_primary_experience = primary_experience
+
         if label not in allowed:
-            result = infer_session_context_rules(session)
-            result.setdefault("primary_experience", primary_experience)
-            result.setdefault("subcontexts", [])
-            return result
+            return with_primary_experience(infer_session_context_rules(session), primary_experience)
 
         if confidence not in {"low", "medium", "high"}:
             confidence = "low"
@@ -4002,7 +4009,7 @@ Return JSON only:
             "confidence": confidence,
             "signals": signals[:5],
             "subcontexts": subcontexts[:3],
-            "primary_experience": primary_experience,
+            "primary_experience": llm_primary_experience,
         }
 
     except Exception as e:
@@ -4187,10 +4194,12 @@ CRITICAL RULES:
         context_guidance = f"""
             SESSION CONTEXT:
             - Overall reel context: {format_session_context_label(session_context.get("label"))}
+            - Primary experience: {session_context.get("primary_experience", "mixed")}
             - Confidence: {session_context.get("confidence")}
             - Signals: {", ".join(session_context.get("signals", [])) or "none"}
 
             Use this context to make the captions feel like one connected outing or experience.
+            Let the primary experience shape the dominant mood and sequencing.
             Do not force context that is not supported by the clips.
             """
         
