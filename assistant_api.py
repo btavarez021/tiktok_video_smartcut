@@ -3840,6 +3840,7 @@ def infer_session_context(session: str) -> dict:
     session = sanitize_session(session)
 
     evidence = build_session_context_evidence(session)
+    primary_experience = infer_primary_experience_from_evidence(evidence)
 
     label_count = len(evidence["labels"])
     analysis_count = len(evidence["analyses"])
@@ -3847,11 +3848,17 @@ def infer_session_context(session: str) -> dict:
 
     # cheap fallback when there is very little evidence
     if label_count + analysis_count + clip_count < 2:
-        return infer_session_context_rules(session)
+        result = infer_session_context_rules(session)
+        result.setdefault("primary_experience", primary_experience)
+        result.setdefault("subcontexts", [])
+        return result
 
     # fallback if AI unavailable
     if not client:
-        return infer_session_context_rules(session)
+        result = infer_session_context_rules(session)
+        result.setdefault("primary_experience", primary_experience)
+        result.setdefault("subcontexts", [])
+        return result
 
     prompt = f"""
 Classify the OVERALL reel context.
@@ -3940,7 +3947,10 @@ Return JSON only:
         subcontexts = data.get("subcontexts", []) or []
 
         if label not in allowed:
-            return infer_session_context_rules(session)
+            result = infer_session_context_rules(session)
+            result.setdefault("primary_experience", primary_experience)
+            result.setdefault("subcontexts", [])
+            return result
 
         if confidence not in {"low", "medium", "high"}:
             confidence = "low"
@@ -3950,11 +3960,15 @@ Return JSON only:
             "confidence": confidence,
             "signals": signals[:5],
             "subcontexts": subcontexts[:3],
+            "primary_experience": primary_experience,
         }
 
     except Exception as e:
         logger.warning(f"[SESSION_CONTEXT] LLM inference failed: {e}")
-        return infer_session_context_rules(session)
+        result = infer_session_context_rules(session)
+        result.setdefault("primary_experience", primary_experience)
+        result.setdefault("subcontexts", [])
+        return result
 
 
 def api_session_context(session: str) -> dict:
