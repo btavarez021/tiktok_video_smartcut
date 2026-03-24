@@ -3950,13 +3950,13 @@ Allowed labels:
 - general_lifestyle
 
 Return JSON only:
-{
+{{
   "label": "one_allowed_label",
   "confidence": "low|medium|high",
   "signals": ["signal1", "signal2", "signal3"],
   "subcontexts": ["sub1", "sub2", "sub3"],
   "primary_experience": "short phrase for the dominant experience"
-}
+}}
 """
 
     try:
