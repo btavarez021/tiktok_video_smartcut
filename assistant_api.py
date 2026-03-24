@@ -3831,6 +3831,48 @@ def build_session_context_evidence(session: str) -> dict:
         "filenames": list(labels.keys()),
     }
 
+PRIMARY_EXPERIENCE_RULES = {
+    "relaxation": [
+        "beach", "ocean", "spa", "sunset", "calm", "pool", "unwind", "relax"
+    ],
+    "luxury": [
+        "suite", "rooftop", "fine dining", "gourmet", "elegant", "luxury", "vip", "exclusive"
+    ],
+    "energy": [
+        "party", "club", "dj", "dance", "nightlife", "crowd", "celebration"
+    ],
+    "exploration": [
+        "city", "tour", "walk", "street", "travel", "discover", "explore"
+    ],
+    "fitness": [
+        "gym", "workout", "training", "lift", "fitness", "exercise"
+    ],
+    "romance": [
+        "date", "romantic", "couple", "love", "anniversary", "sunset dinner"
+    ],
+}
+
+def infer_primary_experience_from_evidence(evidence: dict) -> str:
+    text_parts = []
+    text_parts.extend(evidence.get("labels", []))
+    text_parts.extend(evidence.get("analyses", []))
+    text_parts.extend(evidence.get("clip_texts", []))
+    text_parts.extend(evidence.get("filenames", []))
+
+    blob = " ".join(text_parts).lower()
+
+    scores = {k: 0 for k in PRIMARY_EXPERIENCE_RULES}
+
+    for exp, keywords in PRIMARY_EXPERIENCE_RULES.items():
+        for kw in keywords:
+            if kw in blob:
+                scores[exp] += 1
+
+    best = max(scores, key=scores.get)
+
+    return best if scores[best] > 0 else "mixed"
+
+
 def infer_session_context(session: str) -> dict:
     """
     Hybrid session context inference:
