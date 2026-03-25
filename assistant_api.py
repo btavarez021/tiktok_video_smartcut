@@ -1436,8 +1436,17 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             Session Context:
             {format_session_context_label(session_context.get("label"))}
+            Primary experience: {session_context.get("primary_experience", "mixed")}
             Confidence: {session_context.get("confidence")}
             Signals: {", ".join(session_context.get("signals", [])) or "none"}
+
+            - The hook should match the dominant feeling of the reel.
+            - If primary experience is relaxation, prefer calm luxury / unwind / scenic framing.
+            - If primary experience is energy, prefer momentum / nightlife / action framing.
+            - If primary experience is luxury, prefer exclusivity / elevated experience / premium details.
+            - If primary experience is exploration, prefer discovery / movement / destination framing.
+            - If primary experience is fitness, prefer strength / effort / discipline / performance framing.
+            - If primary experience is romance, prefer intimacy / atmosphere / shared experience framing.
 
             CRITICAL GOAL:
             These hooks should score highly for:
@@ -1528,6 +1537,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
             messages=[{"role": "user", "content": prompt}],
             temperature=0.6,
         )
+        primary_experience = session_context.get("primary_experience", "mixed")
 
         content = resp.choices[0].message.content.strip()
         data = safe_json_extract(content)
@@ -1543,7 +1553,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 intent,
                 video_subjects=video_subjects,
                 context=content_context,
-                first_clip_text=first_clip_text
+                first_clip_text=first_clip_text,
+                primary_experience=primary_experience,
             )
 
             score = scored["score"]
@@ -3513,12 +3524,36 @@ def score_context_relevance_bonus(hook: str, context: str) -> int:
 
     return 0
 
+def score_primary_experience_bonus(text: str, primary_experience: str) -> int:
+    if not text or not primary_experience or primary_experience == "mixed":
+        return 0
+
+    lower = text.lower()
+
+    keywords = {
+        "relaxation": ["relax", "unwind", "calm", "quiet", "sunset", "ocean", "pool", "spa", "peaceful"],
+        "luxury": ["luxury", "exclusive", "vip", "suite", "elevated", "premium", "rooftop", "gourmet"],
+        "energy": ["party", "night", "dance", "crowd", "electric", "hype", "dj", "celebration"],
+        "exploration": ["discover", "explore", "city", "wander", "tour", "adventure", "hidden", "destination"],
+        "fitness": ["gym", "workout", "training", "strength", "lift", "performance", "push"],
+        "romance": ["romantic", "date", "together", "shared", "intimate", "love", "sunset dinner"],
+    }
+
+    matches = sum(1 for kw in keywords.get(primary_experience, []) if kw in lower)
+
+    if matches >= 2:
+        return 6
+    if matches == 1:
+        return 3
+    return 0
+
 def score_generated_hook(
     clean: str,
     intent: str,
     video_subjects=None,
     context="auto",
-    first_clip_text: str = ""
+    first_clip_text: str = "",
+    primary_experience: str = "mixed",
 ) -> dict:
     lower = clean.lower()
 
@@ -3564,6 +3599,7 @@ def score_generated_hook(
     subject_bonus = score_hook_subject_bonus(clean, video_subjects)
     visual_anchor_bonus = score_hook_visual_anchor_bonus(clean)
     context_bonus = score_context_relevance_bonus(clean, context)
+    primary_experience_bonus = score_primary_experience_bonus(clean, primary_experience)
 
     score = min(
         base_score +
@@ -3571,7 +3607,8 @@ def score_generated_hook(
         subject_bonus +
         visual_anchor_bonus +
         context_bonus +
-        first_clip_bonus,
+        first_clip_bonus +
+        primary_experience_bonus,
         100
     )
 
@@ -3583,6 +3620,7 @@ def score_generated_hook(
         "visual_anchor_bonus": visual_anchor_bonus,
         "context_bonus": context_bonus,
         "first_clip_bonus": first_clip_bonus,
+        "primary_experience_bonus": primary_experience_bonus,
         "vague_penalty": vague_penalty,
     }
 
@@ -4029,6 +4067,7 @@ def api_generate_variants(session: str, modes: dict, selected_hook: str | None =
     cfg = _load_config(session) or {}
     session_context = infer_session_context(session)
     content_context = cfg.get("content_context", "auto")
+    primary_experience = session_context.get("primary_experience", "mixed")
 
     first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
 
@@ -4293,7 +4332,8 @@ CRITICAL RULES:
                 intent,
                 video_subjects=video_subjects,
                 context=content_context,
-                first_clip_text=first_clip_text
+                first_clip_text=first_clip_text,
+                primary_experience=primary_experience,
             ).get("score", 0)
 
             flow_result = score_story_flow_from_text(text)
