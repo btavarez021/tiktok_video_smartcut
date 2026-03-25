@@ -123,6 +123,56 @@ def load_analysis_status(session: str) -> dict | None:
     except Exception:
         return None
 
+def score_primary_experience_variant_bonus(variant: dict, primary_experience: str) -> int:
+    """
+    Rewards variants whose tone + wording match the reel's dominant experience.
+    Light bonus only — should guide ranking, not overpower hook/flow.
+    """
+    if not variant or not primary_experience or primary_experience == "mixed":
+        return 0
+
+    text = (variant.get("text") or "").lower()
+    tone = (variant.get("tone") or "").lower()
+
+    bonus = 0
+
+    if primary_experience == "relaxation":
+        if any(w in text for w in ["unwind", "calm", "peaceful", "sunset", "ocean", "pool", "relax", "breeze"]):
+            bonus += 4
+        if any(w in tone for w in ["minimal", "luxury", "cinematic"]):
+            bonus += 3
+
+    elif primary_experience == "luxury":
+        if any(w in text for w in ["rooftop", "suite", "exclusive", "elevated", "gourmet", "skyline", "vip", "premium"]):
+            bonus += 4
+        if any(w in tone for w in ["minimal", "luxury", "influencer"]):
+            bonus += 3
+
+    elif primary_experience == "energy":
+        if any(w in text for w in ["night", "party", "electric", "crowd", "dance", "hype", "celebration", "lights"]):
+            bonus += 4
+        if any(w in tone for w in ["punchy", "influencer"]):
+            bonus += 3
+
+    elif primary_experience == "exploration":
+        if any(w in text for w in ["discover", "explore", "city", "wander", "tour", "hidden", "destination", "view"]):
+            bonus += 4
+        if any(w in tone for w in ["story", "influencer", "rewrite"]):
+            bonus += 3
+
+    elif primary_experience == "fitness":
+        if any(w in text for w in ["gym", "workout", "training", "strength", "push", "performance", "lift"]):
+            bonus += 4
+        if any(w in tone for w in ["punchy", "influencer"]):
+            bonus += 2
+
+    elif primary_experience == "romance":
+        if any(w in text for w in ["romantic", "together", "sunset", "dinner", "shared", "love", "date"]):
+            bonus += 4
+        if any(w in tone for w in ["story", "minimal", "luxury"]):
+            bonus += 3
+
+    return min(bonus, 7)
 
 def get_weighted_video_subjects(session: str) -> dict[str, int]:
     """
@@ -2775,7 +2825,11 @@ def score_variant_ending(text: str) -> int:
     return min(score, 100)
 
 
-def compute_variant_smart_score(variant: dict, intent: str) -> int:
+def compute_variant_smart_score(
+    variant: dict,
+    intent: str,
+    primary_experience: str = "mixed"
+) -> int:
     """
     Smart ranking score for choosing the best caption variant.
     """
@@ -2803,10 +2857,17 @@ def compute_variant_smart_score(variant: dict, intent: str) -> int:
     for t in intent_cfg["tone_bias"]:
         if t in tone:
             base += 3
+    
+    primary_bonus = score_primary_experience_variant_bonus(variant, primary_experience)
+    base += primary_bonus
 
     return round(min(base, 100), 2)
 
-def choose_best_variant(variants: list, intent: str):
+def choose_best_variant(
+    variants: list,
+    intent: str,
+    primary_experience: str = "mixed"
+):
     if not variants:
         return None
 
@@ -2816,7 +2877,7 @@ def choose_best_variant(variants: list, intent: str):
     # 1️⃣ BASE SCORE
     # ----------------------------------
     def base_score(v):
-        return compute_variant_smart_score(v, intent)
+        return compute_variant_smart_score(v, intent, primary_experience)
 
     scored = [{**v, "_base": base_score(v)} for v in variants]
     scored.sort(key=lambda v: v["_base"], reverse=True)
@@ -2882,6 +2943,13 @@ def choose_best_variant(variants: list, intent: str):
             "base=", round(v["_base"], 2),
             "fb=", round(fb, 2),
             "final=", round(final, 2)
+        )
+
+        print(
+            "[VARIANT_RANK]",
+            "intent=", intent,
+            "primary_experience=", primary_experience,
+            "top_scores=", [(v.get("tone"), v.get("_base")) for v in scored[:3]]
         )
 
         return final
@@ -4347,9 +4415,9 @@ CRITICAL RULES:
             v["rhythm_score"] = rhythm_score
             v["cta_score"] = cta_score
             v["uses_selected_hook"] = hook_locked
-            v["smart_score"] = compute_variant_smart_score(v, intent)
+            v["smart_score"] = compute_variant_smart_score(v, intent, primary_experience)
 
-        best = choose_best_variant(variants, intent)
+        best = choose_best_variant(variants, intent, primary_experience)
 
         if best:
             for v in variants:
