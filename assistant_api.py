@@ -2834,7 +2834,7 @@ def compute_variant_smart_score(
     Smart ranking score for choosing the best caption variant.
     """
     hook = variant.get("hook_score", 0)
-    flow = variant.get("story_flow", 0)
+    flow = variant.get("flow_score", variant.get("story_flow", 0))
     tone = (variant.get("tone") or "").lower()
     text = variant.get("text") or ""
 
@@ -2857,9 +2857,12 @@ def compute_variant_smart_score(
     for t in intent_cfg["tone_bias"]:
         if t in tone:
             base += 3
-    
+
     primary_bonus = score_primary_experience_variant_bonus(variant, primary_experience)
     base += primary_bonus
+
+    tone_fit_bonus = score_context_tone_fit(primary_experience, tone)
+    base += tone_fit_bonus
 
     return round(min(base, 100), 2)
 
@@ -2922,6 +2925,44 @@ def choose_best_variant(
         "confidence=", confidence
     )
 
+def score_context_tone_fit(primary_experience: str, tone: str) -> int:
+    tone = (tone or "").lower()
+
+    if primary_experience == "exploration":
+        if "story" in tone or "influencer" in tone or "rewrite" in tone:
+            return 4
+        if "luxury" in tone or "minimal" in tone:
+            return -2
+
+    if primary_experience == "relaxation":
+        if "minimal" in tone or "story" in tone or "luxury" in tone:
+            return 4
+        if "punchy" in tone:
+            return -1
+
+    if primary_experience == "energy":
+        if "punchy" in tone or "influencer" in tone:
+            return 4
+        if "minimal" in tone:
+            return -2
+
+    if primary_experience == "fitness":
+        if "punchy" in tone or "influencer" in tone:
+            return 4
+        if "minimal" in tone:
+            return -1
+
+    if primary_experience == "luxury":
+        if "luxury" in tone or "minimal" in tone or "story" in tone:
+            return 4
+
+    if primary_experience == "romance":
+        if "story" in tone or "minimal" in tone or "luxury" in tone:
+            return 4
+        if "punchy" in tone:
+            return -1
+
+    return 0
     # ----------------------------------
     # 3️⃣ FEEDBACK-AWARE FINAL SCORE
     # ----------------------------------
