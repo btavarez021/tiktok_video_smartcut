@@ -71,6 +71,7 @@ def save_analysis_status(session: str, data: dict):
     with open(_analysis_status_path(session), "w", encoding="utf-8") as f:
         json.dump(data, f)
 
+
 def score_first_clip_alignment_bonus(hook: str, first_clip_text: str) -> int:
     """
     Rewards hooks that align with the first clip, since the first clip is the visual hook anchor.
@@ -2824,6 +2825,26 @@ def score_variant_ending(text: str) -> int:
 
     return min(score, 100)
 
+def score_generic_phrase_penalty(text: str) -> int:
+    lower = text.lower()
+
+    generic_patterns = [
+        "check out",
+        "caught the",
+        "and here's",
+        "look at this",
+        "watch this",
+        "this is",
+        "here is",
+    ]
+
+    penalty = 0
+
+    for phrase in generic_patterns:
+        if phrase in lower:
+            penalty -= 3
+
+    return penalty
 
 def compute_variant_smart_score(
     variant: dict,
@@ -2863,6 +2884,9 @@ def compute_variant_smart_score(
 
     tone_fit_bonus = score_context_tone_fit(primary_experience, tone)
     base += tone_fit_bonus
+
+    generic_penalty = score_generic_phrase_penalty(text)
+    base += generic_penalty
 
     return round(min(base, 100), 2)
 
