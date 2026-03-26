@@ -676,25 +676,29 @@ TEXT_MODEL = "gpt-4.1-mini"
 
 INTENT_PROFILE = {
     "discovery": {
-        "hook_weight": 0.7,
-        "flow_weight": 0.3,
+        "hook_weight": 0.6,
+        "flow_weight": 0.4,
         "tone_bias": ["punchy", "influencer"],
+        "min_hook": 60,
     },
     "personal": {
-        "hook_weight": 0.4,
-        "flow_weight": 0.6,
-        "tone_bias": ["story"],
-    },
-    "aesthetic": {
-        "hook_weight": 0.3,
-        "flow_weight": 0.7,
-        "tone_bias": ["minimal", "cinematic"],
-    },
-    "informational": {
         "hook_weight": 0.5,
         "flow_weight": 0.5,
-        "tone_bias": ["rewrite", "descriptive"],
-    }
+        "tone_bias": ["story", "influencer"],
+        "min_hook": 50,
+    },
+    "aesthetic": {
+        "hook_weight": 0.4,
+        "flow_weight": 0.6,
+        "tone_bias": ["minimal", "luxury"],
+        "min_hook": 45,
+    },
+    "informational": {
+        "hook_weight": 0.55,
+        "flow_weight": 0.45,
+        "tone_bias": ["rewrite", "story"],
+        "min_hook": 50,
+    },
 }
 
 def _utc_iso():
@@ -2912,7 +2916,7 @@ def choose_best_variant(
     # ----------------------------------
     # 🔥 SAFETY FLOOR — prevent weak hook wins
     # ----------------------------------
-    MIN_HOOK_RECOMMEND = 55
+    MIN_HOOK_RECOMMEND = intent_cfg.get("min_hook", 55)
 
     strong_hooks = [
         v for v in scored
@@ -2920,7 +2924,18 @@ def choose_best_variant(
     ]
 
     if strong_hooks:
-        best = strong_hooks[0]
+        if len(strong_hooks) > 1:
+            # prefer variants aligned with intent tone
+            preferred = [
+                v for v in strong_hooks
+                if any(t in (v.get("tone") or "").lower() for t in intent_cfg["tone_bias"])
+            ]
+            if preferred:
+                best = preferred[0]
+            else:
+                best = strong_hooks[0]
+        else:
+            best = strong_hooks[0]
     else:
         # fallback if all hooks are weak
         best = scored[0]
@@ -2931,7 +2946,10 @@ def choose_best_variant(
     # ----------------------------------
     # 2️⃣ CONFIDENCE
     # ----------------------------------
-    if gap > 15:
+    clear_gap = intent_cfg.get("clear_gap", 15)
+    moderate_gap = intent_cfg.get("moderate_gap", 7)
+
+    if gap > clear_gap:
         confidence = "clear"
     elif gap > 7:
         confidence = "moderate"
@@ -2949,44 +2967,6 @@ def choose_best_variant(
         "confidence=", confidence
     )
 
-def score_context_tone_fit(primary_experience: str, tone: str) -> int:
-    tone = (tone or "").lower()
-
-    if primary_experience == "exploration":
-        if "story" in tone or "influencer" in tone or "rewrite" in tone:
-            return 4
-        if "luxury" in tone or "minimal" in tone:
-            return -2
-
-    if primary_experience == "relaxation":
-        if "minimal" in tone or "story" in tone or "luxury" in tone:
-            return 4
-        if "punchy" in tone:
-            return -1
-
-    if primary_experience == "energy":
-        if "punchy" in tone or "influencer" in tone:
-            return 4
-        if "minimal" in tone:
-            return -2
-
-    if primary_experience == "fitness":
-        if "punchy" in tone or "influencer" in tone:
-            return 4
-        if "minimal" in tone:
-            return -1
-
-    if primary_experience == "luxury":
-        if "luxury" in tone or "minimal" in tone or "story" in tone:
-            return 4
-
-    if primary_experience == "romance":
-        if "story" in tone or "minimal" in tone or "luxury" in tone:
-            return 4
-        if "punchy" in tone:
-            return -1
-
-    return 0
     # ----------------------------------
     # 3️⃣ FEEDBACK-AWARE FINAL SCORE
     # ----------------------------------
@@ -3044,6 +3024,46 @@ def score_context_tone_fit(primary_experience: str, tone: str) -> int:
         "reason": build_variant_reason(best, variants, intent),
         "confidence": confidence
     }
+
+def score_context_tone_fit(primary_experience: str, tone: str) -> int:
+    tone = (tone or "").lower()
+
+    if primary_experience == "exploration":
+        if "story" in tone or "influencer" in tone or "rewrite" in tone:
+            return 4
+        if "luxury" in tone or "minimal" in tone:
+            return -2
+
+    if primary_experience == "relaxation":
+        if "minimal" in tone or "story" in tone or "luxury" in tone:
+            return 4
+        if "punchy" in tone:
+            return -1
+
+    if primary_experience == "energy":
+        if "punchy" in tone or "influencer" in tone:
+            return 4
+        if "minimal" in tone:
+            return -2
+
+    if primary_experience == "fitness":
+        if "punchy" in tone or "influencer" in tone:
+            return 4
+        if "minimal" in tone:
+            return -1
+
+    if primary_experience == "luxury":
+        if "luxury" in tone or "minimal" in tone or "story" in tone:
+            return 4
+
+    if primary_experience == "romance":
+        if "story" in tone or "minimal" in tone or "luxury" in tone:
+            return 4
+        if "punchy" in tone:
+            return -1
+
+    return 0
+    
 
 # -------------------------------
 # Analyze APIs (per session)
