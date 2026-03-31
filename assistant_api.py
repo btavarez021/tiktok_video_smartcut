@@ -2967,7 +2967,7 @@ def choose_best_variant(
 
     if gap > clear_gap:
         confidence = "clear"
-    elif gap > 7:
+    elif gap > moderate_gap:
         confidence = "moderate"
     else:
         confidence = "close"
@@ -4358,6 +4358,8 @@ CRITICAL RULES:
             "Keep EXACT same number of caption blocks as input."
         )
 
+        system_prompt += f" Each variant MUST contain exactly {len(captions)} caption blocks."
+
         if hook_locked:
             system_prompt += (
                 " The FIRST caption is LOCKED. "
@@ -4433,6 +4435,10 @@ CRITICAL RULES:
 
             {caption_scene}
 
+            - Do NOT return hook-only outputs.
+            - Every variant must include all caption blocks, not just the first line.
+            - Preserve full sequence length.
+
             Return STRICT JSON:
 
             {{
@@ -4465,20 +4471,46 @@ CRITICAL RULES:
         # --------------------------------------------------
         # Build variants
         # --------------------------------------------------
+        expected_blocks = len(captions)
+
         for idx, item in enumerate(data.get("variants", [])):
             raw_text = item.get("text", "")
             style_key = item.get("style", "")
 
             normalized = normalize_variant_text(
                 raw_text,
-                expected_blocks=len(captions)
+                expected_blocks=expected_blocks
             )
 
+            blocks = [b.strip() for b in re.split(r"\n\s*\n", normalized) if b.strip()]
+
             if hook_locked:
-                blocks = [b.strip() for b in re.split(r"\n\s*\n", normalized) if b.strip()]
-                if blocks:
+                # Case 1: model returned body only -> prepend locked hook
+                if len(blocks) == expected_blocks - 1:
+                    blocks = [selected_hook] + blocks
+
+                # Case 2: model returned full set -> force first block to locked hook
+                elif len(blocks) >= expected_blocks:
+                    blocks = blocks[:expected_blocks]
                     blocks[0] = selected_hook
-                    normalized = "\n\n".join(blocks)
+
+                # Case 3: incomplete / bad output -> skip it
+                else:
+                    logger.warning(
+                        f"[VARIANTS] Skipping incomplete variant {idx}: "
+                        f"expected {expected_blocks} blocks with locked hook, got {len(blocks)}"
+                    )
+                    continue
+
+            else:
+                if len(blocks) != expected_blocks:
+                    logger.warning(
+                        f"[VARIANTS] Skipping incomplete variant {idx}: "
+                        f"expected {expected_blocks} blocks, got {len(blocks)}"
+                    )
+                    continue
+
+            normalized = "\n\n".join(blocks)
 
             variants.append({
                 "id": idx,
