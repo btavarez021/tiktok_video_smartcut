@@ -2695,81 +2695,97 @@ def reorder_storyboard(session, new_order):
     return cfg
 
 
-def build_variant_reason(best: dict, variants: list, intent: str) -> str:
+def build_variant_reason(
+    best: dict,
+    variants: list,
+    intent: str,
+    primary_experience: str = "mixed"
+) -> str:
     hook = best.get("hook_score", 0)
     flow = best.get("flow_score", best.get("story_flow", 0))
     tone = (best.get("tone") or "").lower()
+    text = best.get("text", "") or ""
 
     reasons = []
 
+    rhythm = score_caption_rhythm(text)
+    ending = score_variant_ending(text)
+
+    max_hook = max((v.get("hook_score", 0) for v in variants), default=0)
+    max_flow = max((v.get("flow_score", v.get("story_flow", 0)) for v in variants), default=0)
+
     # ----------------------------------
-    # 1) Hook / Flow Trade-Off Analysis
+    # 1) Core win reason
     # ----------------------------------
     if hook >= 75 and flow >= 70:
-        reasons.append("Strong hook with smooth pacing.")
-    elif hook >= 75 and flow < 60:
-        reasons.append("Scroll-stopping hook, but pacing could improve.")
-    elif hook < 55 and flow >= 70:
-        reasons.append("Great flow and structure, but opening lacks impact.")
-    elif hook >= 65 and flow >= 65:
-        reasons.append("Balanced hook and flow.")
-    elif hook >= 65:
-        reasons.append("Strong opening hook.")
+        reasons.append("Strong hook with smooth scene-to-scene flow.")
+    elif hook == max_hook and flow >= 65:
+        reasons.append("Best mix of hook strength and pacing.")
+    elif hook == max_hook and hook > 0:
+        reasons.append("Highest hook strength among the options.")
+    elif flow == max_flow and flow > 0:
+        reasons.append("Smoothest pacing and progression among the options.")
+    elif hook >= 70:
+        reasons.append("Strong opening hook that grabs attention.")
     elif flow >= 70:
-        reasons.append("Strong pacing and progression.")
+        reasons.append("Natural progression makes the reel feel more cohesive.")
     else:
-        reasons.append("Solid overall structure.")
+        reasons.append("Most balanced overall option.")
 
-    rhythm = score_caption_rhythm(best.get("text", ""))
-    ending = score_variant_ending(best.get("text", ""))
-
+    # ----------------------------------
+    # 2) Rhythm / ending polish
+    # ----------------------------------
     if rhythm >= 80:
         reasons.append("Captions have strong short-form rhythm.")
 
     if ending >= 75:
-        reasons.append("Ending lands cleanly for a strong finish.")
+        reasons.append("Ending lands cleanly for a stronger finish.")
 
     # ----------------------------------
-    # 2) Intent Alignment
+    # 3) Intent alignment
     # ----------------------------------
     if intent == "discovery":
         if hook >= 70:
-            reasons.append("Well suited for discovery-focused content.")
+            reasons.append("Fits a discovery-style reel with strong scroll-stopping potential.")
         if "punchy" in tone or "influencer" in tone:
-            reasons.append("Tone supports scroll-stopping discovery content.")
+            reasons.append("Tone supports a more attention-grabbing discovery style.")
 
     elif intent == "personal":
         if flow >= 70:
-            reasons.append("Supports a more personal storytelling flow.")
+            reasons.append("Flow supports a more personal storytelling arc.")
         if "story" in tone or "creator" in tone or "influencer" in tone:
-            reasons.append("Tone feels more human and personal.")
+            reasons.append("Tone feels more human and experience-driven.")
 
     elif intent == "aesthetic":
         if flow >= 70:
-            reasons.append("Smooth progression fits an aesthetic reel.")
+            reasons.append("Smooth pacing fits a more aesthetic reel.")
         if "minimal" in tone or "cinematic" in tone or "luxury" in tone:
-            reasons.append("Tone aligns well with an elevated aesthetic style.")
+            reasons.append("Tone matches a more polished visual style.")
 
     elif intent == "informational":
         if flow >= 70:
-            reasons.append("Clear progression supports informational storytelling.")
-        if "rewrite" in tone or "descriptive" in tone:
-            reasons.append("Tone matches a clearer, more informative format.")
+            reasons.append("Clear progression makes the sequence easier to follow.")
+        if "rewrite" in tone or "descriptive" in tone or "story" in tone:
+            reasons.append("Tone supports a clearer, more guided format.")
 
     # ----------------------------------
-    # 3) Comparative Strength
+    # 4) Primary experience alignment
     # ----------------------------------
-    max_hook = max((v.get("hook_score", 0) for v in variants), default=0)
-    max_flow = max((v.get("flow_score", v.get("story_flow", 0)) for v in variants), default=0)
-
-    if hook == max_hook and hook > 0:
-        reasons.append("Highest hook strength among options.")
-
-    if flow == max_flow and flow > 0:
-        reasons.append("Best pacing among options.")
+    if primary_experience == "exploration":
+        reasons.append("Matches the exploration vibe of the reel.")
+    elif primary_experience == "relaxation":
+        reasons.append("Keeps the reel calm, smooth, and easy to watch.")
+    elif primary_experience == "energy":
+        reasons.append("Maintains stronger energy across the sequence.")
+    elif primary_experience == "fitness":
+        reasons.append("Keeps the sequence active and momentum-driven.")
+    elif primary_experience == "luxury":
+        reasons.append("Fits the elevated, premium feel of the reel.")
+    elif primary_experience == "romance":
+        reasons.append("Supports a softer, more emotional reel tone.")
 
     # ----------------------------------
-    # 4) Deduplicate + return
+    # 5) Deduplicate + return
     # ----------------------------------
     cleaned = []
     seen = set()
@@ -3021,7 +3037,12 @@ def choose_best_variant(
     # ----------------------------------
     return {
         "id": best["id"],
-        "reason": build_variant_reason(best, variants, intent),
+        "reason": build_variant_reason(
+                    best,
+                    variants,
+                    intent,
+                    primary_experience
+                ),
         "confidence": confidence
     }
 
