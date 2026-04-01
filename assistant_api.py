@@ -4466,6 +4466,9 @@ CRITICAL RULES:
         content = resp.choices[0].message.content.strip()
         data = safe_json_extract(content)
 
+        logger.info(f"[VARIANTS RAW] {content[:2000]}")
+        logger.info(f"[VARIANTS PARSED COUNT] {len(data.get('variants', [])) if isinstance(data, dict) else 0}")
+
         variants = []
 
         # --------------------------------------------------
