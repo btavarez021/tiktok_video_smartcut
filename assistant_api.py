@@ -1223,7 +1223,13 @@ def score_hook_unified(session: str, hook: str, intent: str | None = None) -> di
         "first_clip_bonus": scored.get("first_clip_bonus", 0),
     }
 
-def build_hook_reason(best: dict, hooks: list[dict], intent: str, subjects: list[str] | None = None) -> str:
+def build_hook_reason(
+    best: dict,
+    hooks: list[dict],
+    intent: str,
+    subjects: list[str] | None = None,
+    primary_experience: str = "mixed"
+) -> str:
     reasons = []
 
     text = best.get("text", "") or ""
@@ -1236,42 +1242,82 @@ def build_hook_reason(best: dict, hooks: list[dict], intent: str, subjects: list
     second_score = sorted_scores[1] if len(sorted_scores) > 1 else 0
     margin = max(score - second_score, 0)
 
+    # ----------------------------------
+    # 1) Comparative strength
+    # ----------------------------------
     if margin >= 10:
-        reasons.append("Clear top score in this set.")
+        reasons.append("Clear top hook in this set.")
     elif margin >= 4:
-        reasons.append("Top score in this set.")
+        reasons.append("Strongest overall hook in this set.")
     else:
-        reasons.append("Narrow edge over other strong options.")
+        reasons.append("Edges out other strong hook options.")
 
+    # ----------------------------------
+    # 2) Curiosity / structure
+    # ----------------------------------
     pattern = detect_hook_pattern(text)
 
     if curiosity_bonus >= 8:
-        reasons.append("Uses strong curiosity-driven phrasing.")
+        reasons.append("Creates a strong curiosity gap right away.")
     elif curiosity_bonus >= 4:
-        reasons.append("Uses a curiosity-style hook pattern.")
+        reasons.append("Uses a curiosity-driven opening.")
     elif pattern == "question":
-        reasons.append("Question format helps create interest.")
+        reasons.append("Question format helps pull the viewer in.")
+    elif pattern == "exclusivity":
+        reasons.append("Uses exclusivity to make the hook feel more compelling.")
+    elif pattern == "transformation":
+        reasons.append("Hints at change or payoff, which adds intrigue.")
+    elif pattern == "sensory":
+        reasons.append("Uses sensory phrasing that fits short-form visuals.")
 
+    # ----------------------------------
+    # 3) Subject / visual alignment
+    # ----------------------------------
     matches = get_hook_subject_matches(text, subjects)
+
     if matches:
-        reasons.append(f"Matches key video subjects ({', '.join(matches)}).")
-    elif subject_bonus >= 3:
-        reasons.append("Relevant to detected video subjects.")
+        reasons.append(f"Matches key reel subjects ({', '.join(matches)}).")
+    elif subject_bonus >= 4:
+        reasons.append("Aligns strongly with the reel’s main subjects.")
+    elif subject_bonus >= 2:
+        reasons.append("Has some alignment with the reel’s subjects.")
 
     if visual_anchor_bonus >= 4:
-        reasons.append("Uses a clear visual anchor from the reel.")
+        reasons.append("Anchors the hook to a strong visual moment.")
     elif visual_anchor_bonus >= 2:
-        reasons.append("References a concrete scene element.")
+        reasons.append("References a concrete visual detail from the reel.")
 
+    # ----------------------------------
+    # 4) Intent alignment
+    # ----------------------------------
     if intent == "discovery":
-        reasons.append("Fits discovery-focused hook selection.")
+        reasons.append("Fits a discovery-style opening with strong scroll-stop potential.")
     elif intent == "personal":
-        reasons.append("Fits a more personal storytelling angle.")
+        reasons.append("Fits a more personal, experience-led opening.")
     elif intent == "aesthetic":
-        reasons.append("Fits a more visual, aesthetic hook style.")
+        reasons.append("Fits a more polished, visual-first hook style.")
     elif intent == "informational":
-        reasons.append("Fits a clearer, information-led hook style.")
+        reasons.append("Fits a clearer, more guided opening style.")
 
+    # ----------------------------------
+    # 5) Primary experience alignment
+    # ----------------------------------
+    if primary_experience == "exploration":
+        reasons.append("Matches the exploration feel of the reel.")
+    elif primary_experience == "relaxation":
+        reasons.append("Supports a calmer, more scenic opening.")
+    elif primary_experience == "energy":
+        reasons.append("Keeps the opening more dynamic and high-energy.")
+    elif primary_experience == "fitness":
+        reasons.append("Fits an active, performance-driven opening.")
+    elif primary_experience == "luxury":
+        reasons.append("Supports a more elevated, premium feel.")
+    elif primary_experience == "romance":
+        reasons.append("Supports a softer, more emotional tone.")
+
+    # ----------------------------------
+    # 6) Deduplicate + return
+    # ----------------------------------
     cleaned = []
     seen = set()
 
@@ -1281,7 +1327,6 @@ def build_hook_reason(best: dict, hooks: list[dict], intent: str, subjects: list
             seen.add(r)
 
     return " ".join(cleaned[:4])
-
 
 def score_hook_curiosity_bonus(hook: str, intent: str = "discovery") -> int:
     """
@@ -1676,7 +1721,13 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 if h["text"] == best["text"]:
                     h["recommended"] = True
                     h["reason"] = best["reason"]
-                    h["why"] = build_hook_reason(h, hooks, intent, video_subjects)
+                    h["why"] = build_hook_reason(
+                        h,
+                        hooks,
+                        intent,
+                        video_subjects,
+                        session_context.get("primary_experience", "mixed")
+                    )
 
 
 
