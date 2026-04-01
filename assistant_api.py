@@ -4517,6 +4517,7 @@ CRITICAL RULES:
         content = resp.choices[0].message.content.strip()
         data = safe_json_extract(content)
 
+        expected_blocks = len(captions)
         logger.info(f"[VARIANTS RAW] {content[:2000]}")
         logger.info(f"[VARIANTS PARSED COUNT] {len(data.get('variants', [])) if isinstance(data, dict) else 0}")
 
@@ -4529,11 +4530,14 @@ CRITICAL RULES:
         # --------------------------------------------------
         # Build variants
         # --------------------------------------------------
-        expected_blocks = len(captions)
+        
 
         for idx, item in enumerate(data.get("variants", [])):
             raw_text = item.get("text", "")
             style_key = item.get("style", "")
+
+            logger.warning(f"[VARIANTS] item {idx} style={style_key}")
+            logger.warning(f"[VARIANTS] item {idx} raw_text={raw_text!r}")
 
             normalized = normalize_variant_text(
                 raw_text,
