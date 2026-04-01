@@ -4545,6 +4545,9 @@ CRITICAL RULES:
             )
 
             blocks = [b.strip() for b in re.split(r"\n\s*\n", normalized) if b.strip()]
+
+            if len(blocks) == 1 and "\n" in normalized:
+                blocks = [b.strip() for b in normalized.splitlines() if b.strip()]
             logger.warning(f"[VARIANTS] item {idx} block_count={len(blocks)} blocks={blocks}")
 
             if hook_locked:
