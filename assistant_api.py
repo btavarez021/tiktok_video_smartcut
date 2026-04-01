@@ -4520,6 +4520,10 @@ CRITICAL RULES:
         logger.info(f"[VARIANTS RAW] {content[:2000]}")
         logger.info(f"[VARIANTS PARSED COUNT] {len(data.get('variants', [])) if isinstance(data, dict) else 0}")
 
+        logger.warning(f"[VARIANTS] expected_blocks={expected_blocks}")
+        logger.warning(f"[VARIANTS] raw model response: {content}")
+        logger.warning(f"[VARIANTS] parsed data: {data}")
+
         variants = []
 
         # --------------------------------------------------
@@ -4537,6 +4541,7 @@ CRITICAL RULES:
             )
 
             blocks = [b.strip() for b in re.split(r"\n\s*\n", normalized) if b.strip()]
+            logger.warning(f"[VARIANTS] item {idx} block_count={len(blocks)} blocks={blocks}")
 
             if hook_locked:
                 # Case 1: model returned body only -> prepend locked hook
