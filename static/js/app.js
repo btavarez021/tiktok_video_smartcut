@@ -7228,6 +7228,48 @@ async function sendChat() {
     }
 }
 
+function getAutoAssistEnabled() {
+  return window.appState?.settings?.autoAssist === true;
+}
+
+function syncAutoAssistToggleUI() {
+  const toggle = document.getElementById("autoAssistToggle");
+  if (!toggle) return;
+  toggle.checked = getAutoAssistEnabled();
+}
+
+function loadAutoAssistSetting() {
+  try {
+    const raw = localStorage.getItem("autoAssistEnabled");
+    const enabled = raw ? JSON.parse(raw) === true : false;
+
+    window.appState = window.appState || {};
+    window.appState.settings = window.appState.settings || {};
+    window.appState.settings.autoAssist = enabled;
+
+    syncAutoAssistToggleUI();
+
+    console.log("🧠 Auto Assist loaded:", enabled);
+  } catch (err) {
+    console.warn("Failed to load Auto Assist setting", err);
+  }
+}
+
+function saveAutoAssistSetting(enabled) {
+  try {
+    localStorage.setItem("autoAssistEnabled", JSON.stringify(enabled === true));
+
+    window.appState = window.appState || {};
+    window.appState.settings = window.appState.settings || {};
+    window.appState.settings.autoAssist = enabled === true;
+
+    syncAutoAssistToggleUI();
+
+    console.log("🧠 Auto Assist changed:", enabled === true);
+  } catch (err) {
+    console.warn("Failed to save Auto Assist setting", err);
+  }
+}
 
 async function goToHookLab() {
   await loadConfigAndYaml();
@@ -7315,6 +7357,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
  window.appState.settings = window.appState.settings || {};
+
+ loadAutoAssistSetting();
+
+const autoAssistToggle = document.getElementById("autoAssistToggle");
+
+autoAssistToggle?.addEventListener("change", (e) => {
+  const enabled = e.target.checked === true;
+  saveAutoAssistSetting(enabled);
+});
 
 
 document.getElementById("contentContext")?.addEventListener("change", async (e) => {
