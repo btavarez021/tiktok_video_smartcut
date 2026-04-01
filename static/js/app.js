@@ -1027,6 +1027,9 @@ function computeVariantStrength(variant, intent = "discovery") {
         };
       });
 
+      console.log("VARIANTS RAW:", rawVariants);
+      console.log("VARIANTS FINAL:", variants);
+
         // 🔑 Global state
         window.appState.variants.list = variants;
 
@@ -1057,16 +1060,12 @@ function computeVariantStrength(variant, intent = "discovery") {
         box.dataset.rendered = "false";
 
         variants.forEach((variant, i) => {
+        try {
           const cardId = `variant_${i}`;
           variant._cardId = cardId;
 
-          box.innerHTML += renderVariantCard(
-            i + 1,
-            variant,
-            cardId
-          );
+          box.innerHTML += renderVariantCard(i + 1, variant, cardId);
 
-          // 🔥 Feedback: viewed
           sendVariantFeedback({
             variantId: cardId,
             intent: window.appState.hook.intent,
@@ -1075,7 +1074,10 @@ function computeVariantStrength(variant, intent = "discovery") {
             recommended: variant.recommended === true,
             action: "viewed"
           });
-        });
+        } catch (err) {
+          console.error("Variant render failed:", variant, err);
+        }
+      });
 
         box.dataset.rendered = "true";
         updateAIRecommendationBar();
@@ -1630,24 +1632,25 @@ function rerenderVariantsList() {
 }
 
 function renderVariantCard(num, variant, cardId) {
-    const text = variant.text || "";
-    const tone = variant.tone || "";
-    const recommended = variant.recommended === true;
-    const reason = variant.recommend_reason || "";
-    const fallbackReason = variant.recommended
-      ? `Smart score ${variant.smart_score ?? strength}. Best match for ${window.appState?.hook?.intent || "your current"} goal.`
-      : "";
-    const confidence = variant.confidence || "close";
-    const confLabel = confidenceLabel(normalizeConfidence(confidence));
-    const escaped = text.replace(/`/g, "\\`");
+  const text = variant.text || "";
+  const tone = variant.tone || "";
+  const recommended = variant.recommended === true;
+  const reason = variant.recommend_reason || "";
+  const confidence = variant.confidence || "close";
+  const confLabel = confidenceLabel(normalizeConfidence(confidence));
+  const escaped = text.replace(/`/g, "\\`");
 
-    const hookScore = variant.hook_score ?? "—";
-    const flowScore = variant.flow_score ?? "—";
-    const appliedBadge = variant.applied
-  ? `<div class="variantAppliedBadge">Applied ✓</div>`
-  : "";
+  const hookScore = variant.hook_score ?? "—";
+  const flowScore = variant.flow_score ?? "—";
+  const appliedBadge = variant.applied
+    ? `<div class="variantAppliedBadge">Applied ✓</div>`
+    : "";
 
-    const strength = computeVariantDisplayStrength(variant);
+  const strength = computeVariantDisplayStrength(variant);
+
+  const fallbackReason = recommended
+    ? `Smart score ${variant.smart_score ?? strength}. Best match for ${window.appState?.hook?.intent || "your current"} goal.`
+    : "";
 
     // ----------------------------
     // AI badge (smarter hierarchy)
