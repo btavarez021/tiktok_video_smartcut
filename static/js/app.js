@@ -7374,8 +7374,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   await sidebarLoadSessions();
   sidebarSyncActiveLabel();
 
-const autoAssistToggleEl = document.getElementById("autoAssistToggle");
-
 autoAssistToggleEl?.addEventListener("change", (e) => {
   const enabled = e.target.checked === true;
   saveAutoAssistSetting(enabled);
