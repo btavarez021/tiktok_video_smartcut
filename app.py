@@ -57,7 +57,8 @@ from assistant_api import (
     auto_optimize_hook,
     api_suggest_storyboard_order,
     infer_session_context,
-    rename_session
+    rename_session,
+    api_get_auto_assist, api_set_auto_assist
 )
 from tiktok_assistant import apply_filename_captions
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -235,6 +236,19 @@ def api_delete_upload_route():
         return jsonify(result), 400
 
     return jsonify(result)
+
+
+@app.route("/api/auto_assist", methods=["GET"])
+def route_get_auto_assist():
+    session = request.args.get("session", "default")
+    return api_get_auto_assist(session)
+
+@app.route("/api/auto_assist", methods=["POST"])
+def route_set_auto_assist():
+    data = request.get_json(force=True) or {}
+    session = data.get("session", "default")
+    enabled = bool(data.get("enabled", False))
+    return api_set_auto_assist(session, enabled)
 
 
 @app.route("/api/variant_feedback", methods=["POST"])

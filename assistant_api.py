@@ -124,6 +124,35 @@ def load_analysis_status(session: str) -> dict | None:
     except Exception:
         return None
 
+def api_set_auto_assist(session: str, enabled: bool) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    cfg = _load_config(session) or {}
+
+    settings = cfg.setdefault("settings", {})
+    settings["auto_assist"] = bool(enabled)
+
+    save_config(session, cfg)
+
+    return {
+        "status": "ok",
+        "session": session,
+        "auto_assist": settings["auto_assist"]
+    }
+
+def api_get_auto_assist(session: str) -> Dict[str, Any]:
+    session = sanitize_session(session)
+    cfg = _load_config(session) or {}
+
+    enabled = (
+        cfg.get("settings", {}).get("auto_assist", False)
+    )
+
+    return {
+        "status": "ok",
+        "session": session,
+        "auto_assist": bool(enabled)
+    }
+
 def score_primary_experience_variant_bonus(variant: dict, primary_experience: str) -> int:
     """
     Rewards variants whose tone + wording match the reel's dominant experience.
