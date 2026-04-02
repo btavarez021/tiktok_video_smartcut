@@ -3006,7 +3006,7 @@ document.getElementById("reselectPendingUploadsBtn")?.classList.add("hidden");
     sidebarSyncActiveLabel();
     localStorage.setItem("activeSession", ACTIVE_SESSION);
 
-    loadAutoAssistSetting();
+    await loadAutoAssistSetting();
 
 
     // ----------------------------
@@ -4549,7 +4549,7 @@ async function loadAutoAssistSetting() {
     window.appState.settings = window.appState.settings || {};
     window.appState.settings.autoAssist = enabled;
 
-    const toggle = document.getElementById("autoAssistToggleEl");
+    const toggle = document.getElementById("autoAssistToggle");
     if (toggle) {
       toggle.checked = enabled;
     }
@@ -7277,55 +7277,6 @@ async function sendChat() {
     }
 }
 
-function getAutoAssistEnabled() {
-  return window.appState?.settings?.autoAssist === true;
-}
-
-function syncAutoAssistToggleUI() {
-  const toggle = document.getElementById("autoAssistToggle");
-  if (!toggle) return;
-  toggle.checked = getAutoAssistEnabled();
-}
-
-function loadAutoAssistSetting() {
-  try {
-    const session = getActiveSession();
-    const raw = localStorage.getItem(`autoAssistEnabled:${session}`);
-    const enabled = raw ? JSON.parse(raw) === true : false;
-
-    window.appState = window.appState || {};
-    window.appState.settings = window.appState.settings || {};
-    window.appState.settings.autoAssist = enabled;
-
-    syncAutoAssistToggleUI();
-
-    console.log("🧠 Auto Assist loaded:", session, enabled);
-  } catch (err) {
-    console.warn("Failed to load Auto Assist setting", err);
-  }
-}
-
-function saveAutoAssistSetting(enabled) {
-  try {
-    const session = getActiveSession();
-    const normalized = enabled === true;
-
-    localStorage.setItem(
-      `autoAssistEnabled:${session}`,
-      JSON.stringify(normalized)
-    );
-
-    window.appState = window.appState || {};
-    window.appState.settings = window.appState.settings || {};
-    window.appState.settings.autoAssist = normalized;
-
-    syncAutoAssistToggleUI();
-
-    console.log("🧠 Auto Assist changed:", session, normalized);
-  } catch (err) {
-    console.warn("Failed to save Auto Assist setting", err);
-  }
-}
 
 async function goToHookLab() {
   await loadConfigAndYaml();
