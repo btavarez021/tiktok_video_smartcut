@@ -3006,7 +3006,7 @@ document.getElementById("reselectPendingUploadsBtn")?.classList.add("hidden");
     sidebarSyncActiveLabel();
     localStorage.setItem("activeSession", ACTIVE_SESSION);
 
-    await loadAutoAssistSetting();
+    loadAutoAssistSetting();
 
 
     // ----------------------------
@@ -7281,24 +7281,25 @@ function getAutoAssistEnabled() {
   return window.appState?.settings?.autoAssist === true;
 }
 
-function syncautoAssistToggleElUI() {
-  const toggle = document.getElementById("autoAssistToggleEl");
+function syncAutoAssistToggleUI() {
+  const toggle = document.getElementById("autoAssistToggle");
   if (!toggle) return;
   toggle.checked = getAutoAssistEnabled();
 }
 
 function loadAutoAssistSetting() {
   try {
-    const raw = localStorage.getItem("autoAssistEnabled");
+    const session = getActiveSession();
+    const raw = localStorage.getItem(`autoAssistEnabled:${session}`);
     const enabled = raw ? JSON.parse(raw) === true : false;
 
     window.appState = window.appState || {};
     window.appState.settings = window.appState.settings || {};
     window.appState.settings.autoAssist = enabled;
 
-    syncautoAssistToggleElUI();
+    syncAutoAssistToggleUI();
 
-    console.log("🧠 Auto Assist loaded:", enabled);
+    console.log("🧠 Auto Assist loaded:", session, enabled);
   } catch (err) {
     console.warn("Failed to load Auto Assist setting", err);
   }
@@ -7306,15 +7307,21 @@ function loadAutoAssistSetting() {
 
 function saveAutoAssistSetting(enabled) {
   try {
-    localStorage.setItem("autoAssistEnabled", JSON.stringify(enabled === true));
+    const session = getActiveSession();
+    const normalized = enabled === true;
+
+    localStorage.setItem(
+      `autoAssistEnabled:${session}`,
+      JSON.stringify(normalized)
+    );
 
     window.appState = window.appState || {};
     window.appState.settings = window.appState.settings || {};
-    window.appState.settings.autoAssist = enabled === true;
+    window.appState.settings.autoAssist = normalized;
 
-    syncautoAssistToggleElUI();
+    syncAutoAssistToggleUI();
 
-    console.log("🧠 Auto Assist changed:", enabled === true);
+    console.log("🧠 Auto Assist changed:", session, normalized);
   } catch (err) {
     console.warn("Failed to save Auto Assist setting", err);
   }
@@ -7367,27 +7374,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   await sidebarLoadSessions();
   sidebarSyncActiveLabel();
 
-  const autoAssistToggleElEl = document.getElementById("autoAssistToggleEl");
+const autoAssistToggleEl = document.getElementById("autoAssistToggle");
 
-if (autoAssistToggleEl) {
-  autoAssistToggleElEl.addEventListener("change", async (e) => {
-    const enabled = e.target.checked;
+autoAssistToggleEl?.addEventListener("change", (e) => {
+  const enabled = e.target.checked === true;
+  saveAutoAssistSetting(enabled);
 
-    try {
-      await saveAutoAssistSetting(enabled);
-      showAutoAssistUpdate(
-        enabled
-          ? "🧠 Auto Assist enabled"
-          : "🧠 Auto Assist disabled"
-      );
-    } catch (err) {
-      e.target.checked = !enabled;
-      showAutoAssistUpdate("⚠ Failed to save Auto Assist");
-    }
-  });
-}
+  showAutoAssistUpdate(
+    enabled
+      ? "🧠 Auto Assist enabled"
+      : "🧠 Auto Assist disabled"
+  );
+});
 
-await loadAutoAssistSetting();
+loadAutoAssistSetting();
 
   document.getElementById("reselectPendingUploadsBtn")?.addEventListener("click", () => {
     document.getElementById("uploadFiles")?.click();
