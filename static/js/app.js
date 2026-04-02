@@ -7374,6 +7374,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   await sidebarLoadSessions();
   sidebarSyncActiveLabel();
 
+const autoAssistToggleEl = document.getElementById("autoAssistToggle");
+
 autoAssistToggleEl?.addEventListener("change", (e) => {
   const enabled = e.target.checked === true;
   saveAutoAssistSetting(enabled);
@@ -7428,14 +7430,6 @@ loadAutoAssistSetting();
  window.appState.settings = window.appState.settings || {};
 
  loadAutoAssistSetting();
-
-const autoAssistToggleEl = document.getElementById("autoAssistToggleEl");
-
-autoAssistToggleEl?.addEventListener("change", (e) => {
-  const enabled = e.target.checked === true;
-  saveAutoAssistSetting(enabled);
-});
-
 
 document.getElementById("contentContext")?.addEventListener("change", async (e) => {
   const context = e.target.value;
