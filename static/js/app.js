@@ -317,7 +317,11 @@ function renderPendingUploadGhosts(filesMeta = []) {
 
 const CREATIVE_ACTIONS = {
   improve_hook: async () => {
-    await autoBoostSelectedHook();
+    if (window.appState?.hook?.selected) {
+      await autoBoostSelectedHook();
+    } else {
+      await improveHook();
+    }
   },
 
   improve_flow: async () => {
@@ -4554,6 +4558,8 @@ async function loadAutoAssistSetting() {
     if (toggle) {
       toggle.checked = enabled;
     }
+
+    console.log("🧠 Auto Assist loaded:", enabled);
 
     AUTO_ASSIST_INITIALIZING = false; // ✅ unlock listener
 
