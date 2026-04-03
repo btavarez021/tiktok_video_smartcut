@@ -26,6 +26,7 @@
   let lastHookScoreBeforeEdit = null;
   let AUTO_CYCLE_COUNT = 0;
   let AUTO_ASSIST_RUNNING = false;
+  let AUTO_ASSIST_INITIALIZING = true;
 
   let workingCaptionsText = "";
 
@@ -7326,7 +7327,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   await sidebarLoadSessions();
   sidebarSyncActiveLabel();
 
-let AUTO_ASSIST_INITIALIZING = true;
 
 const autoAssistToggleEl = document.getElementById("autoAssistToggle");
 
