@@ -4554,7 +4554,8 @@ async function loadAutoAssistSetting() {
       toggle.checked = enabled;
     }
 
-    console.log("🧠 Auto Assist loaded:", enabled);
+    AUTO_ASSIST_INITIALIZING = false; // ✅ unlock listener
+
   } catch (err) {
     console.warn("Failed to load auto assist setting", err);
   }
@@ -7325,9 +7326,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   await sidebarLoadSessions();
   sidebarSyncActiveLabel();
 
+let AUTO_ASSIST_INITIALIZING = true;
+
 const autoAssistToggleEl = document.getElementById("autoAssistToggle");
 
 autoAssistToggleEl?.addEventListener("change", (e) => {
+  if (AUTO_ASSIST_INITIALIZING) return;
+
   const enabled = e.target.checked === true;
   saveAutoAssistSetting(enabled);
 
@@ -7338,7 +7343,6 @@ autoAssistToggleEl?.addEventListener("change", (e) => {
   );
 });
 
-loadAutoAssistSetting();
 
   document.getElementById("reselectPendingUploadsBtn")?.addEventListener("click", () => {
     document.getElementById("uploadFiles")?.click();
@@ -7380,7 +7384,6 @@ loadAutoAssistSetting();
 
  window.appState.settings = window.appState.settings || {};
 
- loadAutoAssistSetting();
 
 document.getElementById("contentContext")?.addEventListener("change", async (e) => {
   const context = e.target.value;
