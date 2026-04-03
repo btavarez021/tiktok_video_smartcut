@@ -7330,7 +7330,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 const autoAssistToggleEl = document.getElementById("autoAssistToggle");
 
-autoAssistToggleEl?.addEventListener("change", (e) => {
+autoAssistToggleEl?.addEventListener("change", async (e) => {
   if (AUTO_ASSIST_INITIALIZING) return;
 
   const enabled = e.target.checked === true;
@@ -7342,6 +7342,8 @@ autoAssistToggleEl?.addEventListener("change", (e) => {
       : "🧠 Auto Assist disabled"
   );
 });
+
+await loadAutoAssistSetting();
 
 
   document.getElementById("reselectPendingUploadsBtn")?.addEventListener("click", () => {
