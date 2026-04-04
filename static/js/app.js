@@ -2836,6 +2836,8 @@ function selectHook(text) {
 
   async function autoBoostSelectedHook() {
     const hook = window.appState.hook.selected;
+
+    console.log("AUTO BOOST selected hook:", window.appState?.hook?.selected);
   if (!hook) {
     toast?.("Select a hook first");
     return;
