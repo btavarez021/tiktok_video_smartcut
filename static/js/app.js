@@ -317,9 +317,14 @@ function renderPendingUploadGhosts(filesMeta = []) {
 
 const CREATIVE_ACTIONS = {
   improve_hook: async () => {
+    console.log("CREATIVE_ACTIONS improve_hook fired");
+    console.log("selected hook before action:", window.appState?.hook?.selected);
+
     if (window.appState?.hook?.selected) {
+      console.log("path = autoBoostSelectedHook");
       await autoBoostSelectedHook();
     } else {
+      console.log("path = improveHook");
       await improveHook();
     }
   },
@@ -5366,6 +5371,7 @@ function clearOverlayWarning() {
 
 
 async function improveHook() {
+  console.log("improveHook() fired");
 
   const btn = document.getElementById("improveHookBtn");
   const statusEl = document.getElementById("hookScoreStatus");
