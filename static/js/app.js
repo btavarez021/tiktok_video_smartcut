@@ -565,29 +565,20 @@ function getAutoAssistHookCandidate() {
 }
 
 async function runAutoAssistPipeline(state) {
-  for (const action of AUTO_ASSIST_PIPELINE) {
-    if (state.next === "publish") break;
-    if (state.next !== action) continue;
+  const action = state.next;
 
-    console.log("⚡ Auto Assist executing:", action);
+  if (!action || action === "publish") return state;
 
-    const fn = CREATIVE_ACTIONS[action];
-    if (!fn) continue;
+  console.log("⚡ Auto Assist executing:", action);
 
-    await fn();
-    await refreshAfterChange();
+  const fn = CREATIVE_ACTIONS[action];
+  if (!fn) return state;
 
-    state = evaluateCreativeState();
-    console.log("🧠 Pipeline state:", state.status);
+  await fn();
+  await refreshAfterChange();
 
-    if (
-      state.hook_score >= 85 &&
-      state.flow_score >= 75
-    ) {
-      console.log("🎯 Edit strong — stopping pipeline");
-      break;
-    }
-  }
+  state = evaluateCreativeState();
+  console.log("🧠 Pipeline state:", state.status);
 
   return state;
 }
