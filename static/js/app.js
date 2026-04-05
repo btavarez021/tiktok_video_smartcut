@@ -56,6 +56,8 @@ let AUTO_ASSIST_PENDING_SOURCE = null;
   let UPLOAD_IN_PROGRESS = false;
   let CURRENT_UPLOAD_XHR = null;
   let pendingUploadFiles = [];
+  let STORYBOARD_CONTINUE_RUNNING = false;
+
 
   window.appState = window.appState || {};
 
@@ -407,7 +409,7 @@ Opening clip order review…`;
     const oldFlow = LAST_FLOW_SCORE;
 
     if (REFRESH_LOCK){
-      console.log("Refreshed skipped(locked)");
+      console.log("🧠 Refresh skipped: already in progress");
       return;
     }
 
@@ -2912,7 +2914,17 @@ function selectHook(text) {
       renderStep3Diff(before, newCaptions);
       focusCaptionChanges();
 
-      document.getElementById("saveCaptionsBtn")?.click();
+      await jsonFetch("/api/save_captions", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        text: newCaptions
+      }),
+    });
+
+    CONFIG_CACHE = null;
+    lastSavedCaptionsText = newCaptions;
+
 
       toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
 
@@ -7706,14 +7718,25 @@ document.getElementById("confirmStoryboardBtn")?.addEventListener("click", async
 });
 
 async function handleStoryboardContinue() {
-  const autoAssist = window.appState?.settings?.autoAssist === true;
-
-  if (autoAssist) {
-    console.log("🧠 Auto Assist triggered from storyboard");
-    await runCreativeEngine("storyboard_complete");
+  if (STORYBOARD_CONTINUE_RUNNING) {
+    console.log("🧠 Storyboard continue skipped: already running");
+    return;
   }
 
-  await goToHookLab();
+  STORYBOARD_CONTINUE_RUNNING = true;
+
+  try {
+    const autoAssist = window.appState?.settings?.autoAssist === true;
+
+    if (autoAssist) {
+      console.log("🧠 Auto Assist triggered from storyboard");
+      await runCreativeEngine("storyboard_complete");
+    }
+
+    await goToHookLab();
+  } finally {
+    STORYBOARD_CONTINUE_RUNNING = false;
+  }
 }
 
 async function saveIntent(intent) {
