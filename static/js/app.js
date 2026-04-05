@@ -27,6 +27,8 @@
   let AUTO_CYCLE_COUNT = 0;
   let AUTO_ASSIST_RUNNING = false;
   let AUTO_ASSIST_INITIALIZING = true;
+  let LAST_AUTO_ASSIST_TRIGGER = null;
+let AUTO_ASSIST_PENDING_SOURCE = null;
 
   let workingCaptionsText = "";
 
@@ -315,19 +317,33 @@ function renderPendingUploadGhosts(filesMeta = []) {
     }
   }
 
+  
 const CREATIVE_ACTIONS = {
   improve_hook: async () => {
-    console.log("CREATIVE_ACTIONS improve_hook fired");
-    console.log("selected hook before action:", window.appState?.hook?.selected);
+  console.log("CREATIVE_ACTIONS improve_hook fired");
+  console.log("selected hook before action:", window.appState?.hook?.selected);
 
-    if (window.appState?.hook?.selected) {
-      console.log("path = autoBoostSelectedHook");
-      await autoBoostSelectedHook();
-    } else {
-      console.log("path = improveHook");
-      await improveHook();
+  let hook = window.appState?.hook?.selected || null;
+
+  if (!hook) {
+    hook = getAutoAssistHookCandidate();
+
+    if (hook) {
+      window.appState.hook.selected = hook;
+      window.appState.hook.locked = true;
+      console.log("🧠 Auto Assist selected hook:", hook);
+      updateHookLockUI?.();
+      updateHookLabGuidance?.();
     }
-  },
+  }
+
+  if (window.appState?.hook?.selected) {
+    console.log("path = autoBoostSelectedHook");
+    await autoBoostSelectedHook();
+  } else {
+    console.log("🧠 Auto Assist stopped: no hook available");
+  }
+},
 
   improve_flow: async () => {
     await improveHooksAndCaptionsFlow();
@@ -479,37 +495,43 @@ Opening clip order review…`;
   }
 
 async function runCreativeEngine(reason = "update") {
-
   let state = evaluateCreativeState();
 
   const autoAssist = window.appState?.settings?.autoAssist === true;
+  const allowAutoAssist = autoAssist && shouldAutoAssistForReason(reason);
 
-  // 🎯 Stop when edit already strong
   if (
-    autoAssist &&
+    allowAutoAssist &&
     state.hook_score >= 85 &&
     state.flow_score >= 75
   ) {
     console.log("🎯 High confidence — stopping Auto Assist");
     AUTO_CYCLE_COUNT = 0;
+    renderPublishReadyState(state);
+    renderNextActionButton(state);
+    updateSmartStatus();
     return state;
   }
 
-  if (
-  autoAssist &&
-  state.next !== "publish" &&
-  reason !== "auto_cycle" &&
-  !AUTO_ASSIST_RUNNING
-  ) {
+  if (allowAutoAssist) {
+    const triggerKey = `${getActiveSession()}::${reason}`;
 
-    AUTO_ASSIST_RUNNING = true;
+    if (AUTO_ASSIST_RUNNING) {
+      console.log("🧠 Auto Assist skipped: already running");
+    } else if (LAST_AUTO_ASSIST_TRIGGER === triggerKey) {
+      console.log("🧠 Auto Assist skipped: duplicate trigger", triggerKey);
+    } else if (state.next !== "publish") {
+      AUTO_ASSIST_RUNNING = true;
+      LAST_AUTO_ASSIST_TRIGGER = triggerKey;
 
-    console.log("⚡ Auto Assist pipeline starting");
+      console.log("⚡ Auto Assist pipeline starting", { reason });
 
-    state = await runAutoAssistPipeline(state);
-
-    AUTO_ASSIST_RUNNING = false;
-
+      try {
+        state = await runAutoAssistPipeline(state);
+      } finally {
+        AUTO_ASSIST_RUNNING = false;
+      }
+    }
   }
 
   renderPublishReadyState(state);
@@ -521,39 +543,48 @@ async function runCreativeEngine(reason = "update") {
   return state;
 }
 
+
+function shouldAutoAssistForReason(reason) {
+  return reason === "storyboard_complete" || reason === "manual_auto_assist";
+}
+
+function getAutoAssistHookCandidate() {
+  const selected = window.appState?.hook?.selected;
+  if (selected) return selected;
+
+  const hooks = window.appState?.hook?.lastGenerated || [];
+  if (!Array.isArray(hooks) || hooks.length === 0) return null;
+
+  const recommended = hooks.find(h => h?.recommended && h?.text);
+  if (recommended?.text) return recommended.text;
+
+  const first = hooks.find(h => h?.text);
+  return first?.text || null;
+}
+
 async function runAutoAssistPipeline(state) {
-
   for (const action of AUTO_ASSIST_PIPELINE) {
-
     if (state.next === "publish") break;
+    if (state.next !== action) continue;
 
-    if (state.next === action) {
+    console.log("⚡ Auto Assist executing:", action);
 
-      console.log("⚡ Auto Assist executing:", action);
+    const fn = CREATIVE_ACTIONS[action];
+    if (!fn) continue;
 
-      const fn = CREATIVE_ACTIONS[action];
-      if (!fn) continue;
+    await fn();
+    await refreshAfterChange();
 
-      await fn();
+    state = evaluateCreativeState();
+    console.log("🧠 Pipeline state:", state.status);
 
-      await refreshAfterChange();
-
-      // Re-evaluate after change
-      state = evaluateCreativeState();
-
-      console.log("🧠 Pipeline state:", state.status);
-
-      // Stop if edit is strong enough
-      if (
-        state.hook_score >= 85 &&
-        state.flow_score >= 75
-      ) {
-        console.log("🎯 Edit strong — stopping pipeline");
-        break;
-      }
-
+    if (
+      state.hook_score >= 85 &&
+      state.flow_score >= 75
+    ) {
+      console.log("🎯 Edit strong — stopping pipeline");
+      break;
     }
-
   }
 
   return state;
@@ -4278,7 +4309,6 @@ async function loadAISetupSummary() {
     );
 
   await refreshAnalyses();
-  await runCreativeEngine("captions_changed");
 
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
@@ -4430,8 +4460,6 @@ function renderSessionContext(data) {
       await loadConfigAndYaml();
       await loadCaptionsFromYaml();
       await refreshAfterChange();
-      await runCreativeEngine("captions_changed");
-
 
       setStatus("captionsStatus", "AI recommendation applied ✓", "success");
       maybeShowStep4Nudge();
@@ -4654,7 +4682,6 @@ async function saveAutoAssistSetting(enabled) {
   }
 
   await refreshAfterChange();
-  await runCreativeEngine("captions_changed");
 }
 
   async function pollYamlStatus() {
@@ -5373,6 +5400,12 @@ function clearOverlayWarning() {
 async function improveHook() {
   console.log("improveHook() fired");
 
+  const selected = window.appState?.hook?.selected || null;
+  if (!selected) {
+    console.warn("improveHook() aborted: no selected hook");
+    return;
+  }
+
   const btn = document.getElementById("improveHookBtn");
   const statusEl = document.getElementById("hookScoreStatus");
 
@@ -5406,7 +5439,7 @@ async function improveHook() {
           "Hook rewrite ready — review & accept or reject";
       }
 
-      await runCreativeEngine("captions_changed");
+      refreshAfterChange();
 
       return;
     }
@@ -5495,8 +5528,6 @@ async function boostSelectedHook() {
     updateHooksReadyUI();
 
     await refreshAfterChange();
-    await runCreativeEngine("captions_changed");
-
 
     const newScore = Number(LAST_HOOK_SCORE ?? 0);
     const diff = newScore - Number(window.lastHookScoreBeforeBoost ?? 0);
@@ -7348,13 +7379,24 @@ autoAssistToggleEl?.addEventListener("change", async (e) => {
   if (AUTO_ASSIST_INITIALIZING) return;
 
   const enabled = e.target.checked === true;
-  saveAutoAssistSetting(enabled);
 
-  showAutoAssistUpdate(
-    enabled
-      ? "🧠 Auto Assist enabled"
-      : "🧠 Auto Assist disabled"
-  );
+  try {
+    await saveAutoAssistSetting(enabled);
+
+    if (!enabled) {
+      AUTO_ASSIST_RUNNING = false;
+      LAST_AUTO_ASSIST_TRIGGER = null;
+    }
+
+    showAutoAssistUpdate(
+      enabled
+        ? "🧠 Auto Assist enabled"
+        : "🧠 Auto Assist disabled"
+    );
+  } catch (err) {
+    e.target.checked = !enabled;
+    console.error(err);
+  }
 });
 
 await loadAutoAssistSetting();
@@ -7664,17 +7706,14 @@ document.getElementById("confirmStoryboardBtn")?.addEventListener("click", async
 });
 
 async function handleStoryboardContinue() {
-
   const autoAssist = window.appState?.settings?.autoAssist === true;
 
-  // 🧠 If Auto Assist is ON, evaluate first
   if (autoAssist) {
     console.log("🧠 Auto Assist triggered from storyboard");
     await runCreativeEngine("storyboard_complete");
   }
 
-  // Then go to Hook Lab (review stage)
-  goToHookLab();
+  await goToHookLab();
 }
 
 async function saveIntent(intent) {
