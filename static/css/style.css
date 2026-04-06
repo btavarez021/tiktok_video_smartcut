@@ -4259,20 +4259,47 @@ body.no-scroll {
   gap: 10px;
   flex-wrap: wrap;
 }
-.variantAppliedBadge {
-  background: #22c55e;
-  color: white;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  margin-left: 6px;
-}
-
 .variantCard.applied {
-  border: 2px solid #22c55e;
-  background: rgba(34,197,94,0.08);
+  border: 2px solid rgba(76, 175, 80, 0.95);
+  box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.15), 0 10px 24px rgba(0, 0, 0, 0.18);
+  background: linear-gradient(
+    180deg,
+    rgba(76, 175, 80, 0.08) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
 }
 
+.variantCard.applied .variantHeader h4 {
+  color: #fff;
+}
+
+.variantAppliedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  background: rgba(76, 175, 80, 0.16);
+  border: 1px solid rgba(76, 175, 80, 0.45);
+  color: #d9ffe0;
+}
+
+.variantCard.applied .variantScores {
+  font-weight: 600;
+}
+
+.variantCard.applied::before {
+  content: "";
+  display: block;
+  height: 4px;
+  width: 100%;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(90deg, rgba(76,175,80,0.95), rgba(120,220,140,0.9));
+  margin: -1px -1px 12px -1px;
+}
 
 .aiSetupStatus {
   white-space: pre-line;

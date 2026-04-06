@@ -1649,11 +1649,15 @@ function rerenderVariantsList() {
 
   let variants = window.appState?.variants?.list || [];
 
-  variants = [...variants].sort((a, b) => {
-    if (a.applied && !b.applied) return -1;
-    if (!a.applied && b.applied) return 1;
-    return 0;
-  });
+variants = [...variants].sort((a, b) => {
+  if (a.applied && !b.applied) return -1;
+  if (!a.applied && b.applied) return 1;
+
+  if (a.recommended && !b.recommended) return -1;
+  if (!a.recommended && b.recommended) return 1;
+
+  return (b.smart_score || 0) - (a.smart_score || 0);
+});
 
   box.innerHTML = "";
 
@@ -1677,8 +1681,8 @@ function renderVariantCard(num, variant, cardId) {
   const hookScore = variant.hook_score ?? "—";
   const flowScore = variant.flow_score ?? "—";
   const appliedBadge = variant.applied
-    ? `<div class="variantAppliedBadge">Applied ✓</div>`
-    : "";
+  ? `<div class="variantAppliedBadge">🟢 Current Version</div>`
+  : "";
 
   const strength = computeVariantDisplayStrength(variant);
 
@@ -1761,7 +1765,7 @@ function renderVariantCard(num, variant, cardId) {
           intent: '${window.appState.hook.intent}'
         });
         ">
-          Use This
+          ${variant.applied ? "Currently Applied" : "Use This"}
         </button>
       </div>
     `;
