@@ -545,7 +545,6 @@ async function runCreativeEngine(reason = "update") {
   return state;
 }
 
-
 function shouldAutoAssistForReason(reason) {
   return reason === "storyboard_complete" || reason === "manual_auto_assist";
 }
@@ -3012,6 +3011,8 @@ document.getElementById("reselectPendingUploadsBtn")?.classList.add("hidden");
     // Reset session-dependent state
     LAST_HOOK_SCORE = null;
     LAST_FLOW_SCORE = null;
+    LAST_AUTO_ASSIST_TRIGGER = null;
+    AUTO_ASSIST_RUNNING = false;
 
   const hookEl = document.getElementById("hookScoreValue");
     if (hookEl) hookEl.textContent = "—";
