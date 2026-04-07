@@ -239,21 +239,20 @@ def generate_voiceover_script(text: str, session: str | None = None) -> str:
 
         Style guidance:
         - write like a real creator narrating over clips
-        - use natural transitions like:
-        "then",
-        "after that",
-        "what I liked most was",
-        "and honestly",
-        "by the end"
+        - use natural transitions, but vary them — avoid repeating the same phrasing
         - keep it concise but smooth
         - make it easy to record in CapCut
+        - avoid repeating the same transition patterns (e.g. "then", "after that") every line
+        - vary sentence openings to feel more natural
+        - end with a strong or memorable final thought, not a generic summary
+        - aim for how someone would say it out loud in one take
+        - avoid filler phrases like "we’ve got", "there’s", "you can see" unless they add value
 
         Avoid:
         - overly descriptive or poetic phrases
         - formal or “written” sounding sentences
         - phrases like "this view hides", "where X meets Y"
         - anything that feels like caption copy instead of speech
-        - aim for how someone would say it out loud in one take
 
         Captions:
         {text}
