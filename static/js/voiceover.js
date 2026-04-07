@@ -1,17 +1,21 @@
+function setContentMode(mode) {
+  window.appState.contentMode = mode;
+  updateContentModeUI();
+
+  if (typeof updateVariantModeAvailability === "function") {
+    updateVariantModeAvailability();
+  }
+}
+
 window.generateVoiceoverScript = async function () {
   const statusEl = document.getElementById("voiceoverStatus");
   const box = document.getElementById("voiceoverText");
 
   if (!box) return;
 
-  const mode = getContentMode();
-  if (mode !== "voiceover") {
-    if (statusEl) {
-      statusEl.textContent = "Switch to Voiceover mode first.";
-      statusEl.className = "hint-text";
+  if (getContentMode() !== "voiceover") {
+    setContentMode("voiceover");
     }
-    return;
-  }
 
   try {
     if (statusEl) {
@@ -40,8 +44,7 @@ window.generateVoiceoverScript = async function () {
 
     box.value = res.script || "";
 
-    window.appState.contentMode = "voiceover";
-    updateContentModeUI();
+    setContentMode("voiceover");
 
     if (statusEl) {
       statusEl.textContent = "Voiceover script ready.";

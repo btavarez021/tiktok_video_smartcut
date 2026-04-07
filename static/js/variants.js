@@ -25,10 +25,11 @@ async function generateVariantsAsync(modes, selectedHook) {
       const res = await jsonFetch("/api/variants/start", {
         method: "POST",
         body: JSON.stringify({
-          session: getActiveSession(),
-          modes,
-          selected_hook: selectedHook
-        })
+        session: getActiveSession(),
+        modes,
+        selected_hook: selectedHook,
+        content_mode: getContentMode() 
+      })
       });
 
       // 🔁 Already running → just poll
@@ -665,7 +666,7 @@ let variantsInitialized = false;
 
 async function initVariantBoot() {
   updateVariantModeAvailability();
-  
+
   try {
     const data = await jsonFetch(
       `/api/variants/status?session=${getActiveSession()}`
