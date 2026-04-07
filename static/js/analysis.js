@@ -374,8 +374,11 @@ function initAnalysisListeners() {
         updateHooksReadyUI();
         updateAIRecommendationBar();
 
-        document.getElementById("hookLabOutput")?.innerHTML = "";
-        document.getElementById("variantsOutput")?.innerHTML = "";
+        const hookLabOutput = document.getElementById("hookLabOutput");
+        const variantsOutput = document.getElementById("variantsOutput");
+
+        if (hookLabOutput) hookLabOutput.innerHTML = "";
+        if (variantsOutput) variantsOutput.innerHTML = "";
 
         setStatus(
           "hookLabStatus",
