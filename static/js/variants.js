@@ -660,13 +660,16 @@ function computeVariantDisplayStrength(variant) {
     if (btn) btn.textContent = "Collapse";
   }
 
-  // 🔄 Resume AI variants if page refreshed mid-run
+
+let variantsInitialized = false;
+
+async function initVariantBoot() {
   try {
     const data = await jsonFetch(
       `/api/variants/status?session=${getActiveSession()}`
     );
 
-    if (data.status === "running") {
+    if (data?.status === "running") {
       updateVariantRunningBadge("running");
 
       if (!VARIANT_POLL_ACTIVE) {
@@ -677,27 +680,35 @@ function computeVariantDisplayStrength(variant) {
   } catch (err) {
     console.warn("Failed to resume variant polling on load", err);
   }
+}
 
+function initVariantListeners() {
+  if (variantsInitialized) return;
+  variantsInitialized = true;
 
-  // Generate variants (unchanged)
-document
-  .getElementById("generateVariantsBtn")
-  ?.addEventListener("click", async () => {
+  document
+    .getElementById("generateVariantsBtn")
+    ?.addEventListener("click", async () => {
+      const modes = {
+        rewrite: document.getElementById("mode_rewrite")?.checked,
+        hook: document.getElementById("mode_hook")?.checked,
+        punchy: document.getElementById("mode_punchy")?.checked,
+        story: document.getElementById("mode_story")?.checked,
+        influencer: document.getElementById("mode_influencer")?.checked,
+        minimal: document.getElementById("mode_minimal")?.checked,
+      };
 
-    const modes = {
-      rewrite: document.getElementById("mode_rewrite")?.checked,
-      hook: document.getElementById("mode_hook")?.checked,
-      punchy: document.getElementById("mode_punchy")?.checked,
-      story: document.getElementById("mode_story")?.checked,
-      influencer: document.getElementById("mode_influencer")?.checked,
-      minimal: document.getElementById("mode_minimal")?.checked,
-    };
+      await generateVariantsAsync(
+        modes,
+        window.appState.hook.selected || null
+      );
+    });
 
-    await generateVariantsAsync(
-  modes,
-  window.appState.hook.selected || null
-);
-  });
+  document
+    .getElementById("applyAiRecommendationBtn")
+    ?.addEventListener("click", applyAIRecommendation);
 
-document.getElementById("applyAiRecommendationBtn")?.addEventListener("click", applyAIRecommendation);
-document.getElementById("undoAiRecommendationBtn")?.addEventListener("click", undoAIRecommendation);
+  document
+    .getElementById("undoAiRecommendationBtn")
+    ?.addEventListener("click", undoAIRecommendation);
+}
