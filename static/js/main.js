@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await initCaptionsBoot();
   await initRenderSettingsBoot();
   await initVariantBoot();
+  await initCaptionBoot();
 
   initSessionListeners();
   initAnalysisListeners();

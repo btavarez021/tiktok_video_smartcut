@@ -4330,3 +4330,55 @@ body.no-scroll {
   border-radius: 8px;
   background: rgba(255,255,255,0.04);
 }
+
+.content-mode-card {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+}
+
+.content-mode-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.content-mode-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.content-mode-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.content-mode-hint {
+  margin-top: 8px;
+  opacity: 0.8;
+  font-size: 0.92rem;
+}
+
+.voiceover-section {
+  margin-top: 16px;
+}
+
+.voiceover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+#voiceoverText {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+}
+
+.hidden {
+  display: none !important;
+}

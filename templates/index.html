@@ -24,6 +24,7 @@
 <script defer src="/static/js/hooks.js"></script>
 <script defer src="/static/js/variants.js"></script>
 <script defer src="/static/js/captions.js"></script>
+<script defer src="/static/js/voiceover.js"></script>
 <script defer src="/static/js/rewrite.js"></script>
 <script defer src="/static/js/renderSettings.js"></script>
 <script defer src="/static/js/export.js"></script>
@@ -378,7 +379,28 @@
         <p class="card-subtitle">
         Refine or rewrite AI captions before rendering.
         </p>
-        
+    </div>
+
+    <div class="card-body">
+        <div class="content-mode-card" id="contentModeCard">
+                    <div class="content-mode-title">🎬 Content Style</div>
+                    <div class="content-mode-options">
+                        <label class="content-mode-option">
+                        <input type="radio" name="contentMode" value="caption" checked>
+                        <span>Caption-led</span>
+                        </label>
+
+                        <label class="content-mode-option">
+                        <input type="radio" name="contentMode" value="voiceover">
+                        <span>Voiceover</span>
+                        </label>
+                    </div>
+
+                    <div class="content-mode-hint" id="contentModeHint">
+                        Best for aesthetic, product, and lifestyle videos.
+                    </div>
+        </div>
+
         <div class="row">
             <button class="btn secondary small" onclick="regenerateCaptionsFromClips()">
             🔄 Generate captions from filenames
@@ -449,6 +471,21 @@
         </div>
 
         </div>
+
+        <div id="voiceoverSection" class="voiceover-section hidden">
+            <div class="voiceover-header">
+                <h3>🎤 Voiceover Script</h3>
+                <button id="generateVoiceoverBtn" type="button">Generate Script</button>
+            </div>
+
+            <textarea
+                id="voiceoverText"
+                rows="6"
+                placeholder="Voiceover script will appear here..."
+            ></textarea>
+
+            <div id="voiceoverStatus" class="hint-text"></div>
+            </div>
 
 
         <!-- ✅ INLINE STATUS (new, immediate feedback) -->
@@ -883,9 +920,6 @@
             Overlay, timing, voiceover, CTA, music, and scaling settings.
         </p>
     </div>
-    
-</div>
-
 
     <div class="card-body accordion">
 

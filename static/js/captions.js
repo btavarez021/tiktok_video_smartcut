@@ -504,9 +504,49 @@ async function initCaptionsBoot() {
   }
 }
 
+function getContentMode() {
+  return window.appState?.contentMode || "caption";
+}
+
+function setContentMode(mode) {
+  ensureCaptionState();
+
+  const nextMode = mode === "voiceover" ? "voiceover" : "caption";
+  window.appState.contentMode = nextMode;
+
+  updateContentModeUI();
+}
+
+function updateContentModeUI() {
+  ensureCaptionState();
+
+  const mode = getContentMode();
+  const hint = document.getElementById("contentModeHint");
+  const voiceoverSection = document.getElementById("voiceoverSection");
+
+  if (hint) {
+    hint.textContent =
+      mode === "voiceover"
+        ? "Best for hotel, travel, review, and story-based videos."
+        : "Best for aesthetic, product, and lifestyle videos.";
+  }
+
+  if (voiceoverSection) {
+    voiceoverSection.classList.toggle("hidden", mode !== "voiceover");
+  }
+
+  document
+    .querySelectorAll('input[name="contentMode"]')
+    .forEach((input) => {
+      input.checked = input.value === mode;
+    });
+}
+
+let captionInitialized = false;
+
 function initCaptionListeners() {
-  if (rewriteInitialized) return;
-  rewriteInitialized = true;
+  if (captionInitialized) return;
+  captionInitialized = true;
 
   ensureCaptionState();
 
@@ -556,4 +596,31 @@ function initCaptionListeners() {
   document
     .getElementById("step3DiffToggle")
     ?.addEventListener("click", toggleStep3Diff);
+
+  document
+    .querySelectorAll('input[name="contentMode"]')
+    .forEach((input) => {
+      input.addEventListener("change", (e) => {
+        setContentMode(e.target.value);
+      });
+    });
+
+  document
+    .getElementById("generateVoiceoverBtn")
+    ?.addEventListener("click", generateVoiceoverScript);
+}
+
+async function initCaptionBoot() {
+  ensureCaptionState();
+
+  await loadCaptionsFromYaml();
+  updateContentModeUI();
+
+  if (window.preBoostCaptions) {
+    renderStep3Diff(
+      window.preBoostCaptions,
+      workingCaptionsText || lastSavedCaptionsText || ""
+    );
+    focusCaptionChanges();
+  }
 }
