@@ -210,19 +210,43 @@ def generate_voiceover_script(text: str, session: str | None = None) -> str:
         raise ValueError("No text provided")
 
     prompt = f"""
-Turn the following short-form video captions into a natural TikTok-style voiceover script.
+        Rewrite these captions into a natural TikTok-style voiceover script for a multi-clip short-form video.
 
-Goals:
-- sound conversational and creator-like
-- keep it concise
-- do not sound robotic
-- keep the same meaning
-- avoid hashtags and excessive emojis
-- output only the script text
+        Goals:
+        - sound conversational and creator-like
+        - feel natural when spoken out loud
+        - preserve the same overall meaning
+        - follow the clip order naturally
+        - connect the moments so the video feels like one experience
+        - use short, clean, spoken sentences
+        - add light personality and reaction where appropriate
+        - output only the final script
 
-Input:
-{text}
-""".strip()
+        Rules:
+        - no hashtags
+        - no emojis
+        - no bullet points
+        - no headings
+        - no assistant commentary
+        - do not sound robotic or corporate
+        - do not repeat the captions word-for-word
+        - avoid overly long paragraphs
+        - avoid salesy language unless the original captions clearly support it
+
+        Style guidance:
+        - write like a real creator narrating over clips
+        - use natural transitions like:
+        "then",
+        "after that",
+        "what I liked most was",
+        "and honestly",
+        "by the end"
+        - keep it concise but smooth
+        - make it easy to record in CapCut
+
+        Captions:
+        {text}
+        """.strip()
 
     response = client.responses.create(
         model="gpt-4.1-mini",
