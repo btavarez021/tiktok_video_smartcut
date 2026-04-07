@@ -59,7 +59,7 @@ from assistant_api import (
     infer_session_context,
     rename_session,
     api_get_auto_assist, api_set_auto_assist,
-    gnerate_voiceover_script
+    generate_voiceover_script
 )
 from tiktok_assistant import apply_filename_captions
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -181,7 +181,7 @@ def generate_voiceover():
         return jsonify({"error": "No text provided"}), 400
 
     try:
-        result = gnerate_voiceover_script(
+        result = generate_voiceover_script(
             text=text,
             session=session,
         )
