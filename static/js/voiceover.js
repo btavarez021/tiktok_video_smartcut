@@ -1,43 +1,32 @@
 async function generateVoiceoverScript() {
-  const statusEl = document.getElementById("voiceoverStatus");
-  const box = document.getElementById("voiceoverText");
+  const text = workingCaptionsText || lastSavedCaptionsText;
 
-  if (!box) return;
-
-  const mode = getContentMode();
-  if (mode !== "voiceover") {
-    if (statusEl) {
-      statusEl.textContent = "Switch to Voiceover mode first.";
-      statusEl.className = "hint-text";
-    }
+  if (!text) {
+    setStatus("captionsStatus", "No captions to convert", "warning");
     return;
   }
 
+  setStatus("captionsStatus", "Generating voiceover script…", "working");
+
   try {
-    if (statusEl) {
-      statusEl.textContent = "Generating voiceover script…";
-      statusEl.className = "hint-text";
-    }
+    const res = await jsonFetch("/api/generate_voiceover", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        text
+      })
+    });
 
-    const captionText =
-      (document.getElementById("captionsText")?.value || "").trim();
+    workingCaptionsText = res.script;
 
-    // Placeholder v1
-    const script = captionText
-      ? `Come with me—${captionText.replace(/\n+/g, " ")}`
-      : "Come with me as I show you this spot.";
+    window.appState.contentMode = "voiceover"; // 🔥 switch mode
 
-    box.value = script;
+    renderCaptionView();
 
-    if (statusEl) {
-      statusEl.textContent = "Voiceover script ready.";
-      statusEl.className = "hint-text success";
-    }
+    setStatus("captionsStatus", "Voiceover script ready 🎙", "success");
+
   } catch (err) {
     console.error(err);
-    if (statusEl) {
-      statusEl.textContent = "Failed to generate voiceover script.";
-      statusEl.className = "hint-text error";
-    }
+    setStatus("captionsStatus", "Failed to generate script", "error");
   }
 }

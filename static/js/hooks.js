@@ -28,7 +28,8 @@ async function generateHooks() {
         method: "POST",
         body: JSON.stringify({
           session: getActiveSession(),
-          intent: window.appState.hook.intent
+          intent: window.appState?.hook?.intent || "discovery",
+          content_mode: getContentMode()
         })
       });
 
