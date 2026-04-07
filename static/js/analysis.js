@@ -394,19 +394,16 @@ function initAnalysisListeners() {
       }
     });
 
-  // -----------------------------
-  // Initial loads
-  // -----------------------------
-  refreshAnalyses();
+}
+
+async function initAnalysisBoot() {
+  await refreshAnalyses();
 
   setCaptionInlineStatus(
     "Labels loaded. Regenerate captions to apply them.",
     "info"
   );
 
-  // -----------------------------
-  // Resume polling if needed
-  // -----------------------------
   setTimeout(async () => {
     try {
       const s = await jsonFetch(`/api/analyze_status?session=${getActiveSession()}`);
