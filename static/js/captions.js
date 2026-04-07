@@ -515,6 +515,10 @@ function setContentMode(mode) {
   window.appState.contentMode = nextMode;
 
   updateContentModeUI();
+
+  if (typeof updateVariantModeAvailability === "function") {
+  updateVariantModeAvailability();
+  }
 }
 
 function updateContentModeUI() {

@@ -664,6 +664,8 @@ function computeVariantDisplayStrength(variant) {
 let variantsInitialized = false;
 
 async function initVariantBoot() {
+  updateVariantModeAvailability();
+  
   try {
     const data = await jsonFetch(
       `/api/variants/status?session=${getActiveSession()}`
@@ -679,6 +681,49 @@ async function initVariantBoot() {
     }
   } catch (err) {
     console.warn("Failed to resume variant polling on load", err);
+  }
+}
+
+function updateVariantModeAvailability() {
+  const mode = getContentMode();
+
+  const rewrite = document.getElementById("mode_rewrite");
+  const story = document.getElementById("mode_story");
+  const minimal = document.getElementById("mode_minimal");
+  const punchy = document.getElementById("mode_punchy");
+  const influencer = document.getElementById("mode_influencer");
+
+  const hint = document.getElementById("voiceoverVariantHint");
+
+  if (!rewrite || !story || !minimal || !punchy || !influencer) return;
+
+  if (mode === "voiceover") {
+    punchy.checked = false;
+    influencer.checked = false;
+
+    punchy.disabled = true;
+    influencer.disabled = true;
+
+    rewrite.disabled = false;
+    story.disabled = false;
+    minimal.disabled = false;
+
+    punchy.parentElement?.classList.add("disabled");
+    influencer.parentElement?.classList.add("disabled");
+
+    rewrite.parentElement?.classList.remove("disabled");
+    story.parentElement?.classList.remove("disabled");
+    minimal.parentElement?.classList.remove("disabled");
+
+    if (hint) hint.classList.remove("hidden");
+  } else {
+    punchy.disabled = false;
+    influencer.disabled = false;
+
+    punchy.parentElement?.classList.remove("disabled");
+    influencer.parentElement?.classList.remove("disabled");
+
+    if (hint) hint.classList.add("hidden");
   }
 }
 
