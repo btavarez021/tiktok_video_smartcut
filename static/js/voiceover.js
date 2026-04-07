@@ -1,4 +1,4 @@
-async function generateVoiceoverScript() {
+window.generateVoiceoverScript = async function () {
   const statusEl = document.getElementById("voiceoverStatus");
   const box = document.getElementById("voiceoverText");
 
@@ -22,12 +22,26 @@ async function generateVoiceoverScript() {
     const captionText =
       (document.getElementById("captionsText")?.value || "").trim();
 
-    // Placeholder v1
-    const script = captionText
-      ? `Come with me—${captionText.replace(/\n+/g, " ")}`
-      : "Come with me as I show you this spot.";
+    if (!captionText) {
+      if (statusEl) {
+        statusEl.textContent = "No captions available to convert.";
+        statusEl.className = "hint-text error";
+      }
+      return;
+    }
 
-    box.value = script;
+    const res = await jsonFetch("/api/generate_voiceover", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        text: captionText
+      })
+    });
+
+    box.value = res.script || "";
+
+    window.appState.contentMode = "voiceover";
+    updateContentModeUI();
 
     if (statusEl) {
       statusEl.textContent = "Voiceover script ready.";
@@ -40,4 +54,4 @@ async function generateVoiceoverScript() {
       statusEl.className = "hint-text error";
     }
   }
-}
+};

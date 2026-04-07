@@ -606,8 +606,8 @@ function initCaptionListeners() {
     });
 
   document
-    .getElementById("generateVoiceoverBtn")
-    ?.addEventListener("click", generateVoiceoverScript);
+  .getElementById("generateVoiceoverBtn")
+  ?.addEventListener("click", window.generateVoiceoverScript);
 }
 
 async function initCaptionBoot() {
