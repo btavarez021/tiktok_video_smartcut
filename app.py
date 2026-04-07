@@ -58,7 +58,8 @@ from assistant_api import (
     api_suggest_storyboard_order,
     infer_session_context,
     rename_session,
-    api_get_auto_assist, api_set_auto_assist
+    api_get_auto_assist, api_set_auto_assist,
+    gnerate_voiceover_script
 )
 from tiktok_assistant import apply_filename_captions
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
@@ -170,6 +171,25 @@ def api_set_content_context():
 
     return {"ok": True}
 
+@app.post("/api/generate_voiceover")
+def generate_voiceover():
+    data = request.get_json(silent=True) or {}
+    session = data.get("session")
+    text = (data.get("text") or "").strip()
+
+    if not text:
+        return jsonify({"error": "No text provided"}), 400
+
+    try:
+        result = gnerate_voiceover_script(
+            text=text,
+            session=session,
+        )
+        return jsonify({"script": result})
+    except Exception as e:
+        app.logger.exception("generate_voiceover failed")
+        return jsonify({"error": str(e)}), 500
+    
 @app.route("/api/generate_yaml/start", methods=["POST"])
 def generate_yaml_start():
     data = request.get_json()

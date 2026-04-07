@@ -204,6 +204,33 @@ def score_primary_experience_variant_bonus(variant: dict, primary_experience: st
 
     return min(bonus, 7)
 
+def generate_voiceover_script(text: str, session: str | None = None) -> str:
+    text = (text or "").strip()
+    if not text:
+        raise ValueError("No text provided")
+
+    prompt = f"""
+Turn the following short-form video captions into a natural TikTok-style voiceover script.
+
+Goals:
+- sound conversational and creator-like
+- keep it concise
+- do not sound robotic
+- keep the same meaning
+- avoid hashtags and excessive emojis
+- output only the script text
+
+Input:
+{text}
+""".strip()
+
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=prompt,
+    )
+
+    return response.output_text.strip()
+
 def get_weighted_video_subjects(session: str) -> dict[str, int]:
     """
     Returns subject frequency weights from labels, analyses, and filenames.
