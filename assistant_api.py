@@ -219,7 +219,11 @@ def generate_voiceover_script(text: str, session: str | None = None) -> str:
         - follow the clip order naturally
         - connect the moments so the video feels like one experience
         - use short, clean, spoken sentences
-        - add light personality and reaction where appropriate
+        - sound like a real person talking, not writing
+        - prefer simple, natural wording over descriptive or poetic phrasing
+        - slightly casual tone (like speaking to a friend)
+        - include light reactions (e.g. "honestly", "actually", "I didn’t expect this")
+        - break ideas into short spoken beats
         - output only the final script
 
         Rules:
@@ -243,6 +247,13 @@ def generate_voiceover_script(text: str, session: str | None = None) -> str:
         "by the end"
         - keep it concise but smooth
         - make it easy to record in CapCut
+
+        Avoid:
+        - overly descriptive or poetic phrases
+        - formal or “written” sounding sentences
+        - phrases like "this view hides", "where X meets Y"
+        - anything that feels like caption copy instead of speech
+        - aim for how someone would say it out loud in one take
 
         Captions:
         {text}
