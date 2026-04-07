@@ -504,7 +504,7 @@ async function initCaptionsBoot() {
   }
 }
 
-function initRewriteListeners() {
+function initCaptionListeners() {
   if (rewriteInitialized) return;
   rewriteInitialized = true;
 
