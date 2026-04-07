@@ -3,7 +3,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   await initAutoAssist(); 
   await initAnalysisBoot();
   await initStoryboardBoot();
-  await initCaptionsBoot();
   await initRenderSettingsBoot();
   await initVariantBoot();
   await initCaptionBoot();

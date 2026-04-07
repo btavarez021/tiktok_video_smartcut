@@ -480,7 +480,8 @@ def route_variants_start():
         api_generate_variants_start(
             data.get("session", "default"),
             data.get("modes", {}),
-            data.get("selected_hook")
+            data.get("selected_hook"),
+            data.get("content_mode", "caption"),
         )
     )
 

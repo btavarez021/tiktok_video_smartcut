@@ -275,7 +275,12 @@ def get_content_context(session: str) -> str:
     cfg = _load_config(session)
     return cfg.get("content_context", "auto")
 
-def _run_variant_job(session: str, modes: dict, selected_hook: str | None):
+def _run_variant_job(
+    session: str,
+    modes: dict,
+    selected_hook: str | None,
+    content_mode: str = "caption",
+):
     try:
         status = {
             "status": "running",
@@ -285,7 +290,7 @@ def _run_variant_job(session: str, modes: dict, selected_hook: str | None):
         }
         VARIANT_JOBS[session] = status
 
-        result = api_generate_variants(session, modes, selected_hook)
+        result = api_generate_variants(session, modes, selected_hook, content_mode)
 
         status["status"] = "done"
         status["result"] = result
@@ -674,7 +679,12 @@ def api_generate_yaml_status(session: str):
     return job
 
 
-def api_generate_variants_start(session: str, modes: dict, selected_hook: str | None):
+def api_generate_variants_start(
+    session: str,
+    modes: dict,
+    selected_hook: str | None,
+    content_mode: str = "caption",
+):
     session = sanitize_session(session)
 
     job = VARIANT_JOBS.get(session)
@@ -685,7 +695,7 @@ def api_generate_variants_start(session: str, modes: dict, selected_hook: str | 
 
     thread = threading.Thread(
         target=_run_variant_job,
-        args=(session, modes, selected_hook),
+        args=(session, modes, selected_hook, content_mode),
         daemon=True
     )
     thread.start()
@@ -4343,7 +4353,13 @@ def api_session_context(session: str) -> dict:
     session = sanitize_session(session)
     return infer_session_context(session)
 
-def api_generate_variants(session: str, modes: dict, selected_hook: str | None = None) -> Dict[str, Any]:
+def api_generate_variants(
+    session: str,
+    modes: dict,
+    selected_hook: str | None,
+    content_mode: str = "caption",
+) -> Dict[str, Any]:
+    
     session = sanitize_session(session)
     cfg = _load_config(session) or {}
     session_context = infer_session_context(session)
@@ -4529,8 +4545,49 @@ CRITICAL RULES:
             When describing food clips, prioritize the dining experience over specific ingredients unless the dish itself is the focus of the reel.
         """
 
+        content_mode = (content_mode or "caption").strip().lower()
+
+        content_mode_guidance = ""
+
+        if content_mode == "voiceover":
+            content_mode_guidance = """
+            CONTENT MODE: voiceover
+
+            Rewrite captions so they feel more like natural spoken narration.
+            Prioritize:
+            - conversational phrasing
+            - smoother transitions
+            - creator-style voice
+            - complete thoughts
+            - less punchy headline energy
+
+            Avoid:
+            - abrupt hook-only phrasing
+            - overly compressed caption fragments
+            - robotic or salesy language
+            """
+        else:
+            content_mode_guidance = """
+            CONTENT MODE: caption
+
+            Rewrite captions for on-screen short-form text.
+            Prioritize:
+            - punchy wording
+            - short visual lines
+            - scroll-stopping phrasing
+            - concise blocks
+            - aesthetic and TikTok-friendly rhythm
+
+            Avoid:
+            - long spoken-style sentences
+            - overly narrative phrasing
+            - voiceover-style exposition
+            """
+
         user_prompt = f"""
             Generate caption variants using the style definitions below.
+
+            {content_mode_guidance}
 
             {style_sections}
 
