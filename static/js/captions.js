@@ -1,296 +1,309 @@
-function buildCaptionsFromConfig(cfg) {
-    if (!cfg || typeof cfg !== "object") return "";
-    const parts = [];
-
-    if (cfg.first_clip && cfg.first_clip.text) parts.push(cfg.first_clip.text);
-
-    if (Array.isArray(cfg.middle_clips)) {
-        cfg.middle_clips.forEach((clip) => {
-            if (clip && clip.text) parts.push(clip.text);
-        });
-    }
-
-    if (cfg.last_clip && cfg.last_clip.text) parts.push(cfg.last_clip.text);
-
-    return parts.join("\n\n");
+function ensureCaptionState() {
+  window.appState = window.appState || {};
+  window.appState.hook = window.appState.hook || {};
+  window.appState.variants = window.appState.variants || { list: [] };
+  window.appState.scores = window.appState.scores || {};
 }
 
-async function loadCaptionsFromYaml() {
-  
+function buildCaptionsFromConfig(cfg) {
+  if (!cfg || typeof cfg !== "object") return "";
+
+  const parts = [];
+
+  if (cfg.first_clip?.text) parts.push(cfg.first_clip.text);
+
+  if (Array.isArray(cfg.middle_clips)) {
+    cfg.middle_clips.forEach((clip) => {
+      if (clip?.text) parts.push(clip.text);
+    });
+  }
+
+  if (cfg.last_clip?.text) parts.push(cfg.last_clip.text);
+
+  return parts.join("\n\n");
+}
+
+async function loadCaptionsFromYaml(options = {}) {
+  const { preserveSource = false } = options;
+
+  ensureCaptionState();
   setUiBusy(true);
+
   const box = document.getElementById("captionsText");
   if (!box) {
     setUiBusy(false);
     return;
   }
 
-  setCaptionInlineStatus("Loading captions from YAML…", "info");
+  if (!preserveSource) {
+    setCaptionInlineStatus("Loading captions from YAML…", "info");
+  }
 
   try {
-    const session = encodeURIComponent(getActiveSession());
     const data = await getConfigCached();
-    const cfg = data.config || {};
-
+    const cfg = data?.config || {};
     const yamlText = buildCaptionsFromConfig(cfg).trim();
 
-    // 🔑 YAML baseline (never allow empty overwrite)
-    if (yamlText) {
-      lastSavedCaptionsText = yamlText;
-    }
-
+    // Always sync both baseline + working state to what YAML currently is
+    lastSavedCaptionsText = yamlText;
+    workingCaptionsText = yamlText;
 
     rewritePending = false;
     clearPendingRewrite();
     exitRewriteReviewMode();
 
-
-    // 🔥 Step 3 editor must always be editable
-    workingCaptionsText = yamlText;
-
-    // Do NOT let Step-4 lock the editor here
+    // Step 3 stays editable
     captionViewMode = "rewritten";
 
-   
-    renderStoryboardTimeline(data.config);
+    renderStoryboardTimeline(cfg);
     renderCaptionView();
-
+    renderStep3Diff(lastSavedCaptionsText, workingCaptionsText);
 
     updateRewriteModeAvailability();
 
-    setCaptionSource("yaml", "🔵 SOURCE: YAML");
-    setCaptionInlineStatus("Captions loaded from YAML", "success");
+    if (!preserveSource) {
+      setCaptionSource("yaml", "🔵 SOURCE: YAML");
+      setCaptionInlineStatus("Captions loaded from YAML", "success");
+    }
 
     lastGeneratedVariants = [];
     updateCaptionBaselineHint();
     updateLoadYamlVisibility();
-
   } catch (err) {
     console.error(err);
     setCaptionInlineStatus("Failed to load captions", "error");
     setCaptionSource("yaml", "⚠ SOURCE: YAML (failed)");
-  }
-  finally{
+  } finally {
     setUiBusy(false);
   }
 }
 
-async function saveCaptions() {
-    const captionsEl = document.getElementById("captionsText");
-    if (!captionsEl) return;
+async function saveCaptions(options = {}) {
+  const { silent = false, skipRefresh = false } = options;
 
-    const text = captionsEl.value || "";
+  ensureCaptionState();
 
+  const captionsEl = document.getElementById("captionsText");
+  if (!captionsEl) return;
+
+  const text = captionsEl.value || "";
+
+  if (!silent) {
     setStatus(
-        "captionsStatus",
-        "Saving captions into config.yml…",
-        "working",
-        false
+      "captionsStatus",
+      "Saving captions into config.yml…",
+      "working",
+      false
     );
+  }
 
-    try {
-        const result = await jsonFetch("/api/save_captions", {
-            method: "POST",
-            body: JSON.stringify({
-                text,
-                session: getActiveSession(),
-            }),
-        });
-       
-        CONFIG_CACHE = null; // 🔥 captions affect config state
+  try {
+    const result = await jsonFetch("/api/save_captions", {
+      method: "POST",
+      body: JSON.stringify({
+        text,
+        session: getActiveSession(),
+      }),
+    });
 
+    CONFIG_CACHE = null;
+    lastSavedCaptionsText = text;
+    workingCaptionsText = text;
 
-        lastSavedCaptionsText = text;   // 🔑 THIS IS REQUIRED
+    ensureCaptionState();
+    window.appState.hook.lastGenerated = null;
+    updateHooksReadyUI();
 
-        window.appState.hook.lastGenerated = null;
-        updateHooksReadyUI();
-
-        setStatus(
-            "captionsStatus",
-            `Saved ${result.count || 0} caption block(s).`,
-            "success",
-            true
-        );
-
-        await loadConfigAndYaml();
-        await refreshAfterChange();
-
-    } catch (err) {
-        console.error(err);
-        setStatus(
-            "captionsStatus",
-            `Error saving captions: ${err.message}`,
-            "error",
-            false
-        );
+    if (!silent) {
+      setStatus(
+        "captionsStatus",
+        `Saved ${result.count || 0} caption block(s).`,
+        "success",
+        true
+      );
     }
+
+    if (!skipRefresh) {
+      await loadConfigAndYaml();
+      await refreshAfterChange();
+    }
+
+    return result;
+  } catch (err) {
+    console.error(err);
+
+    if (!silent) {
+      setStatus(
+        "captionsStatus",
+        `Error saving captions: ${err.message}`,
+        "error",
+        false
+      );
+    }
+
+    throw err;
+  }
 }
 
 async function regenerateCaptionsFromClips() {
-    // 🔒 Force-save all visible labels first
-    document.querySelectorAll(".clip-label-input").forEach(i => i.blur());
+  ensureCaptionState();
 
-    const captionsEl = document.getElementById("captionsText");
-    if (!captionsEl) return;
+  document.querySelectorAll(".clip-label-input").forEach((i) => i.blur());
 
-    if (captionsEl.value.trim()) {
-        const ok = confirm(
-            "This will overwrite your current captions using labels first, then filenames.\n\nContinue?"
-        );
-        if (!ok) return;
-    }
+  const captionsEl = document.getElementById("captionsText");
+  if (!captionsEl) return;
 
-    // 🔔 Immediate intent
+  if (captionsEl.value.trim()) {
+    const ok = confirm(
+      "This will overwrite your current captions using labels first, then filenames.\n\nContinue?"
+    );
+    if (!ok) return;
+  }
+
+  setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
+  setCaptionInlineStatus("Generating captions from filenames…", "info");
+
+  try {
+    await jsonFetch("/api/captions/from_filenames", {
+      method: "POST",
+      body: JSON.stringify({ session: getActiveSession() }),
+    });
+
+    CONFIG_CACHE = null;
+
+    await loadCaptionsFromYaml({ preserveSource: true });
+
+    window.appState.hook.lastGenerated = null;
+    updateHooksReadyUI();
+
+    flashElement(captionsEl);
+
+    setStatus(
+      "captionsStatus",
+      "Captions regenerated from clips — previous captions replaced",
+      "info"
+    );
+
     setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
-    setCaptionInlineStatus("Generating captions from filenames…", "info");
-
-    try {
-        // Backend updates config.yml
-        await jsonFetch("/api/captions/from_filenames", {
-            method: "POST",
-            body: JSON.stringify({ session: getActiveSession() }),
-        });
-
-        CONFIG_CACHE = null;
-
-        // ✅ NOW load from YAML (this sets baseline)
-        await loadCaptionsFromYaml({ preserveSource: true });
-
-        window.appState.hook.lastGenerated = null;
-        updateHooksReadyUI();
-
-        flashElement(captionsEl);
-        setStatus(
-        "captionsStatus",
-        "Captions regenerated from clips — previous captions replaced",
-        "info"
-        );
-
-        setCaptionSource("filenames", "🟣 SOURCE: Filenames / Labels");
-        setCaptionInlineStatus("Captions generated from filenames", "success");
-
-    } catch (err) {
-        console.error(err);
-        setCaptionInlineStatus("Failed to generate captions", "error");
-        setCaptionSource("filenames", "⚠ SOURCE: Filenames (failed)");
-    }
+    setCaptionInlineStatus("Captions generated from filenames", "success");
+  } catch (err) {
+    console.error(err);
+    setCaptionInlineStatus("Failed to generate captions", "error");
+    setCaptionSource("filenames", "⚠ SOURCE: Filenames (failed)");
+  }
 }
 
-  function renderCaptionView() {
+function renderCaptionView() {
+  const box = document.getElementById("captionsText");
+  if (!box) return;
 
-    const box = document.getElementById("captionsText");
-    if (!box) return;
-
-    if (captionViewMode === "original") {
-      box.value = lastSavedCaptionsText || "";
-      box.readOnly = true;
-    }
-    else if (captionViewMode === "rewritten") {
-      box.value = workingCaptionsText || lastSavedCaptionsText || "";
-      box.readOnly = false;
-    }
-    else {
-      // diff
-      box.value = "";
-      box.readOnly = true;
-    }
+  if (captionViewMode === "original") {
+    box.value = lastSavedCaptionsText || "";
+    box.readOnly = true;
+  } else if (captionViewMode === "rewritten") {
+    box.value = workingCaptionsText ?? lastSavedCaptionsText ?? "";
+    box.readOnly = false;
+  } else {
+    box.value = "";
+    box.readOnly = true;
   }
+}
 
-  function renderStep3Diff(oldText, newText) {
-    const grid = document.getElementById("step3DiffGrid");
-    const wrapper = document.getElementById("captionCompareWrapper");
-    const scroll = document.getElementById("step3CaptionScroll");
-    const toggleBtn = document.getElementById("step3DiffToggle");
+function renderStep3Diff(oldText, newText) {
+  const grid = document.getElementById("step3DiffGrid");
+  const wrapper = document.getElementById("captionCompareWrapper");
+  const scroll = document.getElementById("step3CaptionScroll");
 
-    if (!grid || !wrapper || !scroll) return;
+  if (!grid || !wrapper || !scroll) return;
 
-    // Split into blocks and REMOVE blank lines
-    const oldLines = (oldText || "")
-      .split("\n")
-      .map(l => l.trim())
-      .filter(l => l !== "");
+  const oldLines = (oldText || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l !== "");
 
-    const newLines = (newText || "")
-      .split("\n")
-      .map(l => l.trim())
-      .filter(l => l !== "");
+  const newLines = (newText || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l !== "");
 
-    grid.innerHTML = "";
-
-  // Keep wrapper visible (button lives inside), but respect collapsed state
+  grid.innerHTML = "";
   wrapper.classList.remove("hidden");
 
-    const max = Math.max(oldLines.length, newLines.length);
+  const max = Math.max(oldLines.length, newLines.length);
 
-    for (let i = 0; i < max; i++) {
-      const o = oldLines[i] || "";
-      const n = newLines[i] || "";
+  for (let i = 0; i < max; i++) {
+    const o = oldLines[i] || "";
+    const n = newLines[i] || "";
 
-      // OLD
-      const oldCard = document.createElement("div");
-      oldCard.className = "diff-card old";
-      oldCard.textContent = o || "—";
+    const oldCard = document.createElement("div");
+    oldCard.className = "diff-card old";
+    oldCard.textContent = o || "—";
 
-      // NEW
-      const newCard = document.createElement("div");
-      newCard.className = "diff-card new";
-      newCard.textContent = n || "—";
+    const newCard = document.createElement("div");
+    newCard.className = "diff-card new";
+    newCard.textContent = n || "—";
 
-      grid.appendChild(oldCard);
-      grid.appendChild(newCard);
-    }
+    grid.appendChild(oldCard);
+    grid.appendChild(newCard);
   }
+}
 
-   function renderStep4Diff(original, rewritten) {
-    const grid = document.getElementById("step4DiffGrid");
-    if (!grid) return;
+function renderStep4Diff(original, rewritten) {
+  const grid = document.getElementById("step4DiffGrid");
+  if (!grid) return;
 
-    grid.innerHTML = "";
+  grid.innerHTML = "";
 
-    const oldLines = (original || "").split("\n").map(l=>l.trim()).filter(Boolean);
-    const newLines = (rewritten || "").split("\n").map(l=>l.trim()).filter(Boolean);
+  const oldLines = (original || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
 
-    const max = Math.max(oldLines.length, newLines.length);
+  const newLines = (rewritten || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
 
-    for (let i=0;i<max;i++){
-      const o = oldLines[i] || "—";
-      const n = newLines[i] || "—";
+  const max = Math.max(oldLines.length, newLines.length);
 
-      const oldCard = document.createElement("div");
-      oldCard.className = "diff-card old";
-      oldCard.textContent = o;
+  for (let i = 0; i < max; i++) {
+    const o = oldLines[i] || "—";
+    const n = newLines[i] || "—";
 
-      const newCard = document.createElement("div");
-      newCard.className = "diff-card new";
-      newCard.textContent = n;
+    const oldCard = document.createElement("div");
+    oldCard.className = "diff-card old";
+    oldCard.textContent = o;
 
-      grid.appendChild(oldCard);
-      grid.appendChild(newCard);
-    }
+    const newCard = document.createElement("div");
+    newCard.className = "diff-card new";
+    newCard.textContent = n;
+
+    grid.appendChild(oldCard);
+    grid.appendChild(newCard);
   }
+}
 
-  function focusCaptionChanges() {
+function focusCaptionChanges() {
   const wrapper = document.getElementById("captionCompareWrapper");
   if (!wrapper || wrapper.classList.contains("hidden")) return;
 
   wrapper.scrollIntoView({
     behavior: "smooth",
-    block: "center"
+    block: "center",
   });
 
-  // visual cue
   wrapper.classList.remove("flash");
   void wrapper.offsetWidth;
   wrapper.classList.add("flash");
 }
 
 async function applyCaptionVariant(text, meta = {}) {
+  ensureCaptionState();
 
-  // 🔒 User took control — AI no longer owns state
   window.aiUndoSnapshot = null;
   updateAIRecommendationBar();
 
-  const { id, tone, intent } = meta;
-  
+  const { id } = meta;
   const session = getActiveSession();
 
   const originalText = lastSavedCaptionsText || "";
@@ -307,56 +320,50 @@ async function applyCaptionVariant(text, meta = {}) {
   }
 
   try {
-    setStatus("captionsStatus", "Applying caption…", "working")
+    setStatus("captionsStatus", "Applying caption…", "working");
     maybeShowStep4Nudge();
 
     await jsonFetch("/api/save_captions", {
       method: "POST",
       body: JSON.stringify({
         session,
-        text
-      })
+        text,
+      }),
     });
 
-    CONFIG_CACHE = null; // 🔥 captions affect config state
+    CONFIG_CACHE = null;
 
-
-    // 🔑 This variant is now the truth
     lastSavedCaptionsText = text;
     workingCaptionsText = text;
 
-    window.appState.hook = window.appState.hook || {};
     window.appState.hook.selected = text.split(/\n\s*\n/)[0]?.trim() || null;
     window.appState.hook.locked = true;
-
     window.appState.hook.lastGenerated = null;
+
     updateHooksReadyUI();
 
-    await loadConfigAndYaml();   // ok to keep for timeline
+    await loadConfigAndYaml();
     await refreshOverlayPreview();
 
-
-    // Show what changed (visual only)
     renderStep3Diff(originalText, text);
     focusCaptionChanges();
 
-    // 🔥 ABSOLUTELY kill any Step-4 rewrite state
     rewritePending = false;
     isInRewriteReview = false;
     exitRewriteReviewMode();
     clearPendingRewrite();
 
     setStatus("captionsStatus", "Caption applied ✓", "success");
-
     maybeShowStep4Nudge();
 
     toggleVariantsPanel(true);
 
     document.getElementById("step4CaptionScroll")?.classList.add("hidden");
     document.getElementById("rewriteDecisionBar")?.classList.add("hidden");
+
     await refreshAfterChange();
 
-    const appliedId = meta?.id;
+    const appliedId = id;
 
     if (appliedId && Array.isArray(window.appState?.variants?.list)) {
       const hookScore =
@@ -369,11 +376,11 @@ async function applyCaptionVariant(text, meta = {}) {
         LAST_FLOW_SCORE ??
         null;
 
-      window.appState.variants.list = window.appState.variants.list.map(v => {
+      window.appState.variants.list = window.appState.variants.list.map((v) => {
         if (v._cardId !== appliedId) {
           return {
             ...v,
-            applied: false
+            applied: false,
           };
         }
 
@@ -381,13 +388,12 @@ async function applyCaptionVariant(text, meta = {}) {
           ...v,
           hook_score: hookScore,
           flow_score: flowScore,
-          applied: true
+          applied: true,
         };
       });
 
       rerenderVariantsList();
     }
-
   } catch (err) {
     console.error(err);
     setStatus("captionsStatus", "Failed to apply caption", "error");
@@ -395,28 +401,30 @@ async function applyCaptionVariant(text, meta = {}) {
 }
 
 function updateCaptionBaselineHint() {
-    const hint = document.getElementById("captionBaselineHint");
-    if (!hint) return;
+  ensureCaptionState();
 
-    const hasVariants =
-    Array.isArray(window.appState.variants.list) &&
+  const hint = document.getElementById("captionBaselineHint");
+  if (!hint) return;
+
+  const hasVariants =
+    Array.isArray(window.appState?.variants?.list) &&
     window.appState.variants.list.length > 0;
 
+  hint.style.display = hasVariants ? "none" : "block";
+}
 
-    hint.style.display = hasVariants ? "none" : "block";
-  }
+function updateLoadYamlVisibility() {
+  ensureCaptionState();
 
-  function updateLoadYamlVisibility() {
-    const btn = document.getElementById("loadCaptionsFromYamlBtn");
-    if (!btn) return;
+  const btn = document.getElementById("loadCaptionsFromYamlBtn");
+  if (!btn) return;
 
-    const hasVariants =
-    Array.isArray(window.appState.variants.list) &&
+  const hasVariants =
+    Array.isArray(window.appState?.variants?.list) &&
     window.appState.variants.list.length > 0;
 
-    btn.style.display = hasVariants ? "inline-block" : "none";
-  }
-
+  btn.style.display = hasVariants ? "inline-block" : "none";
+}
 
 let captionAutoSaveTimer = null;
 let rewriteInitialized = false;
@@ -434,11 +442,20 @@ function handleCaptionAutosave() {
   clearTimeout(captionAutoSaveTimer);
 
   captionAutoSaveTimer = setTimeout(async () => {
-    await refreshAfterChange();
+    try {
+      await saveCaptions({ silent: true, skipRefresh: false });
 
-    if (status) {
-      status.textContent = "Saved ✓";
-      status.className = "caption-inline-status success";
+      if (status) {
+        status.textContent = "Saved ✓";
+        status.className = "caption-inline-status success";
+      }
+    } catch (err) {
+      console.error("Caption autosave failed", err);
+
+      if (status) {
+        status.textContent = "Autosave failed";
+        status.className = "caption-inline-status error";
+      }
     }
 
     setTimeout(() => {
@@ -473,7 +490,9 @@ function toggleStep3Diff() {
   }
 }
 
-async function initRewriteBoot() {
+async function initCaptionsBoot() {
+  ensureCaptionState();
+
   await loadCaptionsFromYaml();
 
   if (window.preBoostCaptions) {
@@ -481,13 +500,15 @@ async function initRewriteBoot() {
       window.preBoostCaptions,
       workingCaptionsText || lastSavedCaptionsText || ""
     );
-    focusCaptionChanges?.();
+    focusCaptionChanges();
   }
 }
 
 function initRewriteListeners() {
   if (rewriteInitialized) return;
   rewriteInitialized = true;
+
+  ensureCaptionState();
 
   const captionsBox = document.getElementById("captionsText");
 
@@ -522,11 +543,11 @@ function initRewriteListeners() {
 
   document
     .getElementById("loadCaptionsFromYamlBtn")
-    ?.addEventListener("click", loadCaptionsFromYaml);
+    ?.addEventListener("click", () => loadCaptionsFromYaml());
 
   document
     .getElementById("saveCaptionsBtn")
-    ?.addEventListener("click", saveCaptions);
+    ?.addEventListener("click", () => saveCaptions());
 
   document
     .getElementById("toggleDiffCollapse")
