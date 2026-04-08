@@ -176,6 +176,8 @@ def generate_voiceover():
     data = request.get_json(silent=True) or {}
     session = data.get("session")
     text = (data.get("text") or "").strip()
+    hook = data.get("hook")
+    tone = data.get("tone")
 
     if not text:
         return jsonify({"error": "No text provided"}), 400
@@ -184,6 +186,8 @@ def generate_voiceover():
         result = generate_voiceover_script(
             text=text,
             session=session,
+            hook=hook,
+            tone=tone,
         )
         return jsonify({"script": result})
     except Exception as e:
