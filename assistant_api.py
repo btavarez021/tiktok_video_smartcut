@@ -215,72 +215,63 @@ def generate_voiceover_script(
         raise ValueError("No text provided")
 
     prompt = f"""
-        Rewrite these captions into a natural TikTok-style voiceover script for a multi-clip short-form video.
+Rewrite these captions into a natural TikTok-style voiceover script for a multi-clip short-form video.
 
-        Goals:
-        - sound conversational and creator-like
-        - feel natural when spoken out loud
-        - preserve the same overall meaning
-        - follow the clip order naturally
-        - connect the moments so the video feels like one experience
-        - use short, clean, spoken sentences
-        - sound like a real person talking, not writing
-        - prefer simple, natural wording over descriptive or poetic phrasing
-        - slightly casual tone (like speaking to a friend)
-        - include light reactions (e.g. "honestly", "actually", "I didn’t expect this")
-        - break ideas into short spoken beats
-        - output only the final script
-        - the script must clearly relate to the hook’s idea or premise
-        - if the hook implies a mystery, secret, or question, the script should explore or partially answer it
-        - do not weaken or generalize the hook’s main claim (e.g. "changes everything", "secret", "you’ll crave")
-        - the script should reinforce or demonstrate the hook’s core idea, not replace it with a softer version
+Goals:
+- sound conversational and creator-like
+- feel natural when spoken out loud
+- preserve the same overall meaning
+- follow the clip order naturally
+- connect the moments so the video feels like one experience
+- use short, clean, spoken sentences
+- sound like a real person talking, not writing
+- prefer simple, natural wording over descriptive or poetic phrasing
+- include light reactions where appropriate
+- output only the final script
+- clearly relate the script to the hook’s idea or premise
+- reinforce the hook’s core idea instead of weakening or generalizing it
+- if the hook implies a mystery, secret, hidden detail, or question, build curiosity across the script and partially pay it off near the end
+- detect the hook type implicitly and make the script structure match it
 
-        Rules:
-        - no hashtags
-        - no emojis
-        - no bullet points
-        - no headings
-        - no assistant commentary
-        - do not sound robotic or corporate
-        - do not repeat the captions word-for-word
-        - avoid overly long paragraphs
-        - avoid salesy language unless the original captions clearly support it
+Rules:
+- no hashtags
+- no emojis
+- no bullet points
+- no headings
+- no assistant commentary
+- do not sound robotic or corporate
+- do not repeat the captions word-for-word
+- avoid overly long paragraphs
+- avoid salesy language unless the original captions clearly support it
 
-        Style guidance:
-        - write like a real creator narrating over clips
-        - use natural transitions, but vary them — avoid repeating the same phrasing
-        - keep it concise but smooth
-        - make it easy to record in CapCut
-        - avoid repeating the same transition patterns (e.g. "then", "after that") every line
-        - vary sentence openings to feel more natural
-        - end with a strong or memorable final thought, not a generic summary
-        - aim for how someone would say it out loud in one take
-        - avoid filler phrases like "we’ve got", "there’s", "you can see" unless they add value
-        - use the hook as the opening tone and direction for the script
-        - the first line should feel like a continuation of the hook, not a reset
-        - maintain the same curiosity, emotion, or energy introduced by the hook
-        - the script should feel like it is building toward or revealing the hook
-        - do not ignore the concept introduced in the hook
-        - avoid generic narration that could work without the hook
-        - if the hook implies a secret, hidden detail, or reveal, the script should partially pay it off by the end
-        - keep the same emotional world across all clips instead of changing tone abruptly
-        - do not restart the narrative with generic phrases like "checking out", "here’s", or "look at this"
-        - the first line should feel like a continuation or expansion of the hook, not a new introduction
-        - carry the hook’s main idea through the entire script, not just the opening line
-        - maintain the strength of the hook’s language throughout the script
+Style guidance:
+- write like a real creator narrating over clips
+- make it easy to record in CapCut
+- vary transitions and sentence openings so the script does not feel repetitive
+- the first line should feel like a continuation or expansion of the hook, not a reset
+- carry the hook’s main idea through the entire script, not just the opening line
+- keep the same emotional world across all clips instead of changing tone abruptly
+- end with a strong or memorable final thought, not a generic summary
+- avoid filler phrases like "we’ve got", "there’s", and "you can see" unless they add value
+- avoid generic narration that could work without the hook
 
-        Avoid:
-        - overly descriptive or poetic phrases
-        - formal or “written” sounding sentences
-        - phrases like "this view hides", "where X meets Y"
-        - anything that feels like caption copy instead of speech
+Avoid:
+- overly descriptive or poetic phrases
+- formal or overly written-sounding sentences
+- phrases like "checking out", "here’s", or "look at this" when they restart the narrative
+- phrases like "this view hides" or "where X meets Y"
+- anything that feels like caption copy instead of speech
+- starting the script in a way that ignores or resets the hook’s promise
 
-        Hook:
-        {hook or "None"}
+Tone:
+{tone or "natural storytelling"}
 
-        Captions:
-        {text}
-        """.strip()
+Hook:
+{hook or "None"}
+
+Captions:
+{text}
+""".strip()
 
     response = client.responses.create(
         model="gpt-4.1-mini",
