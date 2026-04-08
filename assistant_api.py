@@ -204,16 +204,35 @@ def score_primary_experience_variant_bonus(variant: dict, primary_experience: st
 
     return min(bonus, 7)
 
+def is_hook_like(line: str) -> bool:
+    line_lower = line.lower()
+
+    # strong signals of hook-style lines
+    return (
+        len(line.split()) <= 10 and
+        (
+            "?" in line
+            or line_lower.startswith(("what", "why", "how", "when"))
+            or "this" in line_lower and ("will" in line_lower or "changes" in line_lower)
+            or "secret" in line_lower
+            or "you won" in line_lower
+        )
+    )
+
+
 def clean_captions(text: str, hook: str | None):
     lines = [l.strip() for l in text.split("\n") if l.strip()]
 
-    # remove lines that look like alternate hooks
     filtered = []
     for line in lines:
+        # remove exact hook duplicate
         if hook and line.lower() == hook.lower():
             continue
-        if "secret" in line.lower() and hook and "secret" not in hook.lower():
+
+        # 🔥 remove competing hook-like lines
+        if is_hook_like(line):
             continue
+
         filtered.append(line)
 
     return "\n".join(filtered)
