@@ -38,7 +38,8 @@ window.generateVoiceoverScript = async function () {
       method: "POST",
       body: JSON.stringify({
         session: getActiveSession(),
-        text: captionText
+        text: captionText,
+        hook: window.appState?.hook?.selected || null
       })
     });
 

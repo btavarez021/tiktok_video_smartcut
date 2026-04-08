@@ -204,7 +204,7 @@ def score_primary_experience_variant_bonus(variant: dict, primary_experience: st
 
     return min(bonus, 7)
 
-def generate_voiceover_script(text: str, session: str | None = None) -> str:
+def generate_voiceover_script(text: str, hook: str | None = None, tone: str | None = None):
     text = (text or "").strip()
     if not text:
         raise ValueError("No text provided")
@@ -247,12 +247,18 @@ def generate_voiceover_script(text: str, session: str | None = None) -> str:
         - end with a strong or memorable final thought, not a generic summary
         - aim for how someone would say it out loud in one take
         - avoid filler phrases like "we’ve got", "there’s", "you can see" unless they add value
+        - use the hook as the opening tone and direction for the script
+        - the first line should feel like a continuation of the hook, not a reset
+        - maintain the same curiosity, emotion, or energy introduced by the hook
 
         Avoid:
         - overly descriptive or poetic phrases
         - formal or “written” sounding sentences
         - phrases like "this view hides", "where X meets Y"
         - anything that feels like caption copy instead of speech
+
+        Hook:
+        {hook or "None"}
 
         Captions:
         {text}
