@@ -232,6 +232,8 @@ def generate_voiceover_script(
         - output only the final script
         - the script must clearly relate to the hook’s idea or premise
         - if the hook implies a mystery, secret, or question, the script should explore or partially answer it
+        - do not weaken or generalize the hook’s main claim (e.g. "changes everything", "secret", "you’ll crave")
+        - the script should reinforce or demonstrate the hook’s core idea, not replace it with a softer version
 
         Rules:
         - no hashtags
@@ -265,6 +267,7 @@ def generate_voiceover_script(
         - do not restart the narrative with generic phrases like "checking out", "here’s", or "look at this"
         - the first line should feel like a continuation or expansion of the hook, not a new introduction
         - carry the hook’s main idea through the entire script, not just the opening line
+        - maintain the strength of the hook’s language throughout the script
 
         Avoid:
         - overly descriptive or poetic phrases
