@@ -4560,6 +4560,18 @@ CRITICAL RULES:
 
             Goal: captions should feel like one continuous outing or hotel stay.
             """
+
+        hook_alignment_guidance = f"""
+            HOOK ALIGNMENT RULES:
+
+            - Selected hook: {selected_hook or "None"}
+
+            - Captions must align with and reinforce the selected hook.
+            - The narrative should feel like it is exploring or supporting the hook’s idea.
+            - If the hook implies curiosity, mystery, or a hidden detail, the captions should build toward or reveal it.
+            - Avoid generic narration that could work without the hook.
+            - Each caption should feel connected to the hook’s theme, not just a list of features.
+            """
         content_context_guidance = ""
 
         if content_context != "auto":
@@ -4642,6 +4654,8 @@ CRITICAL RULES:
             {style_sections}
 
             {progression_guidance}
+
+            {hook_alignment_guidance} 
 
             {content_context_guidance}
 
