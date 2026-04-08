@@ -247,7 +247,7 @@ def generate_voiceover_script(
     if not text:
         raise ValueError("No text provided")
     
-    text - clean_captions(text, hook)
+    text = clean_captions(text, hook)
 
     prompt = f"""
 Rewrite these captions into a natural TikTok-style voiceover script for a multi-clip short-form video.
