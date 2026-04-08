@@ -262,6 +262,9 @@ def generate_voiceover_script(
         - avoid generic narration that could work without the hook
         - if the hook implies a secret, hidden detail, or reveal, the script should partially pay it off by the end
         - keep the same emotional world across all clips instead of changing tone abruptly
+        - do not restart the narrative with generic phrases like "checking out", "here’s", or "look at this"
+        - the first line should feel like a continuation or expansion of the hook, not a new introduction
+        - carry the hook’s main idea through the entire script, not just the opening line
 
         Avoid:
         - overly descriptive or poetic phrases
