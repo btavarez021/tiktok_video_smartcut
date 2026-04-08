@@ -204,6 +204,20 @@ def score_primary_experience_variant_bonus(variant: dict, primary_experience: st
 
     return min(bonus, 7)
 
+def clean_captions(text: str, hook: str | None):
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+
+    # remove lines that look like alternate hooks
+    filtered = []
+    for line in lines:
+        if hook and line.lower() == hook.lower():
+            continue
+        if "secret" in line.lower() and hook and "secret" not in hook.lower():
+            continue
+        filtered.append(line)
+
+    return "\n".join(filtered)
+
 def generate_voiceover_script(
     text: str,
     session: str | None = None,
@@ -213,6 +227,8 @@ def generate_voiceover_script(
     text = (text or "").strip()
     if not text:
         raise ValueError("No text provided")
+    
+    text - clean_captions(text, hook)
 
     prompt = f"""
 Rewrite these captions into a natural TikTok-style voiceover script for a multi-clip short-form video.
@@ -232,6 +248,8 @@ Goals:
 - reinforce the hook’s core idea instead of weakening or generalizing it
 - if the hook implies a mystery, secret, hidden detail, or question, build curiosity across the script and partially pay it off near the end
 - detect the hook type implicitly and make the script structure match it
+- treat the provided hook as the single source of narrative truth
+- ignore any conflicting or alternative hook-like lines in the captions
 
 Rules:
 - no hashtags
