@@ -291,6 +291,11 @@ Style guidance:
 - end with a strong or memorable final thought, not a generic summary
 - avoid filler phrases like "we’ve got", "there’s", and "you can see" unless they add value
 - avoid generic narration that could work without the hook
+- if the hook implies a secret or hidden detail, only suggest or lightly interpret it based on what is actually shown
+- do not invent complex explanations or connections that are not supported by the clips
+- keep the payoff grounded in visible details, not abstract or metaphorical ideas
+- avoid opening phrases that restart the scene (e.g. "see that", "look at this")
+- assume the viewer is already watching the clip
 
 Avoid:
 - overly descriptive or poetic phrases
