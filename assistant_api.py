@@ -260,6 +260,8 @@ def generate_voiceover_script(
         - the script should feel like it is building toward or revealing the hook
         - do not ignore the concept introduced in the hook
         - avoid generic narration that could work without the hook
+        - if the hook implies a secret, hidden detail, or reveal, the script should partially pay it off by the end
+        - keep the same emotional world across all clips instead of changing tone abruptly
 
         Avoid:
         - overly descriptive or poetic phrases
@@ -4571,6 +4573,7 @@ CRITICAL RULES:
             - If the hook implies curiosity, mystery, or a hidden detail, the captions should build toward or reveal it.
             - Avoid generic narration that could work without the hook.
             - Each caption should feel connected to the hook’s theme, not just a list of features.
+            - middle captions should support the hook’s promise, not just describe each clip independently
             """
         content_context_guidance = ""
 
