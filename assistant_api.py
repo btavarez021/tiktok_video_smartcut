@@ -204,7 +204,12 @@ def score_primary_experience_variant_bonus(variant: dict, primary_experience: st
 
     return min(bonus, 7)
 
-def generate_voiceover_script(text: str, hook: str | None = None, tone: str | None = None):
+def generate_voiceover_script(
+    text: str,
+    session: str | None = None,
+    hook: str | None = None,
+    tone: str | None = None,
+) -> str:
     text = (text or "").strip()
     if not text:
         raise ValueError("No text provided")
