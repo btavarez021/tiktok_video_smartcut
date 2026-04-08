@@ -230,6 +230,8 @@ def generate_voiceover_script(
         - include light reactions (e.g. "honestly", "actually", "I didn’t expect this")
         - break ideas into short spoken beats
         - output only the final script
+        - the script must clearly relate to the hook’s idea or premise
+        - if the hook implies a mystery, secret, or question, the script should explore or partially answer it
 
         Rules:
         - no hashtags
@@ -255,6 +257,9 @@ def generate_voiceover_script(
         - use the hook as the opening tone and direction for the script
         - the first line should feel like a continuation of the hook, not a reset
         - maintain the same curiosity, emotion, or energy introduced by the hook
+        - the script should feel like it is building toward or revealing the hook
+        - do not ignore the concept introduced in the hook
+        - avoid generic narration that could work without the hook
 
         Avoid:
         - overly descriptive or poetic phrases
