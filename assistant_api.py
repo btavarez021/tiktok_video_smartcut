@@ -273,6 +273,8 @@ def generate_voiceover_script(
         - the ending must resolve or reinforce the hook
         - the payoff should feel specific and grounded in what is shown
         - avoid abstract or generic conclusions
+        - when possible, the ending should answer the hook in plain language
+        - for example, if the hook asks about a "secret", the ending should state what that secret is in a grounded way
         """
     label_override_guidance = """
         LABEL PRIORITY RULE:
@@ -282,6 +284,21 @@ def generate_voiceover_script(
 
         - the hook and narrative guidance take priority over labels
         - rewrite or elevate label-based descriptions to support the hook when needed
+        """
+    
+    hook_preservation_guidance = """
+        HOOK PRESERVATION RULE (STRICT):
+
+        - Do NOT rewrite, replace, or soften the hook’s core idea
+        - If the hook is a question, continue that same question naturally in the script
+        - Do NOT swap the hook for a similar but weaker framing
+        examples:
+        - "secret" must not become "special" or "unforgettable"
+        - "hidden" must not become "nice" or "cool"
+        - "changes everything" must not become "makes it better"
+
+        - Treat the hook as if it was already spoken out loud
+        - The first spoken line must feel like it directly follows that exact hook
         """
 
     prompt = f"""
@@ -315,6 +332,9 @@ Rules:
 - do not repeat the captions word-for-word
 - avoid overly long paragraphs
 - avoid salesy language unless the original captions clearly support it
+- do not paraphrase or soften the hook’s core claim
+- if the hook says "secret", "hidden", "twist", or asks a direct question, keep that same frame in the script
+- the first sentence should continue the exact hook idea, not substitute it with a weaker version
 
 Style guidance:
 - write like a real creator narrating over clips
@@ -347,6 +367,8 @@ Hook:
 {hook or "None"}
 
 {voiceover_mode_guidance}
+
+{hook_preservation_guidance}
 
 {payoff_guidance}
 
