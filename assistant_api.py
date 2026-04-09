@@ -249,6 +249,41 @@ def generate_voiceover_script(
     
     text = clean_captions(text, hook)
 
+    voiceover_mode_guidance = """
+        VOICEOVER MODE BEHAVIOR:
+
+        - fully commit to the hook as the central narrative driver
+        - connect all moments into a continuous spoken story
+
+        - do NOT treat clips as separate segments
+        - transitions should feel natural and conversational
+
+        - expand beyond description into meaning, feeling, or experience
+
+        - if the hook asks a question or implies a secret:
+        → build toward a clear and grounded payoff by the end
+        → do not use vague phrases like "that's the magic"
+
+        - avoid restarting the scene (e.g. "look at this", "see that")
+        - assume the viewer is already watching"""
+    
+    payoff_guidance = """
+        PAYOFF RULE:
+
+        - the ending must resolve or reinforce the hook
+        - the payoff should feel specific and grounded in what is shown
+        - avoid abstract or generic conclusions
+        """
+    label_override_guidance = """
+        LABEL PRIORITY RULE:
+
+        - clip labels, filenames, and analysis describe what is in the clip
+        - they must NOT dictate the final caption structure
+
+        - the hook and narrative guidance take priority over labels
+        - rewrite or elevate label-based descriptions to support the hook when needed
+        """
+
     prompt = f"""
 Rewrite these captions into a natural TikTok-style voiceover script for a multi-clip short-form video.
 
@@ -310,6 +345,12 @@ Tone:
 
 Hook:
 {hook or "None"}
+
+{voiceover_mode_guidance}
+
+{payoff_guidance}
+
+{label_override_guidance}
 
 Captions:
 {text}
@@ -4636,6 +4677,36 @@ CRITICAL RULES:
             GOOD:
             hook + reason the experience feels different + another reinforcing moment + final payoff
             """
+        
+        caption_mode_guidance = """
+            CAPTION MODE BEHAVIOR:
+
+            - captions must remain concise and visually grounded
+            - each caption should map clearly to what is happening in the clip
+
+            - lightly reinforce the hook without becoming overly narrative
+            - avoid long storytelling sentences or conversational phrasing
+
+            - do NOT reduce captions to a simple feature list
+            - do NOT write disconnected labels (e.g. "cocktail", "gym", "rooftop")
+
+            - each caption should feel like a short, clean statement that:
+            → reflects the clip
+            → subtly supports the hook
+
+            - captions should read naturally on screen and be easy to scan quickly
+            """
+
+        label_override_guidance = """
+            LABEL PRIORITY RULE:
+
+            - clip labels, filenames, and analysis describe what is in the clip
+            - they must NOT dictate the final caption structure
+
+            - the hook and narrative guidance take priority over labels
+            - rewrite or elevate label-based descriptions to support the hook when needed
+            """
+
         content_context_guidance = ""
 
         if content_context != "auto":
@@ -4726,6 +4797,10 @@ CRITICAL RULES:
             {context_guidance}
 
             {caption_scene}
+
+            {caption_mode_guidance}
+
+            {label_override_guidance}
 
             - Do NOT return hook-only outputs.
             - Every variant must include all caption blocks, not just the first line.
