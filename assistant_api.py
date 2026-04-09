@@ -4598,21 +4598,43 @@ CRITICAL RULES:
             - Avoid jumping back and forth between topics unless the transition feels intentional.
             - Avoid repeating the same subject twice unless the experience escalates.
             - Use the subjects mentioned in the captions to determine the most natural sequence.
+            - progression should serve the hook, not just the clip order
 
             Goal: captions should feel like one continuous outing or hotel stay.
             """
 
         hook_alignment_guidance = f"""
-            HOOK ALIGNMENT RULES:
+            HOOK ALIGNMENT RULES (STRICT):
 
             - Selected hook: {selected_hook or "None"}
 
-            - Captions must align with and reinforce the selected hook.
-            - The narrative should feel like it is exploring or supporting the hook’s idea.
-            - If the hook implies curiosity, mystery, or a hidden detail, the captions should build toward or reveal it.
+            - The hook is the central promise of the video.
+            - Every caption after the hook must support, reinforce, or build on that promise.
+            - Do NOT treat the middle captions as isolated clip descriptions.
+            - Do NOT write captions as a simple feature list.
+
+            - Each middle caption should feel like evidence that the hook is true.
+            - The narrative should feel like it is exploring, proving, or paying off the hook’s idea.
+            - If the hook makes a claim about the overall experience, every caption should strengthen that claim.
+
+            - If the hook implies curiosity, mystery, a secret, a hidden detail, or a reveal:
+            - build toward it across the sequence
+            - do not ignore it after the first line
+            - partially or fully pay it off by the end
+
+            - If the hook implies a mood or emotional world:
+            - keep that same emotional world across all captions
+            - avoid abrupt tone changes between clips
+
             - Avoid generic narration that could work without the hook.
-            - Each caption should feel connected to the hook’s theme, not just a list of features.
-            - middle captions should support the hook’s promise, not just describe each clip independently
+            - Avoid captions that only describe what is visually happening.
+            - Each caption should feel connected to the hook’s theme, not just to the clip itself.
+
+            BAD:
+            hook + cocktail description + gym description + rooftop description
+
+            GOOD:
+            hook + reason the experience feels different + another reinforcing moment + final payoff
             """
         content_context_guidance = ""
 
