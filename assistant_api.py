@@ -301,6 +301,24 @@ def generate_voiceover_script(
         - The first spoken line must feel like it directly follows that exact hook
         """
 
+    weak_hook_guidance = """
+        WEAK HOOK HANDLING:
+
+        - if the hook is mood-based, aesthetic, or low-curiosity, do not force a mystery or dramatic payoff
+        - keep the script grounded in the actual clips and experience
+        - avoid poetic over-interpretation or abstract meaning
+
+        - do not write lines like:
+        "it's not just..."
+        "it's what makes it click"
+        "it becomes something more"
+        "it's more than just..."
+
+        - for weaker hooks, treat the hook as a mood setter, not a deep narrative promise
+        - let the script stay simple, smooth, and natural
+        - prefer grounded creator narration over dramatic reflection
+        """
+
     prompt = f"""
 Rewrite these captions into a natural TikTok-style voiceover script for a multi-clip short-form video.
 
@@ -359,6 +377,9 @@ Avoid:
 - phrases like "this view hides" or "where X meets Y"
 - anything that feels like caption copy instead of speech
 - starting the script in a way that ignores or resets the hook’s promise
+- avoid abstract meaning-making that is not clearly supported by the clips
+- avoid turning simple mood hooks into dramatic life lessons or metaphors
+- avoid phrases like "it's not just..." unless clearly earned by the visuals
 
 Tone:
 {tone or "natural storytelling"}
@@ -369,6 +390,8 @@ Hook:
 {voiceover_mode_guidance}
 
 {hook_preservation_guidance}
+
+{weak_hook_guidance}
 
 {payoff_guidance}
 
