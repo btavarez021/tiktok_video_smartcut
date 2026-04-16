@@ -1813,10 +1813,16 @@ def api_generate_hooks(session: str, intent: str | None = None):
             - The subject should feel clear immediately
 
             FIRST CLIP ANCHOR RULE:
-            - The first clip is the opening visual hook.
-            - Hooks must strongly match the visual experience of the FIRST CLIP.
-            - Later scenes may support the hook, but should not replace the main opening experience.
+            - The first cltrongly match the visual experience of the FIRST CLIP.
+            - Later scenesip is the opening visual hook.
+            - Hooks must s may support the hook, but should not replace the main opening experience.
             - Hooks should still feel correct if the viewer only saw the first clip.
+
+            HOOK HONESTY RULE:
+            - only use hooks about secrets, hidden details, reveals, twists, or surprises if the first clip clearly supports that kind of payoff
+            - do not invent mystery language for calm observational clips
+            - if the footage is mainly scenic, observational, animal-focused, or mood-based, prefer awe, atmosphere, exclusivity, beauty, or presence over fake reveal language
+            - do not force "secret", "hidden", or "surprising" hooks unless the first clip visually suggests there is something to uncover
 
             HOOK PRIORITY:
             1. First clip visual moment
@@ -1915,6 +1921,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 tone = "neutral"
 
             hook_type = classify_hook_type(clean)
+            honesty_penalty = scored.get("honesty_penalty", 0)
 
             hooks.append({
             "text": clean,
@@ -1925,7 +1932,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
             "curiosity_bonus": curiosity_bonus,
             "subject_bonus": subject_bonus,
             "visual_anchor_bonus": visual_anchor_bonus,
-            "vague_penalty": vague_penalty
+            "vague_penalty": vague_penalty,
+            "honesty_penalty": honesty_penalty
         })
 
 
@@ -4015,6 +4023,82 @@ def score_primary_experience_bonus(text: str, primary_experience: str) -> int:
         return 3
     return 0
 
+def score_hook_honesty_penalty(hook: str, first_clip_text: str) -> int:
+    """
+    Penalize hooks that imply a reveal/secret/twist when the first clip
+    does not visually support that kind of promise.
+    Returns a positive penalty value to subtract later.
+    """
+    if not hook or not first_clip_text:
+        return 0
+
+    hook_lower = hook.lower()
+    clip_lower = first_clip_text.lower()
+
+    reveal_hook_patterns = [
+        "secret",
+        "hidden",
+        "surprising",
+        "twist",
+        "reveal",
+        "look closer",
+        "what's really",
+        "what’s really",
+        "you didn't notice",
+        "you didn’t notice",
+        "most guests miss",
+        "rare",
+    ]
+
+    hook_implies_reveal = any(p in hook_lower for p in reveal_hook_patterns)
+
+    if not hook_implies_reveal:
+        return 0
+
+    reveal_visual_signals = [
+        "reveals",
+        "reveal",
+        "opening",
+        "inside",
+        "behind",
+        "before and after",
+        "transformation",
+        "unexpected",
+        "rare moment",
+        "hidden detail",
+        "close-up detail",
+        "door opens",
+        "curtain opens",
+        "switches to",
+    ]
+
+    clip_supports_reveal = any(p in clip_lower for p in reveal_visual_signals)
+
+    observational_clip_signals = [
+        "walking",
+        "strolling",
+        "standing",
+        "resting",
+        "relaxing",
+        "lounging",
+        "view",
+        "city view",
+        "rooftop",
+        "enclosure",
+        "zoo",
+        "sunny",
+        "grassy",
+    ]
+
+    clip_is_observational = any(p in clip_lower for p in observational_clip_signals)
+
+    if hook_implies_reveal and not clip_supports_reveal:
+        if clip_is_observational:
+            return 12
+        return 8
+
+    return 0
+
 def score_generated_hook(
     clean: str,
     intent: str,
@@ -4053,6 +4137,7 @@ def score_generated_hook(
 
     penalty = 0
     vague_penalty = 0
+    honesty_penalty = score_hook_honesty_penalty(clean, first_clip_text)
 
     if any(p in lower for p in WEAK_HOOK_PATTERNS):
         penalty = 8
@@ -4061,7 +4146,10 @@ def score_generated_hook(
         vague_penalty = 4
 
     score_data = score_hook_text(clean, intent)
-    base_score = max(score_data["score"] - penalty - vague_penalty, 0)
+    base_score = max(
+        score_data["score"] - penalty - vague_penalty - honesty_penalty,
+        0
+    )
 
     curiosity_bonus = score_hook_curiosity_bonus(clean, intent)
     subject_bonus = score_hook_subject_bonus(clean, video_subjects)
@@ -4090,6 +4178,7 @@ def score_generated_hook(
         "first_clip_bonus": first_clip_bonus,
         "primary_experience_bonus": primary_experience_bonus,
         "vague_penalty": vague_penalty,
+        "honesty_penalty": honesty_penalty,
     }
 
 def infer_clip_role_v2(text: str) -> str:
