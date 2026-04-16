@@ -328,6 +328,17 @@ def generate_voiceover_script(
         - describe each moment as its own experience unless a comparison is clearly supported
         - if no comparison is explicitly stated, treat each clip as independent and equal
         """
+    claim_evidence_guidance = """
+        CLAIM EVIDENCE RULE:
+
+        - do NOT strengthen exclusivity, rarity, or access claims beyond what the hook or captions explicitly support
+        - if the hook mentions exclusivity, support it without inventing extra claims
+        - do NOT add lines like:
+        "you can't get this anywhere else"
+        "no one else has this"
+        "only a few ever experience this"
+        unless clearly supported by the captions or hook
+    """
 
     prompt = f"""
 Rewrite these captions into a natural TikTok-style voiceover script for a multi-clip short-form video.
@@ -390,6 +401,8 @@ Avoid:
 - avoid abstract meaning-making that is not clearly supported by the clips
 - avoid turning simple mood hooks into dramatic life lessons or metaphors
 - avoid phrases like "it's not just..." unless clearly earned by the visuals
+- avoid unsupported exclusivity claims or luxury exaggeration
+- avoid adding rarity or uniqueness that is not shown or stated
 
 Tone:
 {tone or "natural storytelling"}
@@ -408,6 +421,8 @@ Hook:
 {label_override_guidance}
 
 {comparison_safety_guidance}
+
+{claim_evidence_guidance}
 
 Captions:
 {text}
