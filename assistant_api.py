@@ -319,6 +319,16 @@ def generate_voiceover_script(
         - prefer grounded creator narration over dramatic reflection
         """
 
+    comparison_safety_guidance = """
+        COMPARISON SAFETY RULE:
+
+        - do NOT compare animals or clips unless the captions explicitly state a comparison
+        - do NOT assume one subject has more or less freedom, space, quality, or importance than another
+        - do NOT invent differences between clips
+        - describe each moment as its own experience unless a comparison is clearly supported
+        - if no comparison is explicitly stated, treat each clip as independent and equal
+        """
+
     prompt = f"""
 Rewrite these captions into a natural TikTok-style voiceover script for a multi-clip short-form video.
 
@@ -396,6 +406,8 @@ Hook:
 {payoff_guidance}
 
 {label_override_guidance}
+
+{comparison_safety_guidance}
 
 Captions:
 {text}
