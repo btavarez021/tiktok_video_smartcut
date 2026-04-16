@@ -1850,6 +1850,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
             - do not invent mystery language for calm observational clips
             - if the footage is mainly scenic, observational, animal-focused, or mood-based, prefer awe, atmosphere, exclusivity, beauty, or presence over fake reveal language
             - do not force "secret", "hidden", or "surprising" hooks unless the first clip visually suggests there is something to uncover
+            - If a hook would require inventing meaning, behavior, or intention, do not generate it
+            - Prefer grounded observation over interpretation when unclear
 
             HOOK PRIORITY:
             1. First clip visual moment
@@ -1882,13 +1884,19 @@ def api_generate_hooks(session: str, intent: str | None = None):
             STRUCTURE DIVERSITY RULE:
             Each hook must use a DIFFERENT structure pattern.
 
+            STRUCTURE SAFETY RULE:
+
+            - If a structure (like hidden detail, secret, or reveal) does NOT match the first clip,
+              replace it with a grounded observational or curiosity-based hook instead.
+            - Do NOT force a hook type if it requires inventing information.
+
             Use these structures across the hooks:
 
             1. Question hook
             2. Curiosity reveal
             3. Status / exclusivity
             4. Transformation
-            5. Hidden detail
+            5. Observational curiosity    
             6. Sensory / vibe
             7. Emotional reaction
             8. Bold statement
@@ -1946,13 +1954,19 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 tone = "cinematic"
             else:
                 tone = "neutral"
-
+            
             hook_type = classify_hook_type(clean)
             honesty_penalty = scored.get("honesty_penalty", 0)
 
+            raw_score = scored["score"]
+            score = raw_score
+
+            if honesty_penalty >= 10:
+                score = max(score - 10, 0)
+
             hooks.append({
             "text": clean,
-            "score": score,
+            "score": score, 
             "tone": tone,
             "type": hook_type,
             "base_score": base_score,
