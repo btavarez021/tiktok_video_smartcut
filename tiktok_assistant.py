@@ -412,20 +412,26 @@ def analyze_video(path: str, session: str, label: str = "") -> str:
 
                 Describe the OVERALL clip based on these multiple frames.
 
-                Rules:
-                - Focus on the main visible subject, activity, food, setting, and vibe across the clip
+                ANALYSIS RULES (STRICT):
+                - Describe ONLY visible subjects, objects, actions, and setting
+                - Use literal, factual language only
+                - Do NOT describe vibe, tone, atmosphere, mood, or emotion
+                - Do NOT interpret behavior or intention
+                - Do NOT use words like: calm, serene, peaceful, immersive, powerful, dramatic, relaxed, vibrant
                 - If one frame is a close-up, do not assume it represents the whole clip
                 - Prefer the broader scene if multiple frames reveal more context
-
-                FOOD SCENE RULE:
-                - If food is present, describe the main dish or dining scene rather than listing small ingredients or garnishes
-                - If multiple food items are visible, describe the overall meal rather than individual sides
-
                 - Do not invent oceans, beaches, resorts, ships, or interiors unless visible
                 - Do not contradict the user label
-                - Use neutral factual language
                 - If unsure, describe only what is consistently visible across the frames
                 - Return 1 concise sentence
+
+                GOOD:
+                - "A tiger walks through a wooded zoo enclosure with trees and rocks."
+                - "A gorilla rests on the ground near a wall and surrounding greenery."
+
+                BAD:
+                - "A tiger explores a serene natural habitat."
+                - "A gorilla rests in a calm and peaceful atmosphere."
                 """
                 }
                     ]

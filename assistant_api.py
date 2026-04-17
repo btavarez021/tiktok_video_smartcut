@@ -259,7 +259,7 @@ def generate_voiceover_script(
         - transitions should feel natural and conversational
 
         - expand slightly beyond raw description into natural spoken flow,
-        but do NOT add meaning, symbolism, or interpretation that is not visiblepand beyond description into meaning, feeling, or experience
+          but do NOT add meaning, symbolism, or interpretation that is not visible
 
         - if the hook asks a question or implies a secret:
         → build toward a clear and grounded payoff by the end
