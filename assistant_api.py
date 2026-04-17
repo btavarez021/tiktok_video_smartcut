@@ -3564,6 +3564,7 @@ def api_analyze_status(session: str) -> Dict[str, Any]:
         return saved
 
     return {"status": "idle"}
+
 # -------------------------------
 # YAML generation (per session)
 # -------------------------------

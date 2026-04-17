@@ -545,18 +545,48 @@ def build_yaml_prompt(video_files: List[str], analyses: List[str]) -> str:
         "",
         "",
         "",
-        "CAPTION GROUNDING RULES:",
-        "- Captions must describe ONLY what is directly visible in the clip.",
-        "- Do NOT add storytelling, narrative progression, or journey language.",
-        "- Do NOT imply rarity, exclusivity, or uniqueness unless clearly visible.",
-        "- Do NOT use phrases like: 'only a few', 'rare', 'special', 'hidden', 'secret'.",
-        "- Do NOT interpret animal behavior (no 'owns', 'territory', 'focus', etc).",
-        "- Do NOT connect clips together — each caption stands alone.",
-        "- Keep captions literal, grounded, and observational.",
+        "CAPTION GROUNDING RULES (STRICT — NO STORYTELLING):",
+
+        "- Captions must describe ONLY what is physically visible in the clip.",
+        "- Write captions as if describing the clip to a blind person.",
+
+        "",
+        "- DO NOT:",
+        "- interpret behavior",
+        "- describe emotions",
+        "- describe meaning",
+        "- describe atmosphere",
+        "- describe tone or vibe",
+        "- connect clips together",
+        "- create narrative progression",
+
+        "",
+        "- DO NOT use words like:",
+        "calm, peaceful, energy, presence, vibe, mood, experience, moment",
+
+        "",
+        "- DO NOT use phrases like:",
+        "'sets the tone', 'ties it together', 'the experience', 'the vibe', 'the mood'",
+
+        "",
+        "- Each caption must be independently true with no context from other clips.",
+
+        "",
+        "GOOD:",
+        "- 'a tiger walking through grass near trees'",
+        "- 'a gorilla sitting against a wall in shade'",
+
+        "",
+        "BAD:",
+        "- 'a calm gorilla enjoying the moment'",
+        "- 'this scene shows the peaceful side of the zoo'",
+        "- 'ties the experience together'",
         "",
         "======================================",
         "CLIPS AND THEIR ANALYSIS (FOR CAPTIONS)",
         "======================================",
+        "- The analysis is raw visual input. Do NOT enhance or interpret it.",
+        "- Convert analysis into simple factual captions only.",
     ]
 
     # Insert clip analyses
