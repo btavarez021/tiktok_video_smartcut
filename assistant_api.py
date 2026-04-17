@@ -258,7 +258,8 @@ def generate_voiceover_script(
         - do NOT treat clips as separate segments
         - transitions should feel natural and conversational
 
-        - expand beyond description into meaning, feeling, or experience
+        - expand slightly beyond raw description into natural spoken flow,
+        but do NOT add meaning, symbolism, or interpretation that is not visiblepand beyond description into meaning, feeling, or experience
 
         - if the hook asks a question or implies a secret:
         → build toward a clear and grounded payoff by the end
@@ -267,21 +268,25 @@ def generate_voiceover_script(
         - avoid restarting the scene (e.g. "look at this", "see that")
         - assume the viewer is already watching
         - do NOT derive conclusions about behavior, intent, or adaptation unless clearly visible
-        
-        COMPARISON SAFETY RULE:
 
-        - do NOT compare clips unless the captions explicitly show a comparison
-        - do NOT imply one subject is better, stronger, more natural, or more adapted than another
-        - do NOT contrast animals or scenes unless the contrast is clearly visible and intentional
+        INTERPRETATION SAFETY RULE:
 
-        - each moment should feel like part of the same experience, NOT a comparison between separate scenes
+        - do NOT assign meaning, emotion, or symbolism unless clearly visible
+        - do NOT describe animals or scenes using abstract traits like:
+        "power", "strength", "calm", "energy", "presence", "focus"
+
+        - do NOT interpret behavior (no "owning the space", "commanding", "aware", etc.)
+
+        - describe what is happening, not what it means
 
         BAD:
-        "the tiger blends better than the rhino"
-        "unlike the gorilla, this one..."
+        "the lion owns the space"
+        "quiet strength"
+        "a moment of reflection"
 
         GOOD:
-        describe each moment independently while keeping flow
+        "the lion walks slowly through the grass"
+        "the gorilla is sitting in the shade"
         """
     
     payoff_guidance = """
@@ -293,6 +298,9 @@ def generate_voiceover_script(
         - avoid abstract or generic conclusions
         - when possible, the ending should answer the hook in plain language
         - for example, if the hook asks about a "secret", the ending should state what that secret is in a grounded way
+        - the ending must resolve or reinforce the hook
+        - the payoff must be based only on visible details
+        - do NOT summarize with abstract ideas like "that’s what makes it special"
         """
     label_override_guidance = """
         LABEL PRIORITY RULE:
@@ -392,6 +400,7 @@ Rules:
 - do not paraphrase or soften the hook’s core claim
 - if the hook says "secret", "hidden", "twist", or asks a direct question, keep that same frame in the script
 - the first sentence should continue the exact hook idea, not substitute it with a weaker version
+- prioritize concrete, visible details over abstract or emotional language
 
 Style guidance:
 - write like a real creator narrating over clips
