@@ -265,13 +265,31 @@ def generate_voiceover_script(
         → do not use vague phrases like "that's the magic"
 
         - avoid restarting the scene (e.g. "look at this", "see that")
-        - assume the viewer is already watching"""
+        - assume the viewer is already watching
+        - do NOT derive conclusions about behavior, intent, or adaptation unless clearly visible
+        
+        COMPARISON SAFETY RULE:
+
+        - do NOT compare clips unless the captions explicitly show a comparison
+        - do NOT imply one subject is better, stronger, more natural, or more adapted than another
+        - do NOT contrast animals or scenes unless the contrast is clearly visible and intentional
+
+        - each moment should feel like part of the same experience, NOT a comparison between separate scenes
+
+        BAD:
+        "the tiger blends better than the rhino"
+        "unlike the gorilla, this one..."
+
+        GOOD:
+        describe each moment independently while keeping flow
+        """
     
     payoff_guidance = """
         PAYOFF RULE:
 
         - the ending must resolve or reinforce the hook
         - the payoff should feel specific and grounded in what is shown
+        - do NOT invent a "lesson", "secret", or "explanation" unless clearly supported by visuals  
         - avoid abstract or generic conclusions
         - when possible, the ending should answer the hook in plain language
         - for example, if the hook asks about a "secret", the ending should state what that secret is in a grounded way
@@ -4837,7 +4855,8 @@ CRITICAL RULES:
             - avoid abrupt tone changes between clips
 
             - Avoid generic narration that could work without the hook.
-            - Avoid captions that only describe what is visually happening.
+            - Captions must remain grounded in what is visibly happening.
+            - Do NOT invent meaning beyond what is shown.   
             - Each caption should feel connected to the hook’s theme, not just to the clip itself.
 
             BAD:
