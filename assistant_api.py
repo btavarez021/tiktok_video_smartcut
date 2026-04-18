@@ -272,6 +272,7 @@ def generate_voiceover_script(
         INTERPRETATION SAFETY RULE:
 
         - do NOT assign meaning, emotion, or symbolism unless clearly visible
+        - do NOT use abstract summary phrases like "quiet purpose", "natural rhythm", "calm energy", or "blending naturally" unless clearly visible
         - do NOT describe animals or scenes using abstract traits like:
         "power", "strength", "calm", "energy", "presence", "focus"
 
@@ -1874,12 +1875,19 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             HOOK HONESTY RULE:
             - only use hooks about secrets, hidden details, reveals, twists, or surprises if the first clip clearly supports that kind of payoff
-            - do not invent mystery language for calm observational clips
-            - if the footage is mainly scenic, observational, animal-focused, or mood-based, prefer awe, atmosphere, exclusivity, beauty, or presence over fake reveal language
-            - do not force "secret", "hidden", or "surprising" hooks unless the first clip visually suggests there is something to uncover
-            - If a hook would require inventing meaning, behavior, or intention, do not generate it
-            - Prefer grounded observation over interpretation when unclear
+            - do not invent mystery language for observational, scenic, or mood-based clips
+            - if a hook would require inventing meaning, behavior, emotion, symbolism, exclusivity, or intention, do not generate it
+            - prefer visible action, setting, objects, movement, and proximity over interpretation
+            - when unclear, choose grounded observation over dramatic framing
 
+            INFERENCE SAFETY RULE:
+            - do NOT infer psychology, intent, dominance, symbolism, exclusivity, or hidden meaning unless clearly supported by the first clip
+            - avoid abstract claims unless the footage visibly supports them
+            - do not force “secret”, “hidden”, “surprising”, “powerful”, “commands”, or similar language unless the first clip clearly earns it
+
+
+
+            
             HOOK PRIORITY:
             1. First clip visual moment
             2. Emotional curiosity or tension
@@ -4094,8 +4102,9 @@ def score_primary_experience_bonus(text: str, primary_experience: str) -> int:
 
 def score_hook_honesty_penalty(hook: str, first_clip_text: str) -> int:
     """
-    Penalize hooks that imply mystery / reveal / strong interpretation
-    when the first clip does not support that kind of claim.
+    Penalize hooks that imply mystery, hidden meaning, psychology,
+    exclusivity, or strong interpretation when the first clip does
+    not clearly support that kind of claim.
     Returns a positive penalty value to subtract later.
     """
     if not hook or not first_clip_text:
@@ -4112,13 +4121,25 @@ def score_hook_honesty_penalty(hook: str, first_clip_text: str) -> int:
         "what's behind",
         "what’s happening",
         "what's happening",
-        "transformation",
-        "territory",
+        "reveals more than",
+        "more than you expect",
+        "changes everything",
+        "commands",
         "owns",
-        "no questions asked",
-        "intense focus",
+        "dominates",
+        "hypnotic",
+        "quiet power",
+        "calmly here",
+        "relaxed",
         "stalking",
-        "claiming",
+        "stealth",
+        "intense focus",
+        "transformation",
+        "exclusive",
+        "only a few",
+        "no other",
+        "best",
+        "most immersive",
     ]
 
     reveal_visual_signals = [
@@ -4133,22 +4154,39 @@ def score_hook_honesty_penalty(hook: str, first_clip_text: str) -> int:
         "unexpected moment",
         "rare moment",
         "hidden detail",
+        "surprise",
+        "twist",
     ]
 
     observational_clip_signals = [
+        "walks",
         "walking",
-        "strolling",
-        "resting",
+        "moves",
+        "moving",
+        "stands",
         "standing",
-        "relaxing",
+        "sits",
+        "sitting",
+        "rests",
+        "resting",
+        "strolls",
+        "strolling",
         "exploring",
         "enclosure",
         "habitat",
-        "zoo",
-        "grassy",
-        "sunny",
         "trees",
         "rocks",
+        "grass",
+        "bar",
+        "cocktail",
+        "drink",
+        "rooftop",
+        "view",
+        "gym",
+        "pool",
+        "restaurant",
+        "room",
+        "lobby",
     ]
 
     hook_implies_inference = any(p in hook_lower for p in unsupported_inference_patterns)
@@ -4892,7 +4930,9 @@ CRITICAL RULES:
             - do NOT use words like: secret, hidden, power, control, dominance, territory, unless clearly visible
             - do NOT reduce captions to disconnected one-word labels
             - do NOT force captions into a feature list or a story if the clips do not support that
-
+            - do NOT use sequence words like: "we start", "then", "next", "finally"
+            - do NOT narrate the viewer through the clips
+            - write each caption as a standalone on-screen statement
             - captions should read naturally on screen and be easy to scan quickly
         """
 
@@ -5016,6 +5056,7 @@ CRITICAL RULES:
             - Every variant must include all caption blocks, not just the first line.
             - Preserve full sequence length.
             - If the input captions are already literal and observational, preserve that grounded style unless the selected mode clearly requires more narration.
+            - If the input captions are already factual, preserve that factual structure unless voiceover mode explicitly requires narration.
 
             Return STRICT JSON:
 
