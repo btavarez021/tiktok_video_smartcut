@@ -4819,61 +4819,65 @@ CRITICAL RULES:
                 "Do NOT change it."
             )
 
-        progression_guidance = """
-            STORY FLOW RULES:
+        if content_mode == "voiceover":
+            progression_guidance = """
+                STORY FLOW RULES:
 
-            - Captions should feel like one cohesive experience rather than unrelated highlights.
-            - Arrange moments in the most natural experiential order.
+                - Captions should feel like one cohesive spoken experience.
+                - Arrange moments in the most natural experiential order.
+                - Preserve the implied chronological flow when possible.
+                - Avoid jumping back and forth between topics unless the transition feels intentional.
+                - progression should serve the hook, not just the clip order
 
-            Preferred progression patterns include:
-            arrival / setup -> activity -> social moment -> wind-down / view
-            activity -> celebration -> relaxation
-            day -> evening -> night
-            energy -> highlight -> unwind
+                Goal: captions should feel like one continuous spoken experience.
+            """
+        else:
+            progression_guidance = """
+                CAPTION FLOW RULES:
 
-            - When multiple experiences appear (for example gym, cocktails, rooftop), arrange them in the most natural order.
-            - Preserve the implied chronological flow when possible.
-            - Avoid jumping back and forth between topics unless the transition feels intentional.
-            - Avoid repeating the same subject twice unless the experience escalates.
-            - Use the subjects mentioned in the captions to determine the most natural sequence.
-            - progression should serve the hook, not just the clip order
-
-            Goal: captions should feel like one continuous outing or hotel stay.
+                - Maintain logical clip order.
+                - Each caption should stand on its own.
+                - Do NOT force a narrative, journey, or emotional arc.
+                - Do NOT connect unrelated clips just to make them feel like one story.
+                - Keep captions grounded in the visible clip.
             """
 
-        hook_alignment_guidance = f"""
-            HOOK ALIGNMENT RULES (STRICT):
+        if content_mode == "voiceover":
+            hook_alignment_guidance = f"""
+                HOOK ALIGNMENT RULES (VOICEOVER):
 
-            - Selected hook: {selected_hook or "None"}
+                - Selected hook: {selected_hook or "None"}
 
-            - The hook is the central promise of the video.
-            - Every caption after the hook must support, reinforce, or build on that promise.
-            - Do NOT treat the middle captions as isolated clip descriptions.
-            - Do NOT write captions as a simple feature list.
+                - The hook is the central promise of the video.
+                - Every caption after the hook may support or expand that promise.
+                - Keep the script grounded in what is visibly happening.
+                - Do NOT invent dominance, hidden meaning, superiority, or emotional conclusions.
 
-            - Each middle caption should feel like evidence that the hook is true.
-            - The narrative should feel like it is exploring, proving, or paying off the hook’s idea.
-            - If the hook makes a claim about the overall experience, every caption should strengthen that claim.
+                - If the hook implies curiosity, mystery, or a reveal:
+                - build toward it only if the clips visibly support it
+                - do not force a payoff that is not shown
 
-            - If the hook implies curiosity, mystery, a secret, a hidden detail, or a reveal:
-            - build toward it across the sequence
-            - do not ignore it after the first line
-            - partially or fully pay it off by the end
+                - Avoid generic narration that could work without the hook.
+                - Each caption should feel connected to the hook’s theme without inventing evidence.
+            """
+        else:
+            hook_alignment_guidance = f"""
+                HOOK ALIGNMENT RULES (CAPTION MODE):
 
-            - If the hook implies a mood or emotional world:
-            - keep that same emotional world across all captions
-            - avoid abrupt tone changes between clips
+                - Selected hook: {selected_hook or "None"}
 
-            - Avoid generic narration that could work without the hook.
-            - Captions must remain grounded in what is visibly happening.
-            - Do NOT invent meaning beyond what is shown.   
-            - Each caption should feel connected to the hook’s theme, not just to the clip itself.
+                - The hook may set the theme, but captions must remain visually grounded.
+                - Each caption should clearly match what is happening in its clip.
+                - Light alignment to the hook is allowed, but do NOT force narrative connections.
+                - Do NOT treat middle captions as proof of the hook if that proof is not visually supported.
+                - Do NOT invent meaning, dominance, mood, or hidden details.
+                - Do NOT turn captions into a story.
 
-            BAD:
-            hook + cocktail description + gym description + rooftop description
+                GOOD:
+                hook + clear clip-based caption + clear clip-based caption + clear clip-based caption
 
-            GOOD:
-            hook + reason the experience feels different + another reinforcing moment + final payoff
+                BAD:
+                hook + invented meaning + forced connection + dramatic payoff
             """
         
         caption_mode_guidance = """
@@ -4881,19 +4885,25 @@ CRITICAL RULES:
 
             - captions must remain concise and visually grounded
             - each caption should map clearly to what is happening in the clip
+            - lightly reinforce the hook without becoming narrative
 
-            - lightly reinforce the hook without becoming overly narrative
-            - avoid long storytelling sentences or conversational phrasing
-
-            - do NOT reduce captions to a simple feature list
-            - do NOT write disconnected labels (e.g. "cocktail", "gym", "rooftop")
-
-            - each caption should feel like a short, clean statement that:
-            → reflects the clip
-            → subtly supports the hook
+            - do NOT invent meaning beyond what is shown
+            - do NOT introduce ideas not visible in the clip
+            - do NOT use words like: secret, hidden, power, control, dominance, territory, unless clearly visible
+            - do NOT reduce captions to disconnected one-word labels
+            - do NOT force captions into a feature list or a story if the clips do not support that
 
             - captions should read naturally on screen and be easy to scan quickly
-            """
+        """
+
+        comparison_safety_guidance = """
+            COMPARISON SAFETY RULE:
+
+            - do NOT compare animals or clips unless a comparison is explicitly supported by the captions
+            - do NOT imply one subject has more control, power, freedom, or presence than another
+            - do NOT invent differences between clips
+            - describe each moment independently unless a comparison is clearly visible
+        """
 
         label_override_guidance = """
             LABEL PRIORITY RULE:
@@ -5000,9 +5010,12 @@ CRITICAL RULES:
 
             {label_override_guidance}
 
+            {comparison_safety_guidance}
+
             - Do NOT return hook-only outputs.
             - Every variant must include all caption blocks, not just the first line.
             - Preserve full sequence length.
+            - If the input captions are already literal and observational, preserve that grounded style unless the selected mode clearly requires more narration.
 
             Return STRICT JSON:
 
