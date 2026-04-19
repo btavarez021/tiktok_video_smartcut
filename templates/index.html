@@ -61,19 +61,6 @@
 </div>
 </header>
 
-<div class="ai-mode-bar">
-  <div class="ai-mode-left">
-    <label class="ai-toggle">
-      <input type="checkbox" id="autoAssistToggle">
-      <span>🧠 Auto Assist</span>
-    </label>
-
-    <div class="ai-mode-subtitle hint-text subtle">
-      AI automatically improves hooks, captions, and story flow.
-    </div>
-  </div>
-</div>
-
 <!-- STEPPER NAV -->
 <nav class="stepper">
 <button class="step active" data-target="#step-1">
@@ -108,8 +95,40 @@
 <!-- LEFT MAIN COLUMN -->
 <section class="main-column">
 
+<div class="ai-mode-bar">
+  <div class="ai-mode-left">
+    <label class="ai-toggle">
+      <input type="checkbox" id="autoAssistToggle">
+      <span>🧠 Auto Assist</span>
+    </label>
 
+    <div class="ai-mode-subtitle hint-text subtle">
+      AI automatically improves hooks, captions, and story flow.
+    </div>
+  </div>
+</div>
 
+<div class="content-mode-card" id="contentModeCard">
+        <div class="content-mode-title">🎬 Content Style</div>
+
+        <div class="content-mode-options">
+            <label class="content-mode-option">
+            <input type="radio" name="contentMode" value="caption" checked>
+            <div class="content-mode-copy">
+                <span class="content-mode-name">Caption-led</span>
+                <span class="content-mode-desc">Best for aesthetic, product, and lifestyle videos.</span>
+            </div>
+            </label>
+
+            <label class="content-mode-option">
+            <input type="radio" name="contentMode" value="voiceover">
+            <div class="content-mode-copy">
+                <span class="content-mode-name">Voiceover</span>
+                <span class="content-mode-desc">Best for hotel, travel, review, and story-based videos.</span>
+            </div>
+            </label>
+        </div>
+        </div>
 <!-- ================================
     STEP 1
 ================================== -->
@@ -236,27 +255,6 @@
             </div>
         </section>
 
-        <div class="content-mode-card" id="contentModeCard">
-        <div class="content-mode-title">🎬 Content Style</div>
-
-        <div class="content-mode-options">
-            <label class="content-mode-option">
-            <input type="radio" name="contentMode" value="caption" checked>
-            <div class="content-mode-copy">
-                <span class="content-mode-name">Caption-led</span>
-                <span class="content-mode-desc">Best for aesthetic, product, and lifestyle videos.</span>
-            </div>
-            </label>
-
-            <label class="content-mode-option">
-            <input type="radio" name="contentMode" value="voiceover">
-            <div class="content-mode-copy">
-                <span class="content-mode-name">Voiceover</span>
-                <span class="content-mode-desc">Best for hotel, travel, review, and story-based videos.</span>
-            </div>
-            </label>
-        </div>
-        </div>
         <hr class="divider" />
 
         <!-- Analyze -->
