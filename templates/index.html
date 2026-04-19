@@ -236,29 +236,32 @@
             </div>
         </section>
 
+        <div class="content-mode-card" id="contentModeCard">
+        <div class="content-mode-title">🎬 Content Style</div>
+
+        <div class="content-mode-options">
+            <label class="content-mode-option">
+            <input type="radio" name="contentMode" value="caption" checked>
+            <div class="content-mode-copy">
+                <span class="content-mode-name">Caption-led</span>
+                <span class="content-mode-desc">Best for aesthetic, product, and lifestyle videos.</span>
+            </div>
+            </label>
+
+            <label class="content-mode-option">
+            <input type="radio" name="contentMode" value="voiceover">
+            <div class="content-mode-copy">
+                <span class="content-mode-name">Voiceover</span>
+                <span class="content-mode-desc">Best for hotel, travel, review, and story-based videos.</span>
+            </div>
+            </label>
+        </div>
+        </div>
         <hr class="divider" />
 
         <!-- Analyze -->
         <h3 class="section-label">3. Analyze Videos</h3>
         <div class="row">
-            <div class="content-mode-card" id="contentModeCard">
-                    <div class="content-mode-title">🎬 Content Style</div>
-                    <div class="content-mode-options">
-                        <label class="content-mode-option">
-                        <input type="radio" name="contentMode" value="caption" checked>
-                        <span>Caption-led</span>
-                        </label>
-
-                        <label class="content-mode-option">
-                        <input type="radio" name="contentMode" value="voiceover">
-                        <span>Voiceover</span>
-                        </label>
-                    </div>
-
-                    <div class="content-mode-hint" id="contentModeHint">
-                        Best for aesthetic, product, and lifestyle videos.
-                    </div>
-            </div>
         <button id="analyzeBtn" class="btn primary">🔍 Analyze clips from S3</button>
         <button id="refreshAnalysesBtn" class="btn ghost">↻ Refresh analyses</button>
         </div>

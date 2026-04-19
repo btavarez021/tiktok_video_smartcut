@@ -4340,25 +4340,53 @@ body.no-scroll {
 
 .content-mode-title {
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .content-mode-options {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 12px;
 }
 
 .content-mode-option {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
 }
 
-.content-mode-hint {
-  margin-top: 8px;
+.content-mode-option input[type="radio"] {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.content-mode-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.content-mode-name {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.content-mode-desc {
+  margin-top: 3px;
   opacity: 0.8;
   font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 600px) {
+  .content-mode-option {
+    gap: 8px;
+  }
+
+  .content-mode-desc {
+    font-size: 0.88rem;
+  }
 }
 
 .voiceover-section {
