@@ -4398,6 +4398,17 @@ body.no-scroll {
   }
 }
 
+.content-mode-card,
+.content-mode-options,
+.content-mode-option {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.content-mode-option {
+  overflow: hidden;
+}
+
 .voiceover-section {
   margin-top: 16px;
 }
