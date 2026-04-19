@@ -1875,18 +1875,21 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             HOOK HONESTY RULE:
             - only use hooks about secrets, hidden details, reveals, twists, or surprises if the first clip clearly supports that kind of payoff
-            - do not invent mystery language for observational, scenic, or mood-based clips
-            - if a hook would require inventing meaning, behavior, emotion, symbolism, exclusivity, or intention, do not generate it
-            - prefer visible action, setting, objects, movement, and proximity over interpretation
-            - when unclear, choose grounded observation over dramatic framing
+            - do not invent mystery language for calm observational clips
+            - if the footage is mainly scenic, observational, animal-focused, or mood-based, prefer visible movement, setting, beauty, or proximity over fake reveal language
+            - do not force "secret", "hidden", or "surprising" hooks unless the first clip visually suggests there is something to uncover
+            - If a hook would require inventing meaning, behavior, or intention, do not generate it
+            - Prefer grounded observation over interpretation when unclear
 
+            OBSERVATIONAL HOOK QUALITY RULE:
+            - Avoid weak observational starters like "notice how" or "watch how" unless they include a clear curiosity gap
+            - Prefer hooks that introduce a question, contrast, or something to figure out
+            - When possible, turn passive observations into active curiosity (e.g., "why", "what’s different", "what’s happening")
+            
             INFERENCE SAFETY RULE:
             - do NOT infer psychology, intent, dominance, symbolism, exclusivity, or hidden meaning unless clearly supported by the first clip
             - avoid abstract claims unless the footage visibly supports them
             - do not force “secret”, “hidden”, “surprising”, “powerful”, “commands”, or similar language unless the first clip clearly earns it
-
-
-
             
             HOOK PRIORITY:
             1. First clip visual moment
