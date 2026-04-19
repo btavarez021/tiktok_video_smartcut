@@ -241,6 +241,24 @@
         <!-- Analyze -->
         <h3 class="section-label">3. Analyze Videos</h3>
         <div class="row">
+            <div class="content-mode-card" id="contentModeCard">
+                    <div class="content-mode-title">🎬 Content Style</div>
+                    <div class="content-mode-options">
+                        <label class="content-mode-option">
+                        <input type="radio" name="contentMode" value="caption" checked>
+                        <span>Caption-led</span>
+                        </label>
+
+                        <label class="content-mode-option">
+                        <input type="radio" name="contentMode" value="voiceover">
+                        <span>Voiceover</span>
+                        </label>
+                    </div>
+
+                    <div class="content-mode-hint" id="contentModeHint">
+                        Best for aesthetic, product, and lifestyle videos.
+                    </div>
+            </div>
         <button id="analyzeBtn" class="btn primary">🔍 Analyze clips from S3</button>
         <button id="refreshAnalysesBtn" class="btn ghost">↻ Refresh analyses</button>
         </div>
@@ -382,24 +400,6 @@
     </div>
 
     <div class="card-body">
-        <div class="content-mode-card" id="contentModeCard">
-                    <div class="content-mode-title">🎬 Content Style</div>
-                    <div class="content-mode-options">
-                        <label class="content-mode-option">
-                        <input type="radio" name="contentMode" value="caption" checked>
-                        <span>Caption-led</span>
-                        </label>
-
-                        <label class="content-mode-option">
-                        <input type="radio" name="contentMode" value="voiceover">
-                        <span>Voiceover</span>
-                        </label>
-                    </div>
-
-                    <div class="content-mode-hint" id="contentModeHint">
-                        Best for aesthetic, product, and lifestyle videos.
-                    </div>
-        </div>
 
         <div class="row">
             <button class="btn secondary small" onclick="regenerateCaptionsFromClips()">
