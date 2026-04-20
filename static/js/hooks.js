@@ -103,7 +103,7 @@ async function autoPickBestHook(hooks) {
   const sorted = [...hooks].sort((a, b) => (b.score || 0) - (a.score || 0));
   const best = sorted[0];
 
-  if ((best.score || 0) < 70) return;
+  if ((best.score || 0) < 60) return;
 
   console.log("🧠 Auto Assist picked hook:", best.text);
 

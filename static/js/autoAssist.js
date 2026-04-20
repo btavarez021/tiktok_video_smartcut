@@ -102,22 +102,20 @@ const CREATIVE_ACTIONS = {
 
   if (!hook) {
     hook = getAutoAssistHookCandidate();
-
-    if (hook) {
-      window.appState.hook.selected = hook;
-      window.appState.hook.locked = true;
-      console.log("🧠 Auto Assist selected hook:", hook);
-      updateHookLockUI?.();
-      updateHookLabGuidance?.();
-    }
   }
 
-  if (window.appState?.hook?.selected) {
-    console.log("path = autoBoostSelectedHook");
-    await autoBoostSelectedHook();
-  } else {
+  if (!hook) {
     console.log("🧠 Auto Assist stopped: no hook available");
+    return;
   }
+
+  console.log("🧠 Auto Assist selecting hook through selectHook():", hook);
+
+  // ✅ use the real hook flow
+  await selectHook(hook, false);
+
+  console.log("path = autoBoostSelectedHook");
+  await autoBoostSelectedHook();
 },
 
   improve_flow: async () => {
