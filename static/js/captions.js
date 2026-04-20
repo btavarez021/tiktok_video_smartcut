@@ -44,9 +44,17 @@ async function loadCaptionsFromYaml(options = {}) {
     const cfg = data?.config || {};
     const yamlText = buildCaptionsFromConfig(cfg).trim();
 
-    // Always sync both baseline + working state to what YAML currently is
+    const hasUserOrAIOverride =
+    window.appState?.hook?.selected &&
+    workingCaptionsText &&
+    workingCaptionsText.length > 0;
+
+  if (!hasUserOrAIOverride) {
     lastSavedCaptionsText = yamlText;
     workingCaptionsText = yamlText;
+  } else {
+    console.log("🧠 Skipping YAML overwrite — active hook/captions in progress");
+  }
 
     rewritePending = false;
     clearPendingRewrite();

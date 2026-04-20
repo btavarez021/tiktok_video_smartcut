@@ -300,8 +300,11 @@ async function loadConfigAndYaml() {
       CONFIG_CACHE = null;
 
 
-      // 🔑 THIS is what you were missing
-      await loadCaptionsFromYaml();
+      if (!window.appState?.captionsDirty) {
+        await loadCaptionsFromYaml();
+      } else {
+        console.log("🧠 Skipping YAML reload after reorder — captionsDirty");
+      }
 
       if (!silent) {
         setStatus("storyboardStatus", "Clip order saved ✓", "success");
@@ -360,11 +363,20 @@ async function hydrateStoryboardAndScroll() {
   CONFIG_CACHE = null;
  
   await loadConfigAndYaml();
-  await loadCaptionsFromYaml();
+  if (!window.appState?.captionsDirty) {
+    await loadCaptionsFromYaml();
+  } else {
+    console.log("🧠 Skipping YAML hydration — captions already modified");
+  }
   await loadSessionContext();
   await loadContentContext();
 
-  workingCaptionsText = lastSavedCaptionsText;
+  if (!window.appState?.captionsDirty) {
+    await loadCaptionsFromYaml();
+    workingCaptionsText = lastSavedCaptionsText;
+  } else {
+    console.log("🧠 Skipping YAML hydration — captionsDirty");
+  }
   captionViewMode = "rewritten";
   renderCaptionView();
 

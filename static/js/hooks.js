@@ -234,6 +234,8 @@ async function autoPickBestHook(hooks) {
   }
 
 async function selectHook(text, isUser = true) {
+
+  window.appState.captionsDirty = true;
   const state = window.appState || {};
   state.hook = state.hook || {};
 
@@ -536,9 +538,9 @@ async function autoBoostSelectedHook() {
     window.appState.hook.userSelected = false;
     updateHookLockUI();
 
-    // refresh YAML + captions from backend truth
     await loadConfigAndYaml();
-    await loadCaptionsFromYaml({ preserveSource: true });
+    // ❌ DO NOT reload captions here
+    // await loadCaptionsFromYaml({ preserveSource: true });
 
 
     toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
