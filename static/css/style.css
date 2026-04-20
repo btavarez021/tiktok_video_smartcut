@@ -4134,6 +4134,21 @@ body.no-scroll {
   cursor: pointer;
 }
 
+.setting-option:hover,
+.content-mode-option:hover {
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+}
+
+.content-mode-option input:checked + .content-mode-copy .content-mode-name {
+  color: #4da3ff;
+}
+
+.setting-option,
+.content-mode-option {
+  padding: 6px 4px;
+}
+
 .setting-option input[type="checkbox"],
 .content-mode-option input[type="radio"] {
   margin: 2px 0 0 0;
@@ -4401,6 +4416,16 @@ body.no-scroll {
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.content-mode-fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.content-mode-fieldset legend {
+  margin-bottom: 8px;
 }
 
 @media (max-width: 600px) {

@@ -92,51 +92,52 @@
 <!-- MAIN GRID (2 columns) -->
 <main class="layout">
 
-<section class="card preflight-card" id="preflightControls">
-  <div class="card-header">
-    <h2>Before You Start</h2>
-    <p class="card-subtitle">Choose how AI should help shape this reel.</p>
-  </div>
-
-  <div class="card-body preflight-grid">
-
-    <div class="setting-card">
-      <label class="setting-option">
-        <input type="checkbox" id="autoAssistToggle">
-        <div class="setting-copy">
-          <span class="setting-name">🧠 Auto Assist</span>
-          <span class="setting-desc">AI automatically improves hooks, captions, and story flow.</span>
-        </div>
-      </label>
-    </div>
-
-    <div class="setting-card">
-      <div class="setting-name">🎬 Content Style</div>
-
-      <div class="content-mode-options">
-        <label class="content-mode-option">
-          <input type="radio" name="contentMode" value="caption" checked>
-          <div class="content-mode-copy">
-            <span class="content-mode-name">Caption-led</span>
-            <span class="content-mode-desc">Best for aesthetic, product, and lifestyle videos.</span>
-          </div>
-        </label>
-
-        <label class="content-mode-option">
-          <input type="radio" name="contentMode" value="voiceover">
-          <div class="content-mode-copy">
-            <span class="content-mode-name">Voiceover</span>
-            <span class="content-mode-desc">Best for hotel, travel, review, and story-based videos.</span>
-          </div>
-        </label>
-      </div>
-    </div>
-
-  </div>
-</section>    
-
 <!-- LEFT MAIN COLUMN -->
 <section class="main-column">
+
+<section class="card preflight-card" id="preflightControls">
+    <div class="card-header">
+        <h2>Before You Start</h2>
+        <p class="card-subtitle">Choose how AI should help shape this reel.</p>
+    </div>
+
+<div class="card-body preflight-grid">
+    <div class="setting-card">
+        <label class="setting-option">
+        <input type="checkbox" id="autoAssistToggle">
+        <div class="setting-copy">
+            <span class="setting-name">🧠 Auto Assist</span>
+            <span class="setting-desc">AI automatically improves hooks, captions, and story flow.</span>
+        </div>
+        </label>
+    </div>
+
+    <div class="setting-card">
+        <fieldset class="content-mode-fieldset">
+        <legend class="setting-name">🎬 Content Style</legend>
+
+        <div class="content-mode-options">
+        <label class="content-mode-option">
+            <input type="radio" name="contentMode" value="caption" checked>
+            <div class="content-mode-copy">
+            <span class="content-mode-name">Caption-led</span>
+            <span class="content-mode-desc">Best for aesthetic, product, and lifestyle videos.</span>
+            </div>
+        </label>
+
+        <label class="content-mode-option">
+            <input type="radio" name="contentMode" value="voiceover">
+            <div class="content-mode-copy">
+            <span class="content-mode-name">Voiceover</span>
+            <span class="content-mode-desc">Best for hotel, travel, review, and story-based videos.</span>
+            </div>
+        </label>
+        </div>
+        </fieldset>
+    </div>
+
+</div>
+</section>    
 
 <!-- ================================
     STEP 1
