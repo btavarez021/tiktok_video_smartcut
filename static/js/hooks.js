@@ -547,6 +547,8 @@ async function autoBoostSelectedHook() {
     toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
 
     setStatus("hookLabStatus", "Auto optimization complete ✓", "success");
+
+    await loadConfigAndYaml();
     await refreshAfterChange();
 
     } catch (e) {

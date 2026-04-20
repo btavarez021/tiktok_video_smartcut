@@ -363,13 +363,6 @@ async function hydrateStoryboardAndScroll() {
   CONFIG_CACHE = null;
  
   await loadConfigAndYaml();
-  if (!window.appState?.captionsDirty) {
-    await loadCaptionsFromYaml();
-  } else {
-    console.log("🧠 Skipping YAML hydration — captions already modified");
-  }
-  await loadSessionContext();
-  await loadContentContext();
 
   if (!window.appState?.captionsDirty) {
     await loadCaptionsFromYaml();
@@ -377,6 +370,10 @@ async function hydrateStoryboardAndScroll() {
   } else {
     console.log("🧠 Skipping YAML hydration — captionsDirty");
   }
+
+  await loadSessionContext();
+  await loadContentContext();
+
   captionViewMode = "rewritten";
   renderCaptionView();
 
