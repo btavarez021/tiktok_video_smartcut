@@ -239,7 +239,7 @@ async function selectHook(text, isUser = true) {
   const state = window.appState || {};
   state.hook = state.hook || {};
 
-  if (state.hook.locked && state.hook.selected !== text && state.hook.userSelected) {
+  if (state.hook.locked && state.hook.userSelected && state.hook.selected !== text) {
     setStatus("hookLabStatus", "🔒 Hook locked — clear to change", "info");
     return;
   }
@@ -296,11 +296,19 @@ function clearSelectedHook() {
   state.hook.locked = false;
   state.hook.userSelected = false;
 
-  workingCaptionsText = lastSavedCaptionsText || workingCaptionsText || "";
+  // 🔥 IMPORTANT
+  window.appState.captionsDirty = false;
+
+  workingCaptionsText = lastSavedCaptionsText || "";
+
+  const editor = document.getElementById("captionsText");
+  if (editor) editor.value = workingCaptionsText;
 
   updateHookLockUI();
   renderStep3Diff(lastSavedCaptionsText || "", workingCaptionsText || "");
   refreshAfterChange();
+
+  console.log("🧠 Hook cleared — unlocked");
 }
 
   function updateHookLockUI() {

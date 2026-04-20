@@ -466,7 +466,7 @@ Opening clip order review…`;
   }
 
 
-  async function handleStoryboardContinue() {
+async function handleStoryboardContinue() {
   if (STORYBOARD_CONTINUE_RUNNING) {
     console.log("🧠 Storyboard continue skipped: already running");
     return;
@@ -478,8 +478,13 @@ Opening clip order review…`;
     const autoAssist = window.appState?.settings?.autoAssist === true;
 
     if (autoAssist) {
-      console.log("🧠 Auto Assist triggered from storyboard");
-      await runCreativeEngine("storyboard_complete");
+      // don't re-run Auto Assist if a hook is already selected
+      if (window.appState?.hook?.selected) {
+        console.log("🧠 Skipping Auto Assist — hook already chosen");
+      } else {
+        console.log("🧠 Auto Assist triggered from storyboard");
+        await runCreativeEngine("storyboard_complete");
+      }
     }
 
     await goToHookLab();
