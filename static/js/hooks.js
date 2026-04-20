@@ -531,6 +531,8 @@ async function autoBoostSelectedHook() {
 
     CONFIG_CACHE = null;
     lastSavedCaptionsText = newCaptions;
+    workingCaptionsText = newCaptions;
+    window.appState.captionsDirty = true;
 
     // keep hook state in sync with boosted result
     window.appState.hook.selected = newHook;
@@ -538,10 +540,9 @@ async function autoBoostSelectedHook() {
     window.appState.hook.userSelected = false;
     updateHookLockUI();
 
-    await loadConfigAndYaml();
-    // ❌ DO NOT reload captions here
-    // await loadCaptionsFromYaml({ preserveSource: true });
-
+    // force Step 3 editor to show the committed text
+    captionViewMode = "rewritten";
+    renderCaptionView();
 
     toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
 
