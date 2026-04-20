@@ -54,7 +54,7 @@ async function generateHooks() {
       updateHookLabGuidance();
 
       if (isAutoAssistEnabled()) {
-        autoPickBestHook(hooks);
+        await autoPickBestHook(hooks);
       }
 
       requestAnimationFrame(() => {
@@ -94,10 +94,10 @@ async function generateHooks() {
   }
 
 
-function autoPickBestHook(hooks) {
+async function autoPickBestHook(hooks) {
   if (!Array.isArray(hooks) || hooks.length === 0) return;
 
-  // don't override a manual user choice
+  // only manual user choice should block auto-pick
   if (window.appState?.hook?.userSelected) return;
 
   const sorted = [...hooks].sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -107,8 +107,7 @@ function autoPickBestHook(hooks) {
 
   console.log("🧠 Auto Assist picked hook:", best.text);
 
-  selectHook(best.text, false);
-  setStatus("hookLabStatus", "🧠 AI selected best hook", "success");
+  await selectHook(best.text, false);
 }
 
   function renderHookLab(hooks) {
@@ -234,7 +233,7 @@ function autoPickBestHook(hooks) {
     if (lab) lab.classList.remove("hidden");
   }
 
-function selectHook(text, isUser = true) {
+async function selectHook(text, isUser = true) {
   const state = window.appState || {};
   state.hook = state.hook || {};
 
@@ -259,9 +258,32 @@ function selectHook(text, isUser = true) {
     workingCaptionsText = blocks.join("\n\n");
   }
 
+  // ✅ keep textarea in sync
+  const editor = document.getElementById("captionsText");
+  if (editor) {
+    editor.value = workingCaptionsText;
+  }
+
   updateHookLockUI();
   renderStep3Diff(lastSavedCaptionsText || "", workingCaptionsText || "");
-  refreshAfterChange();
+
+  // ✅ persist to backend so refresh/reload doesn't revert it
+  try {
+    await jsonFetch("/api/save_captions", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        text: workingCaptionsText,
+      }),
+    });
+
+    CONFIG_CACHE = null;
+    lastSavedCaptionsText = workingCaptionsText;
+  } catch (err) {
+    console.error("Failed to save auto-selected hook:", err);
+  }
+
+  await refreshAfterChange();
 }
 
 function clearSelectedHook() {
