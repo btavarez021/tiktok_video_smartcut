@@ -198,7 +198,7 @@ async function loadConfigAndYaml() {
     container.innerHTML = "";
 
     // Initialize working order once
-    if (!workingClipOrder.length) {
+    if (!clipOrderDirty) {
       workingClipOrder = [];
       if (cfg.first_clip) workingClipOrder.push(cfg.first_clip);
       (cfg.middle_clips || []).forEach(c => workingClipOrder.push(c));
@@ -361,7 +361,7 @@ async function loadConfigAndYaml() {
 
 async function hydrateStoryboardAndScroll() {
   CONFIG_CACHE = null;
- 
+
   await loadConfigAndYaml();
 
   if (!window.appState?.captionsDirty) {
@@ -381,26 +381,16 @@ async function hydrateStoryboardAndScroll() {
   updateLoadYamlVisibility();
   updateAIRecommendationBar();
 
-  // 🔥 Option A: auto-generate hooks once storyboard is ready
   if (!window.appState.hook.lastGenerated?.length) {
-    generateHooks(); // runs async, sets hooksReady + renders if lab is open
+    generateHooks();
   }
 
   if (PENDING_SCROLL_TO_STORYBOARD) {
     PENDING_SCROLL_TO_STORYBOARD = false;
-
     await showStoryboardHandoffMessage();
-
     activateStep("#step-3");
-
     const el = document.getElementById("storyboardTimeline");
-
-    el?.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
-
-    // wait for smooth scroll to settle slightly
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
     setTimeout(() => {
       highlightStoryboardTimeline();
     }, 500);
@@ -408,7 +398,6 @@ async function hydrateStoryboardAndScroll() {
 
   await refreshAfterChange();
 }
-
 
 function showStoryboardHandoffMessage() {
   return new Promise(resolve => {
