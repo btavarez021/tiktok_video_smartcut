@@ -53,12 +53,20 @@ async function generateHooks() {
       renderHookLab(hooks);
       updateHookLabGuidance();
 
+      if (isAutoAssistEnabled()) {
+        autoPickBestHook(hooks);
+      }
+
       requestAnimationFrame(() => {
         out?.classList.add("show");
       });
 
       if (status) {
-        status.textContent = `✓ ${hooks.length} hooks generated`;
+        if (isAutoAssistEnabled() && !window.appState?.hook?.userSelected && window.appState?.hook?.selected) {
+          status.textContent = "🧠 AI selected best hook";
+        } else {
+          status.textContent = `✓ ${hooks.length} hooks generated`;
+        }
         status.className = "hook-lab-status success";
       }
 
@@ -85,6 +93,23 @@ async function generateHooks() {
     });
   }
 
+
+function autoPickBestHook(hooks) {
+  if (!Array.isArray(hooks) || hooks.length === 0) return;
+
+  // don't override a manual user choice
+  if (window.appState?.hook?.userSelected) return;
+
+  const sorted = [...hooks].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const best = sorted[0];
+
+  if ((best.score || 0) < 70) return;
+
+  console.log("🧠 Auto Assist picked hook:", best.text);
+
+  selectHook(best.text, false);
+  setStatus("hookLabStatus", "🧠 AI selected best hook", "success");
+}
 
   function renderHookLab(hooks) {
     const out = document.getElementById("hookLabOutput");
@@ -123,7 +148,7 @@ async function generateHooks() {
 
         // 🔒 GLOBAL RULE:
         // If user selected ANY hook, AI visuals are suppressed
-        const allowAiHighlight = !window.appState.hook.selected;
+        const allowAiHighlight = !window.appState.hook.userSelected;
 
         if (isSelected) {
           card.classList.add("selected");
@@ -193,7 +218,7 @@ async function generateHooks() {
         card.appendChild(textSpan);
         card.appendChild(scoreSpan);
 
-        card.addEventListener("click", () => selectHook(h.text));
+        card.addEventListener("click", () => selectHook(h.text, true));
 
         out.appendChild(card);
       });
@@ -209,16 +234,18 @@ async function generateHooks() {
     if (lab) lab.classList.remove("hidden");
   }
 
-  function selectHook(text) {
+function selectHook(text, isUser = true) {
   const state = window.appState || {};
+  state.hook = state.hook || {};
 
-  if (state.hook.locked && state.hook.selected !== text) {
+  if (state.hook.locked && state.hook.selected !== text && state.hook.userSelected) {
     setStatus("hookLabStatus", "🔒 Hook locked — clear to change", "info");
     return;
   }
 
   state.hook.selected = text;
   state.hook.locked = true;
+  state.hook.userSelected = isUser;
 
   const current = getCurrentCaptionsText();
   const blocks = current
@@ -239,9 +266,11 @@ async function generateHooks() {
 
 function clearSelectedHook() {
   const state = window.appState || {};
+  state.hook = state.hook || {};
 
   state.hook.selected = null;
   state.hook.locked = false;
+  state.hook.userSelected = false;
 
   workingCaptionsText = lastSavedCaptionsText || workingCaptionsText || "";
 

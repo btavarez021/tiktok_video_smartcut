@@ -149,6 +149,10 @@ async function loadContentContext() {
   }
 }
 
+function isAutoAssistEnabled() {
+  return document.getElementById("autoAssistToggle")?.checked;
+}
+
 async function loadAutoAssistSetting() {
   try {
     const data = await getConfigCached(true);
