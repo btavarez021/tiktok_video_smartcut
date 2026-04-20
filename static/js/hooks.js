@@ -530,11 +530,21 @@ async function autoBoostSelectedHook() {
     CONFIG_CACHE = null;
     lastSavedCaptionsText = newCaptions;
 
+    // keep hook state in sync with boosted result
+    window.appState.hook.selected = newHook;
+    window.appState.hook.locked = true;
+    window.appState.hook.userSelected = false;
+    updateHookLockUI();
 
-      toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
+    // refresh YAML + captions from backend truth
+    await loadConfigAndYaml();
+    await loadCaptionsFromYaml({ preserveSource: true });
 
-      setStatus("hookLabStatus", "Auto optimization complete ✓", "success");
-      await refreshAfterChange();
+
+    toast?.(`✨ Best score ${bestScore} after ${attempts} attempts`);
+
+    setStatus("hookLabStatus", "Auto optimization complete ✓", "success");
+    await refreshAfterChange();
 
     } catch (e) {
       console.error(e);

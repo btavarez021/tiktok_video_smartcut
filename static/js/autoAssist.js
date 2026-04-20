@@ -109,12 +109,7 @@ const CREATIVE_ACTIONS = {
     return;
   }
 
-  console.log("🧠 Auto Assist selecting hook through selectHook():", hook);
-
-  // ✅ use the real hook flow
   await selectHook(hook, false);
-
-  console.log("path = autoBoostSelectedHook");
   await autoBoostSelectedHook();
 },
 
