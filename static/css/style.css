@@ -4111,38 +4111,70 @@ body.no-scroll {
   100% { transform: scale(1); }
 }
 
-.ai-mode-bar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+.preflight-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
 }
 
-.ai-mode-left {
-  flex: 1;
+.setting-card {
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+}
+
+.setting-option,
+.content-mode-option {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: start;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.setting-option input[type="checkbox"],
+.content-mode-option input[type="radio"] {
+  margin: 2px 0 0 0;
+  width: 18px;
+  height: 18px;
+}
+
+.setting-copy,
+.content-mode-copy {
   min-width: 0;
+  width: 100%;
 }
 
-.ai-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.setting-name,
+.content-mode-name {
+  display: block;
   font-weight: 600;
+  line-height: 1.2;
 }
 
-.ai-mode-subtitle {
+.setting-desc,
+.content-mode-desc {
+  display: block;
   margin-top: 4px;
+  opacity: 0.8;
+  font-size: 0.92rem;
   line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 640px) {
-  .ai-mode-bar {
-    display: block;
+  .setting-option,
+  .content-mode-option {
+    grid-template-columns: 18px minmax(0, 1fr);
+    column-gap: 8px;
   }
 
-  .ai-mode-subtitle {
-    margin-top: 6px;
-    padding-left: 0;
+  .setting-desc,
+  .content-mode-desc {
+    font-size: 0.88rem;
   }
 }
 
@@ -4331,30 +4363,8 @@ body.no-scroll {
   background: rgba(255,255,255,0.04);
 }
 
-.content-mode-card {
-  margin-bottom: 16px;
-  padding: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 12px;
-  overflow: hidden;
-  box-sizing: border-box;
-  width: 100%;
-}
-
-.content-mode-title {
-  font-weight: 600;
-  margin-bottom: 10px;
-}
-
-.content-mode-options {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-}
-
 .content-mode-option {
-  display: grid !important;
+  display: grid;
   grid-template-columns: 20px minmax(0, 1fr);
   column-gap: 10px;
   align-items: start;
@@ -4373,7 +4383,6 @@ body.no-scroll {
 
 .content-mode-copy {
   min-width: 0;
-  width: 100%;
 }
 
 .content-mode-name {
