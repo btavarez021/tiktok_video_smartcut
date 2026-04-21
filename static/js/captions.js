@@ -359,7 +359,13 @@ async function applyCaptionVariant(text, meta = {}) {
     updateHooksReadyUI();
 
     await loadConfigAndYaml();
+    await loadCaptionsFromYaml({ preserveSource: true });
     await refreshOverlayPreview();
+
+    lastSavedCaptionsText = text;
+    workingCaptionsText = text;
+    captionViewMode = "rewritten";
+    renderCaptionView();
 
     renderStep3Diff(originalText, text);
     focusCaptionChanges();
