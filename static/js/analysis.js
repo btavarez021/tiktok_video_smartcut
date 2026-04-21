@@ -133,8 +133,10 @@
   await loadConfigAndYaml();
   await loadCaptionsFromYaml();
 
-  const summary = await loadAISetupSummary();   // ✅ renders the panels
+
+  const summary = await loadAISetupSummary();
   await autoSelectIntentFromReadiness(summary);
+  await autoSelectContentContextFromReadiness(summary);
 
     // 🔥 AUTO-ADVANCE TO STORYBOARD (safe guard)
   const yamlStatus = await jsonFetch(
@@ -177,6 +179,45 @@
     }
   }
 
+async function autoSelectContentContextFromReadiness(summary) {
+  if (!summary) return;
+
+  const select = document.getElementById("contentContext");
+  if (!select) return;
+
+  // only auto-set if user hasn't changed it
+  const current = select.value || "auto";
+  if (current !== "auto") return;
+
+  const signals = Array.isArray(summary?.signals) ? summary.signals.join(" ").toLowerCase() : "";
+  const recommendedGoal = (summary?.recommended_goal || "").toLowerCase();
+
+  let context = "auto";
+
+  if (signals.includes("hotel")) context = "hotel stay";
+  else if (signals.includes("zoo")) context = "adventure";
+  else if (signals.includes("travel")) context = "travel vlog";
+  else if (signals.includes("restaurant")) context = "restaurant";
+  else if (signals.includes("cocktail") || signals.includes("bar")) context = "cocktails / bar";
+  else if (signals.includes("gym") || signals.includes("fitness")) context = "fitness";
+  else if (recommendedGoal.includes("luxury")) context = "luxury experience";
+
+  if (context === "auto") return;
+
+  select.value = context;
+
+  await jsonFetch("/api/session/context", {
+    method: "POST",
+    body: JSON.stringify({
+      session: getActiveSession(),
+      context
+    })
+  });
+
+  CONFIG_CACHE = null;
+
+  setStatus("hookLabStatus", `AI set content context → ${context}`, "info");
+}
 
 function renderSessionContext(data) {
   const el = document.getElementById("sessionContextSummary");
