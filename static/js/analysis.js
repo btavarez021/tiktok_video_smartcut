@@ -136,7 +136,7 @@
 
   const summary = await loadAISetupSummary();
   await autoSelectIntentFromReadiness(summary);
-  await autoSelectContentContextFromReadiness(summary);
+  await autoSelectContentContextFromReadiness();
 
     // 🔥 AUTO-ADVANCE TO STORYBOARD (safe guard)
   const yamlStatus = await jsonFetch(
@@ -351,19 +351,40 @@ function renderSessionContext(data) {
   }
 
 
-    async function loadSessionContext() {
-    try {
-      const data = await jsonFetch(
-        `/api/session_context?session=${encodeURIComponent(getActiveSession())}`
-      );
+async function autoSelectContentContextFromReadiness() {
+  const select = document.getElementById("contentContext");
+  if (!select) return;
 
-      renderSessionContext(data);
-      return data;
-    } catch (err) {
-      console.warn("Failed to load session context", err);
-      return null;
-    }
-  }
+  const current = select.value || "auto";
+  if (current !== "auto") return;
+
+  const contextData = await loadSessionContext();
+  const label = (contextData?.label || "").toLowerCase();
+
+  let context = "auto";
+
+  if (label.includes("hotel")) context = "hotel stay";
+  else if (label.includes("travel")) context = "travel vlog";
+  else if (label.includes("zoo")) context = "adventure";
+  else if (label.includes("restaurant")) context = "restaurant";
+  else if (label.includes("bar") || label.includes("cocktail")) context = "cocktails / bar";
+  else if (label.includes("fitness") || label.includes("gym")) context = "fitness";
+
+  if (context === "auto") return;
+
+  select.value = context;
+
+  await jsonFetch("/api/session/context", {
+    method: "POST",
+    body: JSON.stringify({
+      session: getActiveSession(),
+      context
+    })
+  });
+
+  CONFIG_CACHE = null;
+  setStatus("hookLabStatus", `AI set content context → ${context}`, "info");
+}
 
     // Clear old analysis results whenever switching sessions
   function clearAnalysisUI() {
