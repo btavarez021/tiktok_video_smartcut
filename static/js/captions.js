@@ -224,6 +224,14 @@ function renderStep3Diff(oldText, newText) {
 
   if (!grid || !wrapper || !scroll) return;
 
+  const oldNormalized = (oldText || "").trim();
+  const newNormalized = (newText || "").trim();
+
+  if (oldNormalized === newNormalized) {
+    wrapper.classList.add("hidden");
+    return;
+  }
+
   const oldLines = (oldText || "")
     .split("\n")
     .map((l) => l.trim())

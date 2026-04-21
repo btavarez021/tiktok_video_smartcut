@@ -752,19 +752,22 @@ async function autoBoostSelectedHook() {
     if (move === "auto") auto?.classList.add("pulse");
   }
 
-  async function goToHookLab() {
+async function goToHookLab() {
   await loadConfigAndYaml();
-  await loadCaptionsFromYaml();
+
+  if (!window.appState?.captionsDirty) {
+    await loadCaptionsFromYaml();
+  } else {
+    console.log("🧠 Skipping caption reload in goToHookLab — captionsDirty");
+  }
 
   setVariantsDrawerOpen(true);
   document.getElementById("hookLab")?.classList.remove("hidden");
 
-  // if hooks exist, show them, otherwise generate
   const hooks = window.appState.hook.lastGenerated;
 
-if (hooks?.length) {
-  renderHookLab(hooks);
-
+  if (hooks?.length) {
+    renderHookLab(hooks);
   } else {
     await generateHooks();
   }
