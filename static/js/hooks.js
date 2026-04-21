@@ -260,6 +260,24 @@ async function selectHook(text, isUser = true) {
     workingCaptionsText = blocks.join("\n\n");
   }
 
+  const updatedBlocks = workingCaptionsText
+  .split(/\n\s*\n/)
+  .map(b => b.trim())
+  .filter(Boolean);
+
+if (workingClipOrder.length) {
+  workingClipOrder = workingClipOrder.map((clip, i) => ({
+    ...clip,
+    text: updatedBlocks[i] ?? clip.text
+  }));
+
+  renderStoryboardTimeline({
+    first_clip: workingClipOrder[0],
+    middle_clips: workingClipOrder.slice(1, -1),
+    last_clip: workingClipOrder[workingClipOrder.length - 1]
+  });
+}
+
   // ✅ keep textarea in sync
   const editor = document.getElementById("captionsText");
   if (editor) {
@@ -281,6 +299,12 @@ async function selectHook(text, isUser = true) {
 
     CONFIG_CACHE = null;
     lastSavedCaptionsText = workingCaptionsText;
+    workingCaptionsText = lastSavedCaptionsText;
+    await loadConfigAndYaml();
+
+    captionViewMode = 'rewritten';
+    renderCaptionView();
+
   } catch (err) {
     console.error("Failed to save auto-selected hook:", err);
   }
