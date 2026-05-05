@@ -371,7 +371,11 @@ async function hydrateStoryboardAndScroll() {
     console.log("🧠 Skipping YAML hydration — captionsDirty");
   }
 
-  await loadSessionContext();
+  const contextData = await jsonFetch(
+    `/api/session_context?session=${encodeURIComponent(getActiveSession())}`
+  );
+
+  renderSessionContext(contextData);
   await loadContentContext();
 
   captionViewMode = "rewritten";
