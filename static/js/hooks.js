@@ -1,4 +1,6 @@
 async function generateHooks() {
+
+    await autoSelectContentContextFromReadiness();
     const btn = document.getElementById("generateHooksBtn");
     const status = document.getElementById("hookLabStatus");
 
@@ -27,10 +29,11 @@ async function generateHooks() {
       res = await jsonFetch("/api/hooks", {
         method: "POST",
         body: JSON.stringify({
-          session: getActiveSession(),
-          intent: window.appState?.hook?.intent || "discovery",
-          content_mode: getContentMode()
-        })
+        session: getActiveSession(),
+        intent: window.appState?.hook?.intent || "discovery",
+        content_mode: getContentMode(),
+        content_context: document.getElementById("contentContext")?.value || "auto"
+      })
       });
 
     } catch (e) {
@@ -299,6 +302,7 @@ if (workingClipOrder.length) {
 
     CONFIG_CACHE = null;
     lastSavedCaptionsText = workingCaptionsText;
+    window.appState.captionsDirty = false;
     workingCaptionsText = lastSavedCaptionsText;
     await loadConfigAndYaml();
 

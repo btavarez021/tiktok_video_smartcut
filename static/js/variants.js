@@ -443,6 +443,7 @@ function renderVariantCard(num, variant, cardId) {
 
       await loadConfigAndYaml();
       await loadCaptionsFromYaml();
+      window.appState.captionsDirty = false;
       await refreshAfterChange();
 
       setStatus("captionsStatus", "AI recommendation applied ✓", "success");
@@ -498,6 +499,7 @@ function renderVariantCard(num, variant, cardId) {
 
     await loadConfigAndYaml();
     await loadCaptionsFromYaml();
+    window.appState.captionsDirty = false;
     await refreshAfterChange();
 
 

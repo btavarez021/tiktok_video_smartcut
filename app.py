@@ -329,18 +329,25 @@ def api_set_label_route():
 
 @app.route("/repair_label", methods=["POST"])
 def repair_label_route():
-    data = request.json
-    file = data["file"]
-    label = data["label"]
-    session = sanitize_session(data["session"])
+    try:
+        data = request.get_json(silent=True) or {}
+        file = data.get("file")
+        label = data.get("label", "")
+        session = sanitize_session(data.get("session", "default"))
 
-    fixed = repair_label(
-        filename=file,
-        label=label,
-        session=session
-    )
+        if not file:
+            return jsonify({"fixed_label": ""}), 200
 
-    return jsonify({"fixed_label": fixed})
+        fixed = repair_label(
+            filename=file,
+            label=label,
+            session=session
+        )
+
+        return jsonify({"fixed_label": fixed or ""})
+    except Exception as e:
+        app.logger.exception("repair_label failed")
+        return jsonify({"fixed_label": ""}), 200
 
 @app.route("/api/hooks", methods=["POST"])
 def route_generate_hooks():
@@ -348,6 +355,12 @@ def route_generate_hooks():
         data = request.get_json(force=True) or {}
         session = sanitize_session(data.get("session", "default"))
         intent = data.get("intent")
+        content_context = data.get("content_context")
+
+        if content_context:
+            cfg = load_config(session) or {}
+            cfg["content_context"] = content_context
+            save_config(session, cfg)
 
         from assistant_api import api_generate_hooks
         result = api_generate_hooks(session, intent=intent)
@@ -356,10 +369,7 @@ def route_generate_hooks():
 
     except Exception as e:
         print("HOOK ROUTE ERROR:", e)
-        return jsonify({
-            "hooks": [],
-            "error": str(e)
-        }), 500
+        return jsonify({"hooks": [], "error": str(e)}), 500
 
 
 # -----------------------------------------
@@ -397,11 +407,12 @@ def route_hook_improve():
 def route_hook_autoboost():
     data = request.get_json(force=True) or {}
 
+    session = sanitize_session(data.get("session", "default"))
     hook = data.get("hook", "")
     intent = data.get("intent", "discovery")
 
     try:
-        result = auto_optimize_hook(hook, intent)
+        result = auto_optimize_hook(session, hook, intent)
         return jsonify({"status": "ok", **result})
     except Exception as e:
         print("auto boost error:", e)
@@ -480,9 +491,18 @@ def analyze_status_route():
 @app.route("/api/variants/start", methods=["POST"])
 def route_variants_start():
     data = request.get_json() or {}
+
+    session = sanitize_session(data.get("session", "default"))
+    content_context = data.get("content_context")
+
+    if content_context:
+        cfg = load_config(session) or {}
+        cfg["content_context"] = content_context
+        save_config(session, cfg)
+
     return jsonify(
         api_generate_variants_start(
-            data.get("session", "default"),
+            session,
             data.get("modes", {}),
             data.get("selected_hook"),
             data.get("content_mode", "caption"),

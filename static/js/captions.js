@@ -49,11 +49,12 @@ async function loadCaptionsFromYaml(options = {}) {
     workingCaptionsText &&
     workingCaptionsText.length > 0;
 
-  if (!hasUserOrAIOverride) {
+  if (!window.appState?.captionsDirty) {
     lastSavedCaptionsText = yamlText;
     workingCaptionsText = yamlText;
+    window.appState.captionsDirty = false;
   } else {
-    console.log("🧠 Skipping YAML overwrite — active hook/captions in progress");
+    console.log("🧠 Skipping YAML overwrite — captionsDirty");
   }
 
     rewritePending = false;
