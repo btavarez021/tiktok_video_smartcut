@@ -186,46 +186,40 @@ async function autoSelectContentContextFromReadiness() {
   const current = select.value || "auto";
   if (current !== "auto") return;
 
+  const contextData = await jsonFetch(
+    `/api/session_context?session=${encodeURIComponent(getActiveSession())}`
+  );
+
+  const label = (contextData?.label || "").toLowerCase();
+  const signals = Array.isArray(contextData?.signals)
+    ? contextData.signals.join(" ").toLowerCase()
+    : "";
+
+  const haystack = `${label} ${signals}`;
+
   let context = "auto";
 
-  try {
-    const data = await jsonFetch(
-      `/api/session_context?session=${encodeURIComponent(getActiveSession())}`
-    );
+  if (haystack.includes("hotel")) context = "hotel stay";
+  else if (haystack.includes("zoo")) context = "adventure";
+  else if (haystack.includes("travel")) context = "travel vlog";
+  else if (haystack.includes("restaurant")) context = "restaurant";
+  else if (haystack.includes("bar") || haystack.includes("cocktail")) context = "cocktails / bar";
+  else if (haystack.includes("fitness") || haystack.includes("gym")) context = "fitness";
 
-    const label = (data?.label || "").toLowerCase();
-    const signals = Array.isArray(data?.signals)
-      ? data.signals.join(" ").toLowerCase()
-      : "";
+  if (context === "auto") return;
 
-    const combined = `${label} ${signals}`;
+  select.value = context;
 
-    if (combined.includes("hotel")) context = "hotel stay";
-    else if (combined.includes("zoo")) context = "adventure";
-    else if (combined.includes("travel")) context = "travel vlog";
-    else if (combined.includes("restaurant")) context = "restaurant";
-    else if (combined.includes("cocktail") || combined.includes("bar")) context = "cocktails / bar";
-    else if (combined.includes("gym") || combined.includes("fitness")) context = "fitness";
-    else if (combined.includes("luxury")) context = "luxury experience";
+  await jsonFetch("/api/session/context", {
+    method: "POST",
+    body: JSON.stringify({
+      session: getActiveSession(),
+      context
+    })
+  });
 
-    if (context === "auto") return;
-
-    select.value = context;
-
-    await jsonFetch("/api/session/context", {
-      method: "POST",
-      body: JSON.stringify({
-        session: getActiveSession(),
-        context
-      })
-    });
-
-    CONFIG_CACHE = null;
-
-    setStatus("hookLabStatus", `AI set content context → ${context}`, "info");
-  } catch (err) {
-    console.warn("Failed to auto-select content context", err);
-  }
+  CONFIG_CACHE = null;
+  setStatus("hookLabStatus", `AI set content context → ${context}`, "info");
 }
 
 function renderSessionContext(data) {
