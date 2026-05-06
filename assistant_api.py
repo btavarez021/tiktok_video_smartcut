@@ -4734,17 +4734,7 @@ def api_generate_variants(
     cfg = _load_config(session) or {}
     session_context = infer_session_context(session)
     content_context = cfg.get("content_context", "auto")
-    context_guidance = ""
 
-    if content_context != "auto":
-        context_guidance = f"""
-            CONTENT CONTEXT:
-            This reel should feel like: {content_context}
-
-            Use this only to guide wording, tone, and framing.
-            Do not invent facts or unsupported details.
-            Keep all captions grounded in the visible clips.
-            """
     primary_experience = session_context.get("primary_experience", "mixed")
 
     first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
@@ -4969,6 +4959,8 @@ def api_generate_variants(
             - the hook and narrative guidance take priority over labels
             - rewrite or elevate label-based descriptions to support the hook when needed
             """
+        
+        content_context_guidance = ""
 
         if content_context != "auto":
 
