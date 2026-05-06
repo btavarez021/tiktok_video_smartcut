@@ -4974,31 +4974,44 @@ def api_generate_variants(
         caption_mode_guidance = """
             CAPTION MODE BEHAVIOR:
 
-            - captions must remain concise and visually grounded
-            - each caption should map clearly to what is happening in the clip
-            - lightly reinforce the hook without becoming narrative
+            ...
 
-            - do NOT invent meaning beyond what is shown
-            - do NOT introduce objects or events not visible in the clip
-            - you MAY reinterpret the feeling, tone, or significance of the moment
-            - do NOT use words like: secret, hidden, power, control, dominance, territory, unless clearly visible
-            - do NOT reduce captions to disconnected one-word labels
-            - do NOT force captions into a feature list or a story if the clips do not support that
-            - do NOT use sequence words like: "we start", "then", "next", "finally"
-            - do NOT narrate the viewer through the clips
-            - write each caption as a standalone on-screen statement
-            - captions should read naturally on screen and be easy to scan quickly
             - captions should feel like creator narration or creator framing,
-              not scientific or documentary labels
+            not scientific or documentary labels
 
             - avoid simple subject-action descriptions like:
-              "Tiger walks through enclosure"
-              "Lion stands on grass"
+            "Tiger walks through enclosure"
+            "Lion stands on grass"
 
             - each caption should contain at least one of:
-              atmosphere, perspective, intrigue,
-              creator reaction, mood, vibe,
-              or experiential framing
+            atmosphere, perspective, intrigue,
+            creator reaction, mood, vibe,
+            or experiential framing
+
+            CONTEXT FRAMING PRIORITY:
+
+            - captions should prioritize the SELECTED CONTENT CONTEXT
+            over literal object labeling
+
+            - do NOT describe clips like wildlife documentation
+            unless the selected context is actually wildlife/nature
+
+            - the selected context should shape:
+            - what feels important
+            - how the moment is framed
+            - the emotional angle
+            - the creator perspective
+
+            - focus on EXPERIENCE over classification
+
+            BAD:
+            "Tiger walks through enclosure"
+
+            BETTER FOR HOTEL:
+            "Watching tigers this close changes the whole atmosphere"
+
+            BETTER FOR ADVENTURE:
+            "The deeper this tiger moves, the wilder it feels"
         """
 
         comparison_safety_guidance = """
