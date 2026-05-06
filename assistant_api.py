@@ -4988,6 +4988,17 @@ def api_generate_variants(
             - do NOT narrate the viewer through the clips
             - write each caption as a standalone on-screen statement
             - captions should read naturally on screen and be easy to scan quickly
+            - captions should feel like creator narration or creator framing,
+              not scientific or documentary labels
+
+            - avoid simple subject-action descriptions like:
+              "Tiger walks through enclosure"
+              "Lion stands on grass"
+
+            - each caption should contain at least one of:
+              atmosphere, perspective, intrigue,
+              creator reaction, mood, vibe,
+              or experiential framing
         """
 
         comparison_safety_guidance = """
