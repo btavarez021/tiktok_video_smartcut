@@ -4796,41 +4796,41 @@ def api_generate_variants(
     # --------------------------------------------------
     STYLE_RULES = {
         "rewrite": """
-Clean rewrite. Improve clarity and flow.
-Keep captions natural and concise.
-""",
-        "hook": """
-ONLY improve the first caption.
-Make it scroll-stopping.
-Do NOT rewrite remaining captions except minor polish.
-""",
-        "punchy": """
-Energetic TikTok creator tone.
-Shorter sentences.
-Stronger verbs.
-High engagement energy.
-""",
-        "story": """
-Smooth storytelling progression.
-Natural emotional build.
-Feels like spoken voiceover.
-""",
-        "influencer": """
-Confident creator voice.
-Personal, direct, charismatic.
-Natural but elevated tone.
-""",
-        "minimal": """
-Minimal luxury aesthetic.
-CRITICAL RULES:
-- 3–7 words per NON-HOOK caption
-- No emojis
-- No hashtags
-- No full sentences (except hook)
-- No brand repetition
-- Editorial, high-end tone
-"""
-    }
+        Clean rewrite. Improve clarity and flow.
+        Keep captions natural and concise.
+        """,
+                "hook": """
+        ONLY improve the first caption.
+        Make it scroll-stopping.
+        Do NOT rewrite remaining captions except minor polish.
+        """,
+                "punchy": """
+        Energetic TikTok creator tone.
+        Shorter sentences.
+        Stronger verbs.
+        High engagement energy.
+        """,
+                "story": """
+        Smooth storytelling progression.
+        Natural emotional build.
+        Feels like spoken voiceover.
+        """,
+                "influencer": """
+        Confident creator voice.
+        Personal, direct, charismatic.
+        Natural but elevated tone.
+        """,
+                "minimal": """
+        Minimal luxury aesthetic.
+        CRITICAL RULES:
+        - 3–7 words per NON-HOOK caption
+        - No emojis
+        - No hashtags
+        - No full sentences (except hook)
+        - No brand repetition
+        - Editorial, high-end tone
+        """
+            }
 
     enabled_styles = [
         style for style, enabled in modes.items()
@@ -4940,7 +4940,8 @@ CRITICAL RULES:
             - lightly reinforce the hook without becoming narrative
 
             - do NOT invent meaning beyond what is shown
-            - do NOT introduce ideas not visible in the clip
+            - do NOT introduce objects or events not visible in the clip
+            - you MAY reinterpret the feeling, tone, or significance of the moment
             - do NOT use words like: secret, hidden, power, control, dominance, territory, unless clearly visible
             - do NOT reduce captions to disconnected one-word labels
             - do NOT force captions into a feature list or a story if the clips do not support that
@@ -4969,15 +4970,50 @@ CRITICAL RULES:
             - rewrite or elevate label-based descriptions to support the hook when needed
             """
 
-        content_context_guidance = ""
-
         if content_context != "auto":
-            content_context_guidance = f"""
-            CONTENT CONTEXT:
-            - User-selected content context: {content_context}
 
-            Use this as a strong creative anchor for the captions.
-            Match the tone, sequencing, and storytelling to this context when supported by the clips.
+            content_context_guidance = f"""
+            CONTENT CONTEXT (STYLE LENS — DO NOT CHANGE FACTS):
+
+            The captions must be written AS IF this content belongs to:
+            {content_context}
+
+            CRITICAL RULES:
+            - Do NOT change what is happening in the clip
+            - Do NOT invent objects, locations, or events
+            - You MAY reinterpret HOW the moment feels
+            - You MAY change tone, framing, and emotional delivery
+
+            This is a STYLE TRANSFORMATION, not a factual rewrite.
+
+            STYLE EXPECTATIONS:
+
+            Adventure:
+            - curiosity, mystery, exploration
+            - tension or intrigue (“what’s happening here…”)
+
+            Hotel Stay:
+            - elevated, premium, experiential
+            - comfort, exclusivity, atmosphere
+            - “this feels different”, “this level of detail…”
+
+            Fitness:
+            - intensity, discipline, effort
+            - “this takes control”, “this pushes limits”
+
+            Cocktails / Bar:
+            - nightlife energy, mood, vibe
+            - “this is where the night starts”
+
+            Travel Vlog:
+            - discovery, personal experience
+            - “this place surprised me…”
+
+            IMPORTANT:
+            Even if the clip is not literally a {content_context},
+            the captions should FEEL like that type of content.
+            
+
 
             Examples:
             - cruise -> trip moments, ocean views, port stops, onboard dining, nightlife
@@ -5054,8 +5090,6 @@ CRITICAL RULES:
 
             {hook_alignment_guidance} 
 
-            {content_context_guidance}
-
             {context_guidance}
 
             {caption_scene}
@@ -5063,6 +5097,8 @@ CRITICAL RULES:
             {caption_mode_guidance}
 
             {label_override_guidance}
+
+            {content_context_guidance}
 
             {comparison_safety_guidance}
 
