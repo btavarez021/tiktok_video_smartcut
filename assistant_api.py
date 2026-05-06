@@ -503,9 +503,30 @@ def get_weighted_video_subjects(session: str) -> dict[str, int]:
 
     return dict(sorted(filtered.items(), key=lambda x: x[1], reverse=True))
 
+def normalize_content_context(ctx: str) -> str:
+    ctx = (ctx or "auto").lower().strip()
+
+    mapping = {
+        "hotel stay": "hotel",
+        "travel vlog": "travel",
+        "cocktails / bar": "bar",
+        "cocktail": "bar",
+        "cocktails": "bar",
+        "restaurant": "restaurant",
+        "fitness": "fitness",
+        "adventure": "adventure",
+        "zoo": "adventure",
+        "nightlife": "nightlife",
+        "cruise": "cruise",
+        "disney": "disney",
+        "auto": "auto",
+    }
+
+    return mapping.get(ctx, ctx)
+
 def get_content_context(session: str) -> str:
-    cfg = _load_config(session)
-    return cfg.get("content_context", "auto")
+    cfg = _load_config(session) or {}
+    return normalize_content_context(cfg.get("content_context", "auto"))
 
 def _run_variant_job(
     session: str,
@@ -1802,18 +1823,27 @@ def api_generate_hooks(session: str, intent: str | None = None):
     context_guidance = ""
 
     if content_context != "auto":
-
         context_guidance = f"""
-        CONTENT CONTEXT: {content_context}
+        SELECTED CONTENT CONTEXT: {content_context}
 
-        Hooks should reflect experiences typical to this context.
+        This is a HARD CREATIVE LENS.
 
-        Examples:
-        cruise → ship life, ocean views, port stops, onboard nightlife
-        fitness → workouts, energy, training, strength
-        disney → magic moments, rides, theme park atmosphere
-        restaurant → dining experience, flavors, chef craft
-        nightlife → party energy, music, crowd
+        Hook rules:
+        - Every hook must clearly feel like {content_context} content.
+        - Do not generate generic hooks that could work for any video.
+        - Keep the hook grounded in the visible clips.
+        - Do not invent facts, locations, emotions, or events.
+        - Adapt framing, tone, and word choice to the selected context.
+
+        Context examples:
+        - adventure: exploration, movement, discovery, curiosity
+        - hotel: stay experience, room, lobby, rooftop, amenities, comfort
+        - travel: journey, destination, surprise, personal discovery
+        - restaurant: dining, taste, plating, chef craft, ambiance
+        - bar: nightlife, cocktails, mood, first drink, night out
+        - fitness: training, effort, discipline, performance
+
+        If a hook could work without knowing the content context, rewrite it.
         """
 
     if not client:

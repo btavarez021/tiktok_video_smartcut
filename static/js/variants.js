@@ -28,7 +28,8 @@ async function generateVariantsAsync(modes, selectedHook) {
         session: getActiveSession(),
         modes,
         selected_hook: selectedHook,
-        content_mode: getContentMode() 
+        content_mode: getContentMode(),
+        content_context: document.getElementById("contentContext")?.value || "auto"
       })
       });
 
