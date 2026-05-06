@@ -1831,19 +1831,32 @@ def api_generate_hooks(session: str, intent: str | None = None):
         Hook rules:
         - Every hook must clearly feel like {content_context} content.
         - Do not generate generic hooks that could work for any video.
-        - Keep the hook grounded in the visible clips.
-        - Do not invent facts, locations, emotions, or events.
-        - Adapt framing, tone, and word choice to the selected context.
+        - Do not let the visible subject alone control the hook.
+        - Keep hooks grounded in the first clip, but frame them through the selected context.
+        - If visuals and context conflict, keep facts accurate but still shape the hook tone around {content_context}.
+        - Avoid plain scene-description hooks.
 
         Context examples:
-        - adventure: exploration, movement, discovery, curiosity
-        - hotel: stay experience, room, lobby, rooftop, amenities, comfort
+        - adventure: exploration, movement, discovery, curiosity, wild setting
+        - hotel: stay experience, room, lobby, rooftop, amenities, comfort, premium feel
         - travel: journey, destination, surprise, personal discovery
         - restaurant: dining, taste, plating, chef craft, ambiance
-        - bar: nightlife, cocktails, mood, first drink, night out
+        - bar: nightlife, cocktails, lounge, mood, first drink, night out
         - fitness: training, effort, discipline, performance
 
-        If a hook could work without knowing the content context, rewrite it.
+        Bad:
+        - "Why is this tiger pacing its enclosure like that?"
+        - "A tiger walks through the trees"
+
+        Better for adventure:
+        - "This zoo walk feels deeper in the wild than expected"
+        - "The first step into this enclosure changes the whole vibe"
+
+        Better for hotel:
+        - "This stay has the kind of detail you notice immediately"
+        - "The first look already feels like a premium escape"
+
+        If a hook could work without knowing the selected context, rewrite it.
         """
 
     if not client:
@@ -4101,7 +4114,7 @@ def score_context_relevance_bonus(hook: str, context: str) -> int:
         "adventure": ["wild", "explore", "journey", "discover", "adventure", "zoo"],
 
         "travel": ["travel", "journey", "destination", "trip", "explore", "wander"],
-        
+
         "bar": ["cocktail", "drink", "night", "bar", "lounge", "mixology"],
     }
 
@@ -4769,7 +4782,7 @@ def api_generate_variants(
     session = sanitize_session(session)
     cfg = _load_config(session) or {}
     session_context = infer_session_context(session)
-    content_context = cfg.get("content_context", "auto")
+    content_context = get_content_context(session)
 
     primary_experience = session_context.get("primary_experience", "mixed")
 
