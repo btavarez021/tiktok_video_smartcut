@@ -1487,7 +1487,7 @@ def score_hook_unified(session: str, hook: str, intent: str | None = None) -> di
     cfg = _load_config(session) or {}
 
     intent = intent or cfg.get("intent", "discovery")
-    content_context = cfg.get("content_context", "auto")
+    content_context = get_content_context(session)
     video_subjects = get_weighted_video_subjects(session)
     first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
 
@@ -4096,7 +4096,13 @@ def score_context_relevance_bonus(hook: str, context: str) -> int:
 
         "disney": ["magic", "park", "ride", "castle", "disney"],
 
-        "luxury": ["luxury", "exclusive", "elite", "vip"]
+        "luxury": ["luxury", "exclusive", "elite", "vip"],
+
+        "adventure": ["wild", "explore", "journey", "discover", "adventure", "zoo"],
+
+        "travel": ["travel", "journey", "destination", "trip", "explore", "wander"],
+        
+        "bar": ["cocktail", "drink", "night", "bar", "lounge", "mixology"],
     }
 
     words = CONTEXT_KEYWORDS.get(context, [])
@@ -5241,7 +5247,7 @@ def api_generate_variants(
             first_block = blocks[0] if blocks else ""
 
             video_subjects = get_weighted_video_subjects(session)
-            content_context = cfg.get("content_context", "auto")
+            content_context = get_content_context(session)
             hook_score = score_generated_hook(
                 first_block,
                 intent,
