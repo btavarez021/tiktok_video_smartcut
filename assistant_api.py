@@ -4784,6 +4784,8 @@ def api_generate_variants(
     session_context = infer_session_context(session)
     content_context = get_content_context(session)
 
+    logger.warning(f"[VARIANTS] content_context={content_context}")
+
     primary_experience = session_context.get("primary_experience", "mixed")
 
     first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""

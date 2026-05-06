@@ -489,25 +489,25 @@ def analyze_status_route():
     return jsonify(api_analyze_status(session))
 
 @app.route("/api/variants/start", methods=["POST"])
-def route_variants_start():
-    data = request.get_json() or {}
+def route_generate_variants_start():
+    data = request.get_json(silent=True) or {}
 
     session = sanitize_session(data.get("session", "default"))
-    content_context = data.get("content_context")
+    modes = data.get("modes") or {}
+    selected_hook = data.get("selected_hook")
+    content_mode = data.get("content_mode", "caption")
+    content_context = data.get("content_context", "auto")
 
-    if content_context:
-        cfg = load_config(session) or {}
-        cfg["content_context"] = content_context
-        save_config(session, cfg)
+    cfg = load_config(session) or {}
+    cfg["content_context"] = content_context
+    save_config(session, cfg)
 
-    return jsonify(
-        api_generate_variants_start(
-            session,
-            data.get("modes", {}),
-            data.get("selected_hook"),
-            data.get("content_mode", "caption"),
-        )
-    )
+    return jsonify(api_generate_variants_start(
+        session,
+        modes,
+        selected_hook,
+        content_mode
+    ))
 
 @app.route("/api/variants/status")
 def route_variants_status():
