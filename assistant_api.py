@@ -4981,8 +4981,8 @@ def api_generate_variants(
             CRITICAL RULES:
             - Do NOT change what is happening in the clip
             - Do NOT invent objects, locations, or events
-            - You MAY reinterpret HOW the moment feels
-            - You MAY change tone, framing, and emotional delivery
+            - You MUST adapt tone, wording, and framing to match this context
+            - Every caption should reflect this context stylistically, even if the visuals stay the same
 
             This is a STYLE TRANSFORMATION, not a factual rewrite.
 
@@ -5013,7 +5013,10 @@ def api_generate_variants(
             Even if the clip is not literally a {content_context},
             the captions should FEEL like that type of content.
             
+            CONTEXT ENFORCEMENT RULE:
 
+            - If the captions could work WITHOUT the selected context, they are too generic → rewrite them
+            - Each caption must clearly reflect the chosen context in tone or wording
 
             Examples:
             - cruise -> trip moments, ocean views, port stops, onboard dining, nightlife
