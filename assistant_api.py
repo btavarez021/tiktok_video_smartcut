@@ -5437,6 +5437,24 @@ def api_generate_variants(
             IMPORTANT:
             Even if the clip is not literally a {content_context},
             the captions should FEEL like that type of content.
+
+            TASTE CONTROL RULE:
+
+            - Do NOT force the context word into every caption.
+            - Avoid cheesy phrases, forced rhymes, or unnatural marketing language.
+            - The selected context should shape the framing subtly and naturally.
+            - Captions should sound like a real creator, not an ad.
+            - Prefer premium, grounded wording over gimmicky wording.
+
+            BAD:
+            "hotel thrills"
+            "stay energy"
+            "nature luxe"
+
+            GOOD:
+            "Even the animal paths feel built into the experience."
+            "The whole stay feels wrapped around the wildlife."
+            "Every view adds to the atmosphere."
             
             CONTEXT ENFORCEMENT RULE:
 
