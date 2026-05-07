@@ -5461,6 +5461,29 @@ def api_generate_variants(
             - If the captions could work WITHOUT the selected context, they are too generic → rewrite them
             - Each caption must clearly reflect the chosen context in tone or wording
 
+            VARIETY RULE:
+
+            - avoid repeating the same emotional framing across captions
+            - rotate between:
+            atmosphere
+            exclusivity
+            curiosity
+            calm
+            luxury detail
+            immersion
+            discovery
+            sensory moments
+
+            - avoid overusing words like:
+            immersive
+            escape
+            deeper
+            elevated
+            vibe
+            experience
+
+            - each caption should contribute a different angle or feeling
+
             CONTEXT BODY REQUIREMENT:
 
             - After the hook, every body caption must still clearly feel like {content_context} content
