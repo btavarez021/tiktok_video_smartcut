@@ -99,19 +99,18 @@ async function generateVariantsAsync(modes, selectedHook) {
       const variants = rawVariants.map(v => {
       const flowScore = v.flow_score ?? v.story_flow ?? null;
 
-        return {
-          ...v,
-          flow_score: flowScore,
-          smart_score: computeVariantStrength(
-            {
-              ...v,
-              flow_score: flowScore
-            },
-            intent
-          )
-        };
-      });
-
+      return {
+        ...v,
+        flow_score: flowScore,
+        smart_score: v.smart_score ?? computeVariantStrength(
+          {
+            ...v,
+            flow_score: flowScore
+          },
+          intent
+        )
+      };
+    });
       console.log("VARIANTS RAW:", rawVariants);
       console.log("VARIANTS FINAL:", variants);
 
@@ -241,6 +240,7 @@ function renderVariantCard(num, variant, cardId) {
 
   const hookScore = variant.hook_score ?? "—";
   const flowScore = variant.flow_score ?? "—";
+  const contextScore = variant.context_score ?? "—";
   const appliedBadge = variant.applied
   ? `<div class="variantAppliedBadge">🟢 Current Version</div>`
   : "";
@@ -300,7 +300,7 @@ function renderVariantCard(num, variant, cardId) {
       </div>
 
       <div class="variantScores">
-        Hook: ${hookScore} · Flow: ${flowScore}
+        Hook: ${hookScore} · Flow: ${flowScore} · Context: ${contextScore}
         <span class="variantStrength">Strength: ${strength}</span>
       </div>
 
