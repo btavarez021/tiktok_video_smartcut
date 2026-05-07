@@ -1820,6 +1820,28 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
     content_context = get_content_context(session)
 
+    if content_context and content_context != "auto":
+        effective_context = content_context
+        context_source = "user_selected"
+    else:
+        effective_context = session_context.get("label", "general")
+        context_source = "inferred"
+
+    primary_experience = (
+        effective_context
+        if context_source == "user_selected"
+        else session_context.get("primary_experience", "mixed")
+    )
+
+    print(
+        "[HOOK_LAB] content_context:",
+        content_context,
+        "effective_context:",
+        effective_context,
+        "source:",
+        context_source
+    )
+
     context_guidance = ""
 
     if content_context != "auto":
@@ -1877,7 +1899,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             Session Context:
             {format_session_context_label(session_context.get("label"))}
-            Primary experience: {session_context.get("primary_experience", "mixed")}
+            Primary experience: {primary_experience}
             Confidence: {session_context.get("confidence")}
             Signals: {", ".join(session_context.get("signals", [])) or "none"}
 
@@ -2002,7 +2024,6 @@ def api_generate_hooks(session: str, intent: str | None = None):
             messages=[{"role": "user", "content": prompt}],
             temperature=0.6,
         )
-        primary_experience = session_context.get("primary_experience", "mixed")
 
         content = resp.choices[0].message.content.strip()
         data = safe_json_extract(content)
@@ -2017,7 +2038,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 clean,
                 intent,
                 video_subjects=video_subjects,
-                context=content_context,
+                context=effective_context,
                 first_clip_text=first_clip_text,
                 primary_experience=primary_experience,
             )
@@ -2099,7 +2120,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
                         hooks,
                         intent,
                         video_subjects,
-                        session_context.get("primary_experience", "mixed")
+                        primary_experience
                     )
 
 
