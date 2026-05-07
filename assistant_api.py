@@ -3381,57 +3381,62 @@ def compute_variant_smart_score(
     primary_experience: str = "mixed"
 ) -> float:
     """
-    Smart ranking score for choosing the best caption variant.
+    Normalized smart ranking score for choosing the best caption variant.
+    All major signals are normalized to 0–100 before weighting.
     """
-    hook = variant.get("hook_score", 0)
-    flow = variant.get("flow_score", variant.get("story_flow", 0))
-    tone = (variant.get("tone") or "").lower()
+
+    hook = max(0, min(100, variant.get("hook_score", 0)))
+    flow = max(0, min(100, variant.get("flow_score", variant.get("story_flow", 0))))
+    context = max(0, min(100, variant.get("context_score", 50)))
+    creator_voice = max(0, min(100, variant.get("creator_voice_score", 50)))
+    experience = max(0, min(100, variant.get("experience_centering_score", 50)))
+
     text = variant.get("text") or ""
+    tone = (variant.get("tone") or "").lower()
 
-    rhythm = score_caption_rhythm(text)
-    ending = score_variant_ending(text)
-    context_score = variant.get("context_score", 50)
-    creator_voice_score = variant.get("creator_voice_score", 50)
-    experience_centering_score = variant.get("experience_centering_score", 50)
+    rhythm = max(0, min(100, score_caption_rhythm(text)))
+    ending = max(0, min(100, score_variant_ending(text)))
 
-    intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
-
-    base = (
-        hook * intent_cfg["hook_weight"] +
-        flow * intent_cfg["flow_weight"]
-    )
-
-    experience_adjustment = (experience_centering_score - 50) * 0.25
-    base += experience_adjustment
-    
-    base += rhythm * 0.15
-    base += ending * 0.10
-
-    # Context alignment: convert 0–100 into a small adjustment
-    # 50 = neutral, 100 = +10, 0 = -10
-    context_adjustment = (context_score - 50) * 0.20
-    base += context_adjustment
-
-    creator_voice_adjustment = (creator_voice_score - 50) * 0.15
-    base += creator_voice_adjustment
-
-    for t in intent_cfg["tone_bias"]:
-        if t in tone:
-            base += 3
-
+    # Small additive bonuses/penalties normalized around neutral 50
     primary_bonus = score_primary_experience_variant_bonus(
         variant,
         primary_experience
     )
-    base += primary_bonus
 
     tone_fit_bonus = score_context_tone_fit(primary_experience, tone)
-    base += tone_fit_bonus
-
     generic_penalty = score_generic_phrase_penalty(text)
-    base += generic_penalty
 
-    return round(max(0, min(base, 100)), 2)
+    bonus_total = primary_bonus + tone_fit_bonus + generic_penalty
+    bonus_component = max(0, min(100, 50 + (bonus_total * 5)))
+
+    intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
+
+    # Intent slightly changes hook/flow balance, but keeps the full formula stable
+    hook_weight = intent_cfg.get("hook_weight", 0.55)
+    flow_weight = intent_cfg.get("flow_weight", 0.45)
+
+    # Normalize hook/flow weights into a 40% bucket
+    hook_flow_total = hook_weight + flow_weight
+    hook_share = hook_weight / hook_flow_total
+    flow_share = flow_weight / hook_flow_total
+
+    score = (
+        hook * (0.40 * hook_share) +
+        flow * (0.40 * flow_share) +
+        context * 0.15 +
+        creator_voice * 0.15 +
+        experience * 0.15 +
+        rhythm * 0.07 +
+        ending * 0.04 +
+        bonus_component * 0.04
+    )
+
+    # Tone bias as tiny final nudge only
+    for t in intent_cfg.get("tone_bias", []):
+        if t in tone:
+            score += 2
+
+    return round(max(0, min(score, 100)), 2)
 
 def choose_best_variant(
     variants: list,
@@ -5537,8 +5542,8 @@ def api_generate_variants(
         variants.sort(
             key=lambda v: (
                 1 if v.get("recommended") else 0,
-                v.get("hook_score", 0),
-                v.get("flow_score", v.get("story_flow", 0))
+                v.get("smart_score", 0),
+                v.get("hook_score", 0)
             ),
             reverse=True
         )
