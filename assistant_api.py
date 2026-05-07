@@ -4959,11 +4959,26 @@ def api_generate_variants(
     session = sanitize_session(session)
     cfg = _load_config(session) or {}
     session_context = infer_session_context(session)
-    content_context = get_content_context(session)
+    content_context = get_content_context(session)  
 
-    logger.warning(f"[VARIANTS] content_context={content_context}")
+    if content_context and content_context != "auto":
+        effective_context = content_context
+        context_source = "user_selected"
+    else:
+        effective_context = session_context.get("label", "general")
+        context_source = "inferred"
 
-    primary_experience = session_context.get("primary_experience", "mixed")
+    logger.warning(
+        f"[VARIANTS] content_context={content_context} "
+        f"effective_context={effective_context} "
+        f"source={context_source}"
+    )
+
+    primary_experience = (
+        effective_context
+        if context_source == "user_selected"
+        else session_context.get("primary_experience", "mixed")
+    )
 
     first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
 
@@ -5498,20 +5513,30 @@ def api_generate_variants(
             video_subjects = get_weighted_video_subjects(session)
             content_context = get_content_context(session)
             hook_score = score_generated_hook(
-                first_block,
-                intent,
-                video_subjects=video_subjects,
-                context=content_context,
-                first_clip_text=first_clip_text,
-                primary_experience=primary_experience,
+            first_block,
+            intent,
+            video_subjects=video_subjects,
+            context=effective_context,
+            first_clip_text=first_clip_text,
+            primary_experience=primary_experience,
             ).get("score", 0)
 
             flow_result = score_story_flow_from_text(text)
             flow_score = flow_result.get("score", 0)
             rhythm_score = score_caption_rhythm(text)
             cta_score = score_cta_presence(text)
-            context_score = score_context_alignment(text, content_context)
+
+            context_score = score_context_alignment(
+                text,
+                effective_context
+            )
+
             creator_voice_score = score_creator_voice(text)
+
+            experience_centering_score = score_experience_centering(
+                text,
+                effective_context
+            )
 
             v["hook_score"] = hook_score
             v["story_flow"] = flow_score
