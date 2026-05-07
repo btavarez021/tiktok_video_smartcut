@@ -3435,6 +3435,7 @@ def compute_variant_smart_score(
     context = max(0, min(100, variant.get("context_score", 50)))
     creator_voice = max(0, min(100, variant.get("creator_voice_score", 50)))
     experience = max(0, min(100, variant.get("experience_centering_score", 50)))
+    context_vocab = max(0, min(100, variant.get("context_vocab_score", 50)))
 
     text = variant.get("text") or ""
     tone = (variant.get("tone") or "").lower()
@@ -3466,12 +3467,13 @@ def compute_variant_smart_score(
     flow_share = flow_weight / hook_flow_total
 
     score = (
-        hook * (0.40 * hook_share) +
-        flow * (0.40 * flow_share) +
-        context * 0.15 +
-        creator_voice * 0.15 +
-        experience * 0.15 +
-        rhythm * 0.07 +
+        hook * (0.36 * hook_share) +
+        flow * (0.36 * flow_share) +
+        context * 0.14 +
+        creator_voice * 0.14 +
+        experience * 0.14 +
+        context_vocab * 0.08 +
+        rhythm * 0.06 +
         ending * 0.04 +
         bonus_component * 0.04
     )
@@ -4993,6 +4995,89 @@ def score_context_alignment(text: str, content_context: str) -> int:
 
     return max(0, min(100, score))
 
+CONTEXT_TERM_CACHE = {}
+
+def get_dynamic_context_terms(context: str) -> list[str]:
+    """
+    Uses AI once per context to generate context-specific experiential terms.
+    Cached in memory so it does not call OpenAI every variant run.
+    """
+    context = normalize_content_context(context)
+
+    if not context or context == "auto":
+        return []
+
+    if context in CONTEXT_TERM_CACHE:
+        return CONTEXT_TERM_CACHE[context]
+
+    if not client:
+        return []
+
+    prompt = f"""
+Return 12 short experiential vocabulary terms for short-form creator captions.
+
+Context:
+{context}
+
+Rules:
+- terms should fit creator/travel/lifestyle captions
+- prefer concrete experience words over generic adjectives
+- no hashtags
+- no emojis
+- return JSON only
+
+Example output:
+{{"terms": ["stay", "suite", "lobby", "view"]}}
+"""
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": "Return JSON only."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+        )
+
+        data = safe_json_extract(resp.choices[0].message.content or "")
+        terms = data.get("terms", [])
+
+        terms = [
+            str(t).lower().strip()
+            for t in terms
+            if isinstance(t, str) and t.strip()
+        ]
+
+        CONTEXT_TERM_CACHE[context] = terms[:12]
+        return CONTEXT_TERM_CACHE[context]
+
+    except Exception as e:
+        logger.warning(f"[CONTEXT TERMS] failed for {context}: {e}")
+        return []
+    
+def score_dynamic_context_vocabulary(text: str, context: str) -> int:
+    """
+    Rewards captions that use context-specific experiential vocabulary
+    generated dynamically by AI.
+    """
+    if not text or not context or context == "auto":
+        return 50
+
+    terms = get_dynamic_context_terms(context)
+    if not terms:
+        return 50
+
+    lower = text.lower()
+
+    matches = sum(
+        1 for term in terms
+        if term in lower
+    )
+
+    score = 50 + min(matches * 10, 40)
+
+    return max(0, min(100, score))
 
 def api_generate_variants(
     session: str,
@@ -5605,6 +5690,10 @@ def api_generate_variants(
             context_score = score_context_alignment(body_text, effective_context)
             creator_voice_score = score_creator_voice(body_text)
             experience_centering_score = score_experience_centering(body_text, effective_context)
+            context_vocab_score = score_dynamic_context_vocabulary(
+                body_text,
+                effective_context
+            )
 
             v["hook_score"] = hook_score
             v["story_flow"] = flow_score
@@ -5615,7 +5704,9 @@ def api_generate_variants(
             v["creator_voice_score"] = creator_voice_score
             v["uses_selected_hook"] = hook_locked
             v["experience_centering_score"] = experience_centering_score
+            v["context_vocab_score"] = context_vocab_score
             v["smart_score"] = compute_variant_smart_score(v, intent, primary_experience)
+
 
         best = choose_best_variant(variants, intent, primary_experience)
 
