@@ -3305,25 +3305,31 @@ def compute_variant_smart_score(
 
     rhythm = score_caption_rhythm(text)
     ending = score_variant_ending(text)
+    context_score = variant.get("context_score", 50)
 
     intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
 
-    # start with intent-aware hook/flow weighting
     base = (
         hook * intent_cfg["hook_weight"] +
         flow * intent_cfg["flow_weight"]
     )
 
-    # rhythm + ending polish
     base += rhythm * 0.15
     base += ending * 0.10
 
-    # tone bias bonus
+    # Context alignment: convert 0–100 into a small adjustment
+    # 50 = neutral, 100 = +10, 0 = -10
+    context_adjustment = (context_score - 50) * 0.20
+    base += context_adjustment
+
     for t in intent_cfg["tone_bias"]:
         if t in tone:
             base += 3
 
-    primary_bonus = score_primary_experience_variant_bonus(variant, primary_experience)
+    primary_bonus = score_primary_experience_variant_bonus(
+        variant,
+        primary_experience
+    )
     base += primary_bonus
 
     tone_fit_bonus = score_context_tone_fit(primary_experience, tone)
@@ -3332,7 +3338,7 @@ def compute_variant_smart_score(
     generic_penalty = score_generic_phrase_penalty(text)
     base += generic_penalty
 
-    return round(min(base, 100), 2)
+    return round(max(0, min(base, 100)), 2)
 
 def choose_best_variant(
     variants: list,
@@ -4772,6 +4778,79 @@ def api_session_context(session: str) -> dict:
     session = sanitize_session(session)
     return infer_session_context(session)
 
+def score_context_alignment(text: str, content_context: str) -> int:
+    """
+    Scores how well a caption variant matches the selected content context.
+    Light scoring only — used to rerank, not overpower hook/flow.
+    """
+    if not text or not content_context or content_context == "auto":
+        return 50
+
+    t = text.lower()
+    ctx = normalize_content_context(content_context)
+
+    positive = {
+        "hotel": [
+            "stay", "hotel", "lobby", "suite", "room", "resort",
+            "escape", "retreat", "atmosphere", "premium", "luxury",
+            "check-in", "guest", "immersive", "unreal"
+        ],
+        "travel": [
+            "trip", "travel", "destination", "explore", "discover",
+            "arrival", "place", "view", "experience", "journey"
+        ],
+        "adventure": [
+            "wild", "explore", "adventure", "deeper", "trail",
+            "unexpected", "discover", "outside", "movement"
+        ],
+        "bar": [
+            "cocktail", "drink", "bar", "lounge", "night",
+            "mood", "vibe", "sip", "lights", "energy"
+        ],
+        "restaurant": [
+            "dining", "dish", "plate", "chef", "flavor",
+            "meal", "table", "bite", "restaurant", "ambiance"
+        ],
+        "fitness": [
+            "workout", "training", "gym", "push", "effort",
+            "strength", "discipline", "performance", "recovery"
+        ],
+        "nightlife": [
+            "night", "lights", "crowd", "music", "energy",
+            "party", "dance", "late", "electric"
+        ],
+        "cruise": [
+            "ship", "cruise", "deck", "ocean", "sea",
+            "port", "onboard", "sailing", "sunset"
+        ],
+        "disney": [
+            "park", "magic", "ride", "castle", "fireworks",
+            "wonder", "nighttime", "disney"
+        ],
+    }
+
+    generic_bad = [
+        "stands", "walks", "sits", "rests", "moves",
+        "grass", "wall", "fence", "enclosure", "posts",
+        "area", "space", "nearby"
+    ]
+
+    words = positive.get(ctx, [])
+    score = 50
+
+    matches = sum(1 for w in words if w in t)
+    score += min(matches * 8, 35)
+
+    generic_hits = sum(1 for w in generic_bad if w in t)
+    score -= min(generic_hits * 6, 30)
+
+    # Reward experiential language across all contexts
+    if any(w in t for w in ["feels", "vibe", "experience", "atmosphere", "moment", "energy"]):
+        score += 10
+
+    return max(0, min(100, score))
+
+
 def api_generate_variants(
     session: str,
     modes: dict,
@@ -5300,12 +5379,14 @@ def api_generate_variants(
             flow_score = flow_result.get("score", 0)
             rhythm_score = score_caption_rhythm(text)
             cta_score = score_cta_presence(text)
+            context_score = score_context_alignment(text, content_context)
 
             v["hook_score"] = hook_score
             v["story_flow"] = flow_score
             v["flow_score"] = flow_score
             v["rhythm_score"] = rhythm_score
             v["cta_score"] = cta_score
+            v["context_score"] = context_score
             v["uses_selected_hook"] = hook_locked
             v["smart_score"] = compute_variant_smart_score(v, intent, primary_experience)
 
