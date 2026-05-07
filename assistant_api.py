@@ -5555,6 +5555,8 @@ def api_generate_variants(
             blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
             first_block = blocks[0] if blocks else ""
 
+            body_text = "\n\n".join(blocks[1:]) if hook_locked else text
+
             video_subjects = get_weighted_video_subjects(session)
             content_context = get_content_context(session)
             hook_score = score_generated_hook(
@@ -5571,17 +5573,9 @@ def api_generate_variants(
             rhythm_score = score_caption_rhythm(text)
             cta_score = score_cta_presence(text)
 
-            context_score = score_context_alignment(
-                text,
-                effective_context
-            )
-
-            creator_voice_score = score_creator_voice(text)
-
-            experience_centering_score = score_experience_centering(
-                text,
-                effective_context
-            )
+            context_score = score_context_alignment(body_text, effective_context)
+            creator_voice_score = score_creator_voice(body_text)
+            experience_centering_score = score_experience_centering(body_text, effective_context)
 
             v["hook_score"] = hook_score
             v["story_flow"] = flow_score
@@ -5591,8 +5585,6 @@ def api_generate_variants(
             v["context_score"] = context_score
             v["creator_voice_score"] = creator_voice_score
             v["uses_selected_hook"] = hook_locked
-            experience_centering_score = score_experience_centering(text, content_context)
-
             v["experience_centering_score"] = experience_centering_score
             v["smart_score"] = compute_variant_smart_score(v, intent, primary_experience)
 
