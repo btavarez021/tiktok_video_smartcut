@@ -3290,11 +3290,55 @@ def score_generic_phrase_penalty(text: str) -> int:
 
     return penalty
 
+def score_creator_voice(text: str) -> int:
+    """
+    Scores whether captions sound like a real short-form creator,
+    not raw clip labels or documentary/object descriptions.
+    """
+    if not text:
+        return 0
+
+    t = text.lower()
+    score = 50
+
+    creator_positive = [
+        "this feels", "this place", "this stay", "the vibe",
+        "honestly", "i didn’t expect", "i didn't expect",
+        "you can feel", "the moment", "right when",
+        "somehow", "actually", "lowkey", "unreal",
+        "hits different", "changes everything", "sets the tone",
+    ]
+
+    label_negative = [
+        "stands near", "sits near", "walks through",
+        "rests near", "moves through", "is shown",
+        "a rhino stands", "a gorilla rests", "a lion walks",
+        "framed by", "surrounded by", "near the wall",
+        "in the enclosure", "on the grass",
+    ]
+
+    score += sum(8 for phrase in creator_positive if phrase in t)
+    score -= sum(10 for phrase in label_negative if phrase in t)
+
+    # Penalize captions where most blocks start like object labels
+    blocks = [b.strip().lower() for b in re.split(r"\n\s*\n", text) if b.strip()]
+    object_starts = ("a ", "an ", "the ")
+    objecty_blocks = sum(1 for b in blocks[1:] if b.startswith(object_starts))
+
+    if len(blocks) > 2 and objecty_blocks >= len(blocks[1:]) * 0.6:
+        score -= 20
+
+    # Reward creator-style first/second person lightly
+    if any(w in t for w in ["i ", "we ", "you ", "your "]):
+        score += 8
+
+    return max(0, min(100, score))
+
 def compute_variant_smart_score(
     variant: dict,
     intent: str,
     primary_experience: str = "mixed"
-) -> int:
+) -> float:
     """
     Smart ranking score for choosing the best caption variant.
     """
@@ -3306,6 +3350,7 @@ def compute_variant_smart_score(
     rhythm = score_caption_rhythm(text)
     ending = score_variant_ending(text)
     context_score = variant.get("context_score", 50)
+    creator_voice_score = variant.get("creator_voice_score", 50)
 
     intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
 
@@ -3321,6 +3366,9 @@ def compute_variant_smart_score(
     # 50 = neutral, 100 = +10, 0 = -10
     context_adjustment = (context_score - 50) * 0.20
     base += context_adjustment
+
+    creator_voice_adjustment = (creator_voice_score - 50) * 0.15
+    base += creator_voice_adjustment
 
     for t in intent_cfg["tone_bias"]:
         if t in tone:
@@ -5380,6 +5428,7 @@ def api_generate_variants(
             rhythm_score = score_caption_rhythm(text)
             cta_score = score_cta_presence(text)
             context_score = score_context_alignment(text, content_context)
+            creator_voice_score = score_creator_voice(text)
 
             v["hook_score"] = hook_score
             v["story_flow"] = flow_score
@@ -5389,6 +5438,7 @@ def api_generate_variants(
             v["context_score"] = context_score
             v["uses_selected_hook"] = hook_locked
             v["smart_score"] = compute_variant_smart_score(v, intent, primary_experience)
+            v["creator_voice_score"] = creator_voice_score
 
         best = choose_best_variant(variants, intent, primary_experience)
 
