@@ -5548,7 +5548,6 @@ def api_save_captions(text: str, session: str) -> Dict[str, Any]:
         log_error("[CAPTIONS]", e)
         return {"status": "error", "error": str(e)}
 
-
 # -------------------------------
 # EXPORT 
 # -------------------------------
