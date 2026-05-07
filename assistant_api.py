@@ -5314,6 +5314,9 @@ def api_generate_variants(
 
             CONTEXT FRAMING PRIORITY:
 
+            - captions should remain visually anchored to the clip,
+            even when emotionally reframed through the selected context
+
             - captions should prioritize the SELECTED CONTENT CONTEXT
             over literal object labeling
 
