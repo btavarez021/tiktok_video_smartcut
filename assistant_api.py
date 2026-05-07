@@ -5552,15 +5552,18 @@ def api_generate_variants(
 
             {label_override_guidance}
 
-            {content_context_guidance}
-
             {comparison_safety_guidance}
 
             - Do NOT return hook-only outputs.
             - Every variant must include all caption blocks, not just the first line.
-            - Preserve full sequence length.
-            - If the input captions are already literal and observational, preserve that grounded style unless the selected mode clearly requires more narration.
-            - If the input captions are already factual, preserve that factual structure unless voiceover mode explicitly requires narration.
+            - If the input captions are literal or observational, keep the facts accurate,
+              but rewrite the framing through the selected content context.
+
+            - Do NOT preserve documentary-style structure when a content context is selected.
+              The captions should become creator-style, context-aware captions.
+
+            {content_context_guidance}
+
 
             Return STRICT JSON:
 
