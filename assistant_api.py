@@ -5141,6 +5141,39 @@ def api_generate_variants(
 
             BETTER FOR ADVENTURE:
             "The deeper this tiger moves, the wilder it feels"
+
+            EXPERIENCE CENTERING RULE:
+
+            - captions should primarily describe the VIEWER or CREATOR EXPERIENCE
+            not the subject itself
+
+            - subjects (animals, food, drinks, rooms, scenery, people)
+            should SUPPORT the experience,
+            not become the entire caption focus
+
+            - avoid repeatedly starting captions with:
+            "The tiger..."
+            "The rhino..."
+            "The gorilla..."
+            "The lion..."
+
+            - prioritize:
+            how the place feels,
+            how the moment changes the atmosphere,
+            how the experience evolves,
+            or what the viewer is experiencing
+
+            BAD:
+            "The gorilla’s chill moment hits different"
+
+            BETTER:
+            "Every corner here changes the atmosphere"
+
+            BAD:
+            "Lion owns the grass like a king"
+
+            BETTER:
+            "This whole stay keeps feeling more unreal"
         """
 
         comparison_safety_guidance = """
@@ -5436,9 +5469,9 @@ def api_generate_variants(
             v["rhythm_score"] = rhythm_score
             v["cta_score"] = cta_score
             v["context_score"] = context_score
+            v["creator_voice_score"] = creator_voice_score
             v["uses_selected_hook"] = hook_locked
             v["smart_score"] = compute_variant_smart_score(v, intent, primary_experience)
-            v["creator_voice_score"] = creator_voice_score
 
         best = choose_best_variant(variants, intent, primary_experience)
 
