@@ -5355,6 +5355,33 @@ def api_generate_variants(
             - If the captions could work WITHOUT the selected context, they are too generic → rewrite them
             - Each caption must clearly reflect the chosen context in tone or wording
 
+            CONTEXT BODY REQUIREMENT:
+
+            - After the hook, every body caption must still clearly feel like {content_context} content
+            - Do NOT simply describe visible subjects one-by-one
+            - Do NOT create captions that could work for generic zoo footage unless the context is wildlife/nature
+            - Every body caption should connect the clip back to the selected context experience
+
+            IMPORTANT:
+            The selected context must shape HOW the moment feels,
+            not just the opening hook.
+
+            For hotel:
+            - reference the stay, atmosphere, property, room, lobby, escape, experience, or exclusivity
+            - animals should SUPPORT the experience, not become the entire caption
+
+            BAD:
+            "The rhino stands near red posts"
+
+            BAD:
+            "The gorilla chills in the greenery"
+
+            GOOD:
+            "Every corner of this stay feels designed to pull you deeper into the escape"
+
+            GOOD:
+            "This whole property feels more immersive with every step"
+
             Examples:
             - cruise -> trip moments, ocean views, port stops, onboard dining, nightlife
             - hotel -> stay experience, room/lobby/amenities, rooftop, relaxation
@@ -5373,7 +5400,9 @@ def api_generate_variants(
 
             Use this context to make the captions feel like one connected outing or experience.
             Let the primary experience shape the dominant mood and sequencing.
-            Do not force context that is not supported by the clips.
+            Do not invent facts that are unsupported by the clips.
+            However, when a user-selected context exists,
+            the captions MUST still feel stylistically aligned with that context.
             """
         
         caption_scene = """CAPTION SCENE RULE:
