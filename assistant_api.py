@@ -3290,6 +3290,47 @@ def score_generic_phrase_penalty(text: str) -> int:
 
     return penalty
 
+def score_experience_centering(text: str, content_context: str) -> int:
+    if not text:
+        return 50
+
+    ctx = normalize_content_context(content_context)
+    if ctx == "auto":
+        return 50
+
+    blocks = [b.strip().lower() for b in re.split(r"\n\s*\n", text) if b.strip()]
+    body_blocks = blocks[1:] if len(blocks) > 1 else blocks
+
+    subject_starts = (
+        "tiger", "the tiger", "rhino", "the rhino",
+        "gorilla", "the gorilla", "lion", "the lion",
+        "a tiger", "a rhino", "a gorilla", "a lion"
+    )
+
+    experience_terms = (
+        "stay", "hotel", "experience", "atmosphere", "place",
+        "escape", "retreat", "view", "guest", "moment",
+        "feels", "vibe", "unreal", "premium"
+    )
+
+    score = 50
+
+    animal_first_count = sum(
+        1 for b in body_blocks
+        if b.startswith(subject_starts)
+    )
+
+    if body_blocks:
+        ratio = animal_first_count / len(body_blocks)
+        if ratio >= 0.75:
+            score -= 35
+        elif ratio >= 0.50:
+            score -= 20
+
+    score += min(sum(1 for term in experience_terms if term in text.lower()) * 8, 35)
+
+    return max(0, min(100, score))
+
 def score_creator_voice(text: str) -> int:
     """
     Scores whether captions sound like a real short-form creator,
@@ -3351,6 +3392,7 @@ def compute_variant_smart_score(
     ending = score_variant_ending(text)
     context_score = variant.get("context_score", 50)
     creator_voice_score = variant.get("creator_voice_score", 50)
+    experience_centering_score = variant.get("experience_centering_score", 50)
 
     intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
 
@@ -3359,6 +3401,9 @@ def compute_variant_smart_score(
         flow * intent_cfg["flow_weight"]
     )
 
+    experience_adjustment = (experience_centering_score - 50) * 0.25
+    base += experience_adjustment
+    
     base += rhythm * 0.15
     base += ending * 0.10
 
@@ -5471,6 +5516,9 @@ def api_generate_variants(
             v["context_score"] = context_score
             v["creator_voice_score"] = creator_voice_score
             v["uses_selected_hook"] = hook_locked
+            experience_centering_score = score_experience_centering(text, content_context)
+
+            v["experience_centering_score"] = experience_centering_score
             v["smart_score"] = compute_variant_smart_score(v, intent, primary_experience)
 
         best = choose_best_variant(variants, intent, primary_experience)

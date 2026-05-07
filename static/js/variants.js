@@ -245,7 +245,7 @@ function renderVariantCard(num, variant, cardId) {
   ? `<div class="variantAppliedBadge">🟢 Current Version</div>`
   : "";
 
-  const strength = computeVariantDisplayStrength(variant);
+  const strength = variant.smart_score ?? computeVariantDisplayStrength(variant);
 
   const fallbackReason = recommended
     ? `Smart score ${variant.smart_score ?? strength}. Best match for ${window.appState?.hook?.intent || "your current"} goal.`
