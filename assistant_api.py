@@ -3323,9 +3323,33 @@ def score_experience_centering(text: str, content_context: str) -> int:
     if body_blocks:
         ratio = animal_first_count / len(body_blocks)
         if ratio >= 0.75:
-            score -= 35
+            score -= 55
         elif ratio >= 0.50:
-            score -= 20
+            score -= 35
+        elif ratio >= 0.25:
+            score -= 15
+
+    repetitive_subject_openers = (
+        "that rhino",
+        "the rhino",
+        "rhino",
+        "that tiger",
+        "the tiger",
+        "tiger",
+        "gorilla",
+        "the gorilla",
+        "that gorilla",
+        "lion",
+        "the lion",
+        "that lion",
+    )
+
+    repetitive_count = sum(
+        1 for b in body_blocks
+        if b.startswith(repetitive_subject_openers)
+    )
+
+    score -= min(repetitive_count * 8, 32)
 
     score += min(sum(1 for term in experience_terms if term in text.lower()) * 8, 35)
 
