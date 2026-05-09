@@ -255,13 +255,13 @@ async function selectHook(text, isUser = true) {
 // ✅ instantly update selected hook visual state
 document.querySelectorAll(".hookCard").forEach(card => {
   card.classList.remove("selected");
-  card.classList.add("hook-locked");
+  card.classList.add("locked");
 
   const hookText = card.querySelector(".hookText")?.textContent?.trim();
 
   if (hookText === text.trim()) {
     card.classList.add("selected");
-    card.classList.remove("hook-locked");
+    card.classList.remove("locked");
   }
 });
 
@@ -368,7 +368,7 @@ function clearSelectedHook() {
 
       // Visual lock on hook cards
       document.querySelectorAll(".hookCard").forEach(card => {
-        card.classList.add("hook-locked");
+        card.classList.add("locked");
       });
 
     } else {
@@ -377,7 +377,7 @@ function clearSelectedHook() {
       clearBtn.classList.add("hidden");
 
       document.querySelectorAll(".hookCard").forEach(card => {
-        card.classList.remove("hook-locked");
+        card.classList.remove("locked");
       });
     }
   }
