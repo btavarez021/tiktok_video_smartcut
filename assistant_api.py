@@ -569,6 +569,24 @@ SUBJECT_STOPWORDS = {
     "before", "while", "when", "where"
 }
 
+GENERIC_CREATOR_PHRASES = [
+    "hits different",
+    "sets the tone",
+    "pure power",
+    "next level",
+    "good vibes",
+    "vibes",
+    "energy",
+    "game changer",
+    "totally unreal",
+    "owns the space",
+    "calm intensity",
+    "unmatched energy",
+    "main character energy",
+    "elite vibes",
+    "luxury in every detail",
+]
+
 def _tokenize_subject_text(text: str) -> list[str]:
     if not text:
         return []
@@ -5775,6 +5793,14 @@ def api_generate_variants(
 
             body_text = "\n\n".join(blocks[1:]) if hook_locked else text
 
+            lower = body_text.lower()
+
+            generic_penalty = 0
+
+            for phrase in GENERIC_CREATOR_PHRASES:
+                if phrase in lower:
+                    generic_penalty -= 4
+
             video_subjects = get_weighted_video_subjects(session)
             content_context = get_content_context(session)
             hook_score = score_generated_hook(
@@ -5799,6 +5825,7 @@ def api_generate_variants(
                 effective_context
             )
 
+            v["generic_penalty"] = generic_penalty
             v["hook_score"] = hook_score
             v["story_flow"] = flow_score
             v["flow_score"] = flow_score
@@ -5809,8 +5836,20 @@ def api_generate_variants(
             v["uses_selected_hook"] = hook_locked
             v["experience_centering_score"] = experience_centering_score
             v["context_vocab_score"] = context_vocab_score
-            v["smart_score"] = compute_variant_smart_score(v, intent, primary_experience)
 
+            base_smart_score = compute_variant_smart_score(
+                v,
+                intent,
+                primary_experience
+            )
+
+            v["smart_score"] = base_smart_score + generic_penalty
+            
+            if generic_penalty <= -4:
+                v.setdefault("score_reasons", [])
+                v["score_reasons"].append(
+                    "Uses overly generic creator phrasing."
+                )
 
         best = choose_best_variant(variants, intent, primary_experience)
 
