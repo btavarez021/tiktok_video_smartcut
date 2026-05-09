@@ -1864,7 +1864,11 @@ def api_generate_hooks(session: str, intent: str | None = None):
         - travel: journey, destination, surprise, personal discovery
         - restaurant: dining, taste, plating, chef craft, ambiance
         - bar: nightlife, cocktails, lounge, mood, first drink, night out
-        - fitness: training, effort, discipline, performance
+        - fitness:
+            frame captions through movement, control, discipline, intensity, athletic pacing, and performance energy.
+            Focus on rhythm, strength, stamina, precision, conditioning, and purposeful movement.
+            Avoid generic wildlife narration.
+            The captions should feel like creator commentary about physical presence, effort, and controlled motion.
 
         Bad:
         - "Why is this tiger pacing its enclosure like that?"
@@ -4276,7 +4280,7 @@ def score_context_relevance_bonus(hook: str, context: str) -> int:
 
         "nightlife": ["party", "dance", "club", "night", "dj"],
 
-        "fitness": ["gym", "workout", "training", "lift", "fitness"],
+        "fitness": ["gym", "workout", "training", "lift", "fitness", "strength", "cardio","performance"],
 
         "disney": ["magic", "park", "ride", "castle", "disney"],
 
@@ -5151,6 +5155,15 @@ def api_generate_variants(
         - If the hook frames the reel as a hotel/stay/luxury experience, captions should support that experience.
         - If the hook frames the reel as adventure/discovery, captions should keep that exploratory energy.
         - The hook and captions should feel like one connected creator narrative.
+        - variants should prioritize continuing the EXPERIENCE
+          created by the hook, not merely describing visible objects
+        - avoid turning the captions into isolated animal observations
+        - the selected hook defines the narrative lens for the entire reel
+        - supporting captions should reinforce the hook’s emotional framing
+          instead of independently labeling each clip
+        - captions should feel connected, cinematic, and progression-based
+        - If the hook tone is fitness_performance, captions should emphasize movement quality,
+          control, rhythm, discipline, endurance, athletic pacing, and performance energy.
         """
 
     # --------------------------------------------------
@@ -5839,6 +5852,11 @@ def analyze_hook_style(hook: str) -> dict:
         "has_curiosity": any(w in h for w in [
             "why", "what", "how", "unusual", "different", "secret", "hidden"
         ]),
+        "has_fitness_framing": any(w in h for w in [
+            "fitness", "training", "workout", "strength", "stride",
+            "pace", "control", "power", "athletic", "endurance",
+            "discipline", "conditioning"
+        ]),
         "has_experience_framing": any(w in h for w in [
             "experience", "stay", "vibe", "feel", "changes", "transforms"
         ]),
@@ -5849,9 +5867,20 @@ def analyze_hook_style(hook: str) -> dict:
             "wild", "path", "roam", "trail", "jungle", "adventure", "rugged"
         ]),
         "tone": (
-            "luxury_experience" if any(w in h for w in ["hotel", "resort", "luxury", "suite", "stay"])
-            else "adventure_discovery" if any(w in h for w in ["wild", "path", "roam", "trail", "jungle", "adventure"])
-            else "curiosity" if "?" in hook or any(w in h for w in ["why", "what", "how", "unusual"])
+            "fitness_performance" if any(w in h for w in [
+                "fitness", "training", "workout", "strength", "stride",
+                "pace", "control", "power", "athletic", "endurance",
+                "discipline", "conditioning"
+            ])
+            else "luxury_experience" if any(w in h for w in [
+                "hotel", "resort", "luxury", "suite", "stay"
+            ])
+            else "adventure_discovery" if any(w in h for w in [
+                "wild", "path", "roam", "trail", "jungle", "adventure"
+            ])
+            else "curiosity" if "?" in hook or any(w in h for w in [
+                "why", "what", "how", "unusual"
+            ])
             else "general_creator"
         )
     }
