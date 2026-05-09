@@ -2139,6 +2139,26 @@ def api_generate_hooks(session: str, intent: str | None = None):
         log_error("[HOOK_LAB]", e)
         return {"hooks": []}
 
+def analyze_hook_style(hook: str) -> dict:
+    h = hook.lower()
+
+    return {
+        "has_curiosity": "?" in hook,
+        "is_emotional": any(w in h for w in [
+            "feel", "changes", "unreal", "different"
+        ]),
+        "is_luxury": any(w in h for w in [
+            "luxury", "exclusive", "hotel", "resort"
+        ]),
+        "is_adventure": any(w in h for w in [
+            "wild", "jungle", "roam", "path"
+        ]),
+        "tone": (
+            "luxury" if any(w in h for w in ["hotel", "luxury", "resort"])
+            else "adventure" if any(w in h for w in ["wild", "jungle", "roam"])
+            else "general"
+        )
+    }
 
 def api_variant_feedback():
     data = request.json or {}
@@ -5112,6 +5132,27 @@ def api_generate_variants(
 
     first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
 
+    hook_style = analyze_hook_style(selected_hook or "")
+
+    hook_continuity_guidance = f"""
+        HOOK CONTINUITY PRIORITY:
+
+        Selected hook:
+        "{selected_hook or ''}"
+
+        Detected hook tone:
+        {hook_style.get("tone", "general_creator")}
+
+        Rules:
+        - Caption variants must feel like they belong to the selected hook.
+        - Continue the same emotional framing, pacing, and creator perspective.
+        - Do not let captions drift into a different tone than the hook.
+        - If the hook creates curiosity, continue that curiosity across the captions.
+        - If the hook frames the reel as a hotel/stay/luxury experience, captions should support that experience.
+        - If the hook frames the reel as adventure/discovery, captions should keep that exploratory energy.
+        - The hook and captions should feel like one connected creator narrative.
+        """
+
     # --------------------------------------------------
     # Collect captions
     # --------------------------------------------------
@@ -5606,6 +5647,9 @@ def api_generate_variants(
             - Do NOT preserve documentary-style structure when a content context is selected.
               The captions should become creator-style, context-aware captions.
 
+            {hook_continuity_guidance}
+
+
             {content_context_guidance}
 
 
@@ -5786,6 +5830,31 @@ def api_generate_variants(
     except Exception as e:
         log_error("[VARIANTS]", e)
         return {"variants": [], "error": "generation_failed"}
+
+def analyze_hook_style(hook: str) -> dict:
+    h = (hook or "").lower()
+
+    return {
+        "has_question": "?" in hook,
+        "has_curiosity": any(w in h for w in [
+            "why", "what", "how", "unusual", "different", "secret", "hidden"
+        ]),
+        "has_experience_framing": any(w in h for w in [
+            "experience", "stay", "vibe", "feel", "changes", "transforms"
+        ]),
+        "has_luxury_framing": any(w in h for w in [
+            "hotel", "resort", "luxury", "suite", "stay", "exclusive", "private"
+        ]),
+        "has_adventure_framing": any(w in h for w in [
+            "wild", "path", "roam", "trail", "jungle", "adventure", "rugged"
+        ]),
+        "tone": (
+            "luxury_experience" if any(w in h for w in ["hotel", "resort", "luxury", "suite", "stay"])
+            else "adventure_discovery" if any(w in h for w in ["wild", "path", "roam", "trail", "jungle", "adventure"])
+            else "curiosity" if "?" in hook or any(w in h for w in ["why", "what", "how", "unusual"])
+            else "general_creator"
+        )
+    }
 
 def api_save_captions(text: str, session: str) -> Dict[str, Any]:
     try:
