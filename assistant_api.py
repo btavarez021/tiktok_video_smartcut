@@ -601,6 +601,16 @@ ABSTRACT_CINEMATIC_PHRASES = [
     "refined calm",
 ]
 
+VAGUE_ABSTRACT_NOUNS = [
+    "this space",
+    "the space",
+    "this moment",
+    "the moment",
+    "the atmosphere",
+    "this journey",
+    "the journey",
+]
+
 def _tokenize_subject_text(text: str) -> list[str]:
     if not text:
         return []
@@ -2027,6 +2037,22 @@ def api_generate_hooks(session: str, intent: str | None = None):
             - Avoid overly abstract cinematic language that could apply to any reel.
             - The viewer should still recognize the actual footage from the hook.
             - Context may shape tone, but visible details should anchor the hook.
+
+            VISIBLE SUBJECT ANCHOR RULE:
+
+            - Do not remove the main visible subject completely.
+            - At least some hooks should reference visible anchors from the reel:
+            tiger, lion, rhino, gorilla, animals, greenery, enclosure, grass, rocks, wall, path.
+            - Avoid replacing the actual scene with vague words like:
+            "space", "moment", "energy", "atmosphere", "journey"
+            unless paired with a visible detail.
+            - Best hooks blend context mood with visible reality.
+
+            BAD:
+            "How this space transforms every step you take"
+
+            BETTER:
+            "How every animal path changes the atmosphere here"
 
             OBSERVATIONAL HOOK QUALITY RULE:
             - Avoid weak observational starters like "notice how" or "watch how" unless they include a clear curiosity gap
@@ -5512,6 +5538,22 @@ def api_generate_variants(
             - Avoid overly abstract cinematic language that could apply to any reel.
             - The viewer should still recognize the actual footage from the captions.
             - Context may shape tone, but visible details should anchor each caption.
+
+            VISIBLE SUBJECT ANCHOR RULE:
+
+            - Do not remove the main visible subject completely.
+            - At least some captions should reference visible anchors from the reel:
+            tiger, lion, rhino, gorilla, animals, greenery, enclosure, grass, rocks, wall, path.
+            - Avoid replacing the actual scene with vague words like:
+            "space", "moment", "energy", "atmosphere", "journey"
+            unless paired with a visible detail.
+            - Best captions blend context mood with visible reality.
+
+            BAD:
+            "This space shapes how we move"
+
+            BETTER:
+            "The lion’s slow path shifts the whole rhythm"
         """
 
         comparison_safety_guidance = """
@@ -5906,6 +5948,12 @@ def api_generate_variants(
                 if phrase in lower:
                     abstract_penalty -= 4
 
+            vague_noun_penalty = 0
+
+            for phrase in VAGUE_ABSTRACT_NOUNS:
+                if phrase in lower:
+                    vague_noun_penalty -= 2
+
             video_subjects = get_weighted_video_subjects(session)
             content_context = get_content_context(session)
             hook_score = score_generated_hook(
@@ -5929,7 +5977,8 @@ def api_generate_variants(
                 body_text,
                 effective_context
             )
-
+            
+            v["vague_noun_penalty"] = vague_noun_penalty
             v["generic_penalty"] = generic_penalty
             v["abstract_penalty"] = abstract_penalty
             v["hook_score"] = hook_score
@@ -5949,7 +5998,12 @@ def api_generate_variants(
                 primary_experience
             )
 
-            v["smart_score"] = base_smart_score + generic_penalty + abstract_penalty
+            v["smart_score"] = (
+                base_smart_score
+                + generic_penalty
+                + abstract_penalty
+                + vague_noun_penalty
+            )
             
             if generic_penalty <= -4:
                 v.setdefault("score_reasons", [])
