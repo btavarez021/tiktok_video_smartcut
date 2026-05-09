@@ -5824,6 +5824,8 @@ def api_generate_variants(
 
             {content_context_guidance}
 
+            Generate 12 caption variants total.
+            Use the enabled styles multiple times if needed, but make each version meaningfully different.
 
             Return STRICT JSON:
 
@@ -6033,7 +6035,7 @@ def api_generate_variants(
             reverse=True
         )
 
-        return {"variants": variants[:7]}
+        return {"variants": variants[:5]}
 
     except RateLimitError:
         log_error("[VARIANTS]", Exception("quota exceeded"))
