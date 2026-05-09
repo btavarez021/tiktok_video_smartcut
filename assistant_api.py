@@ -1882,6 +1882,21 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
         This is a HARD CREATIVE LENS.
 
+        CONTEXT INTENSITY RULE:
+
+        - The selected content context should influence the FEELING
+        of the hook more than the literal nouns used.
+
+        - Avoid repeatedly forcing direct context nouns like:
+        "hotel", "suite", "lobby", "room", "gym", or "workout"
+        unless clearly supported by the footage.
+
+        - Prefer emotional, atmospheric, pacing, or experiential framing
+        over literal context labeling.
+
+        - The reel should FEEL luxurious, immersive, energetic,
+        adventurous, or cinematic without constantly naming the context directly.
+
         REALISM CONSTRAINT RULE:
 
         - The selected context should influence emotional framing,
@@ -5659,6 +5674,21 @@ def api_generate_variants(
             - disney -> park atmosphere, rides, wonder, magic, nighttime finale
             - nightlife -> energy, lights, crowd, drinks, celebration
             - restaurant -> dining experience, chef craft, plating, ambiance
+
+            CONTEXT INTENSITY RULE:
+
+            - The selected content context should influence the FEELING
+            of the hook more than the literal nouns used.
+
+            - Avoid repeatedly forcing direct context nouns like:
+            "hotel", "suite", "lobby", "room", "gym", or "workout"
+            unless clearly supported by the footage.
+
+            - Prefer emotional, atmospheric, pacing, or experiential framing
+            over literal context labeling.
+
+            - The reel should FEEL luxurious, immersive, energetic,
+            adventurous, or cinematic without constantly naming the context directly.
             """
 
         context_guidance = f"""
