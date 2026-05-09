@@ -252,16 +252,15 @@ async function selectHook(text, isUser = true) {
   state.hook.userSelected = isUser;
 
 
-// ✅ instantly update selected hook visual state
 document.querySelectorAll(".hookCard").forEach(card => {
-  card.classList.remove("selected");
-  card.classList.add("locked");
-
   const hookText = card.querySelector(".hookText")?.textContent?.trim();
 
-  if (hookText === text.trim()) {
+  if (hookText === window.appState.hook.selected?.trim()) {
     card.classList.add("selected");
-    card.classList.remove("locked");
+    card.classList.remove("locked", "hook-locked");
+  } else {
+    card.classList.remove("selected");
+    card.classList.add("locked");
   }
 });
 
