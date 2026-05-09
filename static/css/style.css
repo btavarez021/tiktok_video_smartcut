@@ -1695,7 +1695,27 @@ h3 {
 }
 
 .hookCard.selected {
-  border: 2px solid #8b5cf6; /* purple */
+  border: 2px solid #22c55e !important;
+  background: rgba(34, 197, 94, 0.10) !important;
+  box-shadow:
+    0 0 0 3px rgba(34, 197, 94, 0.22),
+    0 8px 20px rgba(0, 0, 0, 0.28);
+  transform: scale(1.01);
+  position: relative;
+}
+
+.hookCard.selected::after {
+  content: "✓ Selected";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.45);
 }
 
 .hook-lab-actions {
@@ -1710,8 +1730,10 @@ h3 {
   white-space: nowrap;
 }
 
-.hookCard.locked:not(.selected) {
-  opacity: 0.6;
+.hookCard.locked:not(.selected),
+.hookCard.hook-locked:not(.selected) {
+  opacity: 0.45;
+  filter: grayscale(0.25);
 }
 
 .hook-lab-status.loading { color: #facc15; }
@@ -4377,6 +4399,7 @@ body.no-scroll {
   border-radius: 8px;
   background: rgba(255,255,255,0.04);
 }
+
 
 .content-mode-option {
   display: grid;
