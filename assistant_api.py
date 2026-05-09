@@ -587,6 +587,20 @@ GENERIC_CREATOR_PHRASES = [
     "luxury in every detail",
 ]
 
+ABSTRACT_CINEMATIC_PHRASES = [
+    "quiet roar",
+    "nature breathes",
+    "lets nature breathe",
+    "wild with sophistication",
+    "luxury that lets",
+    "layers of peaceful luxury",
+    "curated yet alive",
+    "calm walls",
+    "living experience",
+    "wild luxury",
+    "refined calm",
+]
+
 def _tokenize_subject_text(text: str) -> list[str]:
     if not text:
         return []
@@ -1988,6 +2002,16 @@ def api_generate_hooks(session: str, intent: str | None = None):
             - do not force "secret", "hidden", or "surprising" hooks unless the first clip visually suggests there is something to uncover
             - If a hook would require inventing meaning, behavior, or intention, do not generate it
             - Prefer grounded observation over interpretation when unclear
+
+            VISUAL GROUNDING RULE:
+
+            - Hooks should reference real visible qualities from the reel whenever possible.
+            - Prefer visible details like:
+            movement, greenery, pathways, rocks, walls, fencing, enclosure design,
+            proximity, pacing, scale, texture, or animal movement.
+            - Avoid overly abstract cinematic language that could apply to any reel.
+            - The viewer should still recognize the actual footage from the hook.
+            - Context may shape tone, but visible details should anchor the hook.
 
             OBSERVATIONAL HOOK QUALITY RULE:
             - Avoid weak observational starters like "notice how" or "watch how" unless they include a clear curiosity gap
@@ -5391,8 +5415,6 @@ def api_generate_variants(
         caption_mode_guidance = """
             CAPTION MODE BEHAVIOR:
 
-            ...
-
             - captions should feel like creator narration or creator framing,
             not scientific or documentary labels
 
@@ -5465,6 +5487,16 @@ def api_generate_variants(
 
             BETTER:
             "This whole stay keeps feeling more unreal"
+
+            VISUAL GROUNDING RULE:
+
+            - Captions should reference real visible qualities from the reel whenever possible.
+            - Prefer visible details like:
+            movement, greenery, pathways, rocks, walls, fencing, enclosure design,
+            proximity, pacing, scale, texture, or animal movement.
+            - Avoid overly abstract cinematic language that could apply to any reel.
+            - The viewer should still recognize the actual footage from the captions.
+            - Context may shape tone, but visible details should anchor each caption.
         """
 
         comparison_safety_guidance = """
@@ -5838,6 +5870,12 @@ def api_generate_variants(
                 if phrase in lower:
                     generic_penalty -= 4
 
+            abstract_penalty = 0
+
+            for phrase in ABSTRACT_CINEMATIC_PHRASES:
+                if phrase in lower:
+                    abstract_penalty -= 4
+
             video_subjects = get_weighted_video_subjects(session)
             content_context = get_content_context(session)
             hook_score = score_generated_hook(
@@ -5863,6 +5901,7 @@ def api_generate_variants(
             )
 
             v["generic_penalty"] = generic_penalty
+            v["abstract_penalty"] = abstract_penalty
             v["hook_score"] = hook_score
             v["story_flow"] = flow_score
             v["flow_score"] = flow_score
@@ -5880,7 +5919,7 @@ def api_generate_variants(
                 primary_experience
             )
 
-            v["smart_score"] = base_smart_score + generic_penalty
+            v["smart_score"] = base_smart_score + generic_penalty + abstract_penalty
             
             if generic_penalty <= -4:
                 v.setdefault("score_reasons", [])
