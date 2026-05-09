@@ -5507,8 +5507,24 @@ def api_generate_variants(
             - “this place surprised me…”
 
             IMPORTANT:
-            Even if the clip is not literally a {content_context},
-            the captions should FEEL like that type of content.
+            The selected context should influence the EMOTIONAL FRAMING
+            and CREATOR PERSPECTIVE of the captions,
+            without replacing the actual reality of the clip.
+
+            Do NOT pretend the clip is literally a different place.
+
+            Example:
+            - zoo footage can feel immersive, luxurious, adventurous, or cinematic
+            without falsely becoming a hotel, resort, or private property.
+
+            The context should shape:
+            - mood
+            - pacing
+            - emotional framing
+            - creator perspective
+            - viewer experience
+
+            NOT factual reality.
 
             TASTE CONTROL RULE:
 
