@@ -1868,6 +1868,19 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
         This is a HARD CREATIVE LENS.
 
+        REALISM CONSTRAINT RULE:
+
+        - The selected context should influence emotional framing,
+        atmosphere, pacing, and creator perspective.
+
+        - Do NOT pretend the footage is literally a different place.
+
+        - Do NOT invent hotels, hotel rooms, lobbies, rooftops,
+        suites, guests, resorts, or properties unless visually supported.
+
+        - The context should shape HOW the moment feels,
+        not replace factual reality.
+
         Hook rules:
         - Every hook must clearly feel like {content_context} content.
         - Do not generate generic hooks that could work for any video.
@@ -1878,7 +1891,14 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
         Context examples:
         - adventure: exploration, movement, discovery, curiosity, wild setting
-        - hotel: stay experience, room, lobby, rooftop, amenities, comfort, premium feel
+        - hotel:
+            immersive atmosphere,
+            elevated experience,
+            refined calm,
+            luxury energy,
+            curated environment,
+            escapist feeling,
+            premium mood
         - travel: journey, destination, surprise, personal discovery
         - restaurant: dining, taste, plating, chef craft, ambiance
         - bar: nightlife, cocktails, lounge, mood, first drink, night out
@@ -1897,8 +1917,9 @@ def api_generate_hooks(session: str, intent: str | None = None):
         - "The first step into this enclosure changes the whole vibe"
 
         Better for hotel:
-        - "This stay has the kind of detail you notice immediately"
-        - "The first look already feels like a premium escape"
+        "This whole place feels unexpectedly immersive"
+        "The atmosphere here changes the moment instantly"
+        "Everything about this setting feels elevated"
 
         If a hook could work without knowing the selected context, rewrite it.
         """
@@ -1910,7 +1931,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
         }
 
     prompt = f"""
-            Generate 8 high-performing TikTok hooks for a hotel / travel / lifestyle reel.
+            Generate 8 high-performing TikTok hooks for a creator-style experiential reel.
 
             Intent: {intent}
 
