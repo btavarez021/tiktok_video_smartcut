@@ -1921,7 +1921,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
         not replace factual reality.
 
         Hook rules:
-        - Every hook must clearly feel like {content_context} content.
+        - Every hook should subtly reflect the selected context’s mood or creator angle.
         - Do not generate generic hooks that could work for any video.
         - Do not let the visible subject alone control the hook.
         - Keep hooks grounded in the first clip, but frame them through the selected context.
@@ -5473,8 +5473,7 @@ def api_generate_variants(
             - captions should remain visually anchored to the clip,
             even when emotionally reframed through the selected context
 
-            - captions should prioritize the SELECTED CONTENT CONTEXT
-            over literal object labeling
+            - captions should balance the selected context with visible reel details
 
             - do NOT describe clips like wildlife documentation
             unless the selected context is actually wildlife/nature
