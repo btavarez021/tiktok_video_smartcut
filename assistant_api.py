@@ -4386,26 +4386,36 @@ def score_context_relevance_bonus(hook: str, context: str) -> int:
     text = hook.lower()
 
     CONTEXT_KEYWORDS = {
+        "cruise": ["ocean", "sea", "deck", "sailing", "port", "onboard", "horizon", "breeze"],
+        "hotel": ["elevated", "curated", "refined", "calm", "atmosphere", "retreat", "immersive", "intentional"],
+        "resort": ["escape", "retreat", "pool", "tropical", "relax", "ocean", "serene", "premium"],
+        "beach": ["ocean", "sand", "shore", "breeze", "sunset", "waves", "coastal", "relax"],
+        "city": ["city", "street", "skyline", "downtown", "urban", "neighborhood", "walk", "view"],
 
-        "cruise": ["cruise", "deck", "ocean", "sailing", "port", "ship"],
+        "restaurant": ["dining", "dish", "plate", "chef", "flavor", "meal", "table", "bite"],
+        "fine_dining": ["tasting", "course", "chef", "plating", "refined", "wine", "service", "elevated"],
+        "cocktails": ["cocktail", "drink", "bar", "lounge", "sip", "mixology", "night", "glass"],
+        "coffee": ["coffee", "cafe", "latte", "espresso", "morning", "cozy", "ritual", "warm"],
 
-        "hotel": ["hotel", "stay", "suite", "lobby", "rooftop"],
+        "nightlife": ["night", "lights", "crowd", "music", "electric", "late", "pulse", "energy"],
+        "club": ["dj", "bass", "dance", "lights", "crowd", "set", "drop", "floor"],
+        "party": ["party", "celebration", "crowd", "music", "friends", "toast", "energy", "late"],
 
-        "restaurant": ["chef", "dish", "restaurant", "plate", "dining"],
+        "fitness": ["controlled", "measured", "rhythm", "pace", "focus", "discipline", "movement", "precision"],
+        "gym": ["training", "strength", "sets", "reps", "lift", "form", "effort", "conditioning"],
+        "hyrox": ["conditioning", "endurance", "sled", "wall balls", "run", "stations", "grit", "pace"],
 
-        "nightlife": ["party", "dance", "club", "night", "dj"],
+        "luxury": ["luxury", "exclusive", "refined", "premium", "elevated", "curated", "intentional", "detail"],
+        "adventure": ["trail", "path", "wild", "rugged", "terrain", "explore", "shadows", "stones"],
+        "spa": ["calm", "restore", "relax", "breathe", "quiet", "soft", "serene", "recovery"],
 
-        "fitness": ["gym", "workout", "training", "lift", "fitness", "strength", "cardio","performance"],
+        "disney": ["magic", "park", "ride", "castle", "fireworks", "wonder", "nighttime", "queue"],
+        "show": ["stage", "performance", "lights", "crowd", "curtain", "live", "theater", "applause"],
+        "concert": ["concert", "stage", "crowd", "lights", "music", "set", "bass", "live"],
 
-        "disney": ["magic", "park", "ride", "castle", "disney"],
-
-        "luxury": ["luxury", "exclusive", "elite", "vip"],
-
-        "adventure": ["wild", "explore", "journey", "discover", "adventure", "zoo"],
-
-        "travel": ["travel", "journey", "destination", "trip", "explore", "wander"],
-
-        "bar": ["cocktail", "drink", "night", "bar", "lounge", "mixology"],
+        "vlog": ["day", "trip", "walk", "discover", "first stop", "behind the scenes", "experience", "personal"],
+        "day_in_life": ["morning", "routine", "day", "errands", "coffee", "work", "reset", "evening"],
+        "personal": ["i", "we", "my", "felt", "didn't expect", "favorite", "honest", "realized"],
     }
 
     words = CONTEXT_KEYWORDS.get(context, [])
@@ -5129,8 +5139,8 @@ def score_context_alignment(text: str, content_context: str) -> int:
     score -= min(generic_hits * 6, 30)
 
     # Reward experiential language across all contexts
-    if any(w in t for w in ["feels", "vibe", "experience", "atmosphere", "moment", "energy"]):
-        score += 10
+    if any(w in t for w in ["feels", "experience", "atmosphere", "pace", "rhythm", "detail", "setting"]):
+        score += 8
 
     return max(0, min(100, score))
 
@@ -5172,6 +5182,34 @@ def get_dynamic_context_terms(context: str) -> list[str]:
         - hotel: immersive, elevated, refined, curated, calm, intentional, retreat, atmosphere
         - fitness: controlled, measured, rhythm, pace, focus, discipline, movement, precision
         - adventure: trail, path, rugged, wild, terrain, shadows, stones, movement, crossing
+
+        Each context should have a DISTINCT emotional identity.
+
+        Avoid overlap between contexts.
+
+        Adventure terms should focus on:
+        - exploration
+        - terrain
+        - atmosphere
+        - movement through environments
+        - immersion
+        - discovery
+
+        Fitness terms should focus on:
+        - discipline
+        - precision
+        - rhythm
+        - controlled movement
+        - athletic pacing
+        - strength mechanics
+
+        Hotel Stay terms should focus on:
+        - refinement
+        - calm
+        - elevated atmosphere
+        - intentional design
+        - immersive escape
+        - curated experience
 
         Example output:
         {{"terms": ["immersive", "elevated", "curated", "atmosphere"]}}
