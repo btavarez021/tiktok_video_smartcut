@@ -611,6 +611,17 @@ VAGUE_ABSTRACT_NOUNS = [
     "the journey",
 ]
 
+REPETITIVE_CREATOR_PHRASES = [
+    "pulls you in",
+    "quiet strength",
+    "calm energy",
+    "owns every step",
+    "changes the whole pace",
+    "pure confidence",
+    "steady and strong",
+    "calm and focused",
+]
+
 def _tokenize_subject_text(text: str) -> list[str]:
     if not text:
         return []
@@ -5955,6 +5966,12 @@ def api_generate_variants(
                 if phrase in lower:
                     vague_noun_penalty -= 2
 
+            repetition_penalty = 0
+
+            for phrase in REPETITIVE_CREATOR_PHRASES:
+                if phrase in lower:
+                    repetition_penalty -= 2
+
             video_subjects = get_weighted_video_subjects(session)
             content_context = get_content_context(session)
             hook_score = score_generated_hook(
@@ -5979,6 +5996,7 @@ def api_generate_variants(
                 effective_context
             )
             
+            v["repetition_penalty"] = repetition_penalty
             v["vague_noun_penalty"] = vague_noun_penalty
             v["generic_penalty"] = generic_penalty
             v["abstract_penalty"] = abstract_penalty
@@ -6004,6 +6022,7 @@ def api_generate_variants(
                 + generic_penalty
                 + abstract_penalty
                 + vague_noun_penalty
+                + repetition_penalty
             )
             
             if generic_penalty <= -4:
