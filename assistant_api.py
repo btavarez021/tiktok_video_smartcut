@@ -5153,21 +5153,29 @@ def get_dynamic_context_terms(context: str) -> list[str]:
         return []
 
     prompt = f"""
-Return 12 short experiential vocabulary terms for short-form creator captions.
+        Return 16 short experiential vocabulary terms for short-form creator captions.
 
-Context:
-{context}
+        Context:
+        {context}
 
-Rules:
-- terms should fit creator/travel/lifestyle captions
-- prefer concrete experience words over generic adjectives
-- no hashtags
-- no emojis
-- return JSON only
+        Rules:
+        - terms should help captions FEEL like the selected context
+        - prefer mood, movement, pacing, atmosphere, and creator-experience words
+        - avoid literal location nouns unless they are broadly safe
+        - avoid fake physical-place terms like lobby, suite, room, rooftop, gym
+        - avoid generic filler like vibe, energy, moment, place
+        - no hashtags
+        - no emojis
+        - return JSON only
 
-Example output:
-{{"terms": ["stay", "suite", "lobby", "view"]}}
-"""
+        Context-specific guidance:
+        - hotel: immersive, elevated, refined, curated, calm, intentional, retreat, atmosphere
+        - fitness: controlled, measured, rhythm, pace, focus, discipline, movement, precision
+        - adventure: trail, path, rugged, wild, terrain, shadows, stones, movement, crossing
+
+        Example output:
+        {{"terms": ["immersive", "elevated", "curated", "atmosphere"]}}
+        """
 
     try:
         resp = client.chat.completions.create(
@@ -5188,7 +5196,7 @@ Example output:
             if isinstance(t, str) and t.strip()
         ]
 
-        CONTEXT_TERM_CACHE[context] = terms[:12]
+        CONTEXT_TERM_CACHE[context] = terms[:16]
         return CONTEXT_TERM_CACHE[context]
 
     except Exception as e:
@@ -5214,7 +5222,7 @@ def score_dynamic_context_vocabulary(text: str, context: str) -> int:
         if term in lower
     )
 
-    score = 50 + min(matches * 10, 40)
+    score = 45 + min(matches * 12, 50)
 
     return max(0, min(100, score))
 
