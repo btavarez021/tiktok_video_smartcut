@@ -1393,7 +1393,7 @@ def choose_best_hook(hooks, intent="discovery"):
         reason = "Higher curiosity and scroll-stopping power than other hooks"
     else:
         reason = "Best overall hook for this video goal"
-
+    
     return {
         "text": best["text"],
         "reason": reason
@@ -3673,6 +3673,13 @@ def choose_best_variant(
         return compute_variant_smart_score(v, intent, primary_experience)
 
     scored = [{**v, "_base": base_score(v)} for v in variants]
+
+    for v in scored:
+        tone = (v.get("tone") or "").lower()
+
+        if "creator" in tone:
+            v["_base"] -= 2
+
     scored.sort(key=lambda v: v["_base"], reverse=True)
 
     # ----------------------------------
