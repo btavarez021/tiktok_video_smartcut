@@ -4724,7 +4724,6 @@ def score_generated_hook(
     score -= context_mismatch_penalty
     score -= universal_hook_penalty
 
-
     return {
         "score": score,
         "base_score": base_score,
