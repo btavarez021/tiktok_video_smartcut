@@ -645,7 +645,11 @@ REPETITIVE_SYSTEM_PHRASES = [
 CONTEXT_WEAK_HOOK_TERMS = {
     "hotel": [
         "path", "stride", "power", "owns", "commands",
-        "wild", "rugged", "terrain"
+        "wild", "rugged", "terrain","rocky path",
+        "rugged path",
+        "stones",
+        "rocks",
+        "raw",
     ],
     "fitness": [
         "wild", "enclosure", "escape", "curated", "luxury",
@@ -656,6 +660,11 @@ CONTEXT_WEAK_HOOK_TERMS = {
         "tranquility",
         "peaceful",
         "soothing",
+        "rocky path",
+        "rugged route",
+        "rugged",
+        "wild",
+        "terrain",
     ],
     "adventure": [
         "refined", "curated", "luxury", "discipline",
