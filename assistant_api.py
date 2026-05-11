@@ -627,6 +627,21 @@ REPETITIVE_CREATOR_PHRASES = [
     "whole rhythm",
 ]
 
+REPETITIVE_SYSTEM_PHRASES = [
+    "owns its space",
+    "owns the space",
+    "vibe",
+    "calm presence",
+    "pulls you in",
+    "steady rhythm",
+    "cuts through grass",
+    "holds ground",
+    "framed by",
+    "slow walk",
+    "shifts everything",
+    "changes everything",
+]
+
 CONTEXT_WEAK_HOOK_TERMS = {
     "hotel": [
         "path", "stride", "power", "owns", "commands",
@@ -647,6 +662,20 @@ CONTEXT_WEAK_HOOK_TERMS = {
         "workout", "premium", "retreat"
     ],
 }
+
+
+def score_phrase_freshness_penalty(text: str) -> int:
+    if not text:
+        return 0
+
+    lower = text.lower()
+
+    hits = sum(
+        1 for phrase in REPETITIVE_SYSTEM_PHRASES
+        if phrase in lower
+    )
+
+    return min(hits * 3, 15)
 
 def score_context_mismatch_penalty(hook: str, context: str) -> int:
     if not hook or not context or context == "auto":
@@ -3628,8 +3657,14 @@ def compute_variant_smart_score(
 
     tone_fit_bonus = score_context_tone_fit(primary_experience, tone)
     generic_penalty = score_generic_phrase_penalty(text)
+    freshness_penalty = score_phrase_freshness_penalty(text)
 
-    bonus_total = primary_bonus + tone_fit_bonus + generic_penalty
+    bonus_total = (
+        primary_bonus +
+        tone_fit_bonus +
+        generic_penalty -
+        freshness_penalty
+    )
     bonus_component = max(0, min(100, 50 + (bonus_total * 5)))
 
     intent_cfg = INTENT_PROFILE.get(intent, INTENT_PROFILE["discovery"])
