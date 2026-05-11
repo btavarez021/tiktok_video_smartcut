@@ -4709,8 +4709,6 @@ def score_generated_hook(
     primary_experience_bonus = score_primary_experience_bonus(clean, primary_experience)
     universal_hook_penalty = score_universal_hook_penalty(clean)
 
-    score -= universal_hook_penalty
-
     score = min(
         base_score +
         curiosity_bonus +
@@ -4724,6 +4722,8 @@ def score_generated_hook(
 
     context_mismatch_penalty = score_context_mismatch_penalty(clean, context)
     score -= context_mismatch_penalty
+    score -= universal_hook_penalty
+
 
     return {
         "score": score,
