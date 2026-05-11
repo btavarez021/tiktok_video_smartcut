@@ -622,6 +622,33 @@ REPETITIVE_CREATOR_PHRASES = [
     "calm and focused",
 ]
 
+CONTEXT_WEAK_HOOK_TERMS = {
+    "hotel": [
+        "path", "stride", "power", "owns", "commands",
+        "wild", "rugged", "terrain"
+    ],
+    "fitness": [
+        "wild", "enclosure", "escape", "curated", "luxury",
+        "refined", "retreat"
+    ],
+    "adventure": [
+        "refined", "curated", "luxury", "discipline",
+        "workout", "premium", "retreat"
+    ],
+}
+
+def score_context_mismatch_penalty(hook: str, context: str) -> int:
+    if not hook or not context or context == "auto":
+        return 0
+
+    ctx = normalize_content_context(context)
+    lower = hook.lower()
+
+    weak_terms = CONTEXT_WEAK_HOOK_TERMS.get(ctx, [])
+    hits = sum(1 for term in weak_terms if term in lower)
+
+    return min(hits * 3, 9)
+
 def _tokenize_subject_text(text: str) -> list[str]:
     if not text:
         return []
@@ -4621,6 +4648,9 @@ def score_generated_hook(
         100
     )
 
+    context_mismatch_penalty = score_context_mismatch_penalty(clean, context)
+    score -= context_mismatch_penalty
+
     return {
         "score": score,
         "base_score": base_score,
@@ -4632,6 +4662,7 @@ def score_generated_hook(
         "primary_experience_bonus": primary_experience_bonus,
         "vague_penalty": vague_penalty,
         "honesty_penalty": honesty_penalty,
+        "context_mismatch_penalty": context_mismatch_penalty,
     }
 
 def infer_clip_role_v2(text: str) -> str:
