@@ -3638,12 +3638,12 @@ def compute_variant_smart_score(
     flow_share = flow_weight / hook_flow_total
 
     score = (
-        hook * (0.36 * hook_share) +
-        flow * (0.36 * flow_share) +
-        context * 0.14 +
-        creator_voice * 0.14 +
+        hook * (0.30 * hook_share) +
+        flow * (0.30 * flow_share) +
+        context * 0.18 +
+        creator_voice * 0.12 +
         experience * 0.14 +
-        context_vocab * 0.08 +
+        context_vocab * 0.12 +
         rhythm * 0.06 +
         ending * 0.04 +
         bonus_component * 0.04
