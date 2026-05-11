@@ -634,7 +634,13 @@ CONTEXT_WEAK_HOOK_TERMS = {
     ],
     "fitness": [
         "wild", "enclosure", "escape", "curated", "luxury",
-        "refined", "retreat"
+        "refined", "retreat","calm",
+        "ease",
+        "rest",
+        "stillness",
+        "tranquility",
+        "peaceful",
+        "soothing",
     ],
     "adventure": [
         "refined", "curated", "luxury", "discipline",
