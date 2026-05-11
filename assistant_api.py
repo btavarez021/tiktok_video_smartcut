@@ -620,6 +620,11 @@ REPETITIVE_CREATOR_PHRASES = [
     "pure confidence",
     "steady and strong",
     "calm and focused",
+    "owns the space",
+    "changes everything",
+    "shifts everything",
+    "whole mood",
+    "whole rhythm",
 ]
 
 CONTEXT_WEAK_HOOK_TERMS = {
