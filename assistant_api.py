@@ -663,6 +663,24 @@ CONTEXT_WEAK_HOOK_TERMS = {
     ],
 }
 
+UNIVERSAL_HOOK_PATTERNS = [
+    "feel so alive",
+    "changes everything",
+    "shifts everything",
+    "whole scene",
+    "whole space",
+    "space around it",
+    "command the space",
+]
+
+def score_universal_hook_penalty(hook: str) -> int:
+    if not hook:
+        return 0
+
+    lower = hook.lower()
+    hits = sum(1 for p in UNIVERSAL_HOOK_PATTERNS if p in lower)
+
+    return min(hits * 5, 10)
 
 def score_phrase_freshness_penalty(text: str) -> int:
     if not text:
@@ -4689,6 +4707,9 @@ def score_generated_hook(
     visual_anchor_bonus = score_hook_visual_anchor_bonus(clean)
     context_bonus = score_context_relevance_bonus(clean, context)
     primary_experience_bonus = score_primary_experience_bonus(clean, primary_experience)
+    universal_hook_penalty = score_universal_hook_penalty(clean)
+
+    score -= universal_hook_penalty
 
     score = min(
         base_score +
@@ -4716,6 +4737,7 @@ def score_generated_hook(
         "vague_penalty": vague_penalty,
         "honesty_penalty": honesty_penalty,
         "context_mismatch_penalty": context_mismatch_penalty,
+        "universal_hook_penalty": universal_hook_penalty
     }
 
 def infer_clip_role_v2(text: str) -> str:
