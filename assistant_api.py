@@ -3762,6 +3762,30 @@ def compute_variant_smart_score(
 
     return round(max(0, min(score, 100)), 2)
 
+def score_dynamic_context_conflict(text: str, context: str) -> int:
+    """
+    Penalizes language that belongs to nearby competing contexts.
+    """
+
+    if not text or not context or context == "auto":
+        return 0
+
+    profile = get_dynamic_context_profile(context)
+
+    avoid_terms = profile.get("avoid", [])
+
+    if not avoid_terms:
+        return 0
+
+    lower = text.lower()
+
+    hits = sum(
+        1 for term in avoid_terms
+        if term.lower() in lower
+    )
+
+    return hits * 6
+
 def choose_best_variant(
     variants: list,
     intent: str,
@@ -4768,6 +4792,8 @@ def score_generated_hook(
     )
 
     context_mismatch_penalty = score_context_mismatch_penalty(clean, context)
+    dynamic_context_conflict = score_dynamic_context_conflict(clean, context)
+    score -= dynamic_context_conflict
     score -= context_mismatch_penalty
     score -= universal_hook_penalty
 
@@ -4783,7 +4809,8 @@ def score_generated_hook(
         "vague_penalty": vague_penalty,
         "honesty_penalty": honesty_penalty,
         "context_mismatch_penalty": context_mismatch_penalty,
-        "universal_hook_penalty": universal_hook_penalty
+        "universal_hook_penalty": universal_hook_penalty,
+        "dynamic_context_conflict": dynamic_context_conflict
     }
 
 def infer_clip_role_v2(text: str) -> str:
