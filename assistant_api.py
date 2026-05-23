@@ -5278,9 +5278,9 @@ def get_dynamic_context_profile(context: str) -> dict:
         Context:
         {context}
 
-        Return JSON only with this shape:
+       Return JSON only with this shape:
 
-        {
+        {{
         "identity": "short phrase defining the core feeling",
         "themes": ["theme1", "theme2"],
         "emotions": ["emotion1", "emotion2"],
@@ -5291,7 +5291,7 @@ def get_dynamic_context_profile(context: str) -> dict:
         ],
         "avoid": ["word_or_phrase1", "word_or_phrase2"],
         "caption_style": "short description"
-        }
+        }}
 
         Rules:
         - themes should define what this context should FEEL like
