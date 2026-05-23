@@ -5343,7 +5343,7 @@ def get_dynamic_context_profile(context: str) -> dict:
         Context:
         {context}
 
-       Return JSON only with this shape:
+        Return JSON only with this shape:
 
         {{
         "identity": "short phrase defining the core feeling",
@@ -5352,24 +5352,32 @@ def get_dynamic_context_profile(context: str) -> dict:
         "verbs": ["verb1", "verb2"],
         "visual_language": ["term1", "term2"],
         "differentiators": [
-            "what makes this different from nearby contexts"
+            "how this context differs from nearby contexts"
         ],
         "avoid": ["word_or_phrase1", "word_or_phrase2"],
         "caption_style": "short description"
         }}
+
+        Also explain through the differentiators how this context differs emotionally and stylistically from nearby contexts.
+
+        Examples:
+        - hotel vs resort
+        - resort vs luxury
+        - luxury vs spa
+        - nightlife vs club
+        - fitness vs hyrox
 
         Rules:
         - themes should define what this context should FEEL like
         - emotions should guide tone
         - verbs should guide action language
         - visual_language should help caption visible scenes through this context
+        - differentiators should explain how this context differs from similar nearby contexts
         - avoid should include terms that belong to nearby but wrong contexts
+        - avoid overlap with adjacent contexts when possible
         - avoid fake places or unsupported claims
         - no emojis
         - no hashtags
-        - identity should summarize the emotional core of the context
-        - differentiators should explain how this context differs from similar nearby contexts
-        - avoid overlap with adjacent contexts when possible
         """
 
     try:
