@@ -5258,13 +5258,73 @@ def score_context_alignment(text: str, content_context: str) -> int:
 
     return max(0, min(100, score))
 
+CONTEXT_PROFILE_CACHE = {}
+
+def get_dynamic_context_profile(context: str) -> dict:
+    context = normalize_content_context(context)
+
+    if not context or context == "auto":
+        return {}
+
+    if context in CONTEXT_PROFILE_CACHE:
+        return CONTEXT_PROFILE_CACHE[context]
+
+    if not client:
+        return {}
+
+    prompt = f"""
+        Return a reusable creative identity profile for this short-form content context.
+
+        Context:
+        {context}
+
+        Return JSON only with this shape:
+
+        {{
+        "themes": ["theme1", "theme2"],
+        "emotions": ["emotion1", "emotion2"],
+        "verbs": ["verb1", "verb2"],
+        "visual_language": ["term1", "term2"],
+        "avoid": ["word_or_phrase1", "word_or_phrase2"],
+        "caption_style": "short description"
+        }}
+
+        Rules:
+        - themes should define what this context should FEEL like
+        - emotions should guide tone
+        - verbs should guide action language
+        - visual_language should help caption visible scenes through this context
+        - avoid should include terms that belong to nearby but wrong contexts
+        - avoid fake places or unsupported claims
+        - no emojis
+        - no hashtags
+        """
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": "Return JSON only."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.25,
+        )
+
+        profile = safe_json_extract(resp.choices[0].message.content or "")
+
+        if not isinstance(profile, dict):
+            profile = {}
+
+        CONTEXT_PROFILE_CACHE[context] = profile
+        return profile
+
+    except Exception as e:
+        logger.warning(f"[CONTEXT PROFILE] failed for {context}: {e}")
+        return {}
+
 CONTEXT_TERM_CACHE = {}
 
 def get_dynamic_context_terms(context: str) -> list[str]:
-    """
-    Uses AI once per context to generate context-specific experiential terms.
-    Cached in memory so it does not call OpenAI every variant run.
-    """
     context = normalize_content_context(context)
 
     if not context or context == "auto":
@@ -5273,74 +5333,15 @@ def get_dynamic_context_terms(context: str) -> list[str]:
     if context in CONTEXT_TERM_CACHE:
         return CONTEXT_TERM_CACHE[context]
 
-    if not client:
-        return []
+    profile = get_dynamic_context_profile(context)
 
-    prompt = f"""
-        Return 16 short experiential vocabulary terms for short-form creator captions.
+    if profile:
+        terms = []
 
-        Context:
-        {context}
-
-        Rules:
-        - terms should help captions FEEL like the selected context
-        - prefer mood, movement, pacing, atmosphere, and creator-experience words
-        - avoid literal location nouns unless they are broadly safe
-        - avoid fake physical-place terms like lobby, suite, room, rooftop, gym
-        - avoid generic filler like vibe, energy, moment, place
-        - no hashtags
-        - no emojis
-        - return JSON only
-
-        Context-specific guidance:
-        - hotel: immersive, elevated, refined, curated, calm, intentional, retreat, atmosphere
-        - fitness: controlled, measured, rhythm, pace, focus, discipline, movement, precision
-        - adventure: trail, path, rugged, wild, terrain, shadows, stones, movement, crossing
-
-        Each context should have a DISTINCT emotional identity.
-
-        Avoid overlap between contexts.
-
-        Adventure terms should focus on:
-        - exploration
-        - terrain
-        - atmosphere
-        - movement through environments
-        - immersion
-        - discovery
-
-        Fitness terms should focus on:
-        - discipline
-        - precision
-        - rhythm
-        - controlled movement
-        - athletic pacing
-        - strength mechanics
-
-        Hotel Stay terms should focus on:
-        - refinement
-        - calm
-        - elevated atmosphere
-        - intentional design
-        - immersive escape
-        - curated experience
-
-        Example output:
-        {{"terms": ["immersive", "elevated", "curated", "atmosphere"]}}
-        """
-
-    try:
-        resp = client.chat.completions.create(
-            model=TEXT_MODEL,
-            messages=[
-                {"role": "system", "content": "Return JSON only."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,
-        )
-
-        data = safe_json_extract(resp.choices[0].message.content or "")
-        terms = data.get("terms", [])
+        for key in ["themes", "emotions", "verbs", "visual_language"]:
+            values = profile.get(key, [])
+            if isinstance(values, list):
+                terms.extend(values)
 
         terms = [
             str(t).lower().strip()
@@ -5351,10 +5352,8 @@ def get_dynamic_context_terms(context: str) -> list[str]:
         CONTEXT_TERM_CACHE[context] = terms[:16]
         return CONTEXT_TERM_CACHE[context]
 
-    except Exception as e:
-        logger.warning(f"[CONTEXT TERMS] failed for {context}: {e}")
-        return []
-    
+    return []
+
 def score_dynamic_context_vocabulary(text: str, context: str) -> int:
     """
     Rewards captions that use context-specific experiential vocabulary
