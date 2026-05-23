@@ -569,6 +569,15 @@ SUBJECT_STOPWORDS = {
     "before", "while", "when", "where"
 }
 
+VARIANT_PATTERNS = [
+    "subject_progression",
+    "environmental_journey",
+    "emotional_escalation",
+    "creator_pov",
+    "cinematic_observation",
+    "sensory_experience",
+]
+
 GENERIC_CREATOR_PHRASES = [
     "hits different",
     "sets the tone",
@@ -701,6 +710,28 @@ UNIVERSAL_HOOK_PATTERNS = [
     "space around it",
     "command the space",
 ]
+
+def build_variant_pattern_guidance() -> str:
+    return """
+VARIANT STRUCTURE DIVERSITY RULE:
+
+Generate variants using different narrative structures.
+
+Use a mix of:
+- subject_progression: one visible subject per caption block
+- environmental_journey: describe how the setting evolves across clips
+- emotional_escalation: build from calm to stronger feeling
+- creator_pov: first-person creator reaction or observation
+- cinematic_observation: polished visual narration
+- sensory_experience: texture, sound, movement, atmosphere
+
+Not every variant should follow:
+Rhino...
+Gorilla...
+Lion...
+
+Some variants should connect the clips as one unfolding experience.
+"""
 
 def score_overused_phrase_penalty(text: str) -> int:
     if not text:
@@ -5500,6 +5531,8 @@ def api_generate_variants(
         else session_context.get("primary_experience", "mixed")
     )
 
+    variant_pattern_guidance = build_variant_pattern_guidance()
+
     first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
 
     hook_style = analyze_hook_style(selected_hook or "")
@@ -6059,6 +6092,8 @@ def api_generate_variants(
             {style_sections}
 
             {progression_guidance}
+
+            {variant_pattern_guidance}
 
             {hook_alignment_guidance} 
 
