@@ -587,6 +587,26 @@ GENERIC_CREATOR_PHRASES = [
     "luxury in every detail",
 ]
 
+GLOBAL_OVERUSED_PHRASES = [
+    "owns the space",
+    "owns the scene",
+    "owns every step",
+    "changes everything",
+    "shifts everything",
+    "whole mood",
+    "whole scene",
+    "whole rhythm",
+    "calm energy",
+    "pure vibe",
+    "vibe is",
+    "effortless flow",
+    "raw and refined",
+    "quiet power",
+    "changes the atmosphere",
+    "totally chill",
+    "grounded power",
+]
+
 ABSTRACT_CINEMATIC_PHRASES = [
     "quiet roar",
     "nature breathes",
@@ -681,6 +701,22 @@ UNIVERSAL_HOOK_PATTERNS = [
     "space around it",
     "command the space",
 ]
+
+def score_overused_phrase_penalty(text: str) -> int:
+    if not text:
+        return 0
+
+    lower = text.lower()
+
+    hits = sum(
+        1 for phrase in GLOBAL_OVERUSED_PHRASES
+        if phrase in lower
+    )
+
+    if hits == 0:
+        return 0
+
+    return min(hits * 4, 20)
 
 def score_universal_hook_penalty(hook: str) -> int:
     if not hook:
@@ -3684,13 +3720,15 @@ def compute_variant_smart_score(
 
     tone_fit_bonus = score_context_tone_fit(primary_experience, tone)
     generic_penalty = score_generic_phrase_penalty(text)
+    overused_penalty = score_overused_phrase_penalty(text)
     freshness_penalty = score_phrase_freshness_penalty(text)
 
     bonus_total = (
         primary_bonus +
         tone_fit_bonus +
         generic_penalty -
-        freshness_penalty
+        freshness_penalty -
+        overused_penalty
     )
     bonus_component = max(0, min(100, 50 + (bonus_total * 5)))
 
