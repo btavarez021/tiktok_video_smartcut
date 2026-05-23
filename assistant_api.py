@@ -5280,14 +5280,18 @@ def get_dynamic_context_profile(context: str) -> dict:
 
         Return JSON only with this shape:
 
-        {{
+        {
+        "identity": "short phrase defining the core feeling",
         "themes": ["theme1", "theme2"],
         "emotions": ["emotion1", "emotion2"],
         "verbs": ["verb1", "verb2"],
         "visual_language": ["term1", "term2"],
+        "differentiators": [
+            "what makes this different from nearby contexts"
+        ],
         "avoid": ["word_or_phrase1", "word_or_phrase2"],
         "caption_style": "short description"
-        }}
+        }
 
         Rules:
         - themes should define what this context should FEEL like
@@ -5298,6 +5302,9 @@ def get_dynamic_context_profile(context: str) -> dict:
         - avoid fake places or unsupported claims
         - no emojis
         - no hashtags
+        - identity should summarize the emotional core of the context
+        - differentiators should explain how this context differs from similar nearby contexts
+        - avoid overlap with adjacent contexts when possible
         """
 
     try:
