@@ -5347,6 +5347,7 @@ def get_dynamic_context_profile(context: str) -> dict:
 
         {{
         "identity": "short phrase defining the core feeling",
+        "energy": "calm | relaxed | elevated | intense | euphoric | exploratory | cozy | refined",
         "themes": ["theme1", "theme2"],
         "emotions": ["emotion1", "emotion2"],
         "verbs": ["verb1", "verb2"],
@@ -5355,7 +5356,7 @@ def get_dynamic_context_profile(context: str) -> dict:
             "how this context differs from nearby contexts"
         ],
         "avoid": ["word_or_phrase1", "word_or_phrase2"],
-        "caption_style": "short description"
+        "caption_style": "short description",
         }}
 
         Also explain through the differentiators how this context differs emotionally and stylistically from nearby contexts.
@@ -5378,6 +5379,14 @@ def get_dynamic_context_profile(context: str) -> dict:
         - avoid fake places or unsupported claims
         - no emojis
         - no hashtags
+        - energy should define the emotional velocity of the context
+        - choose one clear energy label such as calm, relaxed, elevated, intense, euphoric, exploratory, cozy, refined
+        - avoid using the same energy for nearby contexts unless truly appropriate
+        - luxury should usually be elevated or refined, not relaxed
+        - resort should usually be relaxed or escapist, not regal
+        - hotel should usually be calm, intimate, or curated
+        - fitness should usually be intense, disciplined, or controlled
+        - adventure should usually be exploratory or rugged
         """
 
     try:
@@ -5418,9 +5427,12 @@ def get_dynamic_context_terms(context: str) -> list[str]:
     if profile:
         terms = []
 
-        for key in ["themes", "emotions", "verbs", "visual_language"]:
+        for key in ["energy", "themes", "emotions", "verbs", "visual_language", "differentiators"]:
             values = profile.get(key, [])
-            if isinstance(values, list):
+            if isinstance(values, str):
+                terms.append(values)
+
+            elif isinstance(values, list):
                 terms.extend(values)
 
         terms = [
