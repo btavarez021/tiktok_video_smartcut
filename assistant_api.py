@@ -711,6 +711,49 @@ UNIVERSAL_HOOK_PATTERNS = [
     "command the space",
 ]
 
+
+def build_hook_context_worldview_guidance(context: str, profile: dict | None = None) -> str:
+    context = normalize_content_context(context)
+
+    if not context or context == "auto":
+        return ""
+
+    identity = ""
+    energy = ""
+    differentiators = []
+
+    if profile:
+        identity = profile.get("identity", "")
+        energy = profile.get("energy", "")
+        differentiators = profile.get("differentiators", [])
+
+    diff_text = "\n".join(f"- {d}" for d in differentiators[:3])
+
+    return f"""
+        HOOK CONTEXT WORLDVIEW RULE:
+
+        Hooks must be generated through the selected content context's worldview.
+
+        Context:
+        {context}
+
+        Core identity:
+        {identity}
+
+        Energy:
+        {energy}
+
+        Differentiators:
+        {diff_text}
+
+        Rules:
+        - Do not generate generic hooks that could fit any context.
+        - The hook should create curiosity from this context's emotional angle.
+        - Context should shape what feels important, surprising, premium, relaxing, intense, or immersive.
+        - Avoid letting the visible subject alone control the hook.
+        - The hook should still stay visually grounded, but the selected context defines the narrative lens.
+        """
+
 def build_context_dominance_guidance(
     context: str,
     profile: dict | None = None
@@ -2023,6 +2066,75 @@ def score_hook_visual_anchor_bonus(hook: str) -> int:
 
     return 0
 
+
+def build_dynamic_context_guidance(
+    context: str,
+    profile: dict | None = None
+) -> str:
+
+    context = normalize_content_context(context)
+
+    if not context or context == "auto":
+        return ""
+
+    if not profile:
+        return ""
+
+    identity = profile.get("identity", "")
+    energy = profile.get("energy", "")
+    caption_style = profile.get("caption_style", "")
+
+    themes = ", ".join(profile.get("themes", [])[:6])
+    emotions = ", ".join(profile.get("emotions", [])[:6])
+    verbs = ", ".join(profile.get("verbs", [])[:6])
+    visuals = ", ".join(profile.get("visual_language", [])[:6])
+
+    avoid = ", ".join(profile.get("avoid", [])[:8])
+
+    differentiators = "\n".join(
+        f"- {d}"
+        for d in profile.get("differentiators", [])[:4]
+    )
+
+    return f"""
+DYNAMIC CONTEXT IDENTITY:
+
+Context:
+{context}
+
+Identity:
+{identity}
+
+Energy:
+{energy}
+
+Caption Style:
+{caption_style}
+
+Themes:
+{themes}
+
+Emotional Direction:
+{emotions}
+
+Preferred Action Language:
+{verbs}
+
+Visual Framing:
+{visuals}
+
+Differentiators:
+{differentiators}
+
+Avoid:
+{avoid}
+
+The captions and hooks should emotionally feel like this context,
+even when the raw footage could belong to multiple categories.
+
+Avoid generic interchangeable travel captions.
+"""
+
 def api_generate_hooks(session: str, intent: str | None = None):
 
     
@@ -2150,38 +2262,6 @@ def api_generate_hooks(session: str, intent: str | None = None):
         - If visuals and context conflict, keep facts accurate but still shape the hook tone around {content_context}.
         - Avoid plain scene-description hooks.
 
-        Context examples:
-        - adventure: exploration, movement, discovery, curiosity, wild setting
-        - hotel:
-            immersive atmosphere,
-            elevated experience,
-            refined calm,
-            luxury energy,
-            curated environment,
-            escapist feeling,
-            premium mood
-        - travel: journey, destination, surprise, personal discovery
-        - restaurant: dining, taste, plating, chef craft, ambiance
-        - bar: nightlife, cocktails, lounge, mood, first drink, night out
-        - fitness:
-            frame captions through movement, control, discipline, intensity, athletic pacing, and performance energy.
-            Focus on rhythm, strength, stamina, precision, conditioning, and purposeful movement.
-            Avoid generic wildlife narration.
-            The captions should feel like creator commentary about physical presence, effort, and controlled motion.
-
-        Bad:
-        - "Why is this tiger pacing its enclosure like that?"
-        - "A tiger walks through the trees"
-
-        Better for adventure:
-        - "This zoo walk feels deeper in the wild than expected"
-        - "The first step into this enclosure changes the whole vibe"
-
-        Better for hotel:
-        "This whole place feels unexpectedly immersive"
-        "The atmosphere here changes the moment instantly"
-        "Everything about this setting feels elevated"
-
         If a hook could work without knowing the selected context, rewrite it.
         """
 
@@ -2190,6 +2270,18 @@ def api_generate_hooks(session: str, intent: str | None = None):
         return {
             "hooks": [{"text": scenes[0], "score": 70}]
         }
+    
+    context_profile = get_dynamic_context_profile(effective_context)
+
+    dynamic_context_guidance = build_dynamic_context_guidance(
+        effective_context,
+        context_profile
+    )
+
+    hook_context_worldview_guidance = build_hook_context_worldview_guidance(
+        content_context,
+        context_profile
+    )
 
     prompt = f"""
             Generate 8 high-performing TikTok hooks for a creator-style experiential reel.
@@ -2197,6 +2289,10 @@ def api_generate_hooks(session: str, intent: str | None = None):
             Intent: {intent}
 
             {context_guidance}
+
+            {dynamic_context_guidance}
+
+            {hook_context_worldview_guidance}
 
             Intent Guidance:
             {intent_guidance}
