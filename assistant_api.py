@@ -711,6 +711,56 @@ UNIVERSAL_HOOK_PATTERNS = [
     "command the space",
 ]
 
+def build_context_dominance_guidance(
+    context: str,
+    profile: dict | None = None
+) -> str:
+
+    context = normalize_content_context(context)
+
+    if not context or context == "auto":
+        return ""
+
+    identity = ""
+    differentiators = []
+
+    if profile:
+        identity = profile.get("identity", "")
+        differentiators = profile.get("differentiators", [])
+
+    diff_text = "\n".join(
+        f"- {d}" for d in differentiators[:3]
+    )
+
+    return f"""
+        CONTEXT DOMINANCE RULE:
+
+        The selected content context MUST dominate interpretation
+        of the footage.
+
+        Do NOT simply describe visible objects literally.
+
+        Reframe the experience through the emotional and stylistic
+        identity of this context.
+
+        Context:
+        {context}
+
+        Core identity:
+        {identity}
+
+        Context differentiators:
+        {diff_text}
+
+        The captions should FEEL like this context even if the
+        raw footage could fit other categories.
+
+        Avoid generic nature-documentary narration.
+        Avoid repetitive subject-label sequencing.
+        Focus on atmosphere, emotional pacing, immersion,
+        and experiential framing.
+        """
+
 def build_variant_pattern_guidance() -> str:
     return """
 VARIANT STRUCTURE DIVERSITY RULE:
@@ -5531,6 +5581,13 @@ def api_generate_variants(
         else session_context.get("primary_experience", "mixed")
     )
 
+    context_profile = get_dynamic_context_profile(effective_context)
+
+    context_dominance_guidance = build_context_dominance_guidance(
+        effective_context,
+        context_profile
+    )
+
     variant_pattern_guidance = build_variant_pattern_guidance()
 
     first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
@@ -6092,6 +6149,8 @@ def api_generate_variants(
             {style_sections}
 
             {progression_guidance}
+
+            {context_dominance_guidance}
 
             {variant_pattern_guidance}
 
