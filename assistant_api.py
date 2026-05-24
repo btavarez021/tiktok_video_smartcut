@@ -2129,6 +2129,23 @@ Differentiators:
 Avoid:
 {avoid}
 
+STYLE BEHAVIOR RULES:
+
+The WRITING STYLE itself should change for this context.
+
+Do not simply swap adjectives.
+
+Change:
+- pacing
+- sentence structure
+- emotional cadence
+- narrative focus
+- immersion style
+- energy delivery
+
+The captions should feel unmistakably tied to this context,
+even if the nouns were removed.
+
 The captions and hooks should emotionally feel like this context,
 even when the raw footage could belong to multiple categories.
 
