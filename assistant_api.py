@@ -2088,6 +2088,10 @@ def build_dynamic_context_guidance(
     emotions = ", ".join(profile.get("emotions", [])[:6])
     verbs = ", ".join(profile.get("verbs", [])[:6])
     visuals = ", ".join(profile.get("visual_language", [])[:6])
+    pacing_style = profile.get("pacing_style", "")
+    sentence_style = profile.get("sentence_style", "")
+    energy_curve = profile.get("energy_curve", "")
+    narrative_focus = profile.get("narrative_focus", "")
 
     avoid = ", ".join(profile.get("avoid", [])[:8])
 
@@ -2097,60 +2101,72 @@ def build_dynamic_context_guidance(
     )
 
     return f"""
-DYNAMIC CONTEXT IDENTITY:
+        DYNAMIC CONTEXT IDENTITY:
 
-Context:
-{context}
+        Context:
+        {context}
 
-Identity:
-{identity}
+        Identity:
+        {identity}
 
-Energy:
-{energy}
+        Energy:
+        {energy}
 
-Caption Style:
-{caption_style}
+        Caption Style:
+        {caption_style}
 
-Themes:
-{themes}
+        Pacing Style:
+        {pacing_style}
 
-Emotional Direction:
-{emotions}
+        Sentence Style:
+        {sentence_style}
 
-Preferred Action Language:
-{verbs}
+        Energy Curve:
+        {energy_curve}
 
-Visual Framing:
-{visuals}
+        Narrative Focus:
+        {narrative_focus}
 
-Differentiators:
-{differentiators}
+        Themes:
+        {themes}
 
-Avoid:
-{avoid}
+        Emotional Direction:
+        {emotions}
 
-STYLE BEHAVIOR RULES:
+        Preferred Action Language:
+        {verbs}
 
-The WRITING STYLE itself should change for this context.
+        Visual Framing:
+        {visuals}
 
-Do not simply swap adjectives.
+        Differentiators:
+        {differentiators}
 
-Change:
-- pacing
-- sentence structure
-- emotional cadence
-- narrative focus
-- immersion style
-- energy delivery
+        Avoid:
+        {avoid}
 
-The captions should feel unmistakably tied to this context,
-even if the nouns were removed.
+        STYLE BEHAVIOR RULES:
 
-The captions and hooks should emotionally feel like this context,
-even when the raw footage could belong to multiple categories.
+        The WRITING STYLE itself should change for this context.
 
-Avoid generic interchangeable travel captions.
-"""
+        Do not simply swap adjectives.
+
+        Change:
+        - pacing
+        - sentence structure
+        - emotional cadence
+        - narrative focus
+        - immersion style
+        - energy delivery
+
+        The captions should feel unmistakably tied to this context,
+        even if the nouns were removed.
+
+        The captions and hooks should emotionally feel like this context,
+        even when the raw footage could belong to multiple categories.
+
+        Avoid generic interchangeable travel captions.
+        """
 
 def api_generate_hooks(session: str, intent: str | None = None):
 
@@ -5540,18 +5556,22 @@ def get_dynamic_context_profile(context: str) -> dict:
         Return JSON only with this shape:
 
         {{
-        "identity": "short phrase defining the core feeling",
-        "energy": "calm | relaxed | elevated | intense | euphoric | exploratory | cozy | refined",
-        "themes": ["theme1", "theme2"],
-        "emotions": ["emotion1", "emotion2"],
-        "verbs": ["verb1", "verb2"],
-        "visual_language": ["term1", "term2"],
-        "differentiators": [
-            "how this context differs from nearby contexts"
-        ],
-        "avoid": ["word_or_phrase1", "word_or_phrase2"],
-        "caption_style": "short description",
-        }}
+            "identity": "short phrase defining the core feeling",
+            "energy": "calm | relaxed | elevated | intense | euphoric | exploratory | cozy | refined",
+            "themes": ["theme1", "theme2"],
+            "emotions": ["emotion1", "emotion2"],
+            "verbs": ["verb1", "verb2"],
+            "visual_language": ["term1", "term2"],
+            "differentiators": [
+                "how this context differs from nearby contexts"
+            ],
+            "avoid": ["word_or_phrase1", "word_or_phrase2"],
+            "caption_style": "short description",
+            "pacing_style": "how the captions emotionally unfold",
+            "sentence_style": "how the sentence structure should feel",
+            "energy_curve": "how the emotional energy should move across captions",
+            "narrative_focus": "what the captions should emotionally prioritize"
+            }}
 
         Also explain through the differentiators how this context differs emotionally and stylistically from nearby contexts.
 
@@ -5581,6 +5601,10 @@ def get_dynamic_context_profile(context: str) -> dict:
         - hotel should usually be calm, intimate, or curated
         - fitness should usually be intense, disciplined, or controlled
         - adventure should usually be exploratory or rugged
+        - pacing_style defines how quickly or slowly captions emotionally unfold
+        - sentence_style defines how the writing should structurally feel
+        - energy_curve defines whether captions should escalate, soften, stabilize, pulse, or flow
+        - narrative_focus defines what the captions emotionally prioritize
         """
 
     try:
