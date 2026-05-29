@@ -720,11 +720,15 @@ def build_hook_context_worldview_guidance(context: str, profile: dict | None = N
 
     identity = ""
     energy = ""
+    narrative_focus = ""
+    pacing_style = ""
     differentiators = []
 
     if profile:
         identity = profile.get("identity", "")
         energy = profile.get("energy", "")
+        narrative_focus = profile.get("narrative_focus", "")
+        pacing_style = profile.get("pacing_style", "")
         differentiators = profile.get("differentiators", [])
 
     diff_text = "\n".join(f"- {d}" for d in differentiators[:3])
@@ -733,7 +737,7 @@ def build_hook_context_worldview_guidance(context: str, profile: dict | None = N
         HOOK CONTEXT WORLDVIEW RULE:
 
         Hooks must be generated through the selected content context's worldview.
-
+        
         Context:
         {context}
 
@@ -742,6 +746,12 @@ def build_hook_context_worldview_guidance(context: str, profile: dict | None = N
 
         Energy:
         {energy}
+
+        Narrative Focus:
+        {narrative_focus}
+
+        Pacing Style:
+        {pacing_style}
 
         Differentiators:
         {diff_text}
@@ -752,6 +762,21 @@ def build_hook_context_worldview_guidance(context: str, profile: dict | None = N
         - Context should shape what feels important, surprising, premium, relaxing, intense, or immersive.
         - Avoid letting the visible subject alone control the hook.
         - The hook should still stay visually grounded, but the selected context defines the narrative lens.
+
+        Hooks should create curiosity from the context profile itself.
+
+        Use the context's:
+        - identity
+        - energy
+        - differentiators
+        - narrative_focus
+        - pacing_style
+
+        Do not merely rewrite the same hook with different adjectives.
+
+        The underlying reason someone becomes curious should change based on the selected context profile.
+
+        The hook should feel like it could only have been generated from this context.
         """
 
 def build_context_dominance_guidance(
