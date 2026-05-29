@@ -711,6 +711,46 @@ UNIVERSAL_HOOK_PATTERNS = [
     "command the space",
 ]
 
+VISUAL_GROUNDING_ENFORCEMENT = """
+VISUAL GROUNDING RULES:
+
+The selected context should shape emotional interpretation,
+not invent visual elements.
+
+Do not introduce:
+- objects not visible in the footage
+- locations not visible in the footage
+- lighting conditions not visible in the footage
+- sounds not visible or strongly implied
+- crowds not visible
+- oceans, beaches, ships, cityscapes, stages, neon signs, fireworks,
+  architecture, performers, food, cocktails, vehicles, or landmarks
+  that do not appear in the footage
+
+Context should influence:
+- emotional framing
+- narrative focus
+- pacing
+- interpretation
+- atmosphere
+
+Context should NOT fabricate scenery.
+
+Good:
+"the tiger's steady pace feels like a journey"
+
+Bad:
+"the ocean breeze follows the tiger's path"
+
+Good:
+"the energy builds with every step"
+
+Bad:
+"neon lights pulse around the tiger"
+
+Always stay grounded in the analyzed clips.
+"""
+
 
 def build_hook_context_worldview_guidance(context: str, profile: dict | None = None) -> str:
     context = normalize_content_context(context)
@@ -2351,6 +2391,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
             {dynamic_context_guidance}
 
             {hook_context_worldview_guidance}
+
+            {VISUAL_GROUNDING_ENFORCEMENT}
 
             Intent Guidance:
             {intent_guidance}
@@ -6313,6 +6355,8 @@ def api_generate_variants(
             {progression_guidance}
 
             {context_dominance_guidance}
+
+            {VISUAL_GROUNDING_ENFORCEMENT}
 
             {variant_pattern_guidance}
 
