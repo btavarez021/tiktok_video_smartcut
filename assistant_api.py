@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw, ImageFont
 import subprocess
 from flask import request
 from assistant_log import log_step, log_error, log_success
-from tiktok_project.video_renderer import edit_video, video_folder, STYLE_PRESETS
+from video_renderer import edit_video, video_folder, STYLE_PRESETS
 from s3_config import (
     s3,
     S3_BUCKET_NAME,
@@ -25,7 +25,7 @@ from s3_config import (
 )
 from config_store import load_config, save_config
 import shutil
-from tiktok_project.video_renderer import reorder_clips
+from video_renderer import reorder_clips
 import json
 import time
 from datetime import datetime, timezone
