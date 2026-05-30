@@ -415,6 +415,29 @@ def escape_drawtext(text: str) -> str:
     
     return t
 
+def build_caption_filter(
+    input_label: str,
+    text_safe: str,
+    fontfile: str,
+    fontsize: int,
+    line_spacing: int,
+    box_opacity: str,
+    boxborderw: int,
+    y_expr: str,
+    output_label: str = "outv",
+    enable: str | None = None,
+) -> str:
+    enable_part = f":enable='{enable}'" if enable else ""
+
+    return (
+        f";[{input_label}]drawtext=text='{text_safe}':"
+        f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
+        f"line_spacing={line_spacing}:shadowcolor=0x000000:shadowx=3:shadowy=3:"
+        f"text_shaping=1:box=1:boxcolor=0x000000{box_opacity}:boxborderw={boxborderw}:"
+        f"x=(w-text_w)/2:y={y_expr}:fix_bounds=1:borderw=0:bordercolor=0x000000"
+        f"{enable_part}"
+        f"[{output_label}]"
+    )
 
 # -----------------------------------------
 # Enhanced Caption Style Presets 🚀
@@ -924,12 +947,16 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     clean_text = strip_emojis(clip["text"])
                     wrapped = _wrap_caption(clean_text, max_chars_per_line=max_chars)
                     text_safe = escape_drawtext(wrapped)
-                    vf += (
-                        f";[v1]drawtext=text='{text_safe}':"
-                        f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
-                        f"line_spacing={line_spacing}:shadowcolor=0x000000:shadowx=3:shadowy=3:"
-                        f"text_shaping=1:box=1:boxcolor=0x000000{box_opacity}:boxborderw={boxborderw}:"
-                        f"x=(w-text_w)/2:y={y_expr}:fix_bounds=1:borderw=0:bordercolor=0x000000[outv]"
+                    vf += build_caption_filter(
+                        input_label="v1",
+                        text_safe=text_safe,
+                        fontfile=fontfile,
+                        fontsize=fontsize,
+                        line_spacing=line_spacing,
+                        box_opacity=box_opacity,
+                        boxborderw=boxborderw,
+                        y_expr=y_expr,
+                        output_label="outv",
                     )
                 else:
                     vf += ";[v1]copy[outv]"
@@ -949,14 +976,17 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     text_safe = escape_drawtext(wrapped)
 
 
-                    vf += (
-                        f";[v1]drawtext=text='{text_safe}':"
-                        f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
-                        f"line_spacing={line_spacing}:shadowcolor=0x000000:shadowx=3:shadowy=3:"
-                        f"text_shaping=1:box=1:boxcolor=0x000000{box_opacity}:boxborderw={boxborderw}:"
-                        f"x=(w-text_w)/2:y={y_expr}:fix_bounds=1:borderw=0:"
-                        f"enable='lt(t,{cta_start})'"
-                        f"[v2]"
+                    vf += build_caption_filter(
+                        input_label="v1",
+                        text_safe=text_safe,
+                        fontfile=fontfile,
+                        fontsize=fontsize,
+                        line_spacing=line_spacing,
+                        box_opacity=box_opacity,
+                        boxborderw=boxborderw,
+                        y_expr=y_expr,
+                        output_label="v2",
+                        enable=f"lt(t,{cta_start})",
                     )
                 else:
                     vf += ";[v1]copy[v2]"
