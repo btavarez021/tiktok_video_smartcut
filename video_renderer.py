@@ -328,6 +328,29 @@ def ensure_local_video(session_id: str, filename: str) -> str:
 # 4. CAPTION STYLING / DRAW TEXT
 # ============================================================
 
+def should_show_caption(
+    caption_mode: str,
+    clip_index: int
+) -> bool:
+    """
+    Decide whether a clip caption should be rendered.
+    CTA captions are handled separately.
+    """
+
+    caption_mode = (caption_mode or "all").lower()
+
+    if caption_mode == "all":
+        return True
+
+    if caption_mode == "first_only":
+        return clip_index == 0
+
+    if caption_mode == "none":
+        return False
+
+    # Safe fallback
+    return True
+
 def strip_emojis(text: str) -> str:
     return _EMOJI_RE.sub("", text or "").strip()
 
@@ -878,13 +901,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
             clip_index = clips.index(clip)  # safe index resolution
 
-            allow_caption = False
-            if caption_mode == "all":
-                allow_caption = True
-            elif caption_mode == "first_only" and clip_index == 0:
-                allow_caption = True
-            elif caption_mode == "none":
-                allow_caption = False
+            allow_caption = should_show_caption(
+                caption_mode,
+                clip_index
+            )
 
             # -------------- NON-LAST + caption/NO-caption -------------
             if not is_last or not (cta_enabled and raw_cta_text and last_clip_cta_start_rel is not None and cta_text_safe):
