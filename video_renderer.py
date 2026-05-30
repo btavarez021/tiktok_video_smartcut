@@ -695,6 +695,25 @@ def get_video_duration(filename: str):
         log_step(f"[DURATION] ffprobe failed for {filename}: {e}")
         return None
     
+def build_base_video_filter(fg_scale: float) -> str:
+    """
+    Build the base vertical video filter.
+
+    Creates:
+    - blurred 1080-wide background
+    - scaled foreground
+    - centered overlay
+    - output label [v1]
+    """
+
+    fg_scale = min(max(float(fg_scale), 1.0), 1.25)
+
+    return (
+        f"[0:v]scale=1080:-2,setsar=1,boxblur=30:1[bg];"
+        f"[0:v]scale=iw*{fg_scale}:ih*{fg_scale},setsar=1[fg];"
+        f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[v1]"
+    )
+    
     
 # ============================================================
 # 7. FINAL EXPORT / MUX
@@ -872,14 +891,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
             render_cfg = cfg.get("render", {})
             fg_scale = float(render_cfg.get("fgscale", 1.10))
-            fg_scale = min(max(fg_scale, 1.0), 1.25)
-
-            # Base FG + BG chain
-            vf = (
-                f"[0:v]scale=1080:-2,setsar=1,boxblur=30:1[bg];"
-                f"[0:v]scale=iw*{fg_scale}:ih*{fg_scale},setsar=1[fg];"
-                f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[v1]"
-            )
+            vf = build_base_video_filter(fg_scale)
 
             is_last = clip.get("is_last", False)
 
