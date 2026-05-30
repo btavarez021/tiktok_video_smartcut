@@ -909,7 +909,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     trimlist = tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name
 
     with open(trimlist, "w") as lf:
-        for clip in clips:
+        for clip_index, clip in enumerate(clips):
             trimmed_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
 
             render_cfg = cfg.get("render", {})
@@ -933,8 +933,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             # - captions_mode="first_only" and clip_index == 0
             # - captions_mode="none" → never show clip captions
             # CTA logic still runs on last clip normally
-
-            clip_index = clips.index(clip)  # safe index resolution
 
             allow_caption = should_show_caption(
                 caption_mode,
