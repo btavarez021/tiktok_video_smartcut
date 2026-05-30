@@ -90,6 +90,41 @@ def blur_frame(frame, radius: int = 18):
 # 2. CLIP COLLECTION / ORDERING
 # ============================================================
 
+def build_render_clips(
+    session_id: str,
+    cfg: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    Build the ordered render clip list from config.yml.
+
+    Expected config shape:
+    - first_clip
+    - middle_clips
+    - last_clip
+    """
+
+    if "first_clip" not in cfg or "last_clip" not in cfg:
+        raise RuntimeError("config.yml must contain first_clip and last_clip")
+
+    clips = [
+        build_clip_entry(session_id, cfg["first_clip"])
+    ]
+
+    for m in cfg.get("middle_clips", []):
+        clips.append(
+            build_clip_entry(session_id, m)
+        )
+
+    clips.append(
+        build_clip_entry(
+            session_id,
+            cfg["last_clip"],
+            is_last=True
+        )
+    )
+
+    return clips
+
 def flatten_clips(cfg):
     clips = []
 
@@ -661,25 +696,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         cfg["render"].pop("music_volume", None)
 
 
-    if "first_clip" not in cfg or "last_clip" not in cfg:
-        raise RuntimeError("config.yml must contain first_clip and last_clip")
-
-    clips = [
-    build_clip_entry(session_id, cfg["first_clip"])
-    ]
-
-    for m in cfg.get("middle_clips", []):
-        clips.append(
-            build_clip_entry(session_id, m)
-        )
-
-    clips.append(
-        build_clip_entry(
-            session_id,
-            cfg["last_clip"],
-            is_last=True
-        )
-    )
+    clips = build_render_clips(session_id, cfg)
 
     render_cfg = cfg.setdefault("render", {})
 
