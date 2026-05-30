@@ -439,6 +439,27 @@ def build_caption_filter(
         f"[{output_label}]"
     )
 
+def build_cta_filter(
+    input_label: str,
+    text_safe: str,
+    fontfile: str,
+    fontsize: int,
+    line_spacing: int,
+    boxborderw: int,
+    y_expr: str,
+    enable: str,
+    output_label: str = "outv",
+) -> str:
+    return (
+        f";[{input_label}]drawtext=text='{text_safe}':"
+        f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
+        f"line_spacing={line_spacing}:shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
+        f"text_shaping=1:box=1:boxcolor=0x000000CC:boxborderw={boxborderw}:"
+        f"x=(w-text_w)/2:y={y_expr}:fix_bounds=1:borderw=0:"
+        f"enable='{enable}'"
+        f"[{output_label}]"
+    )
+
 # -----------------------------------------
 # Enhanced Caption Style Presets 🚀
 # -----------------------------------------
@@ -1010,14 +1031,16 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     cta_y_expr = "(h * 0.72)"   # safe for classic layout – always visible
 
 
-                vf += (
-                    f";[v3]drawtext=text='{cta_text_safe}':"
-                    f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
-                    f"line_spacing={line_spacing}:shadowcolor=0x000000AA:shadowx=3:shadowy=3:"
-                    f"text_shaping=1:box=1:boxcolor=0x000000CC:boxborderw={boxborderw}:"
-                    f"x=(w-text_w)/2:y={cta_y_expr}:fix_bounds=1:borderw=0:"
-                    f"enable='gte(t,{cta_start})'"
-                    f"[outv]"
+                vf += build_cta_filter(
+                    input_label="v3",
+                    text_safe=cta_text_safe,
+                    fontfile=fontfile,
+                    fontsize=fontsize,
+                    line_spacing=line_spacing,
+                    boxborderw=boxborderw,
+                    y_expr=cta_y_expr,
+                    enable=f"gte(t,{cta_start})",
+                    output_label="outv",
                 )
 
                 log_step(
