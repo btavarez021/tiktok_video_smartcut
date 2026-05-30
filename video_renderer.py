@@ -11,6 +11,7 @@ from PIL import Image, ImageFilter
 import imageio_ffmpeg
 from assistant_log import log_step
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
+from openai import OpenAI
 
 # Pillow compatibility shim
 if not hasattr(Image, "ANTIALIAS"):
@@ -44,8 +45,18 @@ _EMOJI_RE = re.compile(
     flags=re.UNICODE
 )
 
-def strip_emojis(text: str) -> str:
-    return _EMOJI_RE.sub("", text or "").strip()
+# ============================================================
+# 1. CONFIG LOADING / NORMALIZATION
+# ============================================================
+def load_render_config(session_id: str) -> Dict[str, Any]:
+    cfg = normalize_config(load_config(session_id))
+    if not cfg:
+        raise RuntimeError("config.yml missing or empty")
+
+    render = cfg.setdefault("render", {})
+    render.setdefault("captions_mode", "all")
+
+    return cfg
 
 
 # -----------------------------------------
@@ -75,6 +86,216 @@ def blur_frame(frame, radius: int = 18):
         logger.warning(f"[BLUR] Frame blur failed: {e}")
         return frame
 
+# ============================================================
+# 2. CLIP COLLECTION / ORDERING
+# ============================================================
+
+def flatten_clips(cfg):
+    clips = []
+
+    if "first_clip" in cfg:
+        clips.append(cfg["first_clip"])
+
+    for c in cfg.get("middle_clips", []):
+        clips.append(c)
+
+    if "last_clip" in cfg:
+        clips.append(cfg["last_clip"])
+
+    return clips
+
+
+def rebuild_clips(cfg, clips):
+    if not clips:
+        return cfg
+
+    cfg["first_clip"] = clips[0]
+
+    if len(clips) > 2:
+        cfg["middle_clips"] = clips[1:-1]
+        cfg["last_clip"] = clips[-1]
+    elif len(clips) == 2:
+        cfg["middle_clips"] = []
+        cfg["last_clip"] = clips[1]
+    else:
+        cfg["middle_clips"] = []
+        cfg.pop("last_clip", None)
+
+    return cfg
+
+
+def reorder_clips(cfg, new_order):
+    """
+    new_order = list of clip IDs in the desired order
+    """
+    clips = flatten_clips(cfg)
+
+    clip_map = {c["id"]: c for c in clips}
+
+    reordered = []
+    for cid in new_order:
+        if cid not in clip_map:
+            raise ValueError(f"Unknown clip id: {cid}")
+        reordered.append(clip_map[cid])
+
+    return rebuild_clips(cfg, reordered)
+
+# -------------------------------
+# Build a normalized render clip
+# -------------------------------
+def build_clip_entry(
+    session_id: str,
+    c: Dict[str, Any],
+    is_last: bool = False
+) -> Dict[str, Any]:
+
+    raw_file = c["file"]
+    filename = os.path.basename(raw_file)
+    local_file = ensure_local_video(session_id, filename)
+
+    return {
+        "file": local_file,
+        "start": float(c.get("start_time", 0)),
+        "duration": float(c.get("duration", 3)),
+        "text": (c.get("text") or "").strip(),
+        "is_last": is_last,
+    }
+    
+# -----------------------------------------
+# Background music (YAML: music: {enabled, file, volume})
+# -----------------------------------------
+def _build_music_audio(cfg, total_duration):
+    """
+    Memory-safe background music loader.
+    Returns a temp .m4a file path or None.
+    """
+
+    music_cfg = cfg.get("music", {}) or {}
+    if not music_cfg.get("enabled"):
+        log_step("[MUSIC] Disabled in config.")
+        return None
+
+    music_file = (music_cfg.get("file") or "").strip()
+    if not music_file:
+        log_step("[MUSIC] No music file specified.")
+        return None
+
+    volume = float(music_cfg.get("volume", 0.25))
+
+    music_path = os.path.join(MUSIC_DIR, music_file)
+    if not os.path.exists(music_path):
+        log_step(f"[MUSIC] NOT FOUND in MUSIC_DIR: {music_path}")
+        return None
+
+    log_step(f"[MUSIC] Using file: {music_path}")
+
+    out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", music_path,
+        "-filter_complex",
+        f"apad,atrim=0:{total_duration},volume={volume}",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        out_path,
+    ]
+
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    if proc.stderr:
+        log_step(f"[MUSIC-FFMPEG] stderr:\n{proc.stderr}")
+
+    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
+        log_step("[MUSIC] Output audio invalid, disabling music.")
+        return None
+
+    return out_path
+
+
+def _build_base_audio(video_path, total_duration):
+    """
+    Extract original audio from the stitched video, memory-safe.
+    Returns a .m4a file path or None.
+
+    NOTE: Currently NOT used in the final mix to keep the chain simple:
+    we mix only TTS + music to avoid corrupt/empty sources.
+    """
+
+    if not os.path.exists(video_path):
+        log_step(f"[AUDIO] Base video missing: {video_path}")
+        return None
+
+    out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", video_path,
+        "-vn",
+        "-af", f"apad,atrim=0:{total_duration}",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        out_path,
+    ]
+
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    if proc.stderr:
+        log_step(f"[AUDIO-BASE-FFMPEG] stderr:\n{proc.stderr}")
+
+    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
+        log_step("[AUDIO] Base audio invalid, skipping.")
+        return None
+
+    return out_path
+
+
+# ============================================================
+# 3. MEDIA RESTORE FROM S3
+# ============================================================
+
+def ensure_local_video(session_id: str, filename: str) -> str:
+    """
+    Ensures the video exists locally in:
+        tik_tok_downloads/<session_id>/<filename>
+
+    If missing, download from:
+        s3://bucket/raw_uploads/<session>/<filename>
+
+    Returns absolute local path.
+    """
+
+    # Local folder for this session
+    session_dir = os.path.join(video_folder, session_id)
+    os.makedirs(session_dir, exist_ok=True)
+
+    local_path = os.path.join(session_dir, filename)
+
+    # If already cached locally, use it
+    if os.path.exists(local_path):
+        return local_path
+
+    # Normalize for safety
+    prefix = RAW_PREFIX.rstrip("/")  # "raw_uploads"
+    s3_key = f"{prefix}/{session_id}/{filename}"
+
+    log_step(f"[SYNC] Downloading missing clip: s3://{S3_BUCKET_NAME}/{s3_key}")
+
+    try:
+        s3.download_file(S3_BUCKET_NAME, s3_key, local_path)
+        log_step(f"[SYNC] Restored local clip → {local_path}")
+    except Exception as e:
+        raise RuntimeError(f"[SYNC ERROR] Cannot restore {filename} from S3: {e}")
+
+    return local_path
+
+# ============================================================
+# 4. CAPTION STYLING / DRAW TEXT
+# ============================================================
+
+def strip_emojis(text: str) -> str:
+    return _EMOJI_RE.sub("", text or "").strip()
+
 def _get_layout_mode(cfg: Dict[str, Any]) -> str:
     """
     Decide how to style captions / overlay:
@@ -87,20 +308,125 @@ def _get_layout_mode(cfg: Dict[str, Any]) -> str:
         mode = "tiktok"
     return mode
 
+# -------------------------------
+# Simple, robust caption wrapper
+# -------------------------------
+def _wrap_caption(text: str, max_chars_per_line: int) -> str:
+    """
+    Wrap text by character count so drawtext never runs super-wide.
+    This avoids captions stretching off-screen.
+    """
+    if not text:
+        return ""
+
+    words = text.split()
+    lines = []
+    current = ""
+
+    for w in words:
+        if not current:
+            current = w
+        elif len(current) + 1 + len(w) <= max_chars_per_line:
+            current += " " + w
+        else:
+            lines.append(current)
+            current = w
+
+    if current:
+        lines.append(current)
+
+    return "\n".join(lines)
+
+# -------------------------------
+# Safe escape helper for drawtext
+# -------------------------------
+def escape_drawtext(text: str) -> str:
+    if not text:
+        return ""
+    
+    # 1) Temporarily protect real newlines
+    t = text.replace("\n", "<<<NL>>>")
+    
+    # 2) Escape only characters FFmpeg needs escaped
+    t = t.replace("\\", "\\\\")     # ESCAPE backslashes
+    t = t.replace("'", "\\'")       # ESCAPE single quotes
+    t = t.replace("%", "\\\\%") 
+    
+    # 3) Restore as literal \n (NOT double escaped)
+    t = t.replace("<<<NL>>>", "\n")
+    
+    return t
+
+
 # -----------------------------------------
-# TTS generation
+# Enhanced Caption Style Presets 🚀
 # -----------------------------------------
-# -----------------------------------------
-# NEW: Per-clip TTS builder (A1 + C1)
-# -----------------------------------------
+STYLE_PRESETS = {
+    "punchy": {
+        "fontsize": 78,             # big & loud
+        "line_spacing": 4,
+        "box_opacity": "CC",        # stronger contrast
+        "y_expr": "(h * 0.40)",
+        "accent_color": "yellow",   # for future highlight pass
+        "emoji_boost": True         # 🔥 if emojis present = spacing tweaked
+    },
+
+    "cinematic": {
+        "fontsize": 54,
+        "line_spacing": 18,
+        "box_opacity": "DD",        # soft, elegant opacity
+        "y_expr": "(h * 0.60)",
+        "font_color": "white",
+        "shadow_strength": 0.85     # deeper shadow for film look
+    },
+
+    "influencer": {
+        "fontsize": 66,
+        "line_spacing": 10,
+        "box_opacity": "AA",
+        "y_expr": "(h * 0.48)",
+        "bubble": True,             # future bubble background mode
+        "emoji_boost": True
+    },
+
+    "travel_blog": {
+        "fontsize": 62,
+        "line_spacing": 14,
+        "box_opacity": "BB",
+        "y_expr": "(h * 0.52)",
+        "serif_hint": False,
+        "tone": "warm"
+    },
+
+    "descriptive": {
+        "fontsize": 58,
+        "line_spacing": 10,
+        "box_opacity": "66",        # subtle background
+        "y_expr": "(h * 0.49)",
+        "tone": "neutral",
+        "emoji_boost": False
+    },
+
+    "ai_recommended": {
+        "fontsize": 68,             # Balanced modern hero style
+        "line_spacing": 12,
+        "box_opacity": "BB",
+        "y_expr": "(h * 0.46)",
+        "accent_color": "teal",
+        "smart_balance": True       # perfect for 90% of cases
+    },
+}
+
+
+# ============================================================
+# 5. TTS / MUSIC / AUDIO MIX
+# ============================================================
+
 def _build_per_clip_tts(cfg, clips, cta_cfg):
     """
     Build TTS for each clip individually.
     Returns list of (path, duration) tuples, and CTA narration tuple.
     """
-
-    from openai import OpenAI
-    import tempfile
 
     key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
     if not key:
@@ -248,56 +574,9 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
 
     return tts_files, cta_tuple
 
-def flatten_clips(cfg):
-    clips = []
-
-    if "first_clip" in cfg:
-        clips.append(cfg["first_clip"])
-
-    for c in cfg.get("middle_clips", []):
-        clips.append(c)
-
-    if "last_clip" in cfg:
-        clips.append(cfg["last_clip"])
-
-    return clips
-
-
-def rebuild_clips(cfg, clips):
-    if not clips:
-        return cfg
-
-    cfg["first_clip"] = clips[0]
-
-    if len(clips) > 2:
-        cfg["middle_clips"] = clips[1:-1]
-        cfg["last_clip"] = clips[-1]
-    elif len(clips) == 2:
-        cfg["middle_clips"] = []
-        cfg["last_clip"] = clips[1]
-    else:
-        cfg["middle_clips"] = []
-        cfg.pop("last_clip", None)
-
-    return cfg
-
-
-def reorder_clips(cfg, new_order):
-    """
-    new_order = list of clip IDs in the desired order
-    """
-    clips = flatten_clips(cfg)
-
-    clip_map = {c["id"]: c for c in clips}
-
-    reordered = []
-    for cid in new_order:
-        if cid not in clip_map:
-            raise ValueError(f"Unknown clip id: {cid}")
-        reordered.append(clip_map[cid])
-
-    return rebuild_clips(cfg, reordered)
-
+# ============================================================
+# 6. VIDEO RENDER HELPERS
+# ============================================================
 
 def compute_auto_zoom(video_path: str) -> float:
     """
@@ -340,242 +619,37 @@ def compute_auto_zoom(video_path: str) -> float:
     zoom = min(max(zoom, 1.05), 1.20)
     return zoom
 
-
-# -----------------------------------------
-# Background music (YAML: music: {enabled, file, volume})
-# -----------------------------------------
-def _build_music_audio(cfg, total_duration):
+def get_video_duration(filename: str):
     """
-    Memory-safe background music loader.
-    Returns a temp .m4a file path or None.
+    Returns duration in seconds as float, or None if ffprobe fails.
     """
-    import tempfile
-
-    music_cfg = cfg.get("music", {}) or {}
-    if not music_cfg.get("enabled"):
-        log_step("[MUSIC] Disabled in config.")
-        return None
-
-    music_file = (music_cfg.get("file") or "").strip()
-    if not music_file:
-        log_step("[MUSIC] No music file specified.")
-        return None
-
-    volume = float(music_cfg.get("volume", 0.25))
-
-    music_path = os.path.join(MUSIC_DIR, music_file)
-    if not os.path.exists(music_path):
-        log_step(f"[MUSIC] NOT FOUND in MUSIC_DIR: {music_path}")
-        return None
-
-    log_step(f"[MUSIC] Using file: {music_path}")
-
-    out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
-
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", music_path,
-        "-filter_complex",
-        f"apad,atrim=0:{total_duration},volume={volume}",
-        "-c:a", "aac",
-        "-b:a", "192k",
-        out_path,
-    ]
-
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    if proc.stderr:
-        log_step(f"[MUSIC-FFMPEG] stderr:\n{proc.stderr}")
-
-    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
-        log_step("[MUSIC] Output audio invalid, disabling music.")
-        return None
-
-    return out_path
-
-
-def _build_base_audio(video_path, total_duration):
-    """
-    Extract original audio from the stitched video, memory-safe.
-    Returns a .m4a file path or None.
-
-    NOTE: Currently NOT used in the final mix to keep the chain simple:
-    we mix only TTS + music to avoid corrupt/empty sources.
-    """
-    import tempfile
-
-    if not os.path.exists(video_path):
-        log_step(f"[AUDIO] Base video missing: {video_path}")
-        return None
-
-    out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
-
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", video_path,
-        "-vn",
-        "-af", f"apad,atrim=0:{total_duration}",
-        "-c:a", "aac",
-        "-b:a", "192k",
-        out_path,
-    ]
-
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    if proc.stderr:
-        log_step(f"[AUDIO-BASE-FFMPEG] stderr:\n{proc.stderr}")
-
-    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
-        log_step("[AUDIO] Base audio invalid, skipping.")
-        return None
-
-    return out_path
-
-
-# -----------------------------------------
-# Ensure local video exists (S3 → local sync)
-# -----------------------------------------
-def ensure_local_video(session_id: str, filename: str) -> str:
-    """
-    Ensures the video exists locally in:
-        tik_tok_downloads/<session_id>/<filename>
-
-    If missing, download from:
-        s3://bucket/raw_uploads/<session>/<filename>
-
-    Returns absolute local path.
-    """
-
-    # Local folder for this session
-    session_dir = os.path.join(video_folder, session_id)
-    os.makedirs(session_dir, exist_ok=True)
-
-    local_path = os.path.join(session_dir, filename)
-
-    # If already cached locally, use it
-    if os.path.exists(local_path):
-        return local_path
-
-    # Normalize for safety
-    prefix = RAW_PREFIX.rstrip("/")  # "raw_uploads"
-    s3_key = f"{prefix}/{session_id}/{filename}"
-
-    log_step(f"[SYNC] Downloading missing clip: s3://{S3_BUCKET_NAME}/{s3_key}")
-
     try:
-        s3.download_file(S3_BUCKET_NAME, s3_key, local_path)
-        log_step(f"[SYNC] Restored local clip → {local_path}")
+        out = subprocess.check_output(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                filename,
+            ]
+        ).decode().strip()
+        return float(out)
     except Exception as e:
-        raise RuntimeError(f"[SYNC ERROR] Cannot restore {filename} from S3: {e}")
-
-    return local_path
-
-# -------------------------------
-# Simple, robust caption wrapper
-# -------------------------------
-def _wrap_caption(text: str, max_chars_per_line: int) -> str:
-    """
-    Wrap text by character count so drawtext never runs super-wide.
-    This avoids captions stretching off-screen.
-    """
-    if not text:
-        return ""
-
-    words = text.split()
-    lines = []
-    current = ""
-
-    for w in words:
-        if not current:
-            current = w
-        elif len(current) + 1 + len(w) <= max_chars_per_line:
-            current += " " + w
-        else:
-            lines.append(current)
-            current = w
-
-    if current:
-        lines.append(current)
-
-    return "\n".join(lines)
-
-# -----------------------------------------
-# Enhanced Caption Style Presets 🚀
-# -----------------------------------------
-STYLE_PRESETS = {
-    "punchy": {
-        "fontsize": 78,             # big & loud
-        "line_spacing": 4,
-        "box_opacity": "CC",        # stronger contrast
-        "y_expr": "(h * 0.40)",
-        "accent_color": "yellow",   # for future highlight pass
-        "emoji_boost": True         # 🔥 if emojis present = spacing tweaked
-    },
-
-    "cinematic": {
-        "fontsize": 54,
-        "line_spacing": 18,
-        "box_opacity": "DD",        # soft, elegant opacity
-        "y_expr": "(h * 0.60)",
-        "font_color": "white",
-        "shadow_strength": 0.85     # deeper shadow for film look
-    },
-
-    "influencer": {
-        "fontsize": 66,
-        "line_spacing": 10,
-        "box_opacity": "AA",
-        "y_expr": "(h * 0.48)",
-        "bubble": True,             # future bubble background mode
-        "emoji_boost": True
-    },
-
-    "travel_blog": {
-        "fontsize": 62,
-        "line_spacing": 14,
-        "box_opacity": "BB",
-        "y_expr": "(h * 0.52)",
-        "serif_hint": False,
-        "tone": "warm"
-    },
-
-    "descriptive": {
-        "fontsize": 58,
-        "line_spacing": 10,
-        "box_opacity": "66",        # subtle background
-        "y_expr": "(h * 0.49)",
-        "tone": "neutral",
-        "emoji_boost": False
-    },
-
-    "ai_recommended": {
-        "fontsize": 68,             # Balanced modern hero style
-        "line_spacing": 12,
-        "box_opacity": "BB",
-        "y_expr": "(h * 0.46)",
-        "accent_color": "teal",
-        "smart_balance": True       # perfect for 90% of cases
-    },
-}
+        log_step(f"[DURATION] ffprobe failed for {filename}: {e}")
+        return None
+    
+    
+# ============================================================
+# 7. FINAL EXPORT / MUX
+# ============================================================
 
 def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", optimized: bool = False):
     """
     Build final TikTok-style video using a low-memory FFmpeg-only pipeline.
-
-    - Per-clip TTS (narration) aligned to each clip duration
-    - CTA is shown on the *last clip* (no extra tail file)
-    - CTA TTS aligned with the CTA visual segment
-    - Background music from YAML (music: { enabled, file, volume })
     """
-    cfg = normalize_config(load_config(session_id))
-    if not cfg:
-        raise RuntimeError("config.yml missing or empty")
-    
-    render = cfg.setdefault("render", {})
-    render.setdefault("captions_mode", "all")   # backfill protection
+
+    cfg = load_render_config(session_id)
 
     log_step("[EXPORT] Using standard concat (no transitions)")
-
 
     layout_mode = _get_layout_mode(cfg)
     log_step(f"[EXPORT] Building low-memory FFmpeg timeline… (layout_mode={layout_mode})")
@@ -586,71 +660,26 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         cfg["render"].pop("music_file", None)
         cfg["render"].pop("music_volume", None)
 
-    # -------------------------------
-    # Safe escape helper for drawtext
-    # -------------------------------
-    def esc(text: str) -> str:
-        if not text:
-            return ""
-        
-        # 1) Temporarily protect real newlines
-        t = text.replace("\n", "<<<NL>>>")
-        
-        # 2) Escape only characters FFmpeg needs escaped
-        t = t.replace("\\", "\\\\")     # ESCAPE backslashes
-        t = t.replace("'", "\\'")       # ESCAPE single quotes
-        t = t.replace("%", "\\\\%") 
-        
-        # 3) Restore as literal \n (NOT double escaped)
-        t = t.replace("<<<NL>>>", "\n")
-        
-        return t
-
-
-    # -------------------------------
-    # Small helper: probe video duration with ffprobe
-    # -------------------------------
-    def get_video_duration(filename: str):
-        """
-        Returns duration in seconds as float, or None if ffprobe fails.
-        """
-        try:
-            out = subprocess.check_output(
-                [
-                    "ffprobe", "-v", "error",
-                    "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
-                    filename,
-                ]
-            ).decode().strip()
-            return float(out)
-        except Exception as e:
-            log_step(f"[DURATION] ffprobe failed for {filename}: {e}")
-            return None
-
-    # -------------------------------
-    # Build clip list (first, middle*, last)
-    # -------------------------------
-    def collect(c: Dict[str, Any], is_last: bool = False) -> Dict[str, Any]:
-        raw_file = c["file"]
-        filename = os.path.basename(raw_file)
-        local_file = ensure_local_video(session_id, filename)
-
-        return {
-            "file": local_file,
-            "start": float(c.get("start_time", 0)),
-            "duration": float(c.get("duration", 3)),
-            "text": (c.get("text") or "").strip(),
-            "is_last": is_last,
-        }
 
     if "first_clip" not in cfg or "last_clip" not in cfg:
         raise RuntimeError("config.yml must contain first_clip and last_clip")
 
-    clips: List[Dict[str, Any]] = [collect(cfg["first_clip"])]
+    clips = [
+    build_clip_entry(session_id, cfg["first_clip"])
+    ]
+
     for m in cfg.get("middle_clips", []):
-        clips.append(collect(m))
-    clips.append(collect(cfg["last_clip"], is_last=True))
+        clips.append(
+            build_clip_entry(session_id, m)
+        )
+
+    clips.append(
+        build_clip_entry(
+            session_id,
+            cfg["last_clip"],
+            is_last=True
+        )
+    )
 
     render_cfg = cfg.setdefault("render", {})
 
@@ -752,7 +781,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     clean_cta = strip_emojis(raw_cta_text) if raw_cta_text else ""
     wrapped_cta = _wrap_caption(clean_cta, max_chars_per_line=cta_max_chars) if clean_cta else ""
-    cta_text_safe = esc(wrapped_cta) if wrapped_cta else ""
+    cta_text_safe = escape_drawtext(wrapped_cta) if wrapped_cta else ""
 
 
     log_step(f"[CTA-DEBUG] raw_cta_text: {repr(raw_cta_text)}")
@@ -845,7 +874,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 if allow_caption and clip["text"]:
                     clean_text = strip_emojis(clip["text"])
                     wrapped = _wrap_caption(clean_text, max_chars_per_line=max_chars)
-                    text_safe = esc(wrapped)
+                    text_safe = escape_drawtext(wrapped)
                     vf += (
                         f";[v1]drawtext=text='{text_safe}':"
                         f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
@@ -868,7 +897,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 if allow_caption and clip["text"]:
                     clean_text = strip_emojis(clip["text"])
                     wrapped = _wrap_caption(clean_text, max_chars_per_line=max_chars)
-                    text_safe = esc(wrapped)
+                    text_safe = escape_drawtext(wrapped)
 
 
                     vf += (

@@ -757,7 +757,7 @@ def api_music():
 @app.route("/api/music_file/<path:filename>")
 def route_music_file(filename):
     from flask import send_from_directory
-    from tiktok_template import MUSIC_DIR
+    from tiktok_project.video_renderer import MUSIC_DIR
     return send_from_directory(MUSIC_DIR, filename, as_attachment=False)
 
 

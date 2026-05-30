@@ -11,7 +11,7 @@ from s3_config import (
     clean_s3_key,
 )
 
-from tiktok_template import video_folder
+from tiktok_project.video_renderer import video_folder
 from tiktok_assistant import (
     normalize_video,
     sanitize_yaml_filenames,
