@@ -196,95 +196,6 @@ def build_clip_entry(
         "is_last": is_last,
     }
     
-# -----------------------------------------
-# Background music (YAML: music: {enabled, file, volume})
-# -----------------------------------------
-def _build_music_audio(cfg, total_duration):
-    """
-    Memory-safe background music loader.
-    Returns a temp .m4a file path or None.
-    """
-
-    music_cfg = cfg.get("music", {}) or {}
-    if not music_cfg.get("enabled"):
-        log_step("[MUSIC] Disabled in config.")
-        return None
-
-    music_file = (music_cfg.get("file") or "").strip()
-    if not music_file:
-        log_step("[MUSIC] No music file specified.")
-        return None
-
-    volume = float(music_cfg.get("volume", 0.25))
-
-    music_path = os.path.join(MUSIC_DIR, music_file)
-    if not os.path.exists(music_path):
-        log_step(f"[MUSIC] NOT FOUND in MUSIC_DIR: {music_path}")
-        return None
-
-    log_step(f"[MUSIC] Using file: {music_path}")
-
-    out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
-
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", music_path,
-        "-filter_complex",
-        f"apad,atrim=0:{total_duration},volume={volume}",
-        "-c:a", "aac",
-        "-b:a", "192k",
-        out_path,
-    ]
-
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    if proc.stderr:
-        log_step(f"[MUSIC-FFMPEG] stderr:\n{proc.stderr}")
-
-    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
-        log_step("[MUSIC] Output audio invalid, disabling music.")
-        return None
-
-    return out_path
-
-
-def _build_base_audio(video_path, total_duration):
-    """
-    Extract original audio from the stitched video, memory-safe.
-    Returns a .m4a file path or None.
-
-    NOTE: Currently NOT used in the final mix to keep the chain simple:
-    we mix only TTS + music to avoid corrupt/empty sources.
-    """
-
-    if not os.path.exists(video_path):
-        log_step(f"[AUDIO] Base video missing: {video_path}")
-        return None
-
-    out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
-
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", video_path,
-        "-vn",
-        "-af", f"apad,atrim=0:{total_duration}",
-        "-c:a", "aac",
-        "-b:a", "192k",
-        out_path,
-    ]
-
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    if proc.stderr:
-        log_step(f"[AUDIO-BASE-FFMPEG] stderr:\n{proc.stderr}")
-
-    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
-        log_step("[AUDIO] Base audio invalid, skipping.")
-        return None
-
-    return out_path
-
-
 # ============================================================
 # 3. MEDIA RESTORE FROM S3
 # ============================================================
@@ -676,10 +587,212 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
 
     return tts_files, cta_tuple
 
+def build_audio_timeline(
+    clips,
+    tts_tracks,
+    cta_tts_track,
+    music_audio,
+    music_volume,
+    cta_enabled,
+    raw_cta_text,
+    cta_segment_len,
+    last_clip_cta_start_rel,
+):
+    """
+    Build scheduled audio tracks for final mix.
+
+    Returns:
+        audio_inputs
+    """
+
+    audio_inputs = []
+
+    if music_audio:
+        audio_inputs.append({
+            "path": music_audio,
+            "start": 0.0,
+            "volume": music_volume,
+        })
+
+    FIRST_TTS_DELAY = 0.05
+    last_tts_end = 0.0
+
+    clip_start_times = []
+    current_time = 0.0
+
+    for clip in clips:
+        clip_start_times.append(current_time)
+        current_time += clip["duration"]
+
+    # Per-clip narration
+    for idx, clip in enumerate(clips):
+        tts_entry = tts_tracks[idx] if idx < len(tts_tracks) else None
+
+        if not tts_entry or not isinstance(tts_entry, tuple):
+            continue
+
+        tts_path, tts_dur = tts_entry
+
+        if not tts_path or not tts_dur:
+            continue
+
+        delay = FIRST_TTS_DELAY if idx == 0 else 0.0
+
+        start_ts = clip_start_times[idx] + delay
+
+        audio_inputs.append({
+            "path": tts_path,
+            "start": start_ts,
+            "volume": 1.0,
+        })
+
+        last_tts_end = max(
+            last_tts_end,
+            start_ts + float(tts_dur)
+        )
+
+    # CTA narration
+    if (
+        cta_tts_track
+        and cta_enabled
+        and raw_cta_text
+        and cta_segment_len > 0.0
+        and last_clip_cta_start_rel is not None
+    ):
+        if isinstance(cta_tts_track, tuple):
+            cta_path, _ = cta_tts_track
+        else:
+            cta_path = cta_tts_track
+
+        if cta_path:
+            last_clip_start_abs = clip_start_times[-1]
+
+            cta_start_abs = (
+                last_clip_start_abs
+                + last_clip_cta_start_rel
+            )
+
+            cta_start_abs = max(
+                cta_start_abs,
+                last_tts_end + 0.05
+            )
+
+            audio_inputs.append({
+                "path": cta_path,
+                "start": cta_start_abs,
+                "volume": 1.0,
+            })
+
+    return audio_inputs
+
+# -----------------------------------------
+# Background music (YAML: music: {enabled, file, volume})
+# -----------------------------------------
+def _build_music_audio(cfg, total_duration):
+    """
+    Memory-safe background music loader.
+    Returns a temp .m4a file path or None.
+    """
+
+    music_cfg = cfg.get("music", {}) or {}
+    if not music_cfg.get("enabled"):
+        log_step("[MUSIC] Disabled in config.")
+        return None
+
+    music_file = (music_cfg.get("file") or "").strip()
+    if not music_file:
+        log_step("[MUSIC] No music file specified.")
+        return None
+
+    volume = float(music_cfg.get("volume", 0.25))
+
+    music_path = os.path.join(MUSIC_DIR, music_file)
+    if not os.path.exists(music_path):
+        log_step(f"[MUSIC] NOT FOUND in MUSIC_DIR: {music_path}")
+        return None
+
+    log_step(f"[MUSIC] Using file: {music_path}")
+
+    out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", music_path,
+        "-filter_complex",
+        f"apad,atrim=0:{total_duration},volume={volume}",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        out_path,
+    ]
+
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    if proc.stderr:
+        log_step(f"[MUSIC-FFMPEG] stderr:\n{proc.stderr}")
+
+    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
+        log_step("[MUSIC] Output audio invalid, disabling music.")
+        return None
+
+    return out_path
+
+def _build_base_audio(video_path, total_duration):
+    """
+    Extract original audio from the stitched video, memory-safe.
+    Returns a .m4a file path or None.
+
+    NOTE: Currently NOT used in the final mix to keep the chain simple:
+    we mix only TTS + music to avoid corrupt/empty sources.
+    """
+
+    if not os.path.exists(video_path):
+        log_step(f"[AUDIO] Base video missing: {video_path}")
+        return None
+
+    out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", video_path,
+        "-vn",
+        "-af", f"apad,atrim=0:{total_duration}",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        out_path,
+    ]
+
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    if proc.stderr:
+        log_step(f"[AUDIO-BASE-FFMPEG] stderr:\n{proc.stderr}")
+
+    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
+        log_step("[AUDIO] Base audio invalid, skipping.")
+        return None
+
+    return out_path
+
 # ============================================================
 # 6. VIDEO RENDER HELPERS
 # ============================================================
-
+def get_video_duration(filename: str):
+    """
+    Returns duration in seconds as float, or None if ffprobe fails.
+    """
+    try:
+        out = subprocess.check_output(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                filename,
+            ]
+        ).decode().strip()
+        return float(out)
+    except Exception as e:
+        log_step(f"[DURATION] ffprobe failed for {filename}: {e}")
+        return None
+    
 def compute_auto_zoom(video_path: str) -> float:
     """
     Compute a smart foreground scale factor to remove thick borders
@@ -720,24 +833,6 @@ def compute_auto_zoom(video_path: str) -> float:
     # clamp to safe range
     zoom = min(max(zoom, 1.05), 1.20)
     return zoom
-
-def get_video_duration(filename: str):
-    """
-    Returns duration in seconds as float, or None if ffprobe fails.
-    """
-    try:
-        out = subprocess.check_output(
-            [
-                "ffprobe", "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
-                filename,
-            ]
-        ).decode().strip()
-        return float(out)
-    except Exception as e:
-        log_step(f"[DURATION] ffprobe failed for {filename}: {e}")
-        return None
     
 def build_base_video_filter(fg_scale: float) -> str:
     """
@@ -1118,73 +1213,17 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     else:
         log_step("[AUDIO-MUSIC] No music added.")
 
-    audio_inputs = []
-
-    if music_audio:
-        audio_inputs.append({
-            "path": music_audio,
-            "start": 0.0,
-            "volume": float(music_cfg.get("volume", 0.25)),
-        })
-
-    FIRST_TTS_DELAY = 0.05
-    last_tts_end = 0.0
-
-    # Clip start times
-    clip_start_times = []
-    current_time = 0.0
-    for clip in clips:
-        clip_start_times.append(current_time)
-        current_time += clip["duration"]
-
-    # Per-clip TTS scheduling
-    for idx, clip in enumerate(clips):
-        tts_entry = tts_tracks[idx] if idx < len(tts_tracks) else None
-
-        if not tts_entry or not isinstance(tts_entry, tuple):
-            continue
-
-        tts_path, tts_dur = tts_entry
-        if not tts_path or not tts_dur:
-            continue
-
-        delay = FIRST_TTS_DELAY if idx == 0 else 0.0
-        start_ts = clip_start_times[idx] + delay
-
-        audio_inputs.append({
-            "path": tts_path,
-            "start": start_ts,
-            "volume": 1.0,
-        })
-
-        last_tts_end = max(last_tts_end, start_ts + float(tts_dur))
-
-    # CTA TTS scheduling — align with last-clip visual CTA if present
-    if cta_tts_track and cta_enabled and raw_cta_text and cta_segment_len > 0.0 and last_clip_cta_start_rel is not None:
-        if isinstance(cta_tts_track, tuple):
-            cta_path, cta_dur = cta_tts_track
-        else:
-            cta_path = cta_tts_track
-            cta_dur = 0.0
-
-        if cta_path:
-            last_clip_start_abs = clip_start_times[-1]
-            cta_start_abs = last_clip_start_abs + last_clip_cta_start_rel
-
-            # Just in case, don't start before all other TTS finished
-            cta_start_abs = max(cta_start_abs, last_tts_end + 0.05)
-
-            audio_inputs.append({
-                "path": cta_path,
-                "start": cta_start_abs,
-                "volume": 1.0,
-            })
-
-            log_step(
-                f"[CTA-AUDIO] last_clip_start_abs={last_clip_start_abs:.2f}, "
-                f"start_abs={cta_start_abs:.2f}, "
-                f"visual_rel={last_clip_cta_start_rel:.2f}"
-            )
+    audio_inputs = build_audio_timeline(
+        clips=clips,
+        tts_tracks=tts_tracks,
+        cta_tts_track=cta_tts_track,
+        music_audio=music_audio,
+        music_volume=float(music_cfg.get("volume", 0.25)),
+        cta_enabled=cta_enabled,
+        raw_cta_text=raw_cta_text,
+        cta_segment_len=cta_segment_len,
+        last_clip_cta_start_rel=last_clip_cta_start_rel,
+    )
 
     # ------------------------------------------------------------------
     # MIX ALL AUDIO
