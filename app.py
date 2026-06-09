@@ -66,6 +66,9 @@ from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
 import threading
 import json
 from werkzeug.datastructures import ImmutableMultiDict
+import logging
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)
@@ -749,6 +752,12 @@ def api_music():
     r["music_file"] = file
     r["music_volume"] = volume
 
+    cfg["music"] = {
+        "enabled": enabled,
+        "file": file,
+        "volume": volume,
+    }
+
     save_config(session, cfg)
 
     return jsonify({"status": "ok", "render": r})
@@ -756,10 +765,25 @@ def api_music():
 
 @app.route("/api/music_file/<path:filename>")
 def route_music_file(filename):
-    from flask import send_from_directory
-    from tiktok_project.video_renderer import MUSIC_DIR
-    return send_from_directory(MUSIC_DIR, filename, as_attachment=False)
+    from flask import send_from_directory, abort
 
+    music_dir = os.path.join(os.path.dirname(__file__), "music")
+    music_path = os.path.join(music_dir, filename)
+
+    logger.info(f"[MUSIC FILE] requested={filename}")
+    logger.info(f"[MUSIC FILE] dir={music_dir}")
+    logger.info(f"[MUSIC FILE] path={music_path}")
+    logger.info(f"[MUSIC FILE] exists={os.path.exists(music_path)}")
+
+    if not os.path.exists(music_path):
+        abort(404)
+
+    return send_from_directory(
+        music_dir,
+        filename,
+        mimetype="audio/mpeg",
+        as_attachment=False,
+    )
 
 # ============================================================================
 # OVERLAY + TIMINGS + FG SCALE
