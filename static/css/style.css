@@ -2953,9 +2953,7 @@ body.no-scroll {
   }
 
   .side-column {
-    display: block;
-    width: 100%;
-    margin-top: 24px;
+  display: none;
   }
 }
 
@@ -4525,4 +4523,37 @@ body.no-scroll {
 #hookLabOutput .hookCard.hook-locked:not(.selected) {
   opacity: 0.35 !important;
   filter: grayscale(0.45) !important;
+}
+
+/* FINAL LAYOUT OVERRIDE */
+@media (min-width: 901px) {
+  .layout {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 360px !important;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .main-column {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .side-column {
+    grid-column: 2;
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+    align-self: start;
+  }
+}
+
+@media (max-width: 900px) {
+  .layout {
+    display: block !important;
+  }
+
+  .side-column {
+    display: none !important;
+  }
 }
