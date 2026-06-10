@@ -468,20 +468,28 @@ def save_config_api():
 
     existing = load_config(session) or {}
 
-    # Merge top-level config
-    existing.update(incoming)
+    # Merge top-level keys EXCEPT render
+    for key, value in incoming.items():
+        if key != "render":
+            existing[key] = value
 
-    # Merge render safely so settings like captions_mode do not get wiped
+    # Merge render safely
     existing_render = existing.setdefault("render", {})
-    incoming_render = incoming.get("render", {}) or {}
+    incoming_render = dict(incoming.get("render", {}) or {})
+
+    # These should only be changed by /api/captions_mode
+    incoming_render.pop("captions_mode", None)
+    incoming_render.pop("narration_mode", None)
 
     existing_render.update(incoming_render)
+
+    logger.warning(f"[SAVE_CONFIG] session={session}")
+    logger.warning(f"[SAVE_CONFIG] incoming_render={incoming.get('render')}")
+    logger.warning(f"[SAVE_CONFIG] final_render={existing.get('render')}")
 
     save_config(session, existing)
 
     return jsonify({"status": "ok", "config": existing})
-
-
 
 @app.route("/api/reorder_clips", methods=["POST"])
 def api_reorder_clips():

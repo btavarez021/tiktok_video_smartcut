@@ -1595,6 +1595,9 @@ def api_set_captions_mode(session: str, mode: str) -> Dict[str, Any]:
 
     cfg = _load_config(session)
     r = cfg.setdefault("render", {})
+    
+    log_step(f"[CAPTION MODE BEFORE] session={session} render={r}")
+
     r["captions_mode"] = mode
     r["narration_mode"] = mode
 

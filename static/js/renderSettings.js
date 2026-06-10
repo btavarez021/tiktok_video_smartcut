@@ -491,21 +491,34 @@ async function saveCaptionMode() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ session, mode })
         });
+
         const data = await resp.json();
 
-        if (data.status === "ok") {
-            // 🔥 Confirm visually
-            setStatus("captionModeStatus", `Saved → ${mode}`, "success");
-
-            // 🔄 Update live state instantly — no manual refresh required anymore
-            await loadConfigAndYaml();
-            await loadCaptionMode();
-            await refreshAfterChange();
-
-            refreshAnalyses?.();   // optional if your UI uses it
-        } else {
+        if (data.status !== "ok") {
             setStatus("captionModeStatus", data.error || "Error saving", "error");
+            return;
         }
+
+        const savedMode = data.captions_mode || mode;
+
+        const select = document.getElementById("captionModeSelect");
+        if (select) {
+            select.value = savedMode;
+        }
+
+        CONFIG_CACHE = null;
+
+        await loadConfigAndYaml();
+
+        setStatus(
+            "captionModeStatus",
+            `Saved → ${savedMode}`,
+            "success"
+        );
+
+        // await refreshAfterChange();
+        // refreshAnalyses?.();
+        // await loadCaptionMode();
 
     } catch (err) {
         console.error(err);
