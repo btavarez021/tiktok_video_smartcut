@@ -475,6 +475,18 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
     for idx, clip in enumerate(clips):
         text = clip.get("text", "").strip()
 
+        is_last_clip = idx == len(clips) - 1
+        cta_voiceover_enabled = (
+            cta_cfg.get("enabled")
+            and cta_cfg.get("voiceover")
+            and cta_cfg.get("text")
+        )
+
+        if is_last_clip and cta_voiceover_enabled:
+            log_step(f"[TTS] Skipping last clip narration because CTA voiceover is enabled")
+            tts_files.append(None)
+            continue
+
         # ---------------------------------------------
         # 🔥 CAPTIONS_MODE controls narration too
         # ---------------------------------------------
