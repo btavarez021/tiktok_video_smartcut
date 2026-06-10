@@ -4526,29 +4526,3 @@ body.no-scroll {
   opacity: 0.35 !important;
   filter: grayscale(0.45) !important;
 }
-
-/* FINAL DESKTOP SIDEBAR FIX */
-@media (min-width: 901px) {
-  .layout {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) 360px !important;
-    gap: 20px !important;
-    align-items: start !important;
-  }
-
-  .main-column {
-    grid-column: 1 / 2 !important;
-    grid-row: 1 !important;
-    min-width: 0 !important;
-  }
-
-  .side-column {
-    grid-column: 2 / 3 !important;
-    grid-row: 1 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    width: 360px !important;
-    min-width: 360px !important;
-    align-self: start !important;
-  }
-}
