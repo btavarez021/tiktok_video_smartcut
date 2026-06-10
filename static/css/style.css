@@ -4526,3 +4526,13 @@ body.no-scroll {
   opacity: 0.35 !important;
   filter: grayscale(0.45) !important;
 }
+
+@media (min-width: 901px) {
+  .side-column {
+    position: sticky;
+    top: 20px;
+    align-self: start;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
+}
