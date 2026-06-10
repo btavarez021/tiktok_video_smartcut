@@ -1596,11 +1596,12 @@ def api_set_captions_mode(session: str, mode: str) -> Dict[str, Any]:
     cfg = _load_config(session)
     r = cfg.setdefault("render", {})
     r["captions_mode"] = mode
+    r["narration_mode"] = mode
 
     save_config(session, cfg)
 
     log_step(f"[CAPTIONS_MODE] {session} -> {mode}")
-    return {"status": "ok", "captions_mode": mode}
+    return {"status": "ok", "captions_mode": mode, "narration_mode": mode}
 
 # -----------------------------------------
 # Hook Score

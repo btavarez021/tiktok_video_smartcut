@@ -55,6 +55,7 @@ def load_render_config(session_id: str) -> Dict[str, Any]:
 
     render = cfg.setdefault("render", {})
     render.setdefault("captions_mode", "all")
+    render.setdefault("narration_mode", "first_only")
 
     return cfg
 

@@ -11,6 +11,7 @@ from assistant_log import status_log
 from config_store import load_config, save_config
 from assistant_api import (
     load_analysis_results_session,
+    api_set_captions_mode,
     delete_session,
     list_sessions,
     list_uploads,
@@ -463,12 +464,22 @@ def route_story_flow_improve():
 def save_config_api():
     data = request.get_json(silent=True) or {}
     session = sanitize_session(data.get("session", "default"))
-    cfg = data.get("config") or {}
+    incoming = data.get("config") or {}
 
-    from config_store import save_config
+    existing = load_config(session) or {}
 
-    save_config(session, cfg)
-    return jsonify({"status": "ok"})
+    # Merge top-level config
+    existing.update(incoming)
+
+    # Merge render safely so settings like captions_mode do not get wiped
+    existing_render = existing.setdefault("render", {})
+    incoming_render = incoming.get("render", {}) or {}
+
+    existing_render.update(incoming_render)
+
+    save_config(session, existing)
+
+    return jsonify({"status": "ok", "config": existing})
 
 
 
@@ -621,13 +632,12 @@ def api_apply_variant():
         "story_flow": flow_score
     })
 
-
 @app.route("/api/captions_mode", methods=["POST"])
 def route_captions_mode():
     data = request.get_json() or {}
     session = sanitize_session(data.get("session", "default"))
     mode = data.get("mode", "all")
-    from assistant_api import api_set_captions_mode
+
     return jsonify(api_set_captions_mode(session, mode))
 
 @app.route("/api/clip_preview", methods=["POST"])
