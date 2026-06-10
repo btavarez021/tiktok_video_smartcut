@@ -1233,8 +1233,26 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     else:
         log_step("[AUDIO-MUSIC] No music added.")
 
+    audio_timeline_clips = []
+
+    for idx, clip in enumerate(clips):
+        measured_duration = None
+
+        if idx < len(trimmed_files):
+            measured_duration = get_video_duration(trimmed_files[idx])
+
+        audio_timeline_clips.append({
+            **clip,
+            "duration": measured_duration or clip["duration"],
+        })
+
+    log_step(
+        "[AUDIO TIMELINE] measured clip durations="
+        + ", ".join(f"{c['duration']:.2f}" for c in audio_timeline_clips)
+    )
+
     audio_inputs = build_audio_timeline(
-        clips=clips,
+        clips=audio_timeline_clips,
         tts_tracks=tts_tracks,
         cta_tts_track=cta_tts_track,
         music_audio=music_audio,
