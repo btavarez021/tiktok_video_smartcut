@@ -475,18 +475,6 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
     for idx, clip in enumerate(clips):
         text = clip.get("text", "").strip()
 
-        is_last_clip = idx == len(clips) - 1
-        cta_voiceover_enabled = (
-            cta_cfg.get("enabled")
-            and cta_cfg.get("voiceover")
-            and cta_cfg.get("text")
-        )
-
-        if is_last_clip and cta_voiceover_enabled:
-            log_step(f"[TTS] Skipping last clip narration because CTA voiceover is enabled")
-            tts_files.append(None)
-            continue
-
         # ---------------------------------------------
         # 🔥 CAPTIONS_MODE controls narration too
         # ---------------------------------------------
@@ -653,6 +641,14 @@ def build_audio_timeline(
 
         start_ts = clip_start_times[idx] + delay
 
+        log_step(
+            f"[AUDIO TIMELINE] clip={idx + 1} "
+            f"clip_start={clip_start_times[idx]:.2f} "
+            f"tts_start={start_ts:.2f} "
+            f"tts_dur={float(tts_dur):.2f} "
+            f"tts_end={(start_ts + float(tts_dur)):.2f}"
+        )
+
         audio_inputs.append({
             "path": tts_path,
             "start": start_ts,
@@ -688,6 +684,13 @@ def build_audio_timeline(
             cta_start_abs = max(
                 cta_start_abs,
                 last_tts_end + 0.05
+            )
+
+            log_step(
+                f"[CTA AUDIO] "
+                f"cta_start={cta_start_abs:.2f} "
+                f"last_tts_end={last_tts_end:.2f} "
+                f"last_clip_cta_start_rel={last_clip_cta_start_rel:.2f}"
             )
 
             audio_inputs.append({
