@@ -1023,8 +1023,12 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         last_clip = clips[-1]
         clip_dur = float(last_clip["duration"])
 
-        # Visual CTA window: last ~1.0–1.2 seconds (never more)
-        last_clip_cta_visual_len = min(cta_segment_len, clip_dur, 1.2)
+        # Give CTA enough time to be seen/read
+        last_clip_cta_visual_len = min(
+            cta_segment_len,
+            clip_dur,
+            3.0
+        )
         last_clip_cta_start_rel = max(clip_dur - last_clip_cta_visual_len, clip_dur * 0.75)
         
 
