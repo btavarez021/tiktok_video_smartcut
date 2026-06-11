@@ -950,6 +950,11 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     log_step(
     "[CONFIG DURATIONS] "
     + ", ".join(str(c["duration"]) for c in clips)
+        )
+
+    log_step(
+    "[CONFIG DURATIONS] "
+    + ", ".join(str(c["duration"]) for c in clips)
 )   
 
     render_cfg = cfg.setdefault("render", {})
