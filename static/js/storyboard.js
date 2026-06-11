@@ -486,7 +486,7 @@ async function handleStoryboardContinue() {
         .getElementById("hookLab")
         ?.scrollIntoView({
           behavior: "smooth",
-          block: "nearest"
+          block: "center"
         });
     }, 500);
 
