@@ -952,11 +952,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     + ", ".join(str(c["duration"]) for c in clips)
         )
 
-    log_step(
-    "[CONFIG DURATIONS] "
-    + ", ".join(str(c["duration"]) for c in clips)
-)   
-
     render_cfg = cfg.setdefault("render", {})
 
     overlay_style = (render_cfg.get("overlay_style") or "ai_recommended").lower()
@@ -1224,13 +1219,20 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     f"[CTA-LAST-CLIP-SIMPLE] caption→CTA, start={cta_start:.2f}"
                 )
 
+            # Force every rendered clip to exactly requested duration.
+            # If source clip is shorter, freeze the last frame.
+            vf += (
+                f";[outv]tpad=stop_mode=clone:stop_duration={float(clip['duration'])},"
+                f"trim=duration={float(clip['duration'])},setpts=PTS-STARTPTS[outv_final]"
+            )
+
             trim_cmd = [
                 "ffmpeg", "-y",
                 "-ss", str(clip["start"]),
                 "-i", clip["file"],
                 "-t", str(clip["duration"]),
                 "-filter_complex", vf,
-                "-map", "[outv]",
+                "-map", "[outv_final]",
                 "-c:v", "libx264",
                 "-preset", "veryfast",
                 "-crf", "20",
