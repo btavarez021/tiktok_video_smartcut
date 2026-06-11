@@ -869,6 +869,52 @@ def build_base_video_filter(fg_scale: float) -> str:
         f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[v1]"
     )
     
+
+def get_transition_settings(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    render = cfg.get("render", {}) or {}
+    transition = render.get("transition", {}) or {}
+
+    transition_type = (transition.get("type") or "none").lower()
+    duration = float(transition.get("duration", 0.4) or 0.4)
+
+    if transition_type not in ("none", "fade"):
+        transition_type = "none"
+
+    duration = max(0.1, min(duration, 1.0))
+
+    return {
+        "type": transition_type,
+        "duration": duration,
+    }
+
+
+def concat_videos_standard(trimlist: str, optimized: bool = False) -> str:
+    log_step("[CONCAT] Using standard concat")
+
+    concat_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+
+    concat_cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat", "-safe", "0",
+        "-i", trimlist,
+        "-c:v", "libx264",
+        "-preset", "superfast" if optimized else "veryfast",
+        "-crf", "22",
+        "-pix_fmt", "yuv420p",
+        concat_output,
+    ]
+
+    proc = subprocess.run(
+        concat_cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    if proc.stderr:
+        log_step(f"[CONCAT-FFMPEG] stderr:\n{proc.stderr}")
+
+    return concat_output
     
 # ============================================================
 # 7. FINAL EXPORT / MUX
@@ -881,7 +927,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     cfg = load_render_config(session_id)
 
-    log_step("[EXPORT] Using standard concat (no transitions)")
+    log_step(f"[EXPORT] transition={transition_settings['type']}")
 
     layout_mode = _get_layout_mode(cfg)
     log_step(f"[EXPORT] Building low-memory FFmpeg timeline… (layout_mode={layout_mode})")
@@ -1191,25 +1237,17 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # 2. CONCAT CLIPS
     # -------------------------------
 
-    log_step("[CONCAT] Using standard concat")
+    transition_settings = get_transition_settings(cfg)
 
-    concat_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-    concat_cmd = [
-        "ffmpeg", "-y",
-        "-f", "concat", "-safe", "0",
-        "-i", trimlist,
-        "-c:v", "libx264",
-        "-preset", "superfast" if optimized else "veryfast",
-        "-crf", "22",
-        "-pix_fmt", "yuv420p",
-        concat_output,
-    ]
+    final_video_source = concat_videos_standard(
+        trimlist=trimlist,
+        optimized=optimized,
+    )
 
-    proc = subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    if proc.stderr:
-        log_step(f"[CONCAT-FFMPEG] stderr:\n{proc.stderr}")
-
-    final_video_source = concat_output
+    log_step(
+        f"[TRANSITION] type={transition_settings['type']} "
+        f"duration={transition_settings['duration']:.2f}"
+    )
 
     # ✅ always compute duration
     total_video_duration = get_video_duration(final_video_source) or float(base_video_duration)
