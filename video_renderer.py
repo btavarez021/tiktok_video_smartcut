@@ -947,6 +947,11 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     clips = build_render_clips(session_id, cfg)
 
+    log_step(
+    "[CONFIG DURATIONS] "
+    + ", ".join(str(c["duration"]) for c in clips)
+)   
+
     render_cfg = cfg.setdefault("render", {})
 
     overlay_style = (render_cfg.get("overlay_style") or "ai_recommended").lower()
