@@ -1368,13 +1368,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     else:
         total_video_duration = actual_final_video_duration
 
-    use_shortest = False
-    if final_audio and actual_final_video_duration < (total_video_duration - 0.75):
+    use_shortest = bool(final_audio)
+
+    if use_shortest:
         log_step(
-            f"[MUX-SAFETY] Video ({actual_final_video_duration:.2f}s) shorter than "
-            f"expected total ({total_video_duration:.2f}s). Enforcing -shortest."
+            f"[MUX-SAFETY] Final audio present. Enforcing -shortest "
+            f"to prevent frozen ending frames."
         )
-        use_shortest = True
 
     mux_cmd = ["ffmpeg", "-y"]
     mux_cmd += ["-i", final_video_source]
