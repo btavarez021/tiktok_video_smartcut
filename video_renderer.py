@@ -927,8 +927,14 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
     cfg = load_render_config(session_id)
 
-    log_step(f"[EXPORT] transition={transition_settings['type']}")
+    transition_settings = get_transition_settings(cfg)
 
+    log_step(
+        f"[EXPORT] Building video timeline "
+        f"(transition={transition_settings['type']}, "
+        f"duration={transition_settings['duration']:.2f})"
+    )
+    
     layout_mode = _get_layout_mode(cfg)
     log_step(f"[EXPORT] Building low-memory FFmpeg timeline… (layout_mode={layout_mode})")
 
@@ -1236,8 +1242,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # -------------------------------
     # 2. CONCAT CLIPS
     # -------------------------------
-
-    transition_settings = get_transition_settings(cfg)
 
     final_video_source = concat_videos_standard(
         trimlist=trimlist,
