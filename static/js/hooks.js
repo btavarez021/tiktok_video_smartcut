@@ -815,8 +815,8 @@ async function goToHookLab() {
 
   await new Promise(r => setTimeout(r, 50));
 
-  document.getElementById("hookLab")
-    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  // document.getElementById("hookLab")
+  //   ?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   highlightHookLab?.();
   updateHookLabGuidance();

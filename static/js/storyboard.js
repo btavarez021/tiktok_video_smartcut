@@ -458,6 +458,25 @@ Opening clip order review…`;
     updateHookLabGuidance();
   }
 
+  function scrollHookLabIntoLayout() {
+  const layout = document.querySelector(".layout");
+  const hookLab = document.getElementById("hookLab");
+
+  if (!layout || !hookLab) return;
+
+  const layoutRect = layout.getBoundingClientRect();
+  const hookRect = hookLab.getBoundingClientRect();
+
+  const targetTop =
+    layout.scrollTop +
+    (hookRect.top - layoutRect.top) -
+    120;
+
+  layout.scrollTo({
+    top: targetTop,
+    behavior: "smooth"
+  });
+}
 
 async function handleStoryboardContinue() {
   if (STORYBOARD_CONTINUE_RUNNING) {
@@ -481,14 +500,7 @@ async function handleStoryboardContinue() {
 
     await goToHookLab();
 
-    setTimeout(() => {
-      document
-        .getElementById("hookLab")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "center"
-        });
-    }, 500);
+    setTimeout(scrollHookLabIntoLayout, 600);
 
   } finally {
     STORYBOARD_CONTINUE_RUNNING = false;
