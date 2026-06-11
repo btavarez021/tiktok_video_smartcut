@@ -1241,6 +1241,14 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             if not os.path.exists(trimmed_path):
                 raise RuntimeError(f"[TRIM ERROR] Output not created for {clip['file']}")
 
+            actual_trim_duration = get_video_duration(trimmed_path)
+
+            log_step(
+                f"[TRIM RESULT] clip={clip_index + 1} "
+                f"requested={clip['duration']:.2f} "
+                f"actual={actual_trim_duration:.2f}"
+            )
+
             trimmed_files.append(trimmed_path)
             lf.write(f"file '{trimmed_path}'\n")
 
