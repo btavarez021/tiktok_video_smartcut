@@ -526,6 +526,44 @@ async function saveCaptionMode() {
     }
 }
 
+async function loadTransitionSettings() {
+    try {
+        const data = await getConfigCached();
+        const cfg = data.config || {};
+        const transitionType = cfg.render?.transition?.type || "none";
+
+        const select = document.getElementById("transitionType");
+        if (select) {
+            select.value = transitionType;
+        }
+    } catch (err) {
+        console.error("Failed to load transition settings", err);
+    }
+}
+
+async function saveTransitionSettings() {
+    const transitionType =
+        document.getElementById("transitionType")?.value || "none";
+
+    try {
+        await jsonFetch("/api/transition_settings", {
+            method: "POST",
+            body: JSON.stringify({
+                session: getActiveSession(),
+                transition_type: transitionType,
+            }),
+        });
+
+        CONFIG_CACHE = null;
+        await loadConfigAndYaml();
+
+        showAutoSaveStatus("transitionStatus");
+    } catch (err) {
+        console.error(err);
+        setStatus("transitionStatus", "Failed to save transition", "error");
+    }
+}
+
 // Layout Mode (TikTok / Classic)
 async function loadLayoutFromYaml() {
     const sel = document.getElementById("layoutMode");
@@ -795,6 +833,7 @@ function initRenderSettingsListeners() {
   qs("previewFast")?.addEventListener("click", () => previewOverlay("fast"));
   qs("previewFull")?.addEventListener("click", () => previewOverlay("full"));
   qs("previewStyleBtn")?.addEventListener("click", () => previewOverlay("fast"));
+  qs("transitionType")?.addEventListener("change", saveTransitionSettings);
 
   qs("previewRewriteBtn")?.addEventListener("click", () => {
     if (typeof previewRewrite === "function") previewRewrite();
@@ -931,4 +970,5 @@ async function initRenderSettingsBoot() {
   await loadMusicSettingsFromYaml();
   await loadLayoutFromYaml();
   await loadCaptionMode();
+  await loadTransitionSettings();
 }

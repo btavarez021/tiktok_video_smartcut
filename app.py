@@ -780,6 +780,32 @@ def api_music():
 
     return jsonify({"status": "ok", "render": r})
 
+@app.route("/api/transition_settings", methods=["POST"])
+def api_transition_settings():
+    data = request.get_json(silent=True) or {}
+
+    session = sanitize_session(data.get("session", "default"))
+    transition_type = data.get("transition_type", "none")
+
+    if transition_type not in ("none", "fade"):
+        return jsonify({
+            "status": "error",
+            "error": "Invalid transition type"
+        }), 400
+
+    cfg = load_config(session) or {}
+    render = cfg.setdefault("render", {})
+    transition = render.setdefault("transition", {})
+
+    transition["type"] = transition_type
+    transition.setdefault("duration", 0.4)
+
+    save_config(session, cfg)
+
+    return jsonify({
+        "status": "ok",
+        "transition": transition
+    })
 
 @app.route("/api/music_file/<path:filename>")
 def route_music_file(filename):
