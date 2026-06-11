@@ -4560,3 +4560,50 @@ body.no-scroll {
   overflow-y: auto;
   z-index: 2;
 }
+
+/* =========================================================
+   MOBILE FIX — sidebar should not affect page layout
+   ========================================================= */
+@media (max-width: 900px) {
+  .layout {
+    display: block !important;
+    width: 100% !important;
+    padding: 16px !important;
+    overflow: visible !important;
+  }
+
+  .main-column {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .side-column {
+    display: block !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .side-column .log-card,
+  .side-column .chat-card {
+    display: none !important;
+  }
+
+  #sidebarSessionCard {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: 92% !important;
+    max-width: 420px !important;
+    height: 100vh !important;
+    z-index: 99999 !important;
+    transform: translateX(100%);
+    overflow-y: auto !important;
+  }
+
+  #sidebarSessionCard.open {
+    transform: translateX(0);
+  }
+}
