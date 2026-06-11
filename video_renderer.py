@@ -1243,6 +1243,9 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # 2. CONCAT CLIPS
     # -------------------------------
 
+    if transition_settings["type"] == "fade":
+        log_step("[TRANSITION] Fade requested but not implemented yet. Falling back to standard concat.")
+
     final_video_source = concat_videos_standard(
         trimlist=trimlist,
         optimized=optimized,
