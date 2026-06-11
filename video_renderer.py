@@ -1334,7 +1334,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             "; ".join(filter_parts)
             + "; "
             + "".join(mix_labels)
-            + f"amix=inputs={len(audio_inputs)}:normalize=0[outa]"
+            + f"amix=inputs={len(audio_inputs)}:normalize=0,"
+            + f"apad,atrim=0:{total_video_duration}[outa]"
         )
 
         cmd += [
@@ -1368,13 +1369,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     else:
         total_video_duration = actual_final_video_duration
 
-    use_shortest = bool(final_audio)
-
-    if use_shortest:
-        log_step(
-            f"[MUX-SAFETY] Final audio present. Enforcing -shortest "
-            f"to prevent frozen ending frames."
-        )
+    use_shortest = False
 
     mux_cmd = ["ffmpeg", "-y"]
     mux_cmd += ["-i", final_video_source]
