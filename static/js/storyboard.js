@@ -460,20 +460,20 @@ Opening clip order review…`;
 
   function scrollHookLabIntoLayout() {
   const layout = document.querySelector(".layout");
-  const hookLab = document.getElementById("hookLab");
+  const target = document.getElementById("variantsDrawer");
 
-  if (!layout || !hookLab) return;
+  if (!layout || !target) return;
 
   const layoutRect = layout.getBoundingClientRect();
-  const hookRect = hookLab.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
 
   const targetTop =
     layout.scrollTop +
-    (hookRect.top - layoutRect.top) -
-    120;
+    (targetRect.top - layoutRect.top) -
+    80;
 
   layout.scrollTo({
-    top: targetTop,
+    top: Math.max(targetTop, 0),
     behavior: "smooth"
   });
 }
