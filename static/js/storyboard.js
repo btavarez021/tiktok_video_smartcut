@@ -471,7 +471,6 @@ async function handleStoryboardContinue() {
     const autoAssist = window.appState?.settings?.autoAssist === true;
 
     if (autoAssist) {
-      // don't re-run Auto Assist if a hook is already selected
       if (window.appState?.hook?.selected) {
         console.log("🧠 Skipping Auto Assist — hook already chosen");
       } else {
@@ -481,6 +480,16 @@ async function handleStoryboardContinue() {
     }
 
     await goToHookLab();
+
+    setTimeout(() => {
+      document
+        .getElementById("hookLab")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+    }, 500);
+
   } finally {
     STORYBOARD_CONTINUE_RUNNING = false;
   }

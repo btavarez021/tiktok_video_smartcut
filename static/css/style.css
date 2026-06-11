@@ -4560,22 +4560,3 @@ body.no-scroll {
   overflow-y: auto;
   z-index: 2;
 }
-
-.step-card,
-.acc-section,
-.main-column {
-  position: relative;
-  z-index: 1;
-}
-
-#hookLab,
-.hook-lab,
-#hookLabSection {
-  position: relative;
-  z-index: 5;
-  scroll-margin-top: 24px;
-}
-
-.side-column {
-  z-index: 2;
-}
