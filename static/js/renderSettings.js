@@ -812,6 +812,23 @@ function initRenderSettingsListeners() {
     await previewOverlay("fast");
   });
 
+  // CTA preset
+  document.querySelectorAll(".cta-preset").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const text = btn.dataset.cta;
+    const ctaInput = document.getElementById("ctaText");
+
+    if (!ctaInput || !text) return;
+
+    ctaInput.value = text;
+
+    await saveCtaSettings({ silent: true });
+
+    flashElement(qs("ctaRow"));
+    showAutoSaveStatus("ctaStatus");
+  });
+});
+
   // CTA
   qs("ctaEnabled")?.addEventListener("change", async () => {
     syncCtaUIState();
