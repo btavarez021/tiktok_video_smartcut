@@ -803,6 +803,7 @@ async function goToHookLab() {
   }
 
   setVariantsDrawerOpen(true);
+  document.getElementById("variantsDrawer")?.classList.remove("closed");
   document.getElementById("hookLab")?.classList.remove("hidden");
 
   const hooks = window.appState.hook.lastGenerated;
