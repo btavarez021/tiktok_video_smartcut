@@ -460,7 +460,7 @@ Opening clip order review…`;
 
   function scrollHookLabIntoLayout() {
   const layout = document.querySelector(".layout");
-  const target = document.getElementById("aiControlPanel");
+  const target = document.getElementById("variantsDrawer");
 
   if (!layout || !target) return;
 
