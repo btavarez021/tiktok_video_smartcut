@@ -897,6 +897,8 @@ def concat_videos_standard(trimlist: str, optimized: bool = False) -> str:
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0",
         "-i", trimlist,
+        "-fflags", "+genpts",
+        "-avoid_negative_ts", "make_zero",
         "-c:v", "libx264",
         "-preset", "superfast" if optimized else "veryfast",
         "-crf", "22",
@@ -908,6 +910,12 @@ def concat_videos_standard(trimlist: str, optimized: bool = False) -> str:
 
     if proc.stderr:
         log_step(f"[CONCAT-FFMPEG] stderr:\n{proc.stderr}")
+
+    if not os.path.exists(concat_output) or os.path.getsize(concat_output) < 100_000:
+        raise RuntimeError("[CONCAT ERROR] Concat output invalid or missing")
+
+    dur = get_video_duration(concat_output)
+    log_step(f"[CONCAT RESULT] duration={dur:.2f}s")
 
     return concat_output
     
@@ -1247,6 +1255,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             trimmed_files.append(trimmed_path)
             lf.write(f"file '{trimmed_path}'\n")
 
+    log_step(f"[CONCAT INPUTS] count={len(trimmed_files)}")
+    for i, f in enumerate(trimmed_files):
+        log_step(f"[CONCAT INPUT] {i+1}: duration={get_video_duration(f):.2f} path={f}")
+        
     # -------------------------------
     # 2. CONCAT CLIPS
     # -------------------------------
