@@ -52,15 +52,17 @@ async function exportVideo() {
     cfg.last_clip
     ].filter(Boolean);
 
+    const transitionSummary =
+        transition.type === "fade"
+            ? `Fade (${transition.duration || 0.8}s)`
+            : "None";
+
     showExportSummary({
     duration: "Complete",
     clipCount: clips.length,
     voice: tts.enabled ? (tts.voice || "Enabled") : "Off",
     music: music.enabled ? (music.file || "Enabled") : "Off",
-    transition:
-        transition.type === "fade"
-        ? `Fade (${transition.duration || 0.8}s)`
-        : "None",
+    transition: transitionSummary,
     cta: cta.enabled ? "Enabled" : "Off"
     });
 
