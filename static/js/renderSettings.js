@@ -544,10 +544,6 @@ async function loadTransitionSettings() {
 
         syncTransitionUI();
 
-        const select = document.getElementById("transitionType");
-        if (select) {
-            select.value = transitionType;
-        }
     } catch (err) {
         console.error("Failed to load transition settings", err);
     }
