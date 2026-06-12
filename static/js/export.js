@@ -1,3 +1,9 @@
+function titleCase(value) {
+  return String(value || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // ================================
 // Step 5: EXPORT (Async)
 // ================================
@@ -23,7 +29,10 @@ async function exportVideo() {
     const taskId = startResp.task_id;
     ACTIVE_EXPORT_TASK = taskId;
 
-    const downloadUrl = await pollExportStatus(taskId);
+    const exportResult = await pollExportStatus(taskId);
+    console.log("EXPORT RESULT", exportResult);
+    
+    const downloadUrl = exportResult.download_url;
 
     cancelBtn.classList.add("hidden");
 
@@ -58,9 +67,13 @@ async function exportVideo() {
             : "None";
 
     showExportSummary({
-    duration: "Complete",
+    duration: exportResult.duration
+        ? `${Number(exportResult.duration).toFixed(1)}s`
+        : "Complete",
     clipCount: clips.length,
-    voice: tts.enabled ? (tts.voice || "Enabled") : "Off",
+    voice: tts.enabled
+        ? titleCase(tts.voice || "Enabled")
+        : "Off",
     music: music.enabled ? (music.file || "Enabled") : "Off",
     transition: transitionSummary,
     cta: cta.enabled ? "Enabled" : "Off"
@@ -113,7 +126,7 @@ async function pollExportStatus(taskId) {
                   `;
               }
 
-              resolve(data.download_url);
+              resolve(data);
               return;
           }
 
