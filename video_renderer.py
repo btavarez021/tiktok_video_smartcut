@@ -888,28 +888,15 @@ def get_transition_settings(cfg: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-
-
-def concat_videos_standard(trimmed_files: List[str], optimized: bool = False) -> str:
-    log_step("[CONCAT] Using concat filter")
+def concat_videos_standard(trimlist: str, optimized: bool = False) -> str:
+    log_step("[CONCAT] Using standard concat")
 
     concat_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
 
-    cmd = ["ffmpeg", "-y"]
-
-    for f in trimmed_files:
-        cmd += ["-i", f]
-
-    inputs = "".join(f"[{i}:v]" for i in range(len(trimmed_files)))
-
-    filter_complex = (
-        f"{inputs}concat=n={len(trimmed_files)}:v=1:a=0,"
-        f"setpts=PTS-STARTPTS[outv]"
-    )
-
-    cmd += [
-        "-filter_complex", filter_complex,
-        "-map", "[outv]",
+    concat_cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat", "-safe", "0",
+        "-i", trimlist,
         "-c:v", "libx264",
         "-preset", "superfast" if optimized else "veryfast",
         "-crf", "22",
@@ -917,7 +904,7 @@ def concat_videos_standard(trimmed_files: List[str], optimized: bool = False) ->
         concat_output,
     ]
 
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     if proc.stderr:
         log_step(f"[CONCAT-FFMPEG] stderr:\n{proc.stderr}")
@@ -1227,20 +1214,13 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                     f"[CTA-LAST-CLIP-SIMPLE] caption→CTA, start={cta_start:.2f}"
                 )
 
-            # Force every rendered clip to exactly requested duration.
-            # If source clip is shorter, freeze the last frame.
-            vf += (
-                f";[outv]tpad=stop_mode=clone:stop_duration={float(clip['duration'])},"
-                f"trim=duration={float(clip['duration'])},setpts=PTS-STARTPTS[outv_final]"
-            )
-
             trim_cmd = [
                 "ffmpeg", "-y",
                 "-ss", str(clip["start"]),
                 "-i", clip["file"],
                 "-t", str(clip["duration"]),
                 "-filter_complex", vf,
-                "-map", "[outv_final]",
+                "-map", "[outv]",
                 "-c:v", "libx264",
                 "-preset", "veryfast",
                 "-crf", "20",
@@ -1275,7 +1255,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         log_step("[TRANSITION] Fade requested but not implemented yet. Falling back to standard concat.")
 
     final_video_source = concat_videos_standard(
-        trimmed_files=trimmed_files,
+        trimlist=trimlist,
         optimized=optimized,
     )
 
@@ -1325,7 +1305,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     )
 
     audio_inputs = build_audio_timeline(
-        clips=audio_timeline_clips,
+        clips=clips,
         tts_tracks=tts_tracks,
         cta_tts_track=cta_tts_track,
         music_audio=music_audio,
@@ -1362,8 +1342,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             "; ".join(filter_parts)
             + "; "
             + "".join(mix_labels)
-            + f"amix=inputs={len(audio_inputs)}:normalize=0,"
-            + f"apad,atrim=0:{total_video_duration}[outa]"
+            + f"amix=inputs={len(audio_inputs)}:normalize=0[outa]"
         )
 
         cmd += [
