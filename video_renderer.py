@@ -731,11 +731,15 @@ def _build_music_audio(cfg, total_duration):
 
     out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a").name
 
+    fade_start = max(float(total_duration) - 2.0, 0.0)
+
     cmd = [
         "ffmpeg", "-y",
         "-i", music_path,
         "-filter_complex",
-        f"apad,atrim=0:{total_duration},volume={volume}",
+        f"apad,atrim=0:{total_duration},"
+        f"afade=t=out:st={fade_start}:d=2.0,"
+        f"volume={volume}",
         "-c:a", "aac",
         "-b:a", "192k",
         out_path,
