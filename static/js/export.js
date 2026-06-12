@@ -20,6 +20,8 @@ async function exportVideo() {
     cancelBtn.classList.remove("hidden");
     statusEl.textContent = "⏳ Rendering… you can leave this page.";
 
+    const renderStart = performance.now();
+
     try {
     const startResp = await jsonFetch("/api/export/start", {
         method: "POST",
@@ -30,8 +32,10 @@ async function exportVideo() {
     ACTIVE_EXPORT_TASK = taskId;
 
     const exportResult = await pollExportStatus(taskId);
+    const renderSeconds = ((performance.now() - renderStart) / 1000).toFixed(1);
+
     console.log("EXPORT RESULT", exportResult);
-    
+
     const downloadUrl = exportResult.download_url;
 
     cancelBtn.classList.add("hidden");
@@ -70,6 +74,7 @@ async function exportVideo() {
     duration: exportResult.duration
         ? `${Number(exportResult.duration).toFixed(1)}s`
         : "Complete",
+    renderTime: `${renderSeconds}s`,
     clipCount: clips.length,
     voice: tts.enabled
         ? titleCase(tts.voice || "Enabled")
@@ -244,6 +249,11 @@ function showExportSummary(summary) {
             <div class="export-summary-item">
                 <div class="export-summary-label">Duration</div>
                 <div class="export-summary-value">${summary.duration}</div>
+            </div>
+
+            <div class="export-summary-item">
+                <div class="export-summary-label">Render Time</div>
+                <div class="export-summary-value">${summary.renderTime}</div>
             </div>
 
             <div class="export-summary-item">
