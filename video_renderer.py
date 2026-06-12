@@ -1354,11 +1354,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             optimized=optimized,
         )
 
-    final_video_source = concat_videos_standard(
-        trimmed_files=trimmed_files,
-        optimized=optimized,
-    )
-
     log_step(
         f"[TRANSITION] type={transition_settings['type']} "
         f"duration={transition_settings['duration']:.2f}"
