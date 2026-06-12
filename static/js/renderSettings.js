@@ -530,7 +530,19 @@ async function loadTransitionSettings() {
     try {
         const data = await getConfigCached();
         const cfg = data.config || {};
-        const transitionType = cfg.render?.transition?.type || "none";
+        const transition = cfg.render?.transition || {};
+        const transitionType = transition.type || "none";
+        const duration = transition.duration ?? 0.8;
+
+        const select = document.getElementById("transitionType");
+        const slider = document.getElementById("transitionDuration");
+        const label = document.getElementById("transitionDurationValue");
+
+        if (select) select.value = transitionType;
+        if (slider) slider.value = duration;
+        if (label) label.textContent = `${duration}s`;
+
+        syncTransitionUI();
 
         const select = document.getElementById("transitionType");
         if (select) {

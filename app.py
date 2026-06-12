@@ -798,7 +798,17 @@ def api_transition_settings():
     transition = render.setdefault("transition", {})
 
     transition["type"] = transition_type
-    transition.setdefault("duration", 0.4)
+    transition_duration = float(
+    data.get("transition_duration", 0.8)
+    )
+
+    transition_duration = max(
+        0.2,
+        min(transition_duration, 1.5)
+    )
+
+    transition["type"] = transition_type
+    transition["duration"] = transition_duration
 
     save_config(session, cfg)
 
