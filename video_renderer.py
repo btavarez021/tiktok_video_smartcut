@@ -891,6 +891,65 @@ def get_transition_settings(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "duration": duration,
     }
 
+def concat_videos_fade(trimmed_files: List[str], transition_duration: float = 0.4, optimized: bool = False) -> str:
+    log_step(f"[CONCAT] Using fade transitions duration={transition_duration:.2f}")
+
+    if len(trimmed_files) <= 1:
+        return trimmed_files[0]
+
+    concat_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+
+    durations = [get_video_duration(f) or 0.0 for f in trimmed_files]
+
+    cmd = ["ffmpeg", "-y"]
+    for f in trimmed_files:
+        cmd += ["-i", f]
+
+    filter_parts = []
+    for i in range(len(trimmed_files)):
+        filter_parts.append(
+            f"[{i}:v]fps=30,format=yuv420p,setpts=PTS-STARTPTS[v{i}]"
+        )
+
+    current = "[v0]"
+    elapsed = durations[0]
+
+    for i in range(1, len(trimmed_files)):
+        offset = max(elapsed - transition_duration, 0.0)
+
+        out_label = f"[xf{i}]"
+        filter_parts.append(
+            f"{current}[v{i}]xfade=transition=fade:"
+            f"duration={transition_duration}:"
+            f"offset={offset}"
+            f"{out_label}"
+        )
+
+        current = out_label
+        elapsed += durations[i] - transition_duration
+
+    filter_complex = ";".join(filter_parts)
+
+    cmd += [
+        "-filter_complex", filter_complex,
+        "-map", current,
+        "-c:v", "libx264",
+        "-preset", "superfast" if optimized else "veryfast",
+        "-crf", "22",
+        "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
+        concat_output,
+    ]
+
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    if proc.stderr:
+        log_step(f"[FADE-CONCAT-FFMPEG] stderr:\n{proc.stderr}")
+
+    dur = get_video_duration(concat_output)
+    log_step(f"[FADE CONCAT RESULT] duration={dur:.2f}s")
+
+    return concat_output
 
 def concat_videos_standard(trimmed_files: List[str], optimized: bool = False) -> str:
     log_step("[CONCAT] Using timestamp-safe concat filter")
@@ -1283,8 +1342,17 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     # 2. CONCAT CLIPS
     # -------------------------------
 
-    if transition_settings["type"] == "fade":
-        log_step("[TRANSITION] Fade requested but not implemented yet. Falling back to standard concat.")
+    if transition_settings["type"] == "fade" and len(trimmed_files) > 1:
+        final_video_source = concat_videos_fade(
+            trimmed_files=trimmed_files,
+            transition_duration=transition_settings["duration"],
+            optimized=optimized,
+        )
+    else:
+        final_video_source = concat_videos_standard(
+            trimmed_files=trimmed_files,
+            optimized=optimized,
+        )
 
     final_video_source = concat_videos_standard(
         trimmed_files=trimmed_files,
