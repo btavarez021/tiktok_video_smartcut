@@ -4607,3 +4607,36 @@ body.no-scroll {
     transform: translateX(0);
   }
 }
+
+.export-summary-card {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.export-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.export-summary-item {
+    padding: 8px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.03);
+}
+
+.export-summary-label {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.export-summary-value {
+    font-weight: 600;
+}
+
+.hidden {
+    display: none;
+}

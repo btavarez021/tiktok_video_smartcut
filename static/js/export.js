@@ -38,6 +38,15 @@ async function exportVideo() {
     // statusEl.textContent = "✅ Export complete";
     setStatus("exportStatus", "Export complete ✓", "success");
 
+    showExportSummary({
+        duration: "38.8s",
+        clipCount: 4,
+        voice: "Nova",
+        music: "song1.mp3",
+        transition: "Fade (0.8s)",
+        cta: "Enabled"
+    });
+
 
     // 🔥 Show your nice styled button
     showDownloadButton(downloadUrl);
@@ -190,4 +199,47 @@ function initExportListeners() {
     // Let poller handle UI cleanup
     ACTIVE_EXPORT_TASK = null;
   });
+}
+
+function showExportSummary(summary) {
+    const card = document.getElementById("exportSummaryCard");
+    const content = document.getElementById("exportSummaryContent");
+
+    if (!card || !content) return;
+
+    content.innerHTML = `
+        <div class="export-summary-grid">
+            <div class="export-summary-item">
+                <div class="export-summary-label">Duration</div>
+                <div class="export-summary-value">${summary.duration}</div>
+            </div>
+
+            <div class="export-summary-item">
+                <div class="export-summary-label">Clips</div>
+                <div class="export-summary-value">${summary.clipCount}</div>
+            </div>
+
+            <div class="export-summary-item">
+                <div class="export-summary-label">Voice</div>
+                <div class="export-summary-value">${summary.voice}</div>
+            </div>
+
+            <div class="export-summary-item">
+                <div class="export-summary-label">Music</div>
+                <div class="export-summary-value">${summary.music}</div>
+            </div>
+
+            <div class="export-summary-item">
+                <div class="export-summary-label">Transition</div>
+                <div class="export-summary-value">${summary.transition}</div>
+            </div>
+
+            <div class="export-summary-item">
+                <div class="export-summary-label">CTA</div>
+                <div class="export-summary-value">${summary.cta}</div>
+            </div>
+        </div>
+    `;
+
+    card.classList.remove("hidden");
 }
