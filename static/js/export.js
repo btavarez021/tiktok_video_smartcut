@@ -38,13 +38,30 @@ async function exportVideo() {
     // statusEl.textContent = "✅ Export complete";
     setStatus("exportStatus", "Export complete ✓", "success");
 
+    const data = await getConfigCached();
+    const cfg = data.config || {};
+    const render = cfg.render || {};
+    const transition = render.transition || {};
+    const tts = cfg.tts || {};
+    const music = cfg.music || {};
+    const cta = cfg.cta || {};
+
+    const clips = [
+    cfg.first_clip,
+    ...(cfg.middle_clips || []),
+    cfg.last_clip
+    ].filter(Boolean);
+
     showExportSummary({
-        duration: "38.8s",
-        clipCount: 4,
-        voice: "Nova",
-        music: "song1.mp3",
-        transition: "Fade (0.8s)",
-        cta: "Enabled"
+    duration: "Complete",
+    clipCount: clips.length,
+    voice: tts.enabled ? (tts.voice || "Enabled") : "Off",
+    music: music.enabled ? (music.file || "Enabled") : "Off",
+    transition:
+        transition.type === "fade"
+        ? `Fade (${transition.duration || 0.8}s)`
+        : "None",
+    cta: cta.enabled ? "Enabled" : "Off"
     });
 
 
