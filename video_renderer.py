@@ -897,10 +897,7 @@ def concat_videos_standard(trimlist: str, optimized: bool = False) -> str:
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0",
         "-i", trimlist,
-        "-c:v", "libx264",
-        "-preset", "superfast" if optimized else "veryfast",
-        "-crf", "22",
-        "-pix_fmt", "yuv420p",
+        "-c", "copy",
         concat_output,
     ]
 
