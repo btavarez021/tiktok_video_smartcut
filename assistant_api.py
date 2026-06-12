@@ -6705,6 +6705,23 @@ def api_save_captions(text: str, session: str) -> Dict[str, Any]:
 # -------------------------------
 # EXPORT 
 # -------------------------------
+
+def get_export_duration(path: str):
+    try:
+        import subprocess
+
+        out = subprocess.check_output([
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            path,
+        ]).decode().strip()
+
+        return float(out)
+    except Exception as e:
+        log_step(f"[EXPORT] Could not read duration: {e}")
+        return None
+    
 def run_export_task(task_id: str, session: str, optimized: bool):
     try:
         session = sanitize_session(session)
@@ -6733,6 +6750,8 @@ def run_export_task(task_id: str, session: str, optimized: bool):
 
         filename = os.path.basename(out_path)
 
+        duration = get_export_duration(out_path)
+
         # 🚨 CANCEL CHECK (2)
         if export_tasks[task_id].get("cancel_requested"):
             export_tasks[task_id]["status"] = "cancelled"
@@ -6756,6 +6775,7 @@ def run_export_task(task_id: str, session: str, optimized: bool):
         export_tasks[task_id]["download_url"] = url
         export_tasks[task_id]["filename"] = filename
         export_tasks[task_id]["s3_key"] = export_key
+        export_tasks[task_id]["duration"] = duration
 
     except Exception as e:
         log_error("[EXPORT]", e)
