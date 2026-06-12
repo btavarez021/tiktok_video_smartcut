@@ -33,6 +33,7 @@ async function exportVideo() {
 
     const exportResult = await pollExportStatus(taskId);
     const renderSeconds = ((performance.now() - renderStart) / 1000).toFixed(1);
+    const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || "standard";
 
     console.log("EXPORT RESULT", exportResult);
 
@@ -75,6 +76,7 @@ async function exportVideo() {
         ? `${Number(exportResult.duration).toFixed(1)}s`
         : "Complete",
     renderTime: `${renderSeconds}s`,
+    mode: exportMode === "optimized" ? "Fast Render" : "Standard",
     clipCount: clips.length,
     voice: tts.enabled
         ? titleCase(tts.voice || "Enabled")
@@ -255,7 +257,10 @@ function showExportSummary(summary) {
                 <div class="export-summary-label">Render Time</div>
                 <div class="export-summary-value">${summary.renderTime}</div>
             </div>
-
+            <div class="export-summary-item">
+                <div class="export-summary-label">Mode</div>
+                <div class="export-summary-value">${summary.mode}</div>
+            </div>
             <div class="export-summary-item">
                 <div class="export-summary-label">Clips</div>
                 <div class="export-summary-value">${summary.clipCount}</div>
