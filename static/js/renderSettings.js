@@ -541,9 +541,15 @@ async function loadTransitionSettings() {
     }
 }
 
-async function saveTransitionSettings() {
+async function saveTransitionSettings({ silent = false } = {}) {
     const transitionType =
         document.getElementById("transitionType")?.value || "none";
+
+    const duration = parseFloat(
+        document.getElementById("transitionDuration")?.value || "0.8"
+    );
+
+    console.log("transition duration", duration);
 
     try {
         await jsonFetch("/api/transition_settings", {
@@ -551,6 +557,7 @@ async function saveTransitionSettings() {
             body: JSON.stringify({
                 session: getActiveSession(),
                 transition_type: transitionType,
+                transition_duration: duration
             }),
         });
 
@@ -560,7 +567,11 @@ async function saveTransitionSettings() {
         showAutoSaveStatus("transitionStatus");
     } catch (err) {
         console.error(err);
-        setStatus("transitionStatus", "Failed to save transition", "error");
+        setStatus(
+            "transitionStatus",
+            "Failed to save transition",
+            "error"
+        );
     }
 }
 
@@ -833,7 +844,6 @@ function initRenderSettingsListeners() {
   qs("previewFast")?.addEventListener("click", () => previewOverlay("fast"));
   qs("previewFull")?.addEventListener("click", () => previewOverlay("full"));
   qs("previewStyleBtn")?.addEventListener("click", () => previewOverlay("fast"));
-  qs("transitionType")?.addEventListener("change", saveTransitionSettings);
 
   qs("previewRewriteBtn")?.addEventListener("click", () => {
     if (typeof previewRewrite === "function") previewRewrite();
@@ -850,6 +860,23 @@ function initRenderSettingsListeners() {
     showAutoSaveStatus("overlayStyleStatus");
     await previewOverlay("fast");
   });
+
+  // Transitions
+  qs("transitionType")?.addEventListener("change", () => {
+  syncTransitionUI();
+  saveTransitionSettings({ silent: true });
+    });
+
+    qs("transitionDuration")?.addEventListener("input", (e) => {
+    const value = e.target.value;
+
+    const label = qs("transitionDurationValue");
+    if (label) {
+        label.textContent = `${value}s`;
+    }
+
+    saveTransitionSettings({ silent: true });
+    });
 
   // CTA preset
   document.querySelectorAll(".cta-preset").forEach(btn => {
@@ -953,6 +980,15 @@ function initRenderSettingsListeners() {
   });
 }
 
+function syncTransitionUI() {
+  const type = document.getElementById("transitionType")?.value;
+  const row = document.getElementById("fadeDurationRow");
+
+  if (!row) return;
+
+  row.style.display = type === "fade" ? "block" : "none";
+}
+
 async function initRenderSettingsBoot() {
   window.appState.settings = window.appState.settings || {};
 
@@ -960,6 +996,7 @@ async function initRenderSettingsBoot() {
   syncTtsUIState();
   syncFgScaleUI();
   syncMusicUIState();
+  syncTransitionUI();
 
   initFgScaleSlider();
   initFgScaleUI();

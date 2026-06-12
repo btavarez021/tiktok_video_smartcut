@@ -1141,8 +1141,28 @@
                     <option value="fade">Fade</option>
                 </select>
 
+                <div id="fadeDurationRow" style="display:none;">
+                <label class="field-label">Fade Duration</label>
+
+                <input
+                    type="range"
+                    id="transitionDuration"
+                    min="0.2"
+                    max="1.5"
+                    step="0.1"
+                    value="0.8"
+                />
+
+                <div id="transitionDurationValue">0.8s</div>
+                <div class="slider-labels">
+                    <span>Subtle</span>
+                    <span>Cinematic</span>
+                </div>
+                </div>
+
                 <p class="hint-text subtle">
-                    Controls how clips change from one scene to the next.
+                    Hard cuts switch instantly. Fade blends scenes together.
+                    0.8s is recommended for travel and cinematic videos.
                 </p>
 
                 <div id="transitionStatus" class="status-text"></div>
