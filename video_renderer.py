@@ -888,31 +888,47 @@ def get_transition_settings(cfg: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def concat_videos_standard(trimlist: str, optimized: bool = False) -> str:
-    log_step("[CONCAT] Using standard concat")
+def concat_videos_standard(trimmed_files: List[str], optimized: bool = False) -> str:
+    log_step("[CONCAT] Using timestamp-safe concat filter")
 
     concat_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
 
-    concat_cmd = [
-        "ffmpeg", "-y",
-        "-f", "concat", "-safe", "0",
-        "-i", trimlist,
-        "-fflags", "+genpts",
-        "-avoid_negative_ts", "make_zero",
+    cmd = ["ffmpeg", "-y"]
+
+    for f in trimmed_files:
+        cmd += ["-i", f]
+
+    filter_parts = []
+    input_labels = []
+
+    for i in range(len(trimmed_files)):
+        filter_parts.append(
+            f"[{i}:v]fps=30,format=yuv420p,setpts=PTS-STARTPTS[v{i}]"
+        )
+        input_labels.append(f"[v{i}]")
+
+    filter_complex = (
+        ";".join(filter_parts)
+        + ";"
+        + "".join(input_labels)
+        + f"concat=n={len(trimmed_files)}:v=1:a=0[outv]"
+    )
+
+    cmd += [
+        "-filter_complex", filter_complex,
+        "-map", "[outv]",
         "-c:v", "libx264",
         "-preset", "superfast" if optimized else "veryfast",
         "-crf", "22",
         "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
         concat_output,
     ]
 
-    proc = subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     if proc.stderr:
         log_step(f"[CONCAT-FFMPEG] stderr:\n{proc.stderr}")
-
-    if not os.path.exists(concat_output) or os.path.getsize(concat_output) < 100_000:
-        raise RuntimeError("[CONCAT ERROR] Concat output invalid or missing")
 
     dur = get_video_duration(concat_output)
     log_step(f"[CONCAT RESULT] duration={dur:.2f}s")
@@ -1267,7 +1283,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         log_step("[TRANSITION] Fade requested but not implemented yet. Falling back to standard concat.")
 
     final_video_source = concat_videos_standard(
-        trimlist=trimlist,
+        trimmed_files=trimmed_files,
         optimized=optimized,
     )
 
