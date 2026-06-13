@@ -69,6 +69,7 @@ async function runCreativeEngine(reason = "update") {
       LAST_AUTO_ASSIST_TRIGGER = triggerKey;
 
       console.log("⚡ Auto Assist pipeline starting", { reason });
+      document.getElementById("autoAssistActivityList")?.replaceChildren();
       addAutoAssistActivity("⚡ Auto Assist started");
 
       try {
@@ -90,16 +91,18 @@ async function runCreativeEngine(reason = "update") {
 }
 
 function addAutoAssistActivity(message) {
-  const panel = document.getElementById("autoAssistActivityFeed");
-  if (!panel) return;
+  const feed = document.getElementById("autoAssistActivityFeed");
+  const list = document.getElementById("autoAssistActivityList");
 
-  panel.classList.remove("hidden");
+  if (!feed || !list) return;
+
+  feed.classList.remove("hidden");
 
   const item = document.createElement("div");
   item.className = "auto-assist-activity-item";
   item.textContent = message;
 
-  panel.prepend(item);
+  list.appendChild(item);
 }
 
 function showAutoAssistUpdate(message) {
@@ -115,6 +118,8 @@ const CREATIVE_ACTIONS = {
   console.log("CREATIVE_ACTIONS improve_hook fired");
   console.log("selected hook before action:", window.appState?.hook?.selected);
 
+  addAutoAssistActivity("🎣 Looking for the strongest hook");
+
   let hook = window.appState?.hook?.selected || null;
 
   if (!hook) {
@@ -123,16 +128,48 @@ const CREATIVE_ACTIONS = {
 
   if (!hook) {
     console.log("🧠 Auto Assist stopped: no hook available");
+    addAutoAssistActivity("⚠️ No hook available to improve");
     return;
   }
 
+  addAutoAssistActivity(`✅ Selected hook: ${hook}`);
+
+  const beforeScore =
+    window.appState?.scores?.hook ??
+    LAST_HOOK_SCORE ??
+    null;
+
   await selectHook(hook, false);
+
+  addAutoAssistActivity("⚡ Improving hook");
+
   await autoBoostSelectedHook();
+
+  const afterScore =
+    window.appState?.scores?.hook ??
+    LAST_HOOK_SCORE ??
+    null;
+
+  if (beforeScore != null && afterScore != null) {
+    addAutoAssistActivity(`✅ Hook score ${beforeScore} → ${afterScore}`);
+  } else if (afterScore != null) {
+    addAutoAssistActivity(`✅ Hook score now ${afterScore}/100`);
+  }
 },
 
   improve_flow: async () => {
-    await improveHooksAndCaptionsFlow();
-  },
+  addAutoAssistActivity("🎬 Improving story flow");
+  await improveHooksAndCaptionsFlow();
+
+  const flowScore =
+    window.appState?.scores?.storyFlow ??
+    LAST_FLOW_SCORE ??
+    null;
+
+  if (flowScore != null) {
+    addAutoAssistActivity(`✅ Story flow now ${flowScore}/100`);
+  }
+},
 
   write_captions: async () => {
     await regenerateCaptionsFromClips();
@@ -281,17 +318,4 @@ async function initAutoAssist() {
 
     btn.disabled = false;
   });
-}
-
-function addAutoAssistActivity(message) {
-  const panel = document.getElementById("autoAssistActivityFeed");
-  if (!panel) return;
-
-  panel.classList.remove("hidden");
-
-  const item = document.createElement("div");
-  item.className = "auto-assist-activity-item";
-  item.textContent = message;
-
-  panel.prepend(item);
 }
