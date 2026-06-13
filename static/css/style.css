@@ -4644,3 +4644,23 @@ body.no-scroll {
 .export-summary-item-wide {
     grid-column: 1 / -1;
 }
+
+.auto-assist-activity-feed {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.auto-assist-activity-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.auto-assist-activity-item {
+  font-size: 13px;
+  padding: 6px 0;
+  opacity: 0.9;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}

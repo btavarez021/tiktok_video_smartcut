@@ -24,6 +24,8 @@ async function runAutoAssistPipeline(state) {
 
   console.log("⚡ Auto Assist executing:", action);
 
+  addAutoAssistActivity(`Running: ${action.replace("_", " ")}`);
+
   const fn = CREATIVE_ACTIONS[action];
   if (!fn) return state;
 
@@ -67,9 +69,11 @@ async function runCreativeEngine(reason = "update") {
       LAST_AUTO_ASSIST_TRIGGER = triggerKey;
 
       console.log("⚡ Auto Assist pipeline starting", { reason });
+      addAutoAssistActivity("⚡ Auto Assist started");
 
       try {
         state = await runAutoAssistPipeline(state);
+        addAutoAssistActivity("✅ Auto Assist complete");
       } finally {
         AUTO_ASSIST_RUNNING = false;
       }
@@ -83,6 +87,19 @@ async function runCreativeEngine(reason = "update") {
   console.log("🧠 Creative Engine Run:", reason, state.status);
 
   return state;
+}
+
+function addAutoAssistActivity(message) {
+  const panel = document.getElementById("autoAssistActivityFeed");
+  if (!panel) return;
+
+  panel.classList.remove("hidden");
+
+  const item = document.createElement("div");
+  item.className = "auto-assist-activity-item";
+  item.textContent = message;
+
+  panel.prepend(item);
 }
 
 function showAutoAssistUpdate(message) {
@@ -264,4 +281,17 @@ async function initAutoAssist() {
 
     btn.disabled = false;
   });
+}
+
+function addAutoAssistActivity(message) {
+  const panel = document.getElementById("autoAssistActivityFeed");
+  if (!panel) return;
+
+  panel.classList.remove("hidden");
+
+  const item = document.createElement("div");
+  item.className = "auto-assist-activity-item";
+  item.textContent = message;
+
+  panel.prepend(item);
 }
