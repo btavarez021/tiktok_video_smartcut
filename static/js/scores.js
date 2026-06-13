@@ -63,7 +63,6 @@ if (effectiveFlow !== null) {
   }
 
   if (!hasCTA) {
-    weaknesses.push("Missing CTA");
     priority.push("Optional: add a closing CTA");
   }
 
@@ -102,9 +101,9 @@ if (effectiveFlow !== null) {
   readiness = Math.max(0, Math.min(readiness, 100));
 
   const publishReady =
-    readiness >= 80 &&
-    !(hook !== null && hook < 75) &&
-    !(effectiveFlow !== null && effectiveFlow < 65);
+    hook !== null &&
+    hook >= 75 &&
+    (effectiveFlow === null || effectiveFlow >= 65);
 
   let status = "polish";
   let message = "Good edit. Minor improvements possible.";
