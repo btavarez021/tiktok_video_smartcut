@@ -145,6 +145,11 @@ const CREATIVE_ACTIONS = {
 
   await autoBoostSelectedHook();
 
+  if (window.appState?.hook?.lastGenerated?.length) {
+    renderHookLab(window.appState.hook.lastGenerated);
+    updateHookLabGuidance();
+  }
+
   const afterScore =
     window.appState?.scores?.hook ??
     LAST_HOOK_SCORE ??

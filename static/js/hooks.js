@@ -173,7 +173,10 @@ async function autoPickBestHook(hooks) {
 
     badge.innerHTML = `
       <div class="ai-badge-row">
-        <span class="ai-badge-main">⭐ AI Pick</span>
+        <span class="ai-badge-main">⭐ Best Available</span>
+        <span class="ai-badge-confidence">
+          ${h.score >= 75 ? confLabel : "Needs improvement"}
+        </span>
         <span class="ai-badge-confidence">${confLabel}</span>
       </div>
       ${margin > 0 ? `<div class="ai-badge-margin">Wins by +${margin}%</div>` : ""}
