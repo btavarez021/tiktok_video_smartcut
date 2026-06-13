@@ -6500,6 +6500,7 @@ def api_generate_variants(
 
             variants.append({
                 "id": idx,
+                "style": style_key,
                 "text": normalized,
                 "tone": STYLE_TONE_LABELS.get(style_key, style_key),
             })
