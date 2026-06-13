@@ -77,11 +77,12 @@ async function generateVariantsAsync(modes, selectedHook) {
       updateVariantRunningBadge(status);
 
       // Show inline "working" once
-      if (status === "running" && lastVariantStatus !== "running") {
+      if (status === "running") {
         setStatus(
           "variantsInlineStatus",
           "Generating AI variants…",
-          "working"
+          "working",
+          false
         );
       }
 
@@ -170,7 +171,8 @@ async function generateVariantsAsync(modes, selectedHook) {
         setStatus(
           "variantsInlineStatus",
           "AI variants ready ✓",
-          "success"
+          "success",
+          false
         );
 
         // 🔴 Hide badge immediately
