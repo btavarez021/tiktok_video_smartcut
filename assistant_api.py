@@ -5918,6 +5918,8 @@ def api_generate_variants(
         if enabled and style in STYLE_RULES
     ]
 
+    allowed_styles = ", ".join(enabled_styles)
+
     if not enabled_styles:
         return {"variants": []}
 
@@ -6350,6 +6352,14 @@ def api_generate_variants(
             """
 
         user_prompt = f"""
+            Generate caption variants using ONLY these selected styles:
+
+            {allowed_styles}
+
+            Do NOT generate variants for unchecked styles.
+            Every returned variant.style MUST be one of:
+            {allowed_styles}
+
             Generate caption variants using the style definitions below.
 
             {content_mode_guidance}
@@ -6437,6 +6447,14 @@ def api_generate_variants(
         for idx, item in enumerate(data.get("variants", [])):
             raw_text = item.get("text", "")
             style_key = item.get("style", "")
+
+            style_key = (style_key or "").strip().lower()
+
+            if style_key not in enabled_styles:
+                logger.warning(
+                    f"[VARIANTS] Skipping unrequested style={style_key}; enabled={enabled_styles}"
+                )
+                continue
 
             logger.warning(f"[VARIANTS] item {idx} style={style_key}")
             logger.warning(f"[VARIANTS] item {idx} raw_text={raw_text!r}")
