@@ -71,12 +71,17 @@ async function exportVideo() {
             ? `Fade (${transition.duration || 0.8}s)`
             : "None";
 
+    const selectedHook =
+        window.appState?.hook?.selected ||
+        "No hook selected";
+
     showExportSummary({
     duration: exportResult.duration
         ? `${Number(exportResult.duration).toFixed(1)}s`
         : "Complete",
     renderTime: `${renderSeconds}s`,
     mode: exportMode === "optimized" ? "Fast Render" : "Standard",
+    hook: selectedHook,
     clipCount: clips.length,
     voice: tts.enabled
         ? titleCase(tts.voice || "Enabled")
@@ -256,6 +261,10 @@ function showExportSummary(summary) {
             <div class="export-summary-item">
                 <div class="export-summary-label">Render Time</div>
                 <div class="export-summary-value">${summary.renderTime}</div>
+            </div>
+            <div class="export-summary-item export-summary-item-wide">
+                <div class="export-summary-label">Hook</div>
+                <div class="export-summary-value">${summary.hook}</div>
             </div>
             <div class="export-summary-item">
                 <div class="export-summary-label">Mode</div>

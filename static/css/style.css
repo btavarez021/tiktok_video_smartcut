@@ -4640,3 +4640,7 @@ body.no-scroll {
 .hidden {
     display: none;
 }
+
+.export-summary-item-wide {
+    grid-column: 1 / -1;
+}
