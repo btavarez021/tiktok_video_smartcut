@@ -6627,7 +6627,40 @@ def api_generate_variants(
             reverse=True
         )
 
-        return {"variants": variants[:5]}
+        # Sort recommended first, then by smart score
+        variants.sort(
+            key=lambda v: (
+                1 if v.get("recommended") else 0,
+                v.get("smart_score", 0),
+                v.get("hook_score", 0)
+            ),
+            reverse=True
+        )
+
+        # Ensure selected styles are represented
+        final_variants = []
+        used_ids = set()
+
+        for style in enabled_styles:
+            best_for_style = next(
+                (v for v in variants if v.get("style") == style),
+                None
+            )
+
+            if best_for_style:
+                final_variants.append(best_for_style)
+                used_ids.add(best_for_style.get("id"))
+
+        # Fill remaining slots with best overall
+        for v in variants:
+            if len(final_variants) >= 5:
+                break
+
+            if v.get("id") not in used_ids:
+                final_variants.append(v)
+                used_ids.add(v.get("id"))
+
+        return {"variants": final_variants[:5]}
 
     except RateLimitError:
         log_error("[VARIANTS]", Exception("quota exceeded"))
