@@ -3926,11 +3926,11 @@ def score_experience_centering(text: str, content_context: str) -> int:
     if body_blocks:
         ratio = animal_first_count / len(body_blocks)
         if ratio >= 0.75:
-            score -= 55
+            score -= 20
         elif ratio >= 0.50:
-            score -= 35
+            score -= 12
         elif ratio >= 0.25:
-            score -= 15
+            score -= 5
 
     repetitive_subject_openers = (
         "that rhino",
@@ -6147,6 +6147,30 @@ def api_generate_variants(
 
             BETTER:
             "The lion’s slow path shifts the whole rhythm"
+
+            REALITY ANCHOR RULE:
+
+            For every caption after the hook:
+
+            - Include at least one visible noun from the clip.
+            - Prefer:
+            tiger, lion, rhino, gorilla,
+            grass, rocks, wall, path,
+            greenery, posts, fence, enclosure.
+
+            - Avoid replacing visible objects with metaphors.
+
+            BAD:
+            "Grass whispers under the lion's stride"
+
+            GOOD:
+            "The lion moves slowly through the grass and rocks"
+
+            BAD:
+            "Green walls hold silent watchers"
+
+            GOOD:
+            "The gorilla sits near the wall surrounded by greenery"
         """
 
         comparison_safety_guidance = """
