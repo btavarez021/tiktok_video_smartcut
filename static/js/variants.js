@@ -85,8 +85,8 @@ async function generateVariantsAsync(modes, selectedHook) {
         );
       }
 
-      // ✅ Transition: running → done
-      if (lastVariantStatus === "running" && status === "done") {
+      // ✅ done
+      if (status === "done") {
         console.log("✅ Variants ready");
 
         showAutoAssistUpdate(
@@ -172,10 +172,6 @@ async function generateVariantsAsync(modes, selectedHook) {
           "AI variants ready ✓",
           "success"
         );
-
-        setTimeout(() => {
-          setStatus("variantsInlineStatus", "");
-        }, 2000);
 
         // 🔴 Hide badge immediately
         updateVariantRunningBadge("idle");
