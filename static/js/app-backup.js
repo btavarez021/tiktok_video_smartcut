@@ -671,7 +671,7 @@ function renderPublishReadyState(state) {
   }
 
   if (exportBtn) {
-    exportBtn.textContent = publishReady ? "🎥 Render & Export" : "🎥 Export Anyway";
+    exportBtn.textContent = "🎥 Render & Export";
     exportBtn.disabled = false;
   }
 }
