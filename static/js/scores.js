@@ -64,7 +64,7 @@ if (effectiveFlow !== null) {
 
   if (!hasCTA) {
     weaknesses.push("Missing CTA");
-    priority.push("Add a strong closing CTA");
+    priority.push("Optional: add a closing CTA");
   }
 
   // Readiness Score
@@ -127,8 +127,22 @@ if (effectiveFlow !== null) {
     message = "Strong edit. Ready to publish.";
     next = "publish";
   } else {
+  
   status = "polish";
-  message = "Optimizing final details.";
+
+  if (hook != null && hook < 75) {
+    message = "Your edit is good, but the hook could be stronger.";
+  }
+  else if (effectiveFlow != null && effectiveFlow < 75) {
+    message = "Your story flow could be smoother.";
+  }
+  else if (!hasCTA) {
+    message = "A CTA could improve engagement.";
+  }
+  else {
+    message = "Optimizing final details.";
+  }
+
 
   // 🚨 Broken hook always first
   if (hook !== null && hook < 60) {
