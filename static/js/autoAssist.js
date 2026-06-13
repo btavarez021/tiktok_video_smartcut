@@ -153,6 +153,15 @@ const CREATIVE_ACTIONS = {
 
   await autoBoostSelectedHook();
 
+  await refreshAfterChange({
+    hooks: true,
+    flow: true,
+    director: true,
+    publish: true,
+    progress: true,
+    guidance: true
+  });
+
   if (window.appState?.hook?.lastGenerated?.length) {
     renderHookLab(window.appState.hook.lastGenerated);
     updateHookLabGuidance();
