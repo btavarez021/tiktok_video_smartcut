@@ -1,5 +1,9 @@
-function shouldAutoAssistForReason(reason) {
-  return reason === "storyboard_complete" || reason === "manual_auto_assist";
+function shouldAutoAssistForReason(reason) { 
+  return (
+    reason === "storyboard_complete" ||
+    reason === "manual_auto_assist" ||
+    reason === "export_fix"
+  );
 }
 
 
@@ -70,7 +74,11 @@ async function runCreativeEngine(reason = "update") {
 
       console.log("⚡ Auto Assist pipeline starting", { reason });
       document.getElementById("autoAssistActivityList")?.replaceChildren();
-      addAutoAssistActivity("⚡ Auto Assist started");
+      addAutoAssistActivity(
+        reason === "export_fix"
+          ? "⚡ Fix with AI started"
+          : "⚡ Auto Assist started"
+      );
 
       try {
         state = await runAutoAssistPipeline(state);
