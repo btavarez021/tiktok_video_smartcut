@@ -2023,6 +2023,38 @@ def build_hook_reason(
 
     return " ".join(cleaned[:4])
 
+def score_caption_drift_penalty(text: str) -> int:
+    if not text:
+        return 0
+
+    lower = text.lower()
+
+    banned_phrases = [
+        "living room",
+        "silent living room",
+        "quiet eyes plot",
+        "shadowed corners",
+        "claims the land",
+        "king on the prowl",
+        "raw power",
+        "quiet power",
+        "untamed will",
+        "primal",
+        "beast unbroken",
+        "cage raw power",
+        "throne",
+        "reign",
+        "dominates",
+        "owns",
+        "commands",
+        "plot",
+        "storm",
+        "chaos",
+    ]
+
+    hits = sum(1 for p in banned_phrases if p in lower)
+    return min(hits * 10, 40)
+
 def score_hook_curiosity_bonus(hook: str, intent: str = "discovery") -> int:
     """
     Small heuristic bonus for stronger curiosity / tension patterns.
@@ -6402,6 +6434,27 @@ def api_generate_variants(
             Generate 12 caption variants total.
             Use the enabled styles multiple times if needed, but make each version meaningfully different.
 
+            DRIFT PREVENTION RULE:
+
+            Do NOT invent indoor locations, rooms, emotions, dominance, intent, or symbolic meaning.
+
+            Avoid phrases like:
+            - living room
+            - throne
+            - reign
+            - raw power
+            - quiet power
+            - primal
+            - owns the space
+            - commands
+            - chaos
+            - storm
+            - plot
+            - king
+
+            Captions must stay grounded in visible details:
+            animals, grass, rocks, path, wall, posts, fence, greenery, enclosure, movement.
+
             Return STRICT JSON:
 
             {{
@@ -6542,9 +6595,13 @@ def api_generate_variants(
 
             repetition_penalty = 0
 
+            drift_penalty = -score_caption_drift_penalty(body_text)
+
             for phrase in REPETITIVE_CREATOR_PHRASES:
                 if phrase in lower:
                     repetition_penalty -= 2
+
+            drift_penalty = -score_caption_drift_penalty(body_text)        
 
             video_subjects = get_weighted_video_subjects(session)
             content_context = get_content_context(session)
@@ -6574,6 +6631,7 @@ def api_generate_variants(
             v["vague_noun_penalty"] = vague_noun_penalty
             v["generic_penalty"] = generic_penalty
             v["abstract_penalty"] = abstract_penalty
+            v["drift_penalty"] = drift_penalty
             v["hook_score"] = hook_score
             v["story_flow"] = flow_score
             v["flow_score"] = flow_score
@@ -6597,6 +6655,7 @@ def api_generate_variants(
                 + abstract_penalty
                 + vague_noun_penalty
                 + repetition_penalty
+                + drift_penalty
             )
             
             if generic_penalty <= -4:
