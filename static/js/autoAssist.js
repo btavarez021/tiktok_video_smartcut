@@ -124,7 +124,7 @@ function showAutoAssistUpdate(message) {
 const CREATIVE_ACTIONS = {
 
   reorder_storyboard: async () => {
-  if (typeof autoApplySuggestedStoryboardOrder !== "function") {
+  if (typeof suggestStoryboardOrder !== "function") {
     addAutoAssistActivity("⚠️ Storyboard reorder is not available");
     return;
   }
@@ -132,6 +132,9 @@ const CREATIVE_ACTIONS = {
   addAutoAssistActivity("🎬 Optimizing clip order");
 
   await suggestStoryboardOrder();
+
+  window.appState.storyboard = window.appState.storyboard || {};
+  window.appState.storyboard.suggestedOrderAvailable = false;
 
   await refreshAfterChange({
     captions: true,
