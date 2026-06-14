@@ -594,6 +594,12 @@ GENERIC_CREATOR_PHRASES = [
     "main character energy",
     "elite vibes",
     "luxury in every detail",
+    "such a vibe",
+    "perfect hideout",
+    "something magnetic",
+    "draws you in",
+    "tells its own story",
+    "story unfolding",
 ]
 
 GLOBAL_OVERUSED_PHRASES = [
@@ -5074,21 +5080,15 @@ def score_generated_hook(
     lower = clean.lower()
 
     GENERIC_HYPE_PHRASES = [
-        "only the bold",
-        "raw power",
-        "quiet power",
-        "fearless",
-        "untamed",
-        "owns every",
-        "commands",
-        "rewrites the rules",
-        "changes everything",
-        "such a vibe",
-        "perfect hideout",
-        "something magnetic",
-        "draws you in",
-        "tells its own story",
-        "story unfolding",              
+    "only the bold",
+    "raw power",
+    "quiet power",
+    "fearless",
+    "untamed",
+    "owns every",
+    "commands",
+    "rewrites the rules",
+    "changes everything",
     ]
 
     WEAK_HOOK_PATTERNS = [
