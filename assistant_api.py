@@ -2544,6 +2544,35 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 - pool party
                 - nightlife
 
+                REALITY ANCHOR RULE:
+
+                For animal footage, prioritize:
+
+                - movement
+                - pacing
+                - walking
+                - exploring
+                - watching
+                - proximity
+                - rocks
+                - grass
+                - paths
+                - walls
+                - fencing
+                - greenery
+
+                Do NOT generate:
+                - dominance
+                - exclusivity
+                - status
+                - power
+                - leadership
+                - symbolism
+                - destiny
+                - transformation
+
+                unless visibly supported.
+
             REQUIRED ANGLES:
             Generate exactly 8 hooks using these 8 angles:
             STRUCTURE DIVERSITY RULE:
@@ -2559,12 +2588,12 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             1. Question hook
             2. Curiosity reveal
-            3. Status / exclusivity
-            4. Transformation
-            5. Observational curiosity    
+            3. Visible behavior
+            4. Pattern recognition
+            5. Observational curiosity
             6. Sensory / vibe
-            7. Emotional reaction
-            8. Bold statement
+            7. Environmental detail
+            8. Specific observation
 
             Avoid repeating the same pattern like multiple "What makes..." or "How this..." hooks.
 
@@ -5044,6 +5073,18 @@ def score_generated_hook(
 ) -> dict:
     lower = clean.lower()
 
+    GENERIC_HYPE_PHRASES = [
+        "only the bold",
+        "raw power",
+        "quiet power",
+        "fearless",
+        "untamed",
+        "owns every",
+        "commands",
+        "rewrites the rules",
+        "changes everything",
+    ]
+
     WEAK_HOOK_PATTERNS = [
         "wait until you see",
         "you won't believe",
@@ -5067,6 +5108,11 @@ def score_generated_hook(
         "taste this",
         "watch this",
     ]
+
+    hype_penalty = 0
+
+    if any(p in lower for p in GENERIC_HYPE_PHRASES):
+        hype_penalty = 8
 
     first_clip_bonus = score_first_clip_alignment_bonus(clean, first_clip_text)
 
@@ -5109,7 +5155,9 @@ def score_generated_hook(
     score -= dynamic_context_conflict
     score -= context_mismatch_penalty
     score -= universal_hook_penalty
-
+    score -= hype_penalty
+    score = max(0, min(score, 100))
+    
     return {
         "score": score,
         "base_score": base_score,
@@ -5123,6 +5171,7 @@ def score_generated_hook(
         "honesty_penalty": honesty_penalty,
         "context_mismatch_penalty": context_mismatch_penalty,
         "universal_hook_penalty": universal_hook_penalty,
+        "hype_penalty": hype_penalty,
         "dynamic_context_conflict": dynamic_context_conflict
     }
 
