@@ -4037,6 +4037,66 @@ def score_creator_voice(text: str) -> int:
 
     return max(0, min(100, score))
 
+def score_visible_specificity(text: str) -> int:
+    if not text:
+        return 50
+
+    lower = text.lower()
+
+    visible_terms = [
+        # general
+        "wall", "grass", "rocks", "rock", "trees", "tree",
+        "path", "trail", "fence", "wire", "posts", "red posts",
+        "greenery", "shade", "stone", "dirt",
+
+        # animals / zoo
+        "tiger", "lion", "rhino", "rhinoceros", "gorilla",
+
+        # hotel/travel
+        "room", "suite", "lobby", "pool", "rooftop", "balcony",
+        "ocean", "beach", "skyline", "deck", "ship",
+
+        # food/bar
+        "plate", "dish", "table", "cocktail", "glass", "bar",
+        "drink", "garnish",
+
+        # fitness
+        "treadmill", "dumbbell", "weights", "bench", "bike",
+        "rower", "bag", "machine",
+    ]
+
+    actions = [
+        "walks", "walking", "moves", "moving", "stands", "standing",
+        "sits", "sitting", "rests", "resting", "steps", "crossing",
+        "holds", "leans", "runs", "lifts", "pours", "cuts", "turns",
+    ]
+
+    vague_phrases = [
+        "pulls you in",
+        "feels intimate",
+        "sets the scene",
+        "tells its own story",
+        "story unfolding",
+        "something magnetic",
+        "such a vibe",
+        "perfect hideout",
+        "energy",
+        "atmosphere",
+        "moment",
+        "presence",
+    ]
+
+    visible_hits = sum(1 for w in visible_terms if w in lower)
+    action_hits = sum(1 for w in actions if w in lower)
+    vague_hits = sum(1 for p in vague_phrases if p in lower)
+
+    score = 45
+    score += min(visible_hits * 7, 35)
+    score += min(action_hits * 6, 20)
+    score -= min(vague_hits * 12, 35)
+
+    return max(0, min(score, 100))
+
 def compute_variant_smart_score(
     variant: dict,
     intent: str,
@@ -4053,6 +4113,9 @@ def compute_variant_smart_score(
     creator_voice = max(0, min(100, variant.get("creator_voice_score", 50)))
     experience = max(0, min(100, variant.get("experience_centering_score", 50)))
     context_vocab = max(0, min(100, variant.get("context_vocab_score", 50)))
+    specificity = max(0, min(100, score_visible_specificity(variant.get("text") or "")))
+
+    variant["specificity_score"] = specificity
 
     text = variant.get("text") or ""
     tone = (variant.get("tone") or "").lower()
@@ -4090,17 +4153,18 @@ def compute_variant_smart_score(
     hook_flow_total = hook_weight + flow_weight
     hook_share = hook_weight / hook_flow_total
     flow_share = flow_weight / hook_flow_total
-
+    
     score = (
-        hook * (0.30 * hook_share) +
-        flow * (0.30 * flow_share) +
-        context * 0.18 +
-        creator_voice * 0.12 +
-        experience * 0.14 +
-        context_vocab * 0.12 +
-        rhythm * 0.06 +
-        ending * 0.04 +
-        bonus_component * 0.04
+        hook * (0.28 * hook_share) +
+        flow * (0.28 * flow_share) +
+        context * 0.16 +
+        specificity * 0.16 +
+        creator_voice * 0.08 +
+        experience * 0.10 +
+        context_vocab * 0.08 +
+        rhythm * 0.04 +
+        ending * 0.03 +
+        bonus_component * 0.03
     )
 
     # Tone bias as tiny final nudge only
