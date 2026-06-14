@@ -5323,6 +5323,32 @@ def get_role_priority(role: str) -> int:
     }
     return priorities.get(role, 3)
 
+
+def should_reorder_storyboard(cfg):
+    current = []
+
+    if cfg.get("first_clip"):
+        current.append(cfg["first_clip"])
+
+    current.extend(cfg.get("middle_clips", []))
+
+    if cfg.get("last_clip"):
+        current.append(cfg["last_clip"])
+
+    suggested = suggest_storyboard_order(cfg)
+
+    current_files = [
+        c.get("file")
+        for c in current
+    ]
+
+    suggested_files = [
+        c.get("file")
+        for c in suggested
+    ]
+
+    return current_files != suggested_files
+
 def suggest_storyboard_order(cfg: dict) -> list[dict]:
     """
     Returns clips in a more natural narrative order.

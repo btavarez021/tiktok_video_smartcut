@@ -122,6 +122,20 @@ function showAutoAssistUpdate(message) {
 }
 
 const CREATIVE_ACTIONS = {
+
+  reorder_storyboard: async () => {
+
+  addAutoAssistActivity(
+    "🎬 Optimizing clip order"
+  );
+
+  await autoApplySuggestedStoryboardOrder();
+
+  addAutoAssistActivity(
+    "✅ Storyboard reordered"
+  );
+},
+
   improve_hook: async () => {
   console.log("CREATIVE_ACTIONS improve_hook fired");
   console.log("selected hook before action:", window.appState?.hook?.selected);

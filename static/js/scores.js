@@ -30,9 +30,17 @@ function evaluateCreativeState() {
     lowerCaptions.includes("follow") ||
     lowerCaptions.includes("subscribe") ||
     lowerCaptions.includes("book");
-
+  
   const weaknesses = [];
   const priority = [];
+  
+  const orderNeedsImprovement =
+  window.appState?.storyboard?.suggestedOrderAvailable === true;
+
+  if (orderNeedsImprovement) {
+    weaknesses.unshift("Storyboard order");
+    priority.unshift("Optimize clip sequence");
+  }
 
   // Hook Analysis
   if (hook !== null) {
@@ -142,9 +150,12 @@ if (effectiveFlow !== null) {
     message = "Optimizing final details.";
   }
 
+  if (orderNeedsImprovement) {
+  next = "reorder_storyboard";
+  }
 
-  // 🚨 Broken hook always first
-  if (hook !== null && hook < 60) {
+  // 🚨 Broken hook
+  else if (hook !== null && hook < 60) {
     next = "improve_hook";
   }
 
@@ -179,6 +190,7 @@ if (effectiveFlow !== null) {
     readiness_score: readiness,
     caption_blocks: captionCount,
     has_cta: hasCTA,
+    order_needs_improvement: orderNeedsImprovement,
     primary_weakness: weaknesses[0] || null,
     all_weaknesses: weaknesses,
     priority_actions: priority,
