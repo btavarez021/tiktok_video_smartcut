@@ -136,16 +136,6 @@ const CREATIVE_ACTIONS = {
   window.appState.storyboard = window.appState.storyboard || {};
   window.appState.storyboard.suggestedOrderAvailable = false;
 
-  await refreshAfterChange({
-    captions: true,
-    hooks: true,
-    flow: true,
-    director: true,
-    publish: true,
-    progress: true,
-    guidance: true
-  });
-
   addAutoAssistActivity("✅ Storyboard reordered");
 },
 
