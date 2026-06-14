@@ -5083,6 +5083,12 @@ def score_generated_hook(
         "commands",
         "rewrites the rules",
         "changes everything",
+        "such a vibe",
+        "perfect hideout",
+        "something magnetic",
+        "draws you in",
+        "tells its own story",
+        "story unfolding",              
     ]
 
     WEAK_HOOK_PATTERNS = [
