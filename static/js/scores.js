@@ -117,11 +117,15 @@ if (effectiveFlow !== null) {
   let message = "Good edit. Minor improvements possible.";
   let next = "polish";
 
-  if (!captions.trim()) {
-    status = "empty";
-    message = "Create captions to begin.";
-    next = "write_captions";
-  } else if (hook !== null && hook < 60) {
+  if (orderNeedsImprovement) {
+  status = "reorder_storyboard";
+  message = "Clip order can be improved before polishing captions.";
+  next = "reorder_storyboard";
+} else if (!captions.trim()) {
+  status = "empty";
+  message = "Create captions to begin.";
+  next = "write_captions";
+} else if (hook !== null && hook < 60) {
     status = "weak_hook";
     message = "Your hook needs stronger curiosity or clarity.";
     next = "improve_hook";
