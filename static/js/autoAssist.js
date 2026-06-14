@@ -131,7 +131,7 @@ const CREATIVE_ACTIONS = {
 
   addAutoAssistActivity("🎬 Optimizing clip order");
 
-  await autoApplySuggestedStoryboardOrder();
+  await suggestStoryboardOrder();
 
   await refreshAfterChange({
     captions: true,
