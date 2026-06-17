@@ -146,7 +146,8 @@ const CREATIVE_ACTIONS = {
     guidance: true
   });
 
-  addAutoAssistActivity("✅ Storyboard reordered");
+  addAutoAssistActivity("✅ Storyboard order checked");
+
 },
 
   improve_hook: async () => {
