@@ -1,3 +1,10 @@
+window.appState = window.appState || {};
+
+window.appState.storyboard = window.appState.storyboard || {
+  suggestedOrderAvailable: false,
+  orderNeedsImprovement: false,
+};
+
 async function autoSelectIntentFromReadiness(summary) {
     if (!summary?.recommended_goal) return;
 

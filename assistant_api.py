@@ -5366,37 +5366,85 @@ def suggest_storyboard_order(cfg: dict) -> tuple[list[dict], dict]:
     if not client:
         return clips, {}
 
+    content_context = normalize_content_context(cfg.get("content_context", "auto"))
+
     prompt = f"""
-        You are ordering clips for a short-form TikTok/Reels storyboard.
+You are ordering clips for a short-form TikTok/Reels storyboard.
 
-        Choose the best storytelling order based on visual progression, curiosity, pacing, and ending strength.
+Content context:
+{content_context}
 
-        Rules:
-        - Return every file exactly once.
-        - Do not invent files.
-        - Prefer an order that feels intentional, not random.
-        - If the current order is weak, change it.
-        - For testing, if multiple orders are acceptable, choose a different order than the current one.
-        - Return JSON only.
+Choose the best order based on:
+- visual progression
+- curiosity
+- pacing
+- retention
+- ending strength
+- the selected content context
 
-        Current clips:
-        {json.dumps([
-            {
-                "file": c.get("file"),
-                "text": c.get("text") or c.get("label") or ""
-            }
-            for c in clips
-        ], indent=2)}
+Context-specific ordering rules:
 
-        Return JSON in this exact shape:
-            {{ 
-            "order": ["file1.mov", "file2.mov"],
-            "reasoning": {{
-                "file1.mov": "Why this clip should appear first",
-                "file2.mov": "Why this clip belongs here"
-            }}
-            }}
-        """
+If context is adventure or zoo:
+- open with the most curiosity-driving or emotionally engaging animal
+- build movement and intensity
+- avoid random animal listing
+- end with the strongest payoff, most memorable animal, or calm final beat
+
+If context is hotel:
+- arrival / establishing shot first
+- then room, amenity, detail, experience
+- end with view, luxury payoff, or strongest atmosphere
+
+If context is restaurant:
+- setup or place first
+- then food details
+- then hero dish
+- end with bite, reaction, or strongest final plate
+
+If context is fitness:
+- setup first
+- then effort
+- then peak intensity
+- end with finish, result, or strongest movement
+
+If context is travel:
+- arrival or establishing shot first
+- then exploration
+- then highlight
+- end with scenic payoff or memorable final moment
+
+If context is nightlife or bar:
+- atmosphere first
+- then drink/detail/social energy
+- then peak vibe
+- end with strongest mood or final toast-style moment
+
+Rules:
+- Return every file exactly once.
+- Do not invent files.
+- Do not change facts.
+- Prefer an order that feels intentional, not random.
+- If the current order is weak, change it.
+- Return JSON only.
+
+Current clips:
+{json.dumps([
+    {
+        "file": c.get("file"),
+        "text": c.get("text") or c.get("label") or ""
+    }
+    for c in clips
+], indent=2)}
+
+Return JSON in this exact shape:
+{{
+  "order": ["file1.mov", "file2.mov"],
+  "reasoning": {{
+    "file1.mov": "Why this clip belongs in this position for the selected context",
+    "file2.mov": "Why this clip belongs here"
+  }}
+}}
+"""
 
     try:
         resp = client.chat.completions.create(
@@ -5410,7 +5458,6 @@ def suggest_storyboard_order(cfg: dict) -> tuple[list[dict], dict]:
 
         data = safe_json_extract(resp.choices[0].message.content)
         ordered_files = data.get("order", [])
-
         reasoning = data.get("reasoning", {})
 
         by_file = {c.get("file"): c for c in clips}
@@ -5426,10 +5473,9 @@ def suggest_storyboard_order(cfg: dict) -> tuple[list[dict], dict]:
 
         return clips, {}
 
-    except Exception as e:
+    except Exception:
         logger.exception("[STORYBOARD_ORDER] AI reorder failed")
         return clips, {}
-
 
 def api_suggest_storyboard_order(session: str) -> dict:
     session = sanitize_session(session)
