@@ -42,6 +42,14 @@ function evaluateCreativeState() {
     priority.unshift("Optimize clip sequence");
   }
 
+  console.log(
+    "ORDER CHECK",
+    window.appState?.storyboard?.suggestedOrderAvailable,
+    orderNeedsImprovement
+  );
+
+  console.log("NEXT ACTION", next);
+
   // Hook Analysis
   if (hook !== null) {
     if (hook < 60) {
