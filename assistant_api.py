@@ -5402,10 +5402,21 @@ def api_suggest_storyboard_order(session: str) -> dict:
     if not cfg:
         return {"suggested_order": []}
 
+    clips = []
+    if cfg.get("first_clip"):
+        clips.append(cfg["first_clip"])
+
+    clips.extend(cfg.get("middle_clips", []))
+
+    if cfg.get("last_clip"):
+        clips.append(cfg["last_clip"])
+
     suggested = suggest_storyboard_order(cfg)
 
     return {
-        "suggested_order": suggested
+        "current_order": [c.get("file") for c in clips],
+        "suggested_order_files": [c.get("file") for c in suggested],
+        "suggested_order": suggested,
     }
 
 def format_session_context_label(label: str) -> str:
