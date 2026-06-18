@@ -332,6 +332,16 @@ async function loadConfigAndYaml() {
       })
     });
 
+    const currentFiles = (workingClipOrder || []).map(c => c.file);
+    const suggestedFiles = suggested.map(c => c.file);
+
+    const orderChanged =
+      currentFiles.join("|") !== suggestedFiles.join("|");
+
+    window.appState = window.appState || {};
+    window.appState.storyboard = window.appState.storyboard || {};
+    window.appState.storyboard.suggestedOrderAvailable = orderChanged;
+
     const suggested = res?.suggested_order || [];
 
     if (!suggested.length) {
@@ -351,7 +361,14 @@ async function loadConfigAndYaml() {
     await saveStoryboardOrder({ silent: true });
     await refreshAfterChange();
 
-    setStatus("storyboardStatus", "AI suggested a smoother story order ✓", "success");
+    setStatus(
+      "storyboardStatus",
+      orderChanged
+        ? "AI suggested a smoother story order ✓"
+        : "Clip order already looks good ✓",
+      "success"
+    );
+
   } catch (err) {
     console.error(err);
     setStatus("storyboardStatus", "Failed to suggest clip order", "error");
