@@ -5335,7 +5335,7 @@ def should_reorder_storyboard(cfg):
     if cfg.get("last_clip"):
         current.append(cfg["last_clip"])
 
-    suggested = suggest_storyboard_order(cfg)
+    suggested, _ = suggest_storyboard_order(cfg)
 
     current_files = [
         c.get("file")
@@ -5349,7 +5349,7 @@ def should_reorder_storyboard(cfg):
 
     return current_files != suggested_files
 
-def suggest_storyboard_order(cfg: dict) -> list[dict]:
+def suggest_storyboard_order(cfg: dict) -> tuple[list[dict], dict]:
     clips = []
 
     if cfg.get("first_clip"):
@@ -5361,10 +5361,10 @@ def suggest_storyboard_order(cfg: dict) -> list[dict]:
         clips.append(cfg["last_clip"])
 
     if len(clips) <= 1:
-        return clips
+        return clips, {}
 
     if not client:
-        return clips
+        return clips, {}
 
     prompt = f"""
         You are ordering clips for a short-form TikTok/Reels storyboard.
@@ -5388,8 +5388,14 @@ def suggest_storyboard_order(cfg: dict) -> list[dict]:
             for c in clips
         ], indent=2)}
 
-        Return:
-        {{"order": ["file1.mov", "file2.mov"]}}
+        Return JSON in this exact shape:
+            {{ 
+            "order": ["file1.mov", "file2.mov"],
+            "reasoning": {{
+                "file1.mov": "Why this clip should appear first",
+                "file2.mov": "Why this clip belongs here"
+            }}
+            }}
         """
 
     try:
@@ -5405,6 +5411,8 @@ def suggest_storyboard_order(cfg: dict) -> list[dict]:
         data = safe_json_extract(resp.choices[0].message.content)
         ordered_files = data.get("order", [])
 
+        reasoning = data.get("reasoning", {})
+
         by_file = {c.get("file"): c for c in clips}
 
         suggested = [
@@ -5414,13 +5422,13 @@ def suggest_storyboard_order(cfg: dict) -> list[dict]:
         ]
 
         if len(suggested) == len(clips):
-            return suggested
+            return suggested, reasoning
 
-        return clips
+        return clips, {}
 
     except Exception as e:
         logger.exception("[STORYBOARD_ORDER] AI reorder failed")
-        return clips
+        return clips, {}
 
 
 def api_suggest_storyboard_order(session: str) -> dict:
@@ -5439,24 +5447,14 @@ def api_suggest_storyboard_order(session: str) -> dict:
     if cfg.get("last_clip"):
         clips.append(cfg["last_clip"])
 
-    suggested = suggest_storyboard_order(cfg)
+    suggested, reasoning = suggest_storyboard_order(cfg)
 
     return {
-    "current_order": [c.get("file") for c in clips],
-    "debug_roles": [
-        {
-            "file": c.get("file"),
-            "text": c.get("text"),
-            "role": infer_clip_role_v2(c.get("text") or c.get("label") or c.get("file") or ""),
-            "priority": get_role_priority(
-                infer_clip_role_v2(c.get("text") or c.get("label") or c.get("file") or "")
-            )
-        }
-        for c in clips
-    ],
-    "suggested_order_files": [c.get("file") for c in suggested],
-    "suggested_order": suggested,
-}
+        "current_order": [c.get("file") for c in clips],
+        "suggested_order_files": [c.get("file") for c in suggested],
+        "suggested_order": suggested,
+        "reasoning": reasoning,
+    }
 
 def format_session_context_label(label: str) -> str:
     return (label or "general_lifestyle").replace("_", " ")
