@@ -129,7 +129,7 @@ const CREATIVE_ACTIONS = {
     return;
   }
 
-  addAutoAssistActivity("🎬 Optimizing clip order");
+  addAutoAssistActivity("🎬 Checking best clip order");
 
   await suggestStoryboardOrder();
 
@@ -147,7 +147,6 @@ const CREATIVE_ACTIONS = {
   });
 
   addAutoAssistActivity("✅ Storyboard order checked");
-
 },
 
   improve_hook: async () => {
