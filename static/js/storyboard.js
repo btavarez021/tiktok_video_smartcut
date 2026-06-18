@@ -332,6 +332,8 @@ async function loadConfigAndYaml() {
       })
     });
 
+    const suggested = res?.suggested_order || [];
+
     const currentFiles = (workingClipOrder || []).map(c => c.file);
     const suggestedFiles = suggested.map(c => c.file);
 
@@ -342,7 +344,6 @@ async function loadConfigAndYaml() {
     window.appState.storyboard = window.appState.storyboard || {};
     window.appState.storyboard.suggestedOrderAvailable = orderChanged;
 
-    const suggested = res?.suggested_order || [];
 
     if (!suggested.length) {
       setStatus("storyboardStatus", "No order suggestion available", "info");
