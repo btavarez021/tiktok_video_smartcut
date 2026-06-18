@@ -5350,10 +5350,6 @@ def should_reorder_storyboard(cfg):
     return current_files != suggested_files
 
 def suggest_storyboard_order(cfg: dict) -> list[dict]:
-    """
-    Returns clips in a more natural narrative order.
-    Does not modify cfg.
-    """
     clips = []
 
     if cfg.get("first_clip"):
@@ -5364,35 +5360,67 @@ def suggest_storyboard_order(cfg: dict) -> list[dict]:
     if cfg.get("last_clip"):
         clips.append(cfg["last_clip"])
 
-    enriched = []
-    for idx, clip in enumerate(clips):
-        source_text = (
-            clip.get("text")
-            or clip.get("label")
-            or clip.get("file")
-            or ""
-        ).strip()
+    if len(clips) <= 1:
+        return clips
 
-        role = infer_clip_role_v2(source_text)
+    if not client:
+        return clips
 
-        enriched.append({
-            **clip,
-            "_role": role,
-            "_priority": get_role_priority(role),
-            "_original_index": idx,
-        })
+    prompt = f"""
+        You are ordering clips for a short-form TikTok/Reels storyboard.
 
-    enriched.sort(key=lambda c: (c["_priority"], c["_original_index"]))
+        Choose the best storytelling order based on visual progression, curiosity, pacing, and ending strength.
 
-    cleaned = []
-    for clip in enriched:
-        clip = dict(clip)
-        clip.pop("_role", None)
-        clip.pop("_priority", None)
-        clip.pop("_original_index", None)
-        cleaned.append(clip)
+        Rules:
+        - Return every file exactly once.
+        - Do not invent files.
+        - Prefer an order that feels intentional, not random.
+        - If the current order is weak, change it.
+        - For testing, if multiple orders are acceptable, choose a different order than the current one.
+        - Return JSON only.
 
-    return cleaned
+        Current clips:
+        {json.dumps([
+            {
+                "file": c.get("file"),
+                "text": c.get("text") or c.get("label") or ""
+            }
+            for c in clips
+        ], indent=2)}
+
+        Return:
+        {{"order": ["file1.mov", "file2.mov"]}}
+        """
+
+    try:
+        resp = client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": "Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.4,
+        )
+
+        data = safe_json_extract(resp.choices[0].message.content)
+        ordered_files = data.get("order", [])
+
+        by_file = {c.get("file"): c for c in clips}
+
+        suggested = [
+            by_file[f]
+            for f in ordered_files
+            if f in by_file
+        ]
+
+        if len(suggested) == len(clips):
+            return suggested
+
+        return clips
+
+    except Exception as e:
+        logger.exception("[STORYBOARD_ORDER] AI reorder failed")
+        return clips
 
 
 def api_suggest_storyboard_order(session: str) -> dict:
@@ -5414,10 +5442,21 @@ def api_suggest_storyboard_order(session: str) -> dict:
     suggested = suggest_storyboard_order(cfg)
 
     return {
-        "current_order": [c.get("file") for c in clips],
-        "suggested_order_files": [c.get("file") for c in suggested],
-        "suggested_order": suggested,
-    }
+    "current_order": [c.get("file") for c in clips],
+    "debug_roles": [
+        {
+            "file": c.get("file"),
+            "text": c.get("text"),
+            "role": infer_clip_role_v2(c.get("text") or c.get("label") or c.get("file") or ""),
+            "priority": get_role_priority(
+                infer_clip_role_v2(c.get("text") or c.get("label") or c.get("file") or "")
+            )
+        }
+        for c in clips
+    ],
+    "suggested_order_files": [c.get("file") for c in suggested],
+    "suggested_order": suggested,
+}
 
 def format_session_context_label(label: str) -> str:
     return (label or "general_lifestyle").replace("_", " ")
