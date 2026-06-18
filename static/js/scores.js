@@ -48,8 +48,6 @@ function evaluateCreativeState() {
     orderNeedsImprovement
   );
 
-  console.log("NEXT ACTION", next);
-
   // Hook Analysis
   if (hook !== null) {
     if (hook < 60) {
@@ -212,6 +210,8 @@ if (effectiveFlow !== null) {
     next,
     intent
   };
+
+  console.log("NEXT ACTION", next);
 
   result.primary_focus = getPrimaryCreativeFocus(result);
 
