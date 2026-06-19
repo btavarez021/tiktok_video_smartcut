@@ -111,6 +111,15 @@ async function loadEditStrategy(force=false) {
       // Smart next action
       // ================================
       let creativeState = evaluateCreativeState();
+
+      if (creativeState.order_needs_improvement) {
+        items.unshift({
+          area: "storyboard",
+          issue: "Clip order can be improved.",
+          impact: "high",
+          action: "Review the AI-suggested storyboard sequence before polishing captions."
+        });
+      }
       const primaryFocus = creativeState.primary_focus;
       const nextMove =
         primaryFocus === "flow"
@@ -302,6 +311,18 @@ function showDirectorApproval(type) {
     console.log("🎯 Jump to:", area);
 
     area = (area || "").toLowerCase();
+
+    if (area === "storyboard") {
+    openStep("#step-3");
+
+    document.getElementById("storyboardTimeline")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+
+    highlightStoryboardTimeline?.();
+    return;
+  }
 
     if (area === "hook") {
       openStep("#step-3");

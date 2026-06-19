@@ -727,7 +727,8 @@ function renderNextActionButton(state) {
     improve_flow: "⚡ Tighten Story Flow",
     write_captions: "✍️ Generate Captions",
     publish: "🚀 Export Video",
-    polish: "✨ Polish Video"
+    polish: "✨ Polish Video",
+    reorder_storyboard: "🧭 Optimize Storyboard Order"
   };
 
   const label = labelMap[state.next];
