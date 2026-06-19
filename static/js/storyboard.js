@@ -350,6 +350,7 @@ async function loadConfigAndYaml() {
     window.appState = window.appState || {};
     window.appState.storyboard = window.appState.storyboard || {};
     window.appState.storyboard.suggestedOrderAvailable = orderChanged;
+    window.appState.storyboard.orderNeedsImprovement = orderChanged;
 
 
     if (!suggested.length) {
@@ -383,6 +384,47 @@ async function loadConfigAndYaml() {
   }
 }
 
+async function refreshStoryboardOrderRecommendation() {
+  try {
+    const res = await jsonFetch("/api/storyboard/suggest_order", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession()
+      })
+    });
+
+    const current =
+      JSON.stringify(res.current_order || []);
+
+    const suggested =
+      JSON.stringify(res.suggested_order_files || []);
+
+    const needsReorder = current !== suggested;
+
+    window.appState = window.appState || {};
+    window.appState.storyboard = window.appState.storyboard || {};
+
+    window.appState.storyboard.suggestedOrderAvailable =
+      needsReorder;
+
+    window.appState.storyboard.orderNeedsImprovement =
+      needsReorder;
+
+    window.appState.storyboard.reasoning =
+      res.reasoning || {};
+
+    console.log(
+      "🧠 Storyboard recommendation:",
+      needsReorder
+    );
+
+  } catch (err) {
+    console.warn(
+      "Storyboard recommendation check failed",
+      err
+    );
+  }
+}
 
 async function hydrateStoryboardAndScroll() {
   CONFIG_CACHE = null;
@@ -402,6 +444,7 @@ async function hydrateStoryboardAndScroll() {
 
   renderSessionContext(contextData);
   await loadContentContext();
+  await refreshStoryboardOrderRecommendation();
 
   captionViewMode = "rewritten";
   renderCaptionView();
