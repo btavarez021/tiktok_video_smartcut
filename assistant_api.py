@@ -2291,6 +2291,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
         if s in first_lower
     ]
 
+    primary_first_subject = first_subjects[0] if first_subjects else "subject"
+
     print("[HOOK_LAB] First clip text:", first_clip_text)
     print("[HOOK_LAB] First clip subjects:", first_subjects)
 
@@ -2446,6 +2448,11 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             {VISUAL_GROUNDING_ENFORCEMENT}
 
+            PRIMARY FIRST SUBJECT:
+            {primary_first_subject}
+
+            The majority of hooks should focus on this subject.
+
             Intent Guidance:
             {intent_guidance}
 
@@ -2489,6 +2496,17 @@ def api_generate_hooks(session: str, intent: str | None = None):
             - Hooks must strongly match the visual experience of the FIRST CLIP.
             - Later scenes may support the hook, but should not replace the main opening experience.
             - Hooks should still feel correct if the viewer only saw the first clip.
+
+            FIRST SUBJECT RULE:
+
+            - The first clip contains the primary subject for the hook.
+            - At least 6 of the 8 hooks MUST reference or clearly relate to the first clip subject.
+            - Do not switch focus to subjects that appear later in the storyboard.
+            - Later animals or scenes may support the hook, but should not become the main hook topic.
+            - If the first clip contains a gorilla, most hooks should be about the gorilla.
+            - If the first clip contains a lion, most hooks should be about the lion.
+            - If the first clip contains a tiger, most hooks should be about the tiger.
+            - If the first clip contains a rhino, most hooks should be about the rhino.
 
             HOOK HONESTY RULE:
             - only use hooks about secrets, hidden details, reveals, twists, or surprises if the first clip clearly supports that kind of payoff
