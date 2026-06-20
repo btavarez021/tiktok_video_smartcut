@@ -2284,6 +2284,16 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
     first_clip_text = cfg.get("first_clip", {}).get("text", "") or ""
 
+    first_lower = first_clip_text.lower()
+
+    first_subjects = [
+        s for s in ["gorilla", "lion", "tiger", "rhino", "rhinoceros"]
+        if s in first_lower
+    ]
+
+    print("[HOOK_LAB] First clip text:", first_clip_text)
+    print("[HOOK_LAB] First clip subjects:", first_subjects)
+
     scenes = []
     if cfg.get("first_clip", {}).get("text"):
         scenes.append(cfg["first_clip"]["text"])
@@ -2631,6 +2641,11 @@ def api_generate_hooks(session: str, intent: str | None = None):
             clean = strip_emojis(text).strip()
             lower = clean.lower()
 
+            first_anchor_penalty = 0
+
+            if first_subjects and not any(s in lower for s in first_subjects):
+                first_anchor_penalty = 20
+
             scored = score_generated_hook(
                 clean,
                 intent,
@@ -2658,7 +2673,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
             honesty_penalty = scored.get("honesty_penalty", 0)
 
             raw_score = scored["score"]
-            score = raw_score
+            score = max(raw_score - first_anchor_penalty, 0)
 
             if honesty_penalty >= 10:
                 score = max(score - 10, 0)
@@ -2673,7 +2688,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
             "subject_bonus": subject_bonus,
             "visual_anchor_bonus": visual_anchor_bonus,
             "vague_penalty": vague_penalty,
-            "honesty_penalty": honesty_penalty
+            "honesty_penalty": honesty_penalty,
+            "first_anchor_penalty": first_anchor_penalty,
         })
 
 
