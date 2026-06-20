@@ -2639,6 +2639,14 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             The first scene should carry the hook. Later scenes should feel like supporting payoff or progression.
 
+            FINAL VALIDATION:
+
+            Count how many hooks explicitly mention:
+            {primary_first_subject}
+
+            If fewer than 6 hooks mention that subject,
+            rewrite the hooks before returning JSON.
+
             Return JSON only:
             {{ "hooks": ["hook1", "hook2", "hook3", "hook4", "hook5", "hook6", "hook7", "hook8"] }}
             """
@@ -2661,8 +2669,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             first_anchor_penalty = 0
 
-            if first_subjects and not any(s in lower for s in first_subjects):
-                first_anchor_penalty = 20
+            if primary_first_subject not in lower:
+                first_anchor_penalty = 35
 
             scored = score_generated_hook(
                 clean,
@@ -2696,6 +2704,13 @@ def api_generate_hooks(session: str, intent: str | None = None):
             if honesty_penalty >= 10:
                 score = max(score - 10, 0)
 
+            print(
+                "[HOOK SCORE]",
+                clean,
+                "first_penalty=", first_anchor_penalty,
+                "score=", score
+            )
+            
             hooks.append({
             "text": clean,
             "score": score, 
