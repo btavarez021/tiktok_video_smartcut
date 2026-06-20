@@ -3,6 +3,8 @@ window.appState = window.appState || {};
 window.appState.storyboard = window.appState.storyboard || {
   suggestedOrderAvailable: false,
   orderNeedsImprovement: false,
+  orderChecked: false,
+  reasoning: {}
 };
 
 async function autoSelectIntentFromReadiness(summary) {
@@ -368,6 +370,11 @@ async function loadConfigAndYaml() {
     });
 
     await saveStoryboardOrder({ silent: true });
+    window.appState.storyboard.orderChecked = true;
+    window.appState.storyboard.suggestedOrderAvailable = false;
+    window.appState.storyboard.orderNeedsImprovement = false;
+
+    updateStoryboardContinueButton();
     await refreshAfterChange();
 
     setStatus(
@@ -381,6 +388,22 @@ async function loadConfigAndYaml() {
   } catch (err) {
     console.error(err);
     setStatus("storyboardStatus", "Failed to suggest clip order", "error");
+  }
+}
+
+function updateStoryboardContinueButton() {
+  const btn = document.getElementById("continueToHooksBtn");
+  if (!btn) return;
+
+  const checked = window.appState?.storyboard?.orderChecked === true;
+  const needs = window.appState?.storyboard?.orderNeedsImprovement === true;
+
+  if (!checked) {
+    btn.textContent = "Continue to hooks";
+  } else if (needs) {
+    btn.textContent = "Review AI order first";
+  } else {
+    btn.textContent = "✓ Clip order looks good — Continue to hooks";
   }
 }
 
@@ -412,6 +435,9 @@ async function refreshStoryboardOrderRecommendation() {
 
     window.appState.storyboard.reasoning =
       res.reasoning || {};
+
+    window.appState.storyboard.orderChecked = true;
+    updateStoryboardContinueButton();
 
     console.log(
       "🧠 Storyboard recommendation:",
@@ -445,6 +471,7 @@ async function hydrateStoryboardAndScroll() {
   renderSessionContext(contextData);
   await loadContentContext();
   await refreshStoryboardOrderRecommendation();
+  updateStoryboardContinueButton();
 
   captionViewMode = "rewritten";
   renderCaptionView();
