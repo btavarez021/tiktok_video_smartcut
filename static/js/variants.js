@@ -90,9 +90,11 @@ async function generateVariantsAsync(modes, selectedHook) {
       if (status === "done") {
         console.log("✅ Variants ready");
 
-        showAutoAssistUpdate(
-        "🧠 Auto Assist optimized captions for stronger storytelling"
-      );
+        if (isAutoAssistEnabled()) {
+          showAutoAssistUpdate(
+            "🧠 Auto Assist optimized captions for stronger storytelling"
+          );
+        }
 
       const rawVariants = data.result?.variants || [];
       const intent = window.appState?.hook?.intent || "discovery";
