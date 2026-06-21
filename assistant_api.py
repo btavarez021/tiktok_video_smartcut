@@ -2694,6 +2694,10 @@ def api_generate_hooks(session: str, intent: str | None = None):
         content = resp.choices[0].message.content.strip()
         data = safe_json_extract(content)
 
+        print("[HOOK_LAB RAW CONTENT]", content)
+        print("[HOOK_LAB PARSED DATA]", data)
+        print("[HOOK_LAB PARSED HOOK COUNT]", len(data.get("hooks", [])))
+
         hooks = []
         for text in data.get("hooks", []):
 
@@ -2800,7 +2804,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
             })
 
 
-
+        print("[HOOK_LAB SCORED HOOK COUNT]", len(hooks))
+        
         # Sort best first
         hooks.sort(key=lambda x: x["score"], reverse=True)
 
