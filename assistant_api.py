@@ -2287,11 +2287,12 @@ def api_generate_hooks(session: str, intent: str | None = None):
     first_lower = first_clip_text.lower()
 
     first_subjects = [
-        s for s in ["gorilla", "lion", "tiger", "rhino", "rhinoceros"]
-        if s in first_lower
-    ]
+    w for w in _tokenize_subject_text(first_clip_text)
+    if len(w) >= 4
+    ][:3]
 
     primary_first_subject = first_subjects[0] if first_subjects else "subject"
+
 
     print("[HOOK_LAB] First clip text:", first_clip_text)
     print("[HOOK_LAB] First clip subjects:", first_subjects)
@@ -2730,7 +2731,23 @@ def api_generate_hooks(session: str, intent: str | None = None):
             hook_type = classify_hook_type(clean)
             honesty_penalty = scored.get("honesty_penalty", 0)
 
-            unsupported_behavior_penalty = 0
+            animal_subjects = {
+            "gorilla",
+            "lion",
+            "tiger",
+            "rhino",
+            "rhinoceros",
+            "elephant",
+            "giraffe",
+            "bear",
+            "zebra"
+        }
+
+        is_animal_clip = primary_first_subject in animal_subjects
+
+        unsupported_behavior_penalty = 0
+
+        if is_animal_clip:
 
             behavior_words = [
                 "searching",
@@ -2746,16 +2763,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 "owns",
                 "controls",
                 "leads",
-                "commanding",
-                "claims",
-                "claim",
-                "challenge",
-                "strength",
-                "quiet strength",
-                "steady gaze",
-                "settles",
-                "air thickens",
-                "rhythm",
+                "commanding"
             ]
 
             if any(word in lower for word in behavior_words):
