@@ -382,34 +382,42 @@ function clearSelectedHook() {
   console.log("🧠 Hook cleared — unlocked");
 }
 
-  function updateHookLockUI() {
+function updateHookLockUI() {
+  const clearBtn = document.getElementById("clearHookBtn");
+  const lockBar = document.getElementById("hookLockedBar");
+  const lockText = document.querySelector("#hookLockedBar span");
+  const helper = document.getElementById("hookLabHelper");
 
-    
-    const clearBtn = document.getElementById("clearHookBtn");
-    const lockBar = document.getElementById("hookLockedBar");
+  if (!clearBtn) return;
 
-    if (!clearBtn) return;
+  if (window.appState.hook.selected) {
+    // selected state
+    lockBar?.classList.remove("hidden");
+    clearBtn.classList.remove("hidden");
+    helper?.classList.add("hidden");
 
-    if (window.appState.hook.selected) {
-      // 🔒 Locked state
-      lockBar?.classList.remove("hidden");
-      clearBtn.classList.remove("hidden");
-
-      // Visual lock on hook cards
-      document.querySelectorAll(".hookCard").forEach(card => {
-        card.classList.add("locked");
-      });
-
-    } else {
-      // 🔓 Unlocked state
-      lockBar?.classList.add("hidden");
-      clearBtn.classList.add("hidden");
-
-      document.querySelectorAll(".hookCard").forEach(card => {
-        card.classList.remove("locked");
-      });
+    if (lockText) {
+      lockText.textContent =
+        window.appState?.hook?.selectedByAI
+          ? "🧠 AI selected a hook — variants are optimized around this opening"
+          : "🎯 Selected hook — variants now optimize around this opening";
     }
+
+    document.querySelectorAll(".hookCard").forEach(card => {
+      card.classList.add("locked");
+    });
+
+  } else {
+    // no hook selected
+    lockBar?.classList.add("hidden");
+    clearBtn.classList.add("hidden");
+    helper?.classList.remove("hidden");
+
+    document.querySelectorAll(".hookCard").forEach(card => {
+      card.classList.remove("locked");
+    });
   }
+}
 
     function updateHooksReadyUI() {
     const btn = document.getElementById("continueToHooksBtn");

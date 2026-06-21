@@ -687,20 +687,15 @@
   </div>
 </div>
 
-        <!-- Selected hook bar -->
-        <div id="selectedHookBar" class="selected-hook-bar hidden">
-            <div class="selected-hook-label">Selected hook</div>
-            <div id="selectedHookDisplay" class="selected-hook-text"></div>
-            <div class="selected-hook-hint">
-            Caption variants will use this hook as the opening line.
-            </div>
-        </div>
-
         <!-- Hook locked bar -->
         <div id="hookLockedBar" class="hook-locked-bar hidden"
             title="You selected a hook. AI improvements will not override it.">
-            <span>🔒 Hook locked — AI will build around your selection</span>
+            <span>🎯 Selected hook — variants now optimize around this opening</span>
             <button id="clearHookBtn" class="btn ghost small" type="button">Clear hook</button>
+        </div>
+
+        <div id="hookLabHelper" class="hook-lab-helper">
+             Choose a hook to guide caption generation.
         </div>
 
         <!-- Hooks grid -->
