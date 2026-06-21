@@ -1,5 +1,9 @@
 async function generateHooks() {
 
+  if (typeof saveStoryboardOrder === "function" && Array.isArray(workingClipOrder) && workingClipOrder.length) {
+    await saveStoryboardOrder({ silent: true });
+  }
+
     await autoSelectContentContextFromReadiness();
     const btn = document.getElementById("generateHooksBtn");
     const status = document.getElementById("hookLabStatus");

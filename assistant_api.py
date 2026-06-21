@@ -2652,7 +2652,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
             """
 
     print("[HOOK LAB] USING NEW FIRST SUBJECT PROMPT")
-    print("[HOOKLAB] PRIMARY SUBJECT:", primary_first_subject)
+    print("[HOOK LAB] PRIMARY SUBJECT:", primary_first_subject)
 
     print("========== HOOK PROMPT START ==========")
     print(prompt[:4000])
