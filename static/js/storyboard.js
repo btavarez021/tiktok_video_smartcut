@@ -480,8 +480,13 @@ async function hydrateStoryboardAndScroll() {
   updateLoadYamlVisibility();
   updateAIRecommendationBar();
 
-  if (!window.appState.hook.lastGenerated?.length) {
+  const needsReorder =
+    window.appState?.storyboard?.orderNeedsImprovement === true;
+
+  if (!needsReorder && !window.appState.hook.lastGenerated?.length) {
     generateHooks();
+  } else if (needsReorder) {
+    console.log("🧠 Skipping hook generation — storyboard reorder pending");
   }
 
   if (PENDING_SCROLL_TO_STORYBOARD) {
@@ -577,6 +582,15 @@ async function handleStoryboardContinue() {
   STORYBOARD_CONTINUE_RUNNING = true;
 
   try {
+    const needsReorder =
+      window.appState?.storyboard?.orderNeedsImprovement === true;
+
+    if (needsReorder) {
+      console.log("🧠 Continue blocked — storyboard reorder pending");
+      setStatus("storyboardStatus", "Review AI order first", "info");
+      return;
+    }
+
     const autoAssist = window.appState?.settings?.autoAssist === true;
 
     if (autoAssist) {
@@ -589,6 +603,10 @@ async function handleStoryboardContinue() {
     }
 
     await goToHookLab();
+
+    if (!window.appState.hook.lastGenerated?.length) {
+      await generateHooks();
+    }
 
     setTimeout(scrollHookLabIntoLayout, 600);
 
