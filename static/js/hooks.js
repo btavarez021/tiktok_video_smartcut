@@ -30,6 +30,29 @@ async function generateHooks() {
     let res = null;
 
     try {
+
+      console.log(
+        "HOOKS visible order before save:",
+        (workingClipOrder || []).map(c => c.file)
+      );
+
+      if (
+        typeof saveStoryboardOrder === "function" &&
+        Array.isArray(workingClipOrder) &&
+        workingClipOrder.length
+      ) {
+        await saveStoryboardOrder({ silent: true });
+        CONFIG_CACHE = null;
+      }
+
+      const cfgCheck = await jsonFetch(
+        `/api/config?session=${encodeURIComponent(getActiveSession())}`
+      );
+
+      console.log(
+        "HOOKS backend first clip after save:",
+        cfgCheck?.config?.first_clip
+      );
       res = await jsonFetch("/api/hooks", {
         method: "POST",
         body: JSON.stringify({
