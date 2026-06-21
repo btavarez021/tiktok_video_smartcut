@@ -2746,7 +2746,16 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 "owns",
                 "controls",
                 "leads",
-                "commanding"
+                "commanding",
+                "claims",
+                "claim",
+                "challenge",
+                "strength",
+                "quiet strength",
+                "steady gaze",
+                "settles",
+                "air thickens",
+                "rhythm",
             ]
 
             if any(word in lower for word in behavior_words):
