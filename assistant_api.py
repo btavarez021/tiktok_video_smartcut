@@ -2651,6 +2651,12 @@ def api_generate_hooks(session: str, intent: str | None = None):
             {{ "hooks": ["hook1", "hook2", "hook3", "hook4", "hook5", "hook6", "hook7", "hook8"] }}
             """
 
+    print("[HOOK LAB] USING NEW FIRST SUBJECT PROMPT")
+    print("[HOOKLAB] PRIMARY SUBJECT:", primary_first_subject)
+
+    print("========== HOOK PROMPT START ==========")
+    print(prompt[:4000])
+    print("=========== HOOK PROMPT END ===========")
     try:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
