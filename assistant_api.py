@@ -2287,8 +2287,8 @@ def api_generate_hooks(session: str, intent: str | None = None):
     first_lower = first_clip_text.lower()
 
     first_subjects = [
-    w for w in _tokenize_subject_text(first_clip_text)
-    if len(w) >= 4
+        w for w in _tokenize_subject_text(first_clip_text)
+        if len(w) >= 4
     ][:3]
 
     primary_first_subject = first_subjects[0] if first_subjects else "subject"
@@ -2732,42 +2732,41 @@ def api_generate_hooks(session: str, intent: str | None = None):
             honesty_penalty = scored.get("honesty_penalty", 0)
 
             animal_subjects = {
-            "gorilla",
-            "lion",
-            "tiger",
-            "rhino",
-            "rhinoceros",
-            "elephant",
-            "giraffe",
-            "bear",
-            "zebra"
-        }
+                "gorilla",
+                "lion",
+                "tiger",
+                "rhino",
+                "rhinoceros",
+                "elephant",
+                "giraffe",
+                "bear",
+                "zebra"
+            }
 
-        is_animal_clip = primary_first_subject in animal_subjects
+            is_animal_clip = primary_first_subject in animal_subjects
 
-        unsupported_behavior_penalty = 0
+            unsupported_behavior_penalty = 0
 
-        if is_animal_clip:
+            if is_animal_clip:
+                behavior_words = [
+                    "searching",
+                    "hunting",
+                    "tracking",
+                    "circling",
+                    "planning",
+                    "deciding",
+                    "guarding",
+                    "protecting",
+                    "watching over",
+                    "claiming",
+                    "owns",
+                    "controls",
+                    "leads",
+                    "commanding"
+                ]
 
-            behavior_words = [
-                "searching",
-                "hunting",
-                "tracking",
-                "circling",
-                "planning",
-                "deciding",
-                "guarding",
-                "protecting",
-                "watching over",
-                "claiming",
-                "owns",
-                "controls",
-                "leads",
-                "commanding"
-            ]
-
-            if any(word in lower for word in behavior_words):
-                unsupported_behavior_penalty = 12
+                if any(word in lower for word in behavior_words):
+                    unsupported_behavior_penalty = 12
 
             raw_score = scored["score"]
             score = max(raw_score - first_anchor_penalty, 0)
@@ -2784,21 +2783,21 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 "behavior_penalty=", unsupported_behavior_penalty,
                 "score=", score
             )
-            
+
             hooks.append({
-            "text": clean,
-            "score": score, 
-            "tone": tone,
-            "type": hook_type,
-            "base_score": base_score,
-            "curiosity_bonus": curiosity_bonus,
-            "subject_bonus": subject_bonus,
-            "visual_anchor_bonus": visual_anchor_bonus,
-            "vague_penalty": vague_penalty,
-            "honesty_penalty": honesty_penalty,
-            "first_anchor_penalty": first_anchor_penalty,
-            "unsupported_behavior_penalty": unsupported_behavior_penalty,
-        })
+                "text": clean,
+                "score": score,
+                "tone": tone,
+                "type": hook_type,
+                "base_score": base_score,
+                "curiosity_bonus": curiosity_bonus,
+                "subject_bonus": subject_bonus,
+                "visual_anchor_bonus": visual_anchor_bonus,
+                "vague_penalty": vague_penalty,
+                "honesty_penalty": honesty_penalty,
+                "first_anchor_penalty": first_anchor_penalty,
+                "unsupported_behavior_penalty": unsupported_behavior_penalty,
+            })
 
 
 
@@ -2808,6 +2807,16 @@ def api_generate_hooks(session: str, intent: str | None = None):
         # -----------------------------------------
         # Hook Diversity Enforcement
         # -----------------------------------------
+        print("\n===== HOOK TYPES =====")
+
+        for h in hooks:
+            print(
+                h["text"],
+                "=>",
+                h.get("type")
+            )
+
+        print("======================\n")
 
         unique_hooks = []
         seen_types = set()
@@ -2843,8 +2852,6 @@ def api_generate_hooks(session: str, intent: str | None = None):
                         video_subjects,
                         primary_experience
                     )
-
-
 
         print("[HOOK_LAB] Hooks generated with intent:", intent)
 
