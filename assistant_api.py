@@ -2551,6 +2551,32 @@ def api_generate_hooks(session: str, intent: str | None = None):
             - do NOT infer psychology, intent, dominance, symbolism, exclusivity, or hidden meaning unless clearly supported by the first clip
             - avoid abstract claims unless the footage visibly supports them
             - do not force “secret”, “hidden”, “surprising”, “powerful”, “commands”, or similar language unless the first clip clearly earns it
+
+            ANIMAL BEHAVIOR RULE:
+
+            Do not invent animal actions that are not visible.
+
+            Bad:
+            - hunting
+            - searching
+            - circling
+            - tracking
+            - guarding
+            - claiming territory
+            - planning
+            - watching over
+
+            Good:
+            - standing
+            - walking
+            - moving
+            - pacing
+            - resting
+            - looking
+            - approaching
+            - near a wall
+            - near trees
+            - beside fencing
             
             HOOK PRIORITY:
             1. First clip visual moment
@@ -2704,16 +2730,41 @@ def api_generate_hooks(session: str, intent: str | None = None):
             hook_type = classify_hook_type(clean)
             honesty_penalty = scored.get("honesty_penalty", 0)
 
+            unsupported_behavior_penalty = 0
+
+            behavior_words = [
+                "searching",
+                "hunting",
+                "tracking",
+                "circling",
+                "planning",
+                "deciding",
+                "guarding",
+                "protecting",
+                "watching over",
+                "claiming",
+                "owns",
+                "controls",
+                "leads",
+                "commanding"
+            ]
+
+            if any(word in lower for word in behavior_words):
+                unsupported_behavior_penalty = 12
+
             raw_score = scored["score"]
             score = max(raw_score - first_anchor_penalty, 0)
 
             if honesty_penalty >= 10:
                 score = max(score - 10, 0)
 
+            score = max(score - unsupported_behavior_penalty, 0)
+
             print(
                 "[HOOK SCORE]",
                 clean,
                 "first_penalty=", first_anchor_penalty,
+                "behavior_penalty=", unsupported_behavior_penalty,
                 "score=", score
             )
             
@@ -2729,6 +2780,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
             "vague_penalty": vague_penalty,
             "honesty_penalty": honesty_penalty,
             "first_anchor_penalty": first_anchor_penalty,
+            "unsupported_behavior_penalty": unsupported_behavior_penalty,
         })
 
 
