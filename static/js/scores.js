@@ -881,18 +881,31 @@ async function refreshAfterChange({
       const newHook = LAST_HOOK_SCORE;
       const newFlow = LAST_FLOW_SCORE;
 
+      const autoAssist = isAutoAssistEnabled();
+
       if (oldHook && newHook && newHook > oldHook) {
-        showAutoAssistUpdate(
-          `🧠 Auto Assist improved hook ${oldHook} → ${newHook}`
-        );
+        if (autoAssist) {
+          showAutoAssistUpdate(
+            `🧠 Auto Assist improved hook ${oldHook} → ${newHook}`
+          );
+        } else {
+          showAutoAssistUpdate(
+            `Hook score improved ${oldHook} → ${newHook}`
+          );
+        }
       }
 
       if (oldFlow && newFlow && newFlow > oldFlow) {
-        showAutoAssistUpdate(
-          `🧠 Auto Assist improved story flow ${oldFlow} → ${newFlow}`
-        );
-      }
-
+        if (autoAssist) {
+          showAutoAssistUpdate(
+            `🧠 Auto Assist improved story flow ${oldFlow} → ${newFlow}`
+          );
+        } else {
+          showAutoAssistUpdate(
+            `Story flow improved ${oldFlow} → ${newFlow}`
+          );
+        }
+      } 
     } catch (e) {
       console.warn("refreshAfterChange failed", e);
     } finally {
