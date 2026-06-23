@@ -321,6 +321,13 @@
       // -----------------------------
       scoreEl.textContent = `${score}/100`;
       hookEl.textContent = data.hook || "(no opening caption yet)";
+      const hookScoreContext = document.getElementById("hookScoreContext");
+
+      if (hookScoreContext) {
+        hookScoreContext.textContent = window.appState?.hook?.selected
+          ? "Scoring selected hook."
+          : "Scoring current YAML opening. Choose a hook to replace it.";
+      }
 
       const label = document.getElementById("hookScoreLabel");
       if (label) label.textContent = hookLabel;
