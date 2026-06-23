@@ -2706,7 +2706,27 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             first_anchor_penalty = 0
 
-            if primary_first_subject not in lower:
+            SUBJECT_ALIASES = {
+                "rhinoceros": ["rhinoceros", "rhino"],
+                "rhino": ["rhino", "rhinoceros"],
+                "automobile": ["automobile", "car", "vehicle"],
+                "vehicle": ["vehicle", "car", "automobile"],
+                "restaurant": ["restaurant", "dining", "food", "meal"],
+                "cocktail": ["cocktail", "drink"],
+                "drinks": ["drinks", "cocktails", "cocktail"],
+                "hotel": ["hotel", "room", "suite", "lobby"],
+                "gym": ["gym", "workout", "fitness"],
+                "workout": ["workout", "gym", "training"],
+                "beach": ["beach", "ocean", "shore", "sand"],
+                "cruise": ["cruise", "ship", "deck"],
+            }
+
+            aliases = SUBJECT_ALIASES.get(
+                primary_first_subject,
+                [primary_first_subject]
+            )
+
+            if not any(alias in lower for alias in aliases):
                 first_anchor_penalty = 35
 
             scored = score_generated_hook(
