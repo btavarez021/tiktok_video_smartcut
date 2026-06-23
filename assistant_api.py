@@ -2802,10 +2802,27 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 "first_anchor_penalty": first_anchor_penalty,
                 "unsupported_behavior_penalty": unsupported_behavior_penalty,
             })
+        
+            print(
+                "[HOOK CARD SCORE DEBUG]",
+                clean,
+                {
+                    "raw_score": scored.get("score"),
+                    "base_score": scored.get("base_score"),
+                    "curiosity_bonus": scored.get("curiosity_bonus"),
+                    "subject_bonus": scored.get("subject_bonus"),
+                    "visual_anchor_bonus": scored.get("visual_anchor_bonus"),
+                    "vague_penalty": scored.get("vague_penalty"),
+                    "honesty_penalty": scored.get("honesty_penalty"),
+                    "first_anchor_penalty": first_anchor_penalty,
+                    "unsupported_behavior_penalty": unsupported_behavior_penalty,
+                    "final_score": score,
+                }
+            )
 
 
         print("[HOOK_LAB SCORED HOOK COUNT]", len(hooks))
-        
+
         # Sort best first
         hooks.sort(key=lambda x: x["score"], reverse=True)
 
