@@ -399,11 +399,13 @@ function updateStoryboardContinueButton() {
   const needs = window.appState?.storyboard?.orderNeedsImprovement === true;
 
   if (!checked) {
-    btn.textContent = "Continue to hooks";
+  btn.textContent = "Continue to hooks";
   } else if (needs) {
-    btn.textContent = "Review AI order first";
+  btn.textContent =
+    "Continue with current order (AI has a suggestion)";
   } else {
-    btn.textContent = "✓ Clip order looks good — Continue to hooks";
+  btn.textContent =
+    "✓ Clip order looks good — Continue to hooks";
   }
 }
 
@@ -586,9 +588,7 @@ async function handleStoryboardContinue() {
       window.appState?.storyboard?.orderNeedsImprovement === true;
 
     if (needsReorder) {
-      console.log("🧠 Continue blocked — storyboard reorder pending");
-      setStatus("storyboardStatus", "Review AI order first", "info");
-      return;
+      console.log("🧠 Continuing with current storyboard order despite AI suggestion");
     }
 
     const autoAssist = window.appState?.settings?.autoAssist === true;
