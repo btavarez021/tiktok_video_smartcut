@@ -2492,6 +2492,24 @@ def api_generate_hooks(session: str, intent: str | None = None):
             "this place"
             - The subject should feel clear immediately
 
+            SOCIAL HOOK STYLE:
+            Make hooks feel native to TikTok/Reels, not like image captions.
+
+            Prefer:
+            - curiosity
+            - personal discovery
+            - travel recommendation energy
+            - "I didn't expect..."
+            - "The best part..."
+            - "Would you..."
+            - "Most people miss..."
+            - "This might be..."
+
+            Avoid:
+            - plain descriptions of furniture or objects
+            - overly poetic phrases
+            - captions that sound like a catalog
+
             FIRST CLIP ANCHOR RULE:
             - The first clip is the opening visual hook.
             - Hooks must strongly match the visual experience of the FIRST CLIP.
@@ -2726,8 +2744,16 @@ def api_generate_hooks(session: str, intent: str | None = None):
                 [primary_first_subject]
             )
 
-            if not any(alias in lower for alias in aliases):
-                first_anchor_penalty = 35
+            print(
+                "[ANCHOR CHECK]",
+                primary_first_subject,
+                aliases
+            )
+
+            has_anchor = any(alias in lower for alias in aliases)
+
+            if not has_anchor:
+                first_anchor_penalty = 10
 
             scored = score_generated_hook(
                 clean,
@@ -5316,6 +5342,28 @@ def score_generated_hook(
 ) -> dict:
     lower = clean.lower()
 
+    social_bonus = 0
+
+    social_patterns = [
+        "i wasn't expecting",
+        "i didn’t expect",
+        "didn't expect",
+        "didn’t expect",
+        "the best part",
+        "this might be",
+        "worth it",
+        "surprised me",
+        "hidden gem",
+        "most people",
+        "would you",
+        "favorite spot",
+        "walk right past",
+        "better than expected",
+    ]
+
+    if any(p in lower for p in social_patterns):
+        social_bonus += 8
+
     GENERIC_HYPE_PHRASES = [
     "only the bold",
     "raw power",
@@ -5375,6 +5423,8 @@ def score_generated_hook(
         0
     )
 
+    score += social_bonus
+
     curiosity_bonus = score_hook_curiosity_bonus(clean, intent)
     subject_bonus = score_hook_subject_bonus(clean, video_subjects)
     visual_anchor_bonus = score_hook_visual_anchor_bonus(clean)
@@ -5403,6 +5453,7 @@ def score_generated_hook(
     
     return {
         "score": score,
+        "social_bonus": social_bonus,
         "base_score": base_score,
         "curiosity_bonus": curiosity_bonus,
         "subject_bonus": subject_bonus,

@@ -67,9 +67,11 @@ async function generateHooks() {
       console.warn("Hook fetch warning:", e);
     }
 
-    const hooks = res?.hooks;
+    const hooks = Array.isArray(res?.hooks)
+      ? [...res.hooks].sort((a, b) => (b.score || 0) - (a.score || 0))
+      : [];
 
-    if (Array.isArray(hooks) && hooks.length > 0) {
+    if (hooks.length > 0) {
       // 🔑 global state for hydration / refresh
       window.appState.hook.lastGenerated = hooks;
 
