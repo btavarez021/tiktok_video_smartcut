@@ -5423,8 +5423,6 @@ def score_generated_hook(
         0
     )
 
-    score += social_bonus
-
     curiosity_bonus = score_hook_curiosity_bonus(clean, intent)
     subject_bonus = score_hook_subject_bonus(clean, video_subjects)
     visual_anchor_bonus = score_hook_visual_anchor_bonus(clean)
@@ -5442,6 +5440,9 @@ def score_generated_hook(
         primary_experience_bonus,
         100
     )
+
+    score += social_bonus
+
 
     context_mismatch_penalty = score_context_mismatch_penalty(clean, context)
     dynamic_context_conflict = score_dynamic_context_conflict(clean, context)
