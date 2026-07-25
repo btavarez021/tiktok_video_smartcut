@@ -2,7 +2,9 @@
 
 import os
 import yaml
-from flask import Flask, jsonify, request, render_template
+from datetime import timedelta
+from flask import Flask, jsonify, request, render_template, redirect, url_for
+from flask import session as flask_session
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import time
@@ -74,6 +76,48 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # 1GB; adjust if you want
+
+app.secret_key = os.environ.get("SECRET_KEY", "dev-insecure-key-change-me")
+app.permanent_session_lifetime = timedelta(days=30)
+
+# Shared-password gate. If APP_PASSWORD isn't set, the app runs with no auth
+# (useful for local dev), but production should always set this.
+APP_PASSWORD = os.environ.get("APP_PASSWORD")
+
+
+# ============================================================================
+# AUTH — simple shared-password gate for the whole app
+# ============================================================================
+@app.before_request
+def require_login():
+    if not APP_PASSWORD:
+        return None  # auth disabled — no password configured
+    if request.endpoint in ("login", "healthz", "static"):
+        return None
+    if flask_session.get("authed"):
+        return None
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "unauthorized"}), 401
+    return redirect(url_for("login"))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if request.method == "POST":
+        if request.form.get("password") == APP_PASSWORD:
+            flask_session.clear()
+            flask_session["authed"] = True
+            flask_session.permanent = True
+            return redirect(url_for("index"))
+        error = "Incorrect password"
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    flask_session.clear()
+    return redirect(url_for("login"))
 
 
 # ============================================================================
