@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: tiktok-project
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_DEFAULT_REGION
+        value: us-east-2
+      - key: S3_BUCKET_NAME
+        value: tiktok-video-uploader
+      - key: S3_PUBLIC_BASE
+        value: https://tiktok-video-uploader.s3.amazonaws.com
+      - key: S3_EXPORT
+        value: exports/
+      - key: S3_PROCESSED_PREFIX
+        value: processed/

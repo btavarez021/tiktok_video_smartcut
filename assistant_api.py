@@ -456,12 +456,12 @@ Captions:
 {text}
 """.strip()
 
-    response = client.responses.create(
-        model="gpt-4.1-mini",
-        input=prompt,
+    response = client.chat.completions.create(
+        model=TEXT_MODEL,
+        messages=[{"role": "user", "content": prompt}],
     )
 
-    return response.output_text.strip()
+    return response.choices[0].message.content.strip()
 
 def get_weighted_video_subjects(session: str) -> dict[str, int]:
     """
@@ -1358,14 +1358,15 @@ CAPTION_ONLY_GUARDRAIL = (
 
 
 # -------------------------------
-# OpenAI client
+# Gemini client (via OpenAI-compatible endpoint)
 # -------------------------------
-api_key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
-client = OpenAI(api_key=api_key) if api_key else None
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+client = OpenAI(api_key=api_key, base_url=GEMINI_BASE_URL) if api_key else None
 if not client:
-    log_step("[OPENAI] API key missing — AI features disabled.")
+    log_step("[GEMINI] API key missing — AI features disabled.")
 
-TEXT_MODEL = "gpt-4.1-mini"
+TEXT_MODEL = "gemini-2.5-flash"
 
 # -------------------------------
 # Helpers
@@ -3600,7 +3601,7 @@ If multiple objects are visible, choose the main activity or environment rather 
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o",
+            model=TEXT_MODEL,
             messages=messages,
             max_tokens=20,
             temperature=0.2

@@ -11,7 +11,9 @@ from PIL import Image, ImageFilter
 import imageio_ffmpeg
 from assistant_log import log_step
 from s3_config import s3, S3_BUCKET_NAME, RAW_PREFIX
-from openai import OpenAI
+from google import genai
+from google.genai import types
+import wave
 
 # Pillow compatibility shim
 if not hasattr(Image, "ANTIALIAS"):
@@ -436,13 +438,39 @@ STYLE_PRESETS = {
 # 5. TTS / MUSIC / AUDIO MIX
 # ============================================================
 
+GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts"
+
+def _gemini_tts_to_wav(client, text: str, voice: str, out_path: str) -> None:
+    """
+    Generate speech audio via Gemini TTS and write it out as a WAV file.
+    """
+    resp = client.models.generate_content(
+        model=GEMINI_TTS_MODEL,
+        contents=text,
+        config=types.GenerateContentConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                )
+            ),
+        ),
+    )
+    pcm_data = resp.candidates[0].content.parts[0].inline_data.data
+    with wave.open(out_path, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(24000)
+        wf.writeframes(pcm_data)
+
+
 def _build_per_clip_tts(cfg, clips, cta_cfg):
     """
     Build TTS for each clip individually.
     Returns list of (path, duration) tuples, and CTA narration tuple.
     """
 
-    key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
+    key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not key:
         log_step("[TTS] No API key available — skipping all TTS.")
         return [], None
@@ -462,10 +490,10 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
     voice = (
         render.get("tts_voice")
         or tts_cfg.get("voice")
-        or "alloy"
+        or "Kore"
     )
 
-    client = OpenAI(api_key=key)
+    client = genai.Client(api_key=key)
 
     tts_files = []
 
@@ -503,25 +531,19 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
 
         log_step(f"[TTS] Generating narration for clip {idx+1}: '{text}'")
 
-        tmp_mp3 = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
+        tmp_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav").name
 
         try:
-            resp = client.audio.speech.create(
-                model="gpt-4o-mini-tts",
-                voice=voice,
-                input=text,
-            )
-            with open(tmp_mp3, "wb") as f:
-                f.write(resp.read())
+            _gemini_tts_to_wav(client, text, voice, tmp_wav)
         except Exception as e:
             log_step(f"[TTS ERROR] clip {idx+1}: {e}")
             tts_files.append(None)
             continue
 
         # Convert → AAC (FFmpeg)
-        tmp_m4a = tmp_mp3.replace(".mp3", ".m4a")
+        tmp_m4a = tmp_wav.replace(".wav", ".m4a")
         subprocess.run(
-            ["ffmpeg", "-y", "-i", tmp_mp3, "-c:a", "aac", "-b:a", "192k", tmp_m4a],
+            ["ffmpeg", "-y", "-i", tmp_wav, "-c:a", "aac", "-b:a", "192k", tmp_m4a],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -552,22 +574,16 @@ def _build_per_clip_tts(cfg, clips, cta_cfg):
         text = cta_cfg["text"]
         log_step(f"[TTS] Generating CTA narration: '{text}'")
 
-        tmp_mp3 = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
+        tmp_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav").name
         try:
-            resp = client.audio.speech.create(
-                model="gpt-4o-mini-tts",
-                voice=voice,
-                input=text,
-            )
-            with open(tmp_mp3, "wb") as f:
-                f.write(resp.read())
+            _gemini_tts_to_wav(client, text, voice, tmp_wav)
         except Exception as e:
             log_step(f"[TTS ERROR CTA] {e}")
             cta_tuple = None
         else:
-            tmp_m4a = tmp_mp3.replace(".mp3", ".m4a")
+            tmp_m4a = tmp_wav.replace(".wav", ".m4a")
             subprocess.run(
-                ["ffmpeg", "-y", "-i", tmp_mp3, "-c:a", "aac", "-b:a", "192k", tmp_m4a],
+                ["ffmpeg", "-y", "-i", tmp_wav, "-c:a", "aac", "-b:a", "192k", tmp_m4a],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,

@@ -22,12 +22,15 @@ from config_store import load_config, save_config
 logger = logging.getLogger(__name__)
 
 # -----------------------------------------
-# OpenAI Setup
+# Gemini Setup (via OpenAI-compatible endpoint)
 # -----------------------------------------
-api_key = os.getenv("OPENAI_API_KEY") or os.getenv("open_ai_api_key")
-client: Optional[OpenAI] = OpenAI(api_key=api_key) if api_key else None
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+client: Optional[OpenAI] = (
+    OpenAI(api_key=api_key, base_url=GEMINI_BASE_URL) if api_key else None
+)
 
-TEXT_MODEL = "gpt-4.1-mini"
+TEXT_MODEL = "gemini-2.5-flash"
 
 
 # -----------------------------------------
@@ -461,7 +464,7 @@ def analyze_video(path: str, session: str, label: str = "") -> str:
         ]
 
         resp = client.chat.completions.create(
-            model="gpt-4o",
+            model=TEXT_MODEL,
             messages=prompt,
             max_tokens=80,
             temperature=0.2
@@ -756,7 +759,7 @@ def apply_overlay(
     # REWRITE MODE
     # -----------------------------------------
     if client is None:
-        log_step("[OVERLAY] No OpenAI client — skipping rewrite")
+        log_step("[OVERLAY] No Gemini client — skipping rewrite")
         return
 
     original_text = yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True)
@@ -841,7 +844,7 @@ def apply_smart_timings(session: str, pacing: str = "standard") -> None:
         return
 
     if client is None:
-        log_step("[TIMINGS] No OpenAI client — skipping")
+        log_step("[TIMINGS] No Gemini client — skipping")
         return
 
     original_text = yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True)

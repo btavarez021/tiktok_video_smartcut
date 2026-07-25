@@ -31,7 +31,7 @@ last_clip:
 # ---------------------------
 render:
   tts_enabled: true
-  tts_voice: alloy
+  tts_voice: Kore
   fg_scale_default: 0.95
 
   # NEW MUSIC SYSTEM (correct)
