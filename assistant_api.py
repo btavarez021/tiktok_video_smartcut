@@ -578,17 +578,37 @@ VARIANT_PATTERNS = [
     "sensory_experience",
 ]
 
-GENERIC_CREATOR_PHRASES = [
+# -----------------------------------------------------------------
+# Canonical banned/overused "creator cliché" phrase bank.
+#
+# Consolidated from what used to be 4 separate, overlapping lists
+# (GENERIC_CREATOR_PHRASES, GLOBAL_OVERUSED_PHRASES,
+# REPETITIVE_CREATOR_PHRASES, REPETITIVE_SYSTEM_PHRASES). Several phrases
+# (e.g. "owns the space", "changes everything", "shifts everything")
+# were duplicated across those lists but only enforced in some scoring
+# paths. This single list is now the source of truth used everywhere
+# (hook scoring and caption/variant body scoring), so a banned phrase is
+# banned consistently instead of depending on which list happened to
+# include it.
+#
+# Old names are kept as aliases below for readability at call sites.
+# -----------------------------------------------------------------
+BANNED_CREATOR_PHRASES = [
     "hits different",
     "sets the tone",
     "pure power",
     "next level",
     "good vibes",
     "vibes",
+    "vibe",
+    "vibe is",
     "energy",
     "game changer",
     "totally unreal",
     "owns the space",
+    "owns the scene",
+    "owns its space",
+    "owns every step",
     "calm intensity",
     "unmatched energy",
     "main character energy",
@@ -600,27 +620,39 @@ GENERIC_CREATOR_PHRASES = [
     "draws you in",
     "tells its own story",
     "story unfolding",
-]
-
-GLOBAL_OVERUSED_PHRASES = [
-    "owns the space",
-    "owns the scene",
-    "owns every step",
     "changes everything",
+    "changes the whole pace",
+    "changes the atmosphere",
     "shifts everything",
     "whole mood",
     "whole scene",
     "whole rhythm",
     "calm energy",
+    "calm and focused",
+    "calm presence",
     "pure vibe",
-    "vibe is",
+    "pure confidence",
     "effortless flow",
     "raw and refined",
     "quiet power",
-    "changes the atmosphere",
+    "quiet strength",
     "totally chill",
     "grounded power",
+    "pulls you in",
+    "steady and strong",
+    "steady rhythm",
+    "cuts through grass",
+    "holds ground",
+    "framed by",
+    "slow walk",
 ]
+
+# Aliases for backward-compatible call sites — all reference the same
+# canonical list above.
+GENERIC_CREATOR_PHRASES = BANNED_CREATOR_PHRASES
+GLOBAL_OVERUSED_PHRASES = BANNED_CREATOR_PHRASES
+REPETITIVE_CREATOR_PHRASES = BANNED_CREATOR_PHRASES
+REPETITIVE_SYSTEM_PHRASES = BANNED_CREATOR_PHRASES
 
 ABSTRACT_CINEMATIC_PHRASES = [
     "quiet roar",
@@ -644,37 +676,6 @@ VAGUE_ABSTRACT_NOUNS = [
     "the atmosphere",
     "this journey",
     "the journey",
-]
-
-REPETITIVE_CREATOR_PHRASES = [
-    "pulls you in",
-    "quiet strength",
-    "calm energy",
-    "owns every step",
-    "changes the whole pace",
-    "pure confidence",
-    "steady and strong",
-    "calm and focused",
-    "owns the space",
-    "changes everything",
-    "shifts everything",
-    "whole mood",
-    "whole rhythm",
-]
-
-REPETITIVE_SYSTEM_PHRASES = [
-    "owns its space",
-    "owns the space",
-    "vibe",
-    "calm presence",
-    "pulls you in",
-    "steady rhythm",
-    "cuts through grass",
-    "holds ground",
-    "framed by",
-    "slow walk",
-    "shifts everything",
-    "changes everything",
 ]
 
 CONTEXT_WEAK_HOOK_TERMS = {
