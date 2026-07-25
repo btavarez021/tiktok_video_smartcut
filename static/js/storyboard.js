@@ -259,6 +259,8 @@ async function loadConfigAndYaml() {
   // ⬇️ ADD THIS
   saveStoryboardOrder({ silent: true });
 
+  maybeReportStoryboardOverride();
+
   refreshAfterChange();
 
 
@@ -330,6 +332,37 @@ async function loadConfigAndYaml() {
   }
 
 
+  // ================================
+  // Storyboard-order feedback loop
+  // ================================
+  function sendStoryboardFeedback(action, extra = {}) {
+    jsonFetch("/api/storyboard_feedback", {
+      method: "POST",
+      body: JSON.stringify({
+        session: getActiveSession(),
+        action,
+        ...extra
+      })
+    }).catch(err => console.warn("storyboard feedback failed:", err));
+  }
+
+  function maybeReportStoryboardOverride() {
+    const lastSuggested = window.appState?.storyboard?.lastSuggestedOrderFiles;
+    if (!lastSuggested) return;
+
+    const currentFiles = (workingClipOrder || []).map(c => c.file);
+
+    if (currentFiles.join("|") === lastSuggested.join("|")) return;
+
+    sendStoryboardFeedback("overridden", {
+      suggested_order: lastSuggested,
+      applied_order: currentFiles
+    });
+
+    // Only report the first divergence per suggestion
+    window.appState.storyboard.lastSuggestedOrderFiles = null;
+  }
+
   async function suggestStoryboardOrder() {
   try {
     setStatus("storyboardStatus", "AI suggesting better clip order…", "working", false);
@@ -359,6 +392,13 @@ async function loadConfigAndYaml() {
       setStatus("storyboardStatus", "No order suggestion available", "info");
       return;
     }
+
+    sendStoryboardFeedback("suggested", {
+      changed: orderChanged,
+      suggested_order: suggestedFiles
+    });
+    window.appState.storyboard.lastSuggestedOrderFiles =
+      orderChanged ? suggestedFiles : null;
 
     workingClipOrder = suggested;
     clipOrderDirty = true;

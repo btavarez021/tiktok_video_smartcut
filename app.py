@@ -49,6 +49,7 @@ from assistant_api import (
     api_generate_variants,
     reorder_storyboard,
     record_variant_feedback,
+    record_storyboard_feedback,
     AGG_PATH,
     api_ai_setup_summary,
     api_analyze_status,
@@ -339,6 +340,11 @@ def feedback_aggregates():
         return jsonify({}), 200
     with open(AGG_PATH, "r", encoding="utf-8") as f:
         return jsonify(json.load(f)), 200
+
+@app.route("/api/storyboard_feedback", methods=["POST"])
+def storyboard_feedback():
+    payload = request.get_json(force=True) or {}
+    return jsonify(record_storyboard_feedback(payload)), 200
 
 @app.route("/api/edit_strategy")
 def route_edit_strategy():

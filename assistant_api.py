@@ -51,6 +51,8 @@ logger = logging.getLogger(__name__)
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 EVENTS_PATH = os.path.join(DATA_DIR, "feedback_events.jsonl")
 AGG_PATH = os.path.join(DATA_DIR, "feedback_aggregates.json")
+STORYBOARD_EVENTS_PATH = os.path.join(DATA_DIR, "storyboard_feedback_events.jsonl")
+STORYBOARD_AGG_PATH = os.path.join(DATA_DIR, "storyboard_feedback_aggregates.json")
 
 ANALYSIS_JOBS: dict[str, dict] = {}
 VARIANT_JOBS: dict[str, dict] = {}
@@ -1424,6 +1426,27 @@ def _load_aggregates():
         return {}
 
 
+def _ensure_storyboard_feedback_files():
+    os.makedirs(DATA_DIR, exist_ok=True)
+    if not os.path.exists(STORYBOARD_EVENTS_PATH):
+        with open(STORYBOARD_EVENTS_PATH, "a", encoding="utf-8") as f:
+            pass
+    if not os.path.exists(STORYBOARD_AGG_PATH):
+        with open(STORYBOARD_AGG_PATH, "w", encoding="utf-8") as f:
+            f.write("{}")
+
+
+def _load_storyboard_aggregates():
+    if not os.path.exists(STORYBOARD_AGG_PATH):
+        return {}
+
+    try:
+        with open(STORYBOARD_AGG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
 def get_feedback_adjustment(
     intent: str,
     tone: str,
@@ -1784,6 +1807,74 @@ def record_variant_feedback(payload: dict):
         "stored": event,
         "aggregate_key": f"{event['intent']}||{event['tone']}"
     }
+
+
+def _update_storyboard_aggregate(aggs, event):
+    context = event.get("content_context") or "unknown"
+    action = event.get("action") or "suggested"
+
+    if context not in aggs:
+        aggs[context] = {
+            "content_context": context,
+            "suggested": 0,
+            "suggested_no_change": 0,
+            "overridden": 0,
+            "last_updated": None,
+        }
+
+    row = aggs[context]
+
+    if action == "suggested":
+        if event.get("changed", True):
+            row["suggested"] += 1
+        else:
+            row["suggested_no_change"] += 1
+    elif action == "overridden":
+        row["overridden"] += 1
+
+    row["last_updated"] = _utc_iso()
+
+
+def record_storyboard_feedback(payload: dict) -> dict:
+    """
+    Tracks whether the AI-suggested storyboard clip order was kept or
+    manually overridden afterward, aggregated by content_context.
+
+    Mirrors record_variant_feedback's event-log + aggregate pattern:
+    - action="suggested"  -> AI proposed a new order (changed=True/False)
+    - action="overridden" -> user manually reordered clips after a
+                             suggestion had just been applied
+
+    A suggestion with no later "overridden" event for that session is
+    implicitly a "kept" suggestion — no separate event is needed for that.
+    """
+    _ensure_storyboard_feedback_files()
+
+    session = sanitize_session(payload.get("session") or "unknown")
+    action = payload.get("action") or "suggested"
+    if action not in ("suggested", "overridden"):
+        action = "suggested"
+
+    event = {
+        "session": session,
+        "content_context": get_content_context(session),
+        "action": action,
+        "changed": bool(payload.get("changed", True)),
+        "suggested_order": payload.get("suggested_order") or [],
+        "applied_order": payload.get("applied_order") or [],
+        "timestamp": _utc_iso(),
+    }
+
+    with _feedback_lock:
+        with open(STORYBOARD_EVENTS_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(event) + "\n")
+
+        aggs = _load_storyboard_aggregates()
+        _update_storyboard_aggregate(aggs, event)
+        _atomic_write_json(STORYBOARD_AGG_PATH, aggs)
+
+    return {"ok": True, "stored": event}
+
 
 def score_hook_subject_bonus(hook: str, subject_weights: dict[str, int] | list[str] | None = None) -> int:
     """
