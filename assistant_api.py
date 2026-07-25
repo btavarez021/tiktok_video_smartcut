@@ -1366,7 +1366,7 @@ client = OpenAI(api_key=api_key, base_url=GEMINI_BASE_URL) if api_key else None
 if not client:
     log_step("[GEMINI] API key missing — AI features disabled.")
 
-TEXT_MODEL = "gemini-2.5-flash"
+TEXT_MODEL = "gemini-3.6-flash"
 
 # -------------------------------
 # Helpers

@@ -438,7 +438,7 @@ STYLE_PRESETS = {
 # 5. TTS / MUSIC / AUDIO MIX
 # ============================================================
 
-GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts"
+GEMINI_TTS_MODEL = "gemini-3.1-flash-tts-preview"
 
 def _gemini_tts_to_wav(client, text: str, voice: str, out_path: str) -> None:
     """
