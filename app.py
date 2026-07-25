@@ -51,6 +51,7 @@ from assistant_api import (
     record_variant_feedback,
     record_storyboard_feedback,
     AGG_PATH,
+    STORYBOARD_AGG_PATH,
     api_ai_setup_summary,
     api_analyze_status,
     api_generate_variants_start,
@@ -345,6 +346,13 @@ def feedback_aggregates():
 def storyboard_feedback():
     payload = request.get_json(force=True) or {}
     return jsonify(record_storyboard_feedback(payload)), 200
+
+@app.route("/api/storyboard_feedback_aggregates", methods=["GET"])
+def storyboard_feedback_aggregates():
+    if not os.path.exists(STORYBOARD_AGG_PATH):
+        return jsonify({}), 200
+    with open(STORYBOARD_AGG_PATH, "r", encoding="utf-8") as f:
+        return jsonify(json.load(f)), 200
 
 @app.route("/api/edit_strategy")
 def route_edit_strategy():
