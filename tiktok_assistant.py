@@ -466,7 +466,7 @@ def analyze_video(path: str, session: str, label: str = "") -> str:
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
             messages=prompt,
-            max_tokens=80,
+            max_tokens=300,
             temperature=0.2
         )
 

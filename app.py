@@ -490,7 +490,7 @@ def api_hook_boost():
     intent = data.get("intent", "discovery")
 
     try:
-        text = boost_hook(hook, intent)
+        text = boost_hook(session, hook, intent)
         return jsonify({"status": "ok", "text": text})
 
     except Exception as e:
