@@ -2578,6 +2578,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
             - No filler intros
             - Do NOT summarize the whole reel
             - Do NOT sound corporate
+            - Do NOT assume or invent the time of day (morning, afternoon, night, etc.) unless explicitly stated
             - Do NOT use weak generic phrases unless made highly specific:
             "wait until you see"
             "you won’t believe"
