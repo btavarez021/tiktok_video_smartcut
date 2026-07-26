@@ -97,16 +97,6 @@ async function loadEditStrategy(force=false) {
 
       list.innerHTML = "Analyzing edit…";
 
-      if (!items.length) {
-        list.innerHTML = `
-          <div class="director-success">
-            🎯 All major issues resolved — you're optimized.
-          </div>
-        `;
-        panel.classList.remove("hidden");
-        return;
-      }
-
       // ================================
       // Smart next action
       // ================================
@@ -119,6 +109,19 @@ async function loadEditStrategy(force=false) {
           impact: "high",
           action: "Review the AI-suggested storyboard sequence before polishing captions."
         });
+      }
+
+      if (!items.length) {
+        list.innerHTML = `
+          <div class="director-success">
+            🎯 All major issues resolved — you're optimized.
+          </div>
+        `;
+        panel.classList.remove("hidden");
+        renderPublishReadyState(creativeState);
+        renderEditProgress();
+        document.body.classList.toggle("readiness-ready", creativeState.publish_ready);
+        return;
       }
       const primaryFocus = creativeState.primary_focus;
       const nextMove =
@@ -143,7 +146,6 @@ async function loadEditStrategy(force=false) {
       // ================================
       // Render
       // ================================
-      const renderState = creativeState;
       list.classList.add("fade-refresh");
 
       setTimeout(() => {
@@ -251,7 +253,6 @@ async function loadEditStrategy(force=false) {
       }, 120);
 
       panel.classList.remove("hidden");
-      creativeState = evaluateCreativeState();
       renderPublishReadyState(creativeState);
       renderEditProgress();
       document.body.classList.toggle("readiness-ready", creativeState.publish_ready);
