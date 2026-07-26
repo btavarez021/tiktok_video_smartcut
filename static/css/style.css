@@ -4715,3 +4715,38 @@ body.no-scroll {
   border: 1px solid rgba(245, 158, 11, 0.4);
   color: #fbbf24;
 }
+
+/* ================================
+   UTILITY CLASSES
+   (extracted from inline styles in index.html)
+================================ */
+.mb-6 { margin-bottom: 6px; }
+.mt-6 { margin-top: 6px; }
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.fs-18 { font-size: 18px; }
+
+.subtitle-decoration {
+  opacity: .65;
+  font-size: .8em;
+}
+
+.preview-wrapper-centered {
+  text-align: center;
+  margin-top: 24px;
+}
+
+.preview-heading {
+  opacity: .75;
+  margin-bottom: 8px;
+}
+
+.preview-actions {
+  margin-top: 12px;
+}
+
+.btn-delete-danger {
+  margin-top: 12px;
+  color: #ff6b6b;
+}

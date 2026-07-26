@@ -70,12 +70,12 @@
 
 <button class="step" data-target="#step-2">
 <span class="step-index">2</span>
-<span class="step-label">Storyboard YAML</span>
+<span class="step-label">YAML Config</span>
 </button>
 
 <button class="step" data-target="#step-3">
 <span class="step-index">3</span>
-<span class="step-label">Captions</span>
+<span class="step-label">Order & Captions</span>
 </button>
 
 <button class="step" data-target="#step-4">
@@ -225,7 +225,7 @@
                 <!-- Section Label -->
                 <h3 class="section-label">2. Manage Uploads</h3>
 
-                <div class="hint-text" id="uploadManagerSessionLabel" style="margin-bottom: 6px;">
+                <div class="hint-text mb-6" id="uploadManagerSessionLabel">
                     Session: <strong id="uploadManagerSession"></strong>
                 </div>
 
@@ -318,7 +318,7 @@
         <div class="session-tag active-session-tag"> Session: <span class="sessionLabel"></span></div>
 
         <h2>
-            Step 2 · Generate Storyboard YAML
+            Step 2 · Generate YAML Config
             <span class="tooltip">ⓘ
                 <span class="tooltiptext">
                     YAML controls the structure of your reel:<br>
@@ -334,6 +334,7 @@
 
         <p class="card-subtitle">
             Build <code>config.yml</code> using AI analyses from Step 1.
+            Prefer a visual editor? Reorder clips in <b>Step 3 · Order & Captions</b>.
         </p>
     </div>
 
@@ -368,7 +369,7 @@
             <div class="split-panel" id="yamlPreviewWrapper">
 
             <!-- Mobile toggle button (hidden on desktop) -->
-            <button id="toggleYamlPreviewBtn" class="btn ghost small" style="display:none;">
+            <button id="toggleYamlPreviewBtn" class="btn ghost small hidden">
                 ▼ Show Parsed Preview
             </button>
 
@@ -399,14 +400,14 @@
         <div class="session-tag active-session-tag"> Session: <span class="sessionLabel"></span></div>
 
         <h2>
-        Step 3 · AI Optimization Studio
-        <span style="opacity:.65;font-size:.8em;">
+        Step 3 · Clip Order & AI Optimization Studio
+        <span class="subtitle-decoration">
             🎬 Turn ideas into scroll-stopping performance
         </span>
         </h2>
 
         <p class="card-subtitle">
-        Refine or rewrite AI captions before rendering.
+        Reorder clips, then refine or rewrite AI captions before rendering.
         </p>
     </div>
 
@@ -470,7 +471,7 @@
         <textarea id="captionsText" class="textarea" rows="12"></textarea>
 
         <!-- Step 3 — Caption Changes (live) -->
-        <div id="captionCompareWrapper" class="step4-caption-panel" style="margin-top:16px;">
+        <div id="captionCompareWrapper" class="step4-caption-panel mt-16">
 
         <div class="caption-diff-header">
             <span>Caption Changes</span>
@@ -496,7 +497,7 @@
 <div class="storyboard-panel">
 
   <h3 class="storyboard-title">
-    🎬 Storyboard Order
+    🎬 Clip Order
     <span class="tooltip">ⓘ
       <span class="tooltiptext">
         Adjust clip order to control story flow.<br>
@@ -786,8 +787,7 @@
           </strong>
 
           <span id="hookScoreValue"
-                class="hook-score-value clickable"
-                style="font-size:18px;">
+                class="hook-score-value clickable fs-18">
             –/100
           </span>
           <div id="hookScoreLabel" class="score-label"></div>
@@ -851,8 +851,7 @@
           </strong>
 
           <span id="storyFlowScoreValue"
-                class="story-flow-value"
-                style="font-size:18px;">
+                class="story-flow-value fs-18">
             –/100
           </span>
           <div id="storyFlowScoreLabel" class="score-label"></div>
@@ -915,7 +914,7 @@
         <div class="session-tag active-session-tag"> Session: <span class="sessionLabel"></span></div>
 
         <h2>
-            Step 4 · Delivery & Style <span style="opacity:.65;font-size:.8em;">🎬 How it’s presented</span>
+            Step 4 · Delivery & Style <span class="subtitle-decoration">🎬 How it’s presented</span>
 
             <span class="tooltip">ⓘ
                 <span class="tooltiptext">
@@ -1076,9 +1075,9 @@
                 <hr class="soft-divider">
 
                 <!-- 4️⃣ LIVE PREVIEW -->
-                <div id="overlayPreviewWrapper" style="text-align:center;margin-top:24px;">
+                <div id="overlayPreviewWrapper" class="preview-wrapper-centered">
 
-                <h4 style="opacity:.75;margin-bottom:8px;">Live Overlay Preview</h4>
+                <h4 class="preview-heading">Live Overlay Preview</h4>
                 <p class="hint-text">
                 Preview shows <b>visual styling only</b> (font, layout, animation).<br>
                 Caption wording updates only after clicking <b>Apply Overlay & Style</b>.
@@ -1091,7 +1090,7 @@
                     </div>
                 </div>
 
-                <div class="preview-actions" style="margin-top:12px;">
+                <div class="preview-actions">
                     <button id="previewFast" class="btn small">⚡ Fast Preview</button>
                     <button id="previewFull" class="btn small ghost">🎥 Full Preview</button>
                 </div>
@@ -1099,7 +1098,7 @@
 
                 <!-- 5️⃣ APPLY -->
                     <p>All other settings in this step save automatically</p>
-                <button id="applyOverlayBtn" class="btn secondary full" style="margin-top:24px;">
+                <button id="applyOverlayBtn" class="btn secondary full mt-24">
                 ✨ Apply Overlay & Style
                 <span class="tooltip">ⓘ
                 <span class="tooltiptext tooltip-wide">
@@ -1108,7 +1107,7 @@
                 </span>
                 </span>
                 </button>
-                <p class="hint-text subtle" style="margin-top:6px;">
+                <p class="hint-text subtle mt-6">
                 Applies visual style & rewrites captions (if enabled)
                 </p>
 
@@ -1317,7 +1316,7 @@
                     <option value="">– No music –</option>
                 </select>
 
-                <label class="field-label" style="margin-top:8px;">Volume</label>
+                <label class="field-label mt-8">Volume</label>
                 <input id="musicVolume" type="range" min="0" max="1" step="0.05" value="0.25" />
                 <div class="range-value"><span id="musicVolumeLabel">0.25</span></div>
 
@@ -1505,14 +1504,12 @@ STEP 5
         </div>
 
         <button id="sidebarRenameBtn"
-        class="btn ghost full"
-        style="margin-top:6px;">
+        class="btn ghost full mt-6">
             ✏️ Rename Active Session
         </button>
 
         <button id="sidebarDeleteBtn"
-        class="btn ghost full"
-        style="margin-top:12px;color:#ff6b6b;">
+        class="btn ghost full btn-delete-danger">
         Delete Active Session
         </button>
 
