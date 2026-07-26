@@ -321,7 +321,9 @@ def escape_drawtext(text: str) -> str:
     
     # 2) Escape only characters FFmpeg needs escaped
     t = t.replace("\\", "\\\\")     # ESCAPE backslashes
-    t = t.replace("'", "\\'")       # ESCAPE single quotes
+    
+    # Use smart quote to bypass FFmpeg's complex single quote escaping nightmare
+    t = t.replace("'", "\u2019")    
     t = t.replace("%", "\\\\%") 
     
     # 3) Restore as literal \n (NOT double escaped)
