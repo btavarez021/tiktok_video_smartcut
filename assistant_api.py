@@ -2612,13 +2612,23 @@ def api_generate_hooks(session: str, intent: str | None = None):
             FIRST SUBJECT RULE:
 
             - The first clip contains the primary subject for the hook.
-            - At least 6 of the 8 hooks MUST reference or clearly relate to the first clip subject.
-            - Do not switch focus to subjects that appear later in the storyboard.
-            - Later animals or scenes may support the hook, but should not become the main hook topic.
-            - If the first clip contains a gorilla, most hooks should be about the gorilla.
-            - If the first clip contains a lion, most hooks should be about the lion.
-            - If the first clip contains a tiger, most hooks should be about the tiger.
-            - If the first clip contains a rhino, most hooks should be about the rhino.
+            - At least 4 of the 8 hooks MUST reference or clearly relate to the first clip subject.
+            - The remaining hooks may draw on other clips or the reel as a whole, as long as they still work as an opening line.
+            - Do not invent a completely unrelated topic that has no connection to the reel.
+
+            HOOK STRATEGY DIVERSITY RULE:
+
+            - Each of the 8 hooks should come from a DIFFERENT angle. Do not generate 8 variations of the same idea.
+            - Rotate across these strategies (skip any that don't fit the footage):
+                1. Curiosity gap / open question
+                2. Exclusivity or "you get this to yourself" framing
+                3. Contrast or surprise ("most people assume X, but...")
+                4. Status / elevated experience
+                5. Personal discovery ("I didn't expect...")
+                6. Sensory / atmosphere detail
+                7. Practical payoff ("the best part is...")
+                8. Direct, confident statement
+                - Do not repeat the same sentence structure or opening word across multiple hooks.
 
             HOOK HONESTY RULE:
             - only use hooks about secrets, hidden details, reveals, twists, or surprises if the first clip clearly supports that kind of payoff
@@ -2630,19 +2640,14 @@ def api_generate_hooks(session: str, intent: str | None = None):
 
             VISUAL GROUNDING RULE:
 
-            - Hooks should reference real visible qualities from the reel whenever possible.
             - Prefer visible details like:
-            movement, greenery, pathways, rocks, walls, fencing, enclosure design,
-            proximity, pacing, scale, texture, or animal movement.
-            - Avoid overly abstract cinematic language that could apply to any reel.
-            - The viewer should still recognize the actual footage from the hook.
-            - Context may shape tone, but visible details should anchor the hook.
+            movement, lighting, textures, layout, furnishings, scale, distance, and pacing.
 
             VISIBLE SUBJECT ANCHOR RULE:
 
             - Do not remove the main visible subject completely.
-            - At least some hooks should reference visible anchors from the reel:
-            tiger, lion, rhino, gorilla, animals, greenery, enclosure, grass, rocks, wall, path.
+            - At least some hooks should reference visible anchors from the reel
+            (the actual objects, furnishings, or setting details that are visible).
             - Avoid replacing the actual scene with vague words like:
             "space", "moment", "energy", "atmosphere", "journey"
             unless paired with a visible detail.
@@ -2652,7 +2657,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
             "How this space transforms every step you take"
 
             BETTER:
-            "How every animal path changes the atmosphere here"
+            "How this one empty room changes the whole feel of the stay"
 
             OBSERVATIONAL HOOK QUALITY RULE:
             - Avoid weak observational starters like "notice how" or "watch how" unless they include a clear curiosity gap
@@ -2664,31 +2669,28 @@ def api_generate_hooks(session: str, intent: str | None = None):
             - avoid abstract claims unless the footage visibly supports them
             - do not force “secret”, “hidden”, “surprising”, “powerful”, “commands”, or similar language unless the first clip clearly earns it
 
-            ANIMAL BEHAVIOR RULE:
+            VISIBLE ACTION RULE:
 
-            Do not invent animal actions that are not visible.
+            Do not invent actions, behavior, or intent that are not visible in the footage.
 
             Bad:
-            - hunting
-            - searching
-            - circling
-            - tracking
-            - guarding
-            - claiming territory
+            - hunting for
+            - searching for
+            - plotting
+            - claiming
             - planning
             - watching over
+            - guarding
 
             Good:
+            - sitting
             - standing
             - walking
-            - moving
-            - pacing
             - resting
-            - looking
-            - approaching
-            - near a wall
-            - near trees
-            - beside fencing
+            - overlooking
+            - facing
+            - near a window
+            - beside the bar
             
             HOOK PRIORITY:
             1. First clip visual moment
