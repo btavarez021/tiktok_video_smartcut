@@ -358,6 +358,8 @@ if (workingClipOrder.length) {
     console.error("Failed to save auto-selected hook:", err);
   }
 
+  if (typeof checkVariantsStaleness === "function") checkVariantsStaleness();
+
   await refreshAfterChange();
 }
 
@@ -537,6 +539,8 @@ function updateHookLockUI() {
 
     if (diff > 0) {
       toast?.(`⬆ Improved by ${diff} points`);
+      window.appState.hook.selected = newHook;
+      if (typeof checkVariantsStaleness === "function") checkVariantsStaleness();
     } else if (diff < 0) {
       // 🚨 REVERT
       if (editor) editor.value = beforeBoost;
@@ -628,6 +632,8 @@ async function autoBoostSelectedHook() {
     window.appState.hook.locked = true;
     window.appState.hook.userSelected = false;
     updateHookLockUI();
+
+    if (typeof checkVariantsStaleness === "function") checkVariantsStaleness();
 
     // force Step 3 editor to show the committed text
     captionViewMode = "rewritten";

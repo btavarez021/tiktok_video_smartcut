@@ -77,7 +77,8 @@ window.appState = {
     modes: window.appState?.variants?.modes || {},
     list: window.appState?.variants?.list || [],
     recommendedId: window.appState?.variants?.recommendedId || null,
-    generating: window.appState?.variants?.generating || false
+    generating: window.appState?.variants?.generating || false,
+    generatedForHook: window.appState?.variants?.generatedForHook || null
   },
 
   captions: {

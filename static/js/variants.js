@@ -1,6 +1,28 @@
+function checkVariantsStaleness() {
+  const hint = document.getElementById("variantsStaleHint");
+  if (!hint) return;
+
+  const generatedFor = window.appState?.variants?.generatedForHook;
+  const currentHook = window.appState?.hook?.selected;
+  const hasVariants = Array.isArray(window.appState?.variants?.list) &&
+    window.appState.variants.list.length > 0;
+
+  const isStale =
+    hasVariants &&
+    !!generatedFor &&
+    !!currentHook &&
+    generatedFor.trim() !== currentHook.trim();
+
+  hint.classList.toggle("hidden", !isStale);
+}
+
 async function generateVariantsAsync(modes, selectedHook) {
 
   lastVariantStatus = null;
+
+  window.appState.variants = window.appState.variants || {};
+  window.appState.variants.generatedForHook = selectedHook || null;
+  document.getElementById("variantsStaleHint")?.classList.add("hidden");
 
     // 🔒 Lock button
     const btn = document.getElementById("generateVariantsBtn");
@@ -734,6 +756,12 @@ function updateVariantModeAvailability() {
 function initVariantListeners() {
   if (variantsInitialized) return;
   variantsInitialized = true;
+
+  document
+    .getElementById("regenerateVariantsFromStaleBtn")
+    ?.addEventListener("click", () => {
+      document.getElementById("generateVariantsBtn")?.click();
+    });
 
   document
     .getElementById("generateVariantsBtn")
