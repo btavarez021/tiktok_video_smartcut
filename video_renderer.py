@@ -1118,26 +1118,6 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     cta_cfg = cfg.get("cta", {}) or {}
     tts_tracks, cta_tts_track = _build_per_clip_tts(cfg, clips, cta_cfg)
 
-    # Ensure each clip is long enough to contain its narration
-    for i, clip in enumerate(clips):
-        tts_entry = tts_tracks[i] if i < len(tts_tracks) else None
-        if not tts_entry or not isinstance(tts_entry, tuple):
-            continue
-
-        tts_path, tts_dur = tts_entry
-        if not tts_path or not tts_dur:
-            continue
-
-        needed = float(tts_dur) + 1.0  # small safety padding
-        if needed > clip["duration"]:
-            log_step(
-                f"[A1a] Extending clip {i+1} "
-                f"duration from {clip['duration']:.2f}s → {needed:.2f}s"
-            )
-            clip["duration"] = needed
-
-    base_video_duration = sum(clip["duration"] for clip in clips)
-
     # -----------------------------------------
     # CTA CONFIG — we draw CTA on *last clip*
     # -----------------------------------------
@@ -1173,6 +1153,32 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
     if cta_enabled and raw_cta_text:
         cta_segment_len = max(float(cta_config_dur or 1.5), float(cta_voice_dur or 0), 1.5)
 
+    # Ensure each clip is long enough to contain its narration
+    for i, clip in enumerate(clips):
+        is_last = (i == len(clips) - 1)
+        tts_entry = tts_tracks[i] if i < len(tts_tracks) else None
+        
+        tts_dur = 0.0
+        if tts_entry and isinstance(tts_entry, tuple):
+            tts_path, dur = tts_entry
+            if tts_path and dur:
+                tts_dur = float(dur)
+
+        needed = tts_dur + 1.0  # small safety padding
+        
+        # If it's the last clip and we have a CTA, extend enough for both TTS + CTA
+        if is_last and cta_segment_len > 0.0:
+            needed = tts_dur + 0.1 + cta_segment_len
+            
+        if needed > clip["duration"]:
+            log_step(
+                f"[A1a] Extending clip {i+1} "
+                f"duration from {clip['duration']:.2f}s → {needed:.2f}s"
+            )
+            clip["duration"] = needed
+
+    base_video_duration = sum(clip["duration"] for clip in clips)
+
     # We'll decide CTA *visual* window on the last clip only.
     last_clip_cta_start_rel: Optional[float] = None
     last_clip_cta_visual_len: float = 0.0
@@ -1180,13 +1186,27 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
         last_clip = clips[-1]
         clip_dur = float(last_clip["duration"])
 
+        # Find when the last clip's TTS ends
+        last_clip_tts_dur = 0.0
+        if len(tts_tracks) > 0 and tts_tracks[-1] and isinstance(tts_tracks[-1], tuple):
+            _, dur = tts_tracks[-1]
+            if dur:
+                last_clip_tts_dur = float(dur)
+
         # Give CTA enough time to be seen/read
         last_clip_cta_visual_len = min(
             cta_segment_len,
             clip_dur,
             3.0
         )
-        last_clip_cta_start_rel = max(clip_dur - last_clip_cta_visual_len, clip_dur * 0.75)
+        
+        # Ensure CTA starts after TTS
+        min_start_time = max(clip_dur * 0.75, last_clip_tts_dur + 0.1)
+        last_clip_cta_start_rel = max(clip_dur - last_clip_cta_visual_len, min_start_time)
+        
+        # Guardrail just in case
+        if last_clip_cta_start_rel >= clip_dur:
+            last_clip_cta_start_rel = max(0.0, clip_dur - 1.0)
         
 
         log_step(
