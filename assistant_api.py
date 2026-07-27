@@ -2579,6 +2579,7 @@ def api_generate_hooks(session: str, intent: str | None = None):
             - Do NOT summarize the whole reel
             - Do NOT sound corporate
             - Do NOT assume or invent the time of day (morning, afternoon, night, etc.) unless explicitly stated
+            - Do NOT fixate on a space being "empty" or "quiet". If a space is empty, frame it positively as "private access", "exclusive", or "having it all to yourself".
             - Do NOT use weak generic phrases unless made highly specific:
             "wait until you see"
             "you won’t believe"
