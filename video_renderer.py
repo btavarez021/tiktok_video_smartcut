@@ -56,8 +56,8 @@ def load_render_config(session_id: str) -> Dict[str, Any]:
         raise RuntimeError("config.yml missing or empty")
 
     render = cfg.setdefault("render", {})
-    render.setdefault("captions_mode", "all")
-    render.setdefault("narration_mode", "first_only")
+    captions_mode = render.setdefault("captions_mode", "all")
+    render.setdefault("narration_mode", captions_mode)
 
     return cfg
 
