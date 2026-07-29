@@ -1462,21 +1462,43 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             cmd += ["-i", inp["path"]]
 
         filter_parts = []
-        mix_labels = []
+        
+        has_music = (music_audio is not None)
+        voiceover_labels = []
 
         for idx, inp in enumerate(audio_inputs):
             delay_ms = int(round(inp["start"] * 1000))
             filter_parts.append(
                 f"[{idx}:a]adelay={delay_ms}|{delay_ms},volume={inp['volume']}[a{idx}]"
             )
-            mix_labels.append(f"[a{idx}]")
+            
+            if has_music and idx == 0:
+                pass  # It's the music track
+            else:
+                voiceover_labels.append(f"[a{idx}]")
 
-        full_filter = (
-            "; ".join(filter_parts)
-            + "; "
-            + "".join(mix_labels)
-            + f"amix=inputs={len(audio_inputs)}:normalize=0[outa]"
-        )
+        if voiceover_labels:
+            if len(voiceover_labels) > 1:
+                filter_parts.append(
+                    "".join(voiceover_labels) + f"amix=inputs={len(voiceover_labels)}:normalize=0[v_mix]"
+                )
+            else:
+                filter_parts.append(f"{voiceover_labels[0]}anull[v_mix]")
+
+        if has_music and voiceover_labels:
+            # Ducking: Sidechain compress the music [a0] using the voiceover [v_mix]
+            # Split the voiceover track so it can be used for both the sidechain and the final mix
+            filter_parts.append("[v_mix]asplit=2[v_mix_main][v_mix_sc]")
+            # Apply sidechain compression to music
+            filter_parts.append("[a0][v_mix_sc]sidechaincompress=threshold=0.08:ratio=4:attack=200:release=1000[ducked_music]")
+            # Mix the ducked music with the main voiceover
+            filter_parts.append("[ducked_music][v_mix_main]amix=inputs=2:normalize=0[outa]")
+        elif has_music and not voiceover_labels:
+            filter_parts.append("[a0]anull[outa]")
+        elif not has_music and voiceover_labels:
+            filter_parts.append("[v_mix]anull[outa]")
+
+        full_filter = "; ".join(filter_parts)
 
         cmd += [
             "-filter_complex", full_filter,
@@ -1485,7 +1507,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             narration_out,
         ]
 
-        log_step("[AUDIO] Mixing audio tracks…")
+        log_step("[AUDIO] Mixing audio tracks with ducking if needed…")
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         if proc.stderr:
