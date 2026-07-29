@@ -384,7 +384,7 @@ STYLE_PRESETS = {
         "fontsize": 78,             # big & loud
         "line_spacing": 4,
         "box_opacity": "CC",        # stronger contrast
-        "y_expr": "(h * 0.40)",
+        "y_expr": "(h * 0.58)",     # lower to avoid blocking center
         "accent_color": "yellow",   # for future highlight pass
         "emoji_boost": True         # 🔥 if emojis present = spacing tweaked
     },
@@ -393,7 +393,7 @@ STYLE_PRESETS = {
         "fontsize": 54,
         "line_spacing": 18,
         "box_opacity": "DD",        # soft, elegant opacity
-        "y_expr": "(h * 0.60)",
+        "y_expr": "(h * 0.65)",     # lower for cinematic look
         "font_color": "white",
         "shadow_strength": 0.85     # deeper shadow for film look
     },
@@ -402,7 +402,7 @@ STYLE_PRESETS = {
         "fontsize": 66,
         "line_spacing": 10,
         "box_opacity": "AA",
-        "y_expr": "(h * 0.48)",
+        "y_expr": "(h * 0.60)",     # lower for influencer style
         "bubble": True,             # future bubble background mode
         "emoji_boost": True
     },
@@ -411,7 +411,7 @@ STYLE_PRESETS = {
         "fontsize": 62,
         "line_spacing": 14,
         "box_opacity": "BB",
-        "y_expr": "(h * 0.52)",
+        "y_expr": "(h * 0.62)",
         "serif_hint": False,
         "tone": "warm"
     },
@@ -420,7 +420,7 @@ STYLE_PRESETS = {
         "fontsize": 58,
         "line_spacing": 10,
         "box_opacity": "66",        # subtle background
-        "y_expr": "(h * 0.49)",
+        "y_expr": "(h * 0.60)",
         "tone": "neutral",
         "emoji_boost": False
     },
@@ -429,7 +429,7 @@ STYLE_PRESETS = {
         "fontsize": 68,             # Balanced modern hero style
         "line_spacing": 12,
         "box_opacity": "BB",
-        "y_expr": "(h * 0.46)",
+        "y_expr": "(h * 0.58)",     # lowered to clear center screen
         "accent_color": "teal",
         "smart_balance": True       # perfect for 90% of cases
     },
@@ -1256,13 +1256,25 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
             if not is_last or not (cta_enabled and raw_cta_text and last_clip_cta_start_rel is not None and cta_text_safe):
                 if allow_caption and clip["text"]:
                     clean_text = strip_emojis(clip["text"])
-                    wrapped = _wrap_caption(clean_text, max_chars_per_line=max_chars)
+                    
+                    word_count = len(clean_text.split())
+                    dynamic_fontsize = fontsize
+                    dynamic_max_chars = max_chars
+                    
+                    if word_count > 15:
+                        dynamic_fontsize = int(fontsize * 0.75)
+                        dynamic_max_chars = int(max_chars * 1.3)
+                    elif word_count > 8:
+                        dynamic_fontsize = int(fontsize * 0.85)
+                        dynamic_max_chars = int(max_chars * 1.15)
+                        
+                    wrapped = _wrap_caption(clean_text, max_chars_per_line=dynamic_max_chars)
                     text_safe = escape_drawtext(wrapped)
                     vf += build_caption_filter(
                         input_label="v1",
                         text_safe=text_safe,
                         fontfile=fontfile,
-                        fontsize=fontsize,
+                        fontsize=dynamic_fontsize,
                         line_spacing=line_spacing,
                         box_opacity=box_opacity,
                         boxborderw=boxborderw,
@@ -1283,7 +1295,19 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                 # ---------------------------------------------------------
                 if allow_caption and clip["text"]:
                     clean_text = strip_emojis(clip["text"])
-                    wrapped = _wrap_caption(clean_text, max_chars_per_line=max_chars)
+                    
+                    word_count = len(clean_text.split())
+                    dynamic_fontsize = fontsize
+                    dynamic_max_chars = max_chars
+                    
+                    if word_count > 15:
+                        dynamic_fontsize = int(fontsize * 0.75)
+                        dynamic_max_chars = int(max_chars * 1.3)
+                    elif word_count > 8:
+                        dynamic_fontsize = int(fontsize * 0.85)
+                        dynamic_max_chars = int(max_chars * 1.15)
+                        
+                    wrapped = _wrap_caption(clean_text, max_chars_per_line=dynamic_max_chars)
                     text_safe = escape_drawtext(wrapped)
 
 
@@ -1291,7 +1315,7 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         input_label="v1",
                         text_safe=text_safe,
                         fontfile=fontfile,
-                        fontsize=fontsize,
+                        fontsize=dynamic_fontsize,
                         line_spacing=line_spacing,
                         box_opacity=box_opacity,
                         boxborderw=boxborderw,
