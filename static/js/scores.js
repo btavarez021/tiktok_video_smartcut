@@ -26,7 +26,10 @@
     const captionCount = blocks.length;
 
     const lowerCaptions = captions.toLowerCase();
-    const hasCTA =
+    
+    // Check if CTA is enabled via config, or fallback to text search
+    const hasCTA = 
+      window.appState?.yamlConfig?.cta?.enabled === true ||
       lowerCaptions.includes("follow") ||
       lowerCaptions.includes("subscribe") ||
       lowerCaptions.includes("book");
