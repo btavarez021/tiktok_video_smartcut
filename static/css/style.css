@@ -1968,6 +1968,48 @@ h3 {
   overflow: hidden;
 }
 
+#overlayPreviewMock {
+  width: 270px;
+  height: 480px;
+  border: 12px solid #222;
+  border-radius: 36px;
+  margin: 24px auto;
+  position: relative;
+  background-color: #000;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+  overflow: hidden;
+  isolation: isolate; /* keeps ::after from bleeding out */
+}
+
+#overlayPreviewBox {
+  width: 100%;
+  height: 100%;
+}
+
+#overlayPreviewBox img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* TikTok UI Overlay Mock */
+#overlayPreviewMock::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  background: 
+    /* Bottom gradient for text readability */
+    linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 25%),
+    /* Right side buttons (like, comment, save, share) */
+    radial-gradient(circle at 90% 55%, rgba(255,255,255,0.4) 10px, transparent 11px),
+    radial-gradient(circle at 90% 65%, rgba(255,255,255,0.4) 10px, transparent 11px),
+    radial-gradient(circle at 90% 75%, rgba(255,255,255,0.4) 10px, transparent 11px),
+    radial-gradient(circle at 90% 85%, rgba(255,255,255,0.4) 10px, transparent 11px);
+  z-index: 10;
+}
+
 /* ======================================
    Upload Manager Column Width FIX
 ====================================== */
