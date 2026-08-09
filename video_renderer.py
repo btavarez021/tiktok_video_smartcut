@@ -890,7 +890,7 @@ def build_base_video_filter(fg_scale: float, dynamic_zoom: bool = False) -> str:
             f"[0:v]scale=1080:-2,setsar=1,boxblur=30:1[bg];"
             f"[0:v]scale=iw*{fg_scale}:ih*{fg_scale},setsar=1[fg];"
             f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2,"
-            f"zoompan=z='1.0+(t/4)*0.1':x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':d=9999:fps=30:s=1080x1920[v1]"
+            f"zoompan=z='min(pzoom+0.0015,1.15)':x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':d=9999:fps=30:s=1080x1920[v1]"
         )
     else:
         return (
