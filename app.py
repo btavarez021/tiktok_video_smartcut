@@ -967,6 +967,7 @@ def route_fgscale_route():
     session = sanitize_session(data.get("session", "default"))
     mode = data.get("fgscale_mode", "manual")
     fg = data.get("fgscale", None)
+    auto_zoom = data.get("auto_zoom", False)
 
     # convert fg to float if possible
     if fg is not None:
@@ -975,7 +976,7 @@ def route_fgscale_route():
         except:
             return jsonify({"status": "error", "error": "Invalid fgscale value"})
 
-    return jsonify(api_fgscale(session, mode, fg))
+    return jsonify(api_fgscale(session, mode, fg, auto_zoom))
 
 
 # ============================================================================

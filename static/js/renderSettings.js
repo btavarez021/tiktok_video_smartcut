@@ -709,27 +709,31 @@ async function saveFgScale({ silent = false } = {}) {
     const autoEl = document.getElementById("autoFgScale");
     const scaleEl = document.getElementById("fgScale");
     const statusEl = document.getElementById("fgStatus");
+    const dynamicZoomEl = document.getElementById("dynamicZoom");
 
     if (!autoEl || !scaleEl || !statusEl) return;
 
     const auto = autoEl.checked;
     const scale = parseFloat(scaleEl.value || "1.0");
+    const autoZoom = dynamicZoomEl ? dynamicZoomEl.checked : false;
 
     try {
         const session = encodeURIComponent(getActiveSession());
         const data = await getConfigCached();
         const cfg = data.config || {};
 
-        cfg.foreground_scale = {
-            auto,
-            scale
-        };
+        cfg.render = cfg.render || {};
+        cfg.render.fgscale_mode = auto ? "auto" : "manual";
+        cfg.render.fgscale = scale;
+        cfg.render.auto_zoom = autoZoom;
 
-        await jsonFetch("/api/save_config", {
+        await jsonFetch("/api/fgscale", {
             method: "POST",
             body: JSON.stringify({
                 session: getActiveSession(),
-                config: cfg
+                fgscale_mode: auto ? "auto" : "manual",
+                fgscale: scale,
+                auto_zoom: autoZoom
             })
         });
 
@@ -803,10 +807,19 @@ function initFgScaleUI() {
 function syncFgScaleUI() {
       const autoEl = document.getElementById("autoFgScale");
       const manualContainer = document.getElementById("manualFgScaleContainer");
+      const dynamicZoomEl = document.getElementById("dynamicZoom");
 
       if (!autoEl || !manualContainer) return;
 
       manualContainer.style.display = autoEl.checked ? "none" : "block";
+
+      getConfigCached().then(data => {
+          const cfg = data.config || {};
+          const r = cfg.render || {};
+          if (dynamicZoomEl) {
+              dynamicZoomEl.checked = r.auto_zoom || false;
+          }
+      });
   }
 
 function syncMusicUIState() {

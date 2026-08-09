@@ -7767,13 +7767,14 @@ def api_set_layout(session: str, mode: str) -> Dict[str, Any]:
     return {"status": "ok", "layout_mode": mode}
 
 
-def api_fgscale(session: str, fgscale_mode: str, fgscale: float | None) -> Dict[str, Any]:
+def api_fgscale(session: str, fgscale_mode: str, fgscale: float | None, auto_zoom: bool = False) -> Dict[str, Any]:
     session = sanitize_session(session)
     cfg = _load_config(session)
 
     r = cfg.setdefault("render", {})
     r["fgscale_mode"] = fgscale_mode
     r["fgscale"] = fgscale
+    r["auto_zoom"] = auto_zoom
 
     save_config(session, cfg)
 
