@@ -872,7 +872,7 @@ def compute_auto_zoom(video_path: str) -> float:
     zoom = min(max(zoom, 1.05), 1.20)
     return zoom
     
-def build_base_video_filter(fg_scale: float) -> str:
+def build_base_video_filter(fg_scale: float, dynamic_zoom: bool = False) -> str:
     """
     Build the base vertical video filter.
 
@@ -885,11 +885,19 @@ def build_base_video_filter(fg_scale: float) -> str:
 
     fg_scale = min(max(float(fg_scale), 1.0), 1.25)
 
-    return (
-        f"[0:v]scale=1080:-2,setsar=1,boxblur=30:1[bg];"
-        f"[0:v]scale=iw*{fg_scale}:ih*{fg_scale},setsar=1[fg];"
-        f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[v1]"
-    )
+    if dynamic_zoom:
+        return (
+            f"[0:v]scale=1080:-2,setsar=1,boxblur=30:1[bg];"
+            f"[0:v]scale=iw*{fg_scale}:ih*{fg_scale},setsar=1[fg];"
+            f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2,"
+            f"zoompan=z='1.0+(t/4)*0.1':x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':d=9999:fps=30:s=1080x1920[v1]"
+        )
+    else:
+        return (
+            f"[0:v]scale=1080:-2,setsar=1,boxblur=30:1[bg];"
+            f"[0:v]scale=iw*{fg_scale}:ih*{fg_scale},setsar=1[fg];"
+            f"[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[v1]"
+        )
     
 
 def get_transition_settings(cfg: Dict[str, Any]) -> Dict[str, Any]:
@@ -1227,7 +1235,8 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
 
             render_cfg = cfg.get("render", {})
             fg_scale = float(render_cfg.get("fgscale", 1.10))
-            vf = build_base_video_filter(fg_scale)
+            auto_zoom = render_cfg.get("auto_zoom", False)
+            vf = build_base_video_filter(fg_scale, dynamic_zoom=auto_zoom)
 
             is_last = clip.get("is_last", False)
 
