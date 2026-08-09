@@ -2645,26 +2645,21 @@ def api_generate_hooks(session: str, intent: str | None = None):
             - Prefer visible details like:
             movement, lighting, textures, layout, furnishings, scale, distance, and pacing.
 
-            VISIBLE SUBJECT ANCHOR RULE:
+            VIRAL HOOK FRAMING RULE:
+            - Do NOT write documentary-style object descriptions (e.g., "this indoor hotel gym with panoramic windows").
+            - The viewer CAN SEE the gym and windows. The hook should provide the context, emotion, or value.
+            - Focus on relatable experiences, bold claims, curiosity, or the "hidden secret" aspect if applicable.
+            - Keep it conversational. Sound like a human talking to their friend, not a brochure.
+            - Avoid stiff words like "tranquil", "serene", "panoramic", "sanctuary". Use natural words like "insane", "unreal", "retreat", "peaceful", "next level".
 
-            - Do not remove the main visible subject completely.
-            - At least some hooks should reference visible anchors from the reel
-            (the actual objects, furnishings, or setting details that are visible).
-            - Avoid replacing the actual scene with vague words like:
-            "space", "moment", "energy", "atmosphere", "journey"
-            unless paired with a visible detail.
-            - Best hooks blend context mood with visible reality.
-
-            BAD:
-            "How this space transforms every step you take"
-
-            BETTER:
-            "How this one empty room changes the whole feel of the stay"
+            BAD: "Large panoramic windows frame this serene indoor hotel gym."
+            GOOD: "I did not expect the hotel gym to have views like this."
+            GOOD: "Working out hits different when this is your view."
+            GOOD: "Why does nobody talk about the gym at this hotel?"
 
             OBSERVATIONAL HOOK QUALITY RULE:
-            - Avoid weak observational starters like "notice how" or "watch how" unless they include a clear curiosity gap
-            - Prefer hooks that introduce a question, contrast, or something to figure out
-            - When possible, turn passive observations into active curiosity (e.g., "why", "what’s different", "what’s happening")
+            - Avoid weak observational starters like "notice how" or "watch how".
+            - Do not just describe what the camera is pointing at. Provide a *reason* why the viewer should keep watching.
             
             INFERENCE SAFETY RULE:
             - do NOT infer psychology, intent, dominance, symbolism, exclusivity, or hidden meaning unless clearly supported by the first clip
