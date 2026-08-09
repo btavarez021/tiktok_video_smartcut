@@ -6611,127 +6611,30 @@ def api_generate_variants(
         caption_mode_guidance = """
             CAPTION MODE BEHAVIOR:
 
-            - captions should feel like creator narration or creator framing,
-            not scientific or documentary labels
-
-            - avoid simple subject-action descriptions like:
-            "Tiger walks through enclosure"
-            "Lion stands on grass"
-
-            - each caption should contain at least one of:
-            atmosphere, perspective, intrigue,
-            creator reaction, mood, vibe,
-            or experiential framing
-
-            CONTEXT FRAMING PRIORITY:
-
-            - captions should remain visually anchored to the clip,
-            even when emotionally reframed through the selected context
-
-            - captions should balance the selected context with visible reel details
-
-            - do NOT describe clips like wildlife documentation
-            unless the selected context is actually wildlife/nature
-
-            - the selected context should shape:
-            - what feels important
-            - how the moment is framed
-            - the emotional angle
-            - the creator perspective
-
-            - focus on EXPERIENCE over classification
-
-            BAD:
-            "Tiger walks through enclosure"
-
-            BETTER FOR HOTEL:
-            "Watching tigers this close changes the whole atmosphere"
-
-            BETTER FOR ADVENTURE:
-            "The deeper this tiger moves, the wilder it feels"
+            - captions should feel like authentic TikTok/Reels creator narration.
+            - DO NOT write literal, robotic descriptions of objects (e.g. "gray lounge seating", "fitness room filled with windows").
+            - NEVER sound like an image captioner or a documentary.
+            - Avoid stiff phrases like "moving through", "finding this", "watching the", "ending the evening outdoors on this".
 
             EXPERIENCE CENTERING RULE:
+            - Write how the moment FEELS, not just what it IS.
+            - Speak directly to the viewer or from the creator's POV in a highly relatable way.
+            - A cocktail isn't "a freshly garnished cocktail at the main bar", it's "the drinks here are dangerously good" or "exactly what I needed after the flight".
+            - A gym isn't "a peaceful fitness room filled with windows", it's "the kind of gym that actually makes you want to work out".
 
-            - captions should primarily describe the VIEWER or CREATOR EXPERIENCE
-            not the subject itself
+            BAD (Literal):
+            "Sipping a freshly garnished cocktail at the main bar."
+            "Unwinding across the outdoor sectional on the rooftop patio."
+            "Moving through the peaceful fitness room filled with windows."
 
-            - subjects (animals, food, drinks, rooms, scenery, people)
-            should SUPPORT the experience,
-            not become the entire caption focus
-
-            - avoid repeatedly starting captions with:
-            "The tiger..."
-            "The rhino..."
-            "The gorilla..."
-            "The lion..."
-
-            - prioritize:
-            how the place feels,
-            how the moment changes the atmosphere,
-            how the experience evolves,
-            or what the viewer is experiencing
-
-            BAD:
-            "The gorilla’s chill moment hits different"
-
-            BETTER:
-            "Every corner here changes the atmosphere"
-
-            BAD:
-            "Lion owns the grass like a king"
-
-            BETTER:
-            "This whole stay keeps feeling more unreal"
+            GOOD (Creator-style):
+            "The drinks alone were worth the trip."
+            "Spent half the night just soaking in this view."
+            "Even the gym somehow felt like a retreat."
 
             VISUAL GROUNDING RULE:
-
-            - Captions should reference real visible qualities from the reel whenever possible.
-            - Prefer visible details like:
-            movement, greenery, pathways, rocks, walls, fencing, enclosure design,
-            proximity, pacing, scale, texture, or animal movement.
-            - Avoid overly abstract cinematic language that could apply to any reel.
-            - The viewer should still recognize the actual footage from the captions.
-            - Context may shape tone, but visible details should anchor each caption.
-
-            VISIBLE SUBJECT ANCHOR RULE:
-
-            - Do not remove the main visible subject completely.
-            - At least some captions should reference visible anchors from the reel:
-            tiger, lion, rhino, gorilla, animals, greenery, enclosure, grass, rocks, wall, path.
-            - Avoid replacing the actual scene with vague words like:
-            "space", "moment", "energy", "atmosphere", "journey"
-            unless paired with a visible detail.
-            - Best captions blend context mood with visible reality.
-
-            BAD:
-            "This space shapes how we move"
-
-            BETTER:
-            "The lion’s slow path shifts the whole rhythm"
-
-            REALITY ANCHOR RULE:
-
-            For every caption after the hook:
-
-            - Include at least one visible noun from the clip.
-            - Prefer:
-            tiger, lion, rhino, gorilla,
-            grass, rocks, wall, path,
-            greenery, posts, fence, enclosure.
-
-            - Avoid replacing visible objects with metaphors.
-
-            BAD:
-            "Grass whispers under the lion's stride"
-
-            GOOD:
-            "The lion moves slowly through the grass and rocks"
-
-            BAD:
-            "Green walls hold silent watchers"
-
-            GOOD:
-            "The gorilla sits near the wall surrounded by greenery"
+            - Captions must still relate to the clip, but DO NOT list the nouns you see.
+            - Do not force the words "seating area", "window", "cherry", "sectional" just because they are visible. Frame the *vibe*.
         """
 
         comparison_safety_guidance = """
