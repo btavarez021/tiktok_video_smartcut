@@ -358,9 +358,10 @@ def build_caption_filter(
     for i, chunk in enumerate(chunks):
         start_time = i * time_per_chunk
         
-        # The last chunk stays on screen until the end of the clip
+        # The last chunk stays on screen until slightly after the speaking ends
+        # to ensure it clears before the next clip or transition begins.
         if i == len(chunks) - 1:
-            end_time = 9999.0
+            end_time = total_time + 0.3
         else:
             end_time = (i + 1) * time_per_chunk
         
