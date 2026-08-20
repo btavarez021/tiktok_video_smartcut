@@ -1309,8 +1309,18 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         dynamic_max_chars = int(max_chars * 1.15)
                         
                     words = clean_text.split()
-                    chunk_size = 3
-                    chunks = [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
+                    
+                    if overlay_style in ["punchy", "influencer", "tiktok"]:
+                        chunk_size = 3
+                    else:
+                        chunk_size = 999  # show full block for cinematic, travel_blog, etc.
+                        
+                    # If we are doing full blocks, we should wrap the text so it fits on screen
+                    if chunk_size == 999:
+                        wrapped = _wrap_caption(clean_text, max_chars_per_line=dynamic_max_chars)
+                        chunks = [wrapped]
+                    else:
+                        chunks = [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
                     
                     vf += build_caption_filter(
                         input_label="v1",
@@ -1352,8 +1362,17 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         dynamic_max_chars = int(max_chars * 1.15)
                         
                     words = clean_text.split()
-                    chunk_size = 3
-                    chunks = [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
+                    
+                    if overlay_style in ["punchy", "influencer", "tiktok"]:
+                        chunk_size = 3
+                    else:
+                        chunk_size = 999
+                        
+                    if chunk_size == 999:
+                        wrapped = _wrap_caption(clean_text, max_chars_per_line=dynamic_max_chars)
+                        chunks = [wrapped]
+                    else:
+                        chunks = [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
 
                     vf += build_caption_filter(
                         input_label="v1",
