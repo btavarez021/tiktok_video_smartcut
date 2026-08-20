@@ -333,7 +333,9 @@ def escape_drawtext(text: str) -> str:
 
 def build_caption_filter(
     input_label: str,
-    text_safe: str,
+    chunks: list,
+    tts_dur: float,
+    clip_dur: float,
     fontfile: str,
     fontsize: int,
     line_spacing: int,
@@ -343,17 +345,45 @@ def build_caption_filter(
     output_label: str = "outv",
     enable: str | None = None,
 ) -> str:
-    enable_part = f":enable='{enable}'" if enable else ""
+    if not chunks:
+        return f";[{input_label}]copy[{output_label}]"
 
-    return (
-        f";[{input_label}]drawtext=text='{text_safe}':"
-        f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
-        f"line_spacing={line_spacing}:shadowcolor=0x000000:shadowx=3:shadowy=3:"
-        f"text_shaping=1:box=1:boxcolor=0x000000{box_opacity}:boxborderw={boxborderw}:"
-        f"x=(w-text_w)/2:y={y_expr}:fix_bounds=1:borderw=0:bordercolor=0x000000"
-        f"{enable_part}"
-        f"[{output_label}]"
-    )
+    # Calculate time per chunk based on TTS duration
+    total_time = tts_dur if tts_dur > 0.5 else min(clip_dur * 0.8, 3.0)
+    time_per_chunk = total_time / len(chunks)
+
+    filter_chain = []
+    current_input = input_label
+
+    for i, chunk in enumerate(chunks):
+        start_time = i * time_per_chunk
+        
+        # The last chunk stays on screen until the end of the clip
+        if i == len(chunks) - 1:
+            end_time = 9999.0
+        else:
+            end_time = (i + 1) * time_per_chunk
+        
+        chunk_enable = f"between(t,{start_time},{end_time})"
+        if enable:
+            chunk_enable = f"({enable})*({chunk_enable})"
+
+        next_label = output_label if i == len(chunks) - 1 else f"k_{input_label}_{i}"
+        chunk_safe = escape_drawtext(chunk)
+        
+        drawtext = (
+            f";[{current_input}]drawtext=text='{chunk_safe}':"
+            f"fontfile={fontfile}:fontcolor=white:fontsize={fontsize}:"
+            f"line_spacing={line_spacing}:shadowcolor=0x000000:shadowx=3:shadowy=3:"
+            f"text_shaping=1:box=1:boxcolor=0x000000{box_opacity}:boxborderw={boxborderw}:"
+            f"x=(w-text_w)/2:y={y_expr}:fix_bounds=1:borderw=0:bordercolor=0x000000:"
+            f"enable='{chunk_enable}'"
+            f"[{next_label}]"
+        )
+        filter_chain.append(drawtext)
+        current_input = next_label
+
+    return "".join(filter_chain)
 
 def build_cta_filter(
     input_label: str,
@@ -1277,11 +1307,15 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         dynamic_fontsize = int(fontsize * 0.85)
                         dynamic_max_chars = int(max_chars * 1.15)
                         
-                    wrapped = _wrap_caption(clean_text, max_chars_per_line=dynamic_max_chars)
-                    text_safe = escape_drawtext(wrapped)
+                    words = clean_text.split()
+                    chunk_size = 3
+                    chunks = [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
+                    
                     vf += build_caption_filter(
                         input_label="v1",
-                        text_safe=text_safe,
+                        chunks=chunks,
+                        tts_dur=tts_dur,
+                        clip_dur=float(clip["duration"]),
                         fontfile=fontfile,
                         fontsize=dynamic_fontsize,
                         line_spacing=line_spacing,
@@ -1316,13 +1350,15 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         dynamic_fontsize = int(fontsize * 0.85)
                         dynamic_max_chars = int(max_chars * 1.15)
                         
-                    wrapped = _wrap_caption(clean_text, max_chars_per_line=dynamic_max_chars)
-                    text_safe = escape_drawtext(wrapped)
-
+                    words = clean_text.split()
+                    chunk_size = 3
+                    chunks = [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
 
                     vf += build_caption_filter(
                         input_label="v1",
-                        text_safe=text_safe,
+                        chunks=chunks,
+                        tts_dur=tts_dur,
+                        clip_dur=float(clip["duration"]),
                         fontfile=fontfile,
                         fontsize=dynamic_fontsize,
                         line_spacing=line_spacing,
