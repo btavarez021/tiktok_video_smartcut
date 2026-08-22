@@ -7016,21 +7016,31 @@ def api_generate_variants(
                     blocks = blocks[:expected_blocks]
                     blocks[0] = selected_hook
 
-                # Case 3: incomplete / bad output -> skip it
+                # Case 3: incomplete / bad output -> pad it
                 else:
                     logger.warning(
-                        f"[VARIANTS] Skipping incomplete variant {idx}: "
+                        f"[VARIANTS] Padding incomplete variant {idx}: "
                         f"expected {expected_blocks} blocks with locked hook, got {len(blocks)}"
                     )
-                    continue
+                    # Keep hook locked
+                    if len(blocks) == 0:
+                        blocks.append(selected_hook)
+                    else:
+                        blocks[0] = selected_hook
+                    
+                    # Pad remaining blocks with original captions
+                    while len(blocks) < expected_blocks:
+                        blocks.append(captions[len(blocks)])
 
             else:
-                if len(blocks) != expected_blocks:
+                if len(blocks) < expected_blocks:
                     logger.warning(
-                        f"[VARIANTS] Skipping incomplete variant {idx}: "
+                        f"[VARIANTS] Padding incomplete variant {idx}: "
                         f"expected {expected_blocks} blocks, got {len(blocks)}"
                     )
-                    continue
+                    # Pad missing blocks with original captions
+                    while len(blocks) < expected_blocks:
+                        blocks.append(captions[len(blocks)])
 
             normalized = "\n\n".join(blocks)
 
