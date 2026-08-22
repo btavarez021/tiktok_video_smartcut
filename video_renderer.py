@@ -1310,10 +1310,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         
                     words = clean_text.split()
                     
-                    if overlay_style in ["punchy", "influencer", "tiktok"]:
-                        chunk_size = 3
-                    else:
+                    if overlay_style in ["cinematic", "descriptive", "travel_blog"]:
                         chunk_size = 999  # show full block for cinematic, travel_blog, etc.
+                    else:
+                        chunk_size = 3    # karaoke for punchy, influencer, ai_recommended
                         
                     # If we are doing full blocks, we should wrap the text so it fits on screen
                     if chunk_size == 999:
@@ -1363,10 +1363,10 @@ def edit_video(session_id: str, output_file: str = "output_tiktok_final.mp4", op
                         
                     words = clean_text.split()
                     
-                    if overlay_style in ["punchy", "influencer", "tiktok"]:
-                        chunk_size = 3
-                    else:
+                    if overlay_style in ["cinematic", "descriptive", "travel_blog"]:
                         chunk_size = 999
+                    else:
+                        chunk_size = 3
                         
                     if chunk_size == 999:
                         wrapped = _wrap_caption(clean_text, max_chars_per_line=dynamic_max_chars)
