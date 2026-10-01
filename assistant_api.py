@@ -3692,7 +3692,6 @@ If a meal or drink is visible, describe the experience or action (e.g., "Bartend
         resp = client.chat.completions.create(
             model=TEXT_MODEL,
             messages=messages,
-            max_tokens=20,
             temperature=0.2
         )
 
