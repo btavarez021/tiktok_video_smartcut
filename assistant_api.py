@@ -1513,6 +1513,12 @@ def normalize_label(label: str) -> str:
         return ""
 
     label = strip_emojis(label)
+    
+    # Convert filenames / snake_case / camelCase into normal words
+    label = label.replace("_", " ").replace("-", " ")
+    import re
+    label = re.sub(r"([a-z])([A-Z])", r"\1 \2", label)
+    
     label = label.strip()
 
     bad_prefixes = ("e.g", "example", "ex:")
