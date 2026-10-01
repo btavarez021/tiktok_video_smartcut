@@ -3643,7 +3643,7 @@ def repair_label(filename: str, label: str, session: str) -> str:
     messages = [
         {
             "role": "system",
-            "content": "You generate short, broad visual labels for video clips."
+            "content": "You generate descriptive 3-6 word visual labels for video clips."
         },
         {
             "role": "user",
@@ -3651,18 +3651,20 @@ def repair_label(filename: str, label: str, session: str) -> str:
                 {
                     "type": "text",
                     "text": f"""
-Fix or create a short label for this video.
+Fix or create a short descriptive label for this video.
 
 Current label: "{label or '(empty)'}"
 Existing clip analysis: "{existing_desc or '(none)'}"
 
 Rules:
-- Max 8 words
+- Write a descriptive phrase (3-8 words), NOT a single word.
+- NEVER return vague single adjectives like "Relax", "Modern", "Beautiful".
+- Describe WHAT is actually in the scene (e.g. "Modern hotel lobby lounge", "Relaxing rooftop infinity pool").
 - No emojis
 - No hashtags
 - Do not use hotel name unless visible
 - Describe the MAIN scene across these frames, not a tiny detail
-- Prefer the broader scene or experience rather than listing specific objects
+- Prefer the broader scene or experience rather than listing specific small objects
 
 FOOD SCENE RULE:
 If a meal is visible, describe the dining experience rather than listing ingredients.
