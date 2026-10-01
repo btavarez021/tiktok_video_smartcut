@@ -3702,14 +3702,25 @@ If multiple objects are visible, choose the main activity or environment rather 
         
         # If AI returns empty, fallback to existing label or filename
         if not fixed:
-            return normalize_label(label) or normalize_label(filename.split(".")[0])
+            if label:
+                return normalize_label(label)
+            # Make filename human-readable before normalizing
+            clean_name = filename.split(".")[0].replace("_", " ").replace("-", " ")
+            import re
+            clean_name = re.sub(r"([a-z])([A-Z])", r"\1 \2", clean_name)
+            return normalize_label(clean_name)
             
         return normalize_label(fixed)
 
     except Exception as e:
         logger.error(f"[REPAIR_LABEL] Vision failed: {e}")
         # Final fallback
-        return normalize_label(label) or normalize_label(filename.split(".")[0])
+        if label:
+            return normalize_label(label)
+        clean_name = filename.split(".")[0].replace("_", " ").replace("-", " ")
+        import re
+        clean_name = re.sub(r"([a-z])([A-Z])", r"\1 \2", clean_name)
+        return normalize_label(clean_name)
 
 def list_sessions():
     response = s3.list_objects_v2(
