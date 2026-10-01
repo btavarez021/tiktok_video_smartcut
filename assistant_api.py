@@ -3650,31 +3650,23 @@ def repair_label(filename: str, label: str, session: str) -> str:
         {
             "type": "text",
             "text": f"""
-Fix or create a short descriptive label for this video.
+Generate a short descriptive visual label for this video based strictly on the images provided.
 
-Filename: "{filename}"
 Current label: "{label or '(empty)'}"
 Existing clip analysis: "{existing_desc or '(none)'}"
 
 Rules:
 - Write a descriptive phrase (3-8 words), NOT a single word.
+- Describe WHAT is actually visible in the scene (e.g. "Modern hotel lobby lounge", "Relaxing rooftop infinity pool", "Bartender mixing a dark cocktail").
+- DO NOT just repeat the current label or filename. You must describe the visual contents in your own words.
 - NEVER return vague single adjectives like "Relax", "Modern", "Beautiful".
-- Describe WHAT is actually in the scene (e.g. "Modern hotel lobby lounge", "Relaxing rooftop infinity pool").
-- No emojis
-- No hashtags
-- Do not use hotel name unless visible
-- Describe the MAIN scene across these frames, not a tiny detail
-- Prefer the broader scene or experience rather than listing specific small objects
+- No emojis.
+- No hashtags.
+- Do not use hotel name unless clearly visible in the image.
+- Prefer the broader scene or experience rather than listing specific small objects.
 
-FOOD SCENE RULE:
-If a meal is visible, describe the dining experience rather than listing ingredients.
-Example: "elegant cruise dinner" instead of "asparagus and potatoes".
-
-SCENE PRIORITY RULE:
-If multiple objects are visible, choose the main activity or environment rather than a small item.
-
-- Use the existing clip analysis and filename if it provides useful context
-- Label should help captions and storytelling
+FOOD/DRINK SCENE RULE:
+If a meal or drink is visible, describe the experience or action (e.g., "Bartender making a cocktail", "Elegant rooftop dinner").
 """
         }
     ]
