@@ -3634,25 +3634,19 @@ def get_clip_preview_base64(session: str, filename: str) -> str:
 def repair_label(filename: str, label: str, session: str) -> str:
     existing_desc = load_analysis_results_session(session).get(filename, "")
 
+    images_b64 = []
     try:
         images_b64 = get_clip_preview_frames_base64(session, filename)
     except Exception as e:
-        logger.error(f"[REPAIR_LABEL] No preview frames: {e}")
-        return normalize_label(label)
+        logger.error(f"[REPAIR_LABEL] No preview frames for {filename}: {e}")
 
-    messages = [
+    content_blocks = [
         {
-            "role": "system",
-            "content": "You generate descriptive 3-6 word visual labels for video clips."
-        },
-        {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": f"""
+            "type": "text",
+            "text": f"""
 Fix or create a short descriptive label for this video.
 
+Filename: "{filename}"
 Current label: "{label or '(empty)'}"
 Existing clip analysis: "{existing_desc or '(none)'}"
 
@@ -3673,22 +3667,26 @@ Example: "elegant cruise dinner" instead of "asparagus and potatoes".
 SCENE PRIORITY RULE:
 If multiple objects are visible, choose the main activity or environment rather than a small item.
 
-- Use the existing clip analysis if it provides useful context
+- Use the existing clip analysis and filename if it provides useful context
 - Label should help captions and storytelling
-
-
 """
-                },
-                *[
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": img
-                        }
-                    }
-                    for img in images_b64
-                ]
-            ]
+        }
+    ]
+
+    for img in images_b64:
+        content_blocks.append({
+            "type": "image_url",
+            "image_url": {"url": img}
+        })
+
+    messages = [
+        {
+            "role": "system",
+            "content": "You generate descriptive 3-6 word visual labels for video clips."
+        },
+        {
+            "role": "user",
+            "content": content_blocks
         }
     ]
 
@@ -3701,11 +3699,17 @@ If multiple objects are visible, choose the main activity or environment rather 
         )
 
         fixed = (resp.choices[0].message.content or "").strip()
+        
+        # If AI returns empty, fallback to existing label or filename
+        if not fixed:
+            return normalize_label(label) or normalize_label(filename.split(".")[0])
+            
         return normalize_label(fixed)
 
     except Exception as e:
         logger.error(f"[REPAIR_LABEL] Vision failed: {e}")
-        return normalize_label(label)
+        # Final fallback
+        return normalize_label(label) or normalize_label(filename.split(".")[0])
 
 def list_sessions():
     response = s3.list_objects_v2(
